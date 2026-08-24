@@ -354,10 +354,38 @@
   }
 
   function findSaveDraftButton(root) {
-    return [...root.querySelectorAll('[role="button"],button,div')].filter(visible).find(el => {
-      const txt = compactText(el), aria = compactText(el.getAttribute('aria-label') || '');
-      return txt === '存草稿' || aria === '存草稿';
-    }) || null;
+    // NetEase renders the visible label as <span class="nui-btn-text">存草稿</span>
+    // inside a generated <div role="button" id="_mail_button_...">.  The generated
+    // id is unstable, and in some Compose layouts the top toolbar is outside the
+    // content root returned by findComposeRoot().  Resolve the semantic leaf first
+    // and climb to the actual clickable button; search the current Compose scope
+    // first, then fall back to the document.
+    const scopes = [];
+    if (root?.querySelectorAll) scopes.push(root);
+    if (root !== document) scopes.push(document);
+
+    for (const scope of scopes) {
+      // Strongest evidence: NetEase's own button text span.
+      const label = [...scope.querySelectorAll('span.nui-btn-text, [role="button"] span, button span')]
+        .filter(visible)
+        .find(el => compactText(el) === '存草稿');
+      if (label) {
+        const button = label.closest('[role="button"],button');
+        if (button && visible(button)) return button;
+      }
+
+      // Accessibility/text fallback for variants that expose the label on the button.
+      const button = [...scope.querySelectorAll('[role="button"],button')]
+        .filter(visible)
+        .find(el => {
+          const aria = compactText(el.getAttribute('aria-label') || '');
+          const title = compactText(el.getAttribute('title') || '');
+          const ownLabel = [...el.querySelectorAll('span')].some(span => visible(span) && compactText(span) === '存草稿');
+          return aria === '存草稿' || title === '存草稿' || ownLabel || compactText(el) === '存草稿';
+        });
+      if (button) return button;
+    }
+    return null;
   }
 
   function isDraftRoute() {
