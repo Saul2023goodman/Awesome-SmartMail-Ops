@@ -8,7 +8,6 @@
     { key: 'body', label: '正文', aliases: ['正文','邮件正文','内容','邮件内容','正文内容','body','content','message','text','emailbody'] },
     { key: 'attachments', label: '附件', aliases: ['附件','附件名','附件名称','附件路径','附件文件','附件列表','attachment','attachments','file','files','filename','filenames','filepath'] },
     { key: 'scheduleAt', label: '定时时间', aliases: ['定时时间','定时发送时间','发送时间','计划发送时间','预约发送时间','schedule','scheduleat','scheduledat','sendat','sendtime','scheduledtime'] },
-    { key: 'scheduleEnabled', label: '是否定时', aliases: ['是否定时','定时发送','启用定时','scheduleenabled','scheduled','timer'] },
     { key: 'tags', label: '任务分类', aliases: ['标签','邮件标签','联系人标签','任务标签','批次','分组','类别','分类','tag','tags','label','labels','group','batch','category'] }
   ];
 
@@ -411,15 +410,7 @@
     return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
   }
 
-  function parseBoolean(value) {
-    if (typeof value === 'boolean') return value;
-    if (typeof value === 'number') return value !== 0;
-    const s = normalizeHeader(value);
-    if (!s) return null;
-    if (['1','true','yes','y','是','启用','开启','定时'].includes(s)) return true;
-    if (['0','false','no','n','否','关闭','不定时'].includes(s)) return false;
-    return null;
-  }
+
 
   function splitAttachments(value) {
     return String(value ?? '')
@@ -550,7 +541,6 @@
     parseFile,
     parseDateValue,
     formatLocalDateTime,
-    parseBoolean,
     splitAttachments,
     normalizeFileKey,
     relaxedFileName,

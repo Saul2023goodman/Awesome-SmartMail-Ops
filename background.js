@@ -9,20 +9,6 @@ function runMain(tabId, func, args = []) {
   }).then(results => results?.[0]?.result || { ok: false, reason: 'no-execution-result' });
 }
 
-function openFolder(tabId, fid) {
-  return runMain(tabId, (fidArg) => {
-    try {
-      if (window.$?.Nav?.entry) {
-        window.$.Nav.entry('MboxInterface', { fid: fidArg });
-        return { ok: true, method: '$.Nav.entry', fid: fidArg };
-      }
-      return { ok: false, reason: '$.Nav.entry unavailable' };
-    } catch (error) {
-      return { ok: false, reason: error?.message || String(error) };
-    }
-  }, [fid]);
-}
-
 function readMailbox(tabId, fid, requested) {
   const raw = String(requested ?? '200').trim().toLowerCase();
   const requestedLimit = raw === 'all' || raw === '-1' ? -1 : Number(raw || 200);
@@ -231,16 +217,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return { ok: false, reason: error?.message || String(error) };
       }
     }).then(sendResponse).catch(error => sendResponse({ ok: false, reason: error?.message || String(error) }));
-    return true;
-  }
-
-  if (message?.type === 'NMDA_OPEN_SENT') {
-    openFolder(tabId, 3).then(sendResponse).catch(error => sendResponse({ ok: false, reason: error?.message || String(error) }));
-    return true;
-  }
-
-  if (message?.type === 'NMDA_OPEN_DRAFTS') {
-    openFolder(tabId, 2).then(sendResponse).catch(error => sendResponse({ ok: false, reason: error?.message || String(error) }));
     return true;
   }
 

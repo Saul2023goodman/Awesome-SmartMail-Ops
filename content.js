@@ -5,7 +5,6 @@
 
   const APP = 'NetEase Mail Draft Assistant';
   const STORAGE_KEY = 'nmda.form.v2';
-  const BATCH_FILTER_STORAGE_KEY = 'nmda.batch.filter.v1';
   const DEFAULT_TIMEOUT = 10000;
   const Importer = globalThis.NMDAImporter;
   const Contacts = globalThis.NMDAContacts;
@@ -396,7 +395,6 @@
           <div class="nmda-head-actions">
             <span class="nmda-safe-badge">只建草稿 · 不自动发送</span>
             <button class="nmda-icon-btn" id="nmda-expand" type="button" title="全屏 / 还原">⛶</button>
-            <button class="nmda-icon-btn" id="nmda-collapse" type="button" title="收起工作台">—</button>
             <button class="nmda-icon-btn nmda-close" id="nmda-close" type="button" title="关闭">×</button>
           </div>
         </header>
@@ -408,9 +406,9 @@
           <button class="nmda-tab" data-tab="contacts" type="button"><span class="nmda-tab-icon">◎</span><span><strong>联系人</strong><small>分类与历史</small></span></button>
           <div class="nmda-nav-foot">
             <div class="nmda-nav-foot-title">当前原则</div>
-            <div>逐封创建新 Compose</div>
-            <div>附件先预检再执行</div>
-            <div>失败优先停下而非串稿</div>
+            <div>筛选只负责找任务</div>
+            <div>勾选是唯一执行依据</div>
+            <div>任何执行错误立即停止</div>
           </div>
         </nav>
 
@@ -433,13 +431,12 @@
                   <label class="nmda-field"><input id="nmda-files" type="file" multiple><span class="nmda-hint">文件仅保存在当前页面内存；刷新后需重新选择</span></label>
                 </div>
                 <div class="nmda-card">
-                  <div class="nmda-card-head"><div><div class="nmda-card-kicker">SCHEDULE</div><div class="nmda-card-title">定时设置</div></div></div>
-                  <div class="nmda-row"><label><input id="nmda-schedule-enabled" type="checkbox"> 设置定时发送</label></div>
-                  <label class="nmda-field"><span class="nmda-label">定时时间</span><input id="nmda-schedule-at" type="datetime-local"></label>
-                  <div class="nmda-row"><label><input id="nmda-auto-save" type="checkbox"> 填入后自动存草稿</label></div>
+                  <div class="nmda-card-head"><div><div class="nmda-card-kicker">SCHEDULE</div><div class="nmda-card-title">定时时间</div></div></div>
+                  <label class="nmda-field"><span class="nmda-label">可选</span><input id="nmda-schedule-at" type="datetime-local"><span class="nmda-hint">留空即普通草稿；填写时间则自动设置定时发送。</span></label>
                 </div>
                 <div class="nmda-card nmda-action-card">
-                  <div class="nmda-actions"><button class="nmda-btn" id="nmda-open-compose" type="button">只打开写信</button><button class="nmda-btn nmda-btn-primary" id="nmda-fill" type="button">填入草稿</button></div>
+                  <div class="nmda-actions"><button class="nmda-btn nmda-btn-primary" id="nmda-fill" type="button">创建草稿</button></div>
+                  <div class="nmda-hint">创建后自动保存为草稿，不会自动发送。</div>
                   <div id="nmda-status">准备就绪。</div>
                 </div>
               </aside>
@@ -447,8 +444,8 @@
           </section>
 
           <div class="nmda-page-head" data-page-head="batch" hidden>
-            <div><h2>批量任务</h2><p>从任务表导入，到附件匹配、联系人分类筛选和顺序建草稿。</p></div>
-            <div class="nmda-stage-strip" aria-label="批量流程"><span>1 导入</span><span>2 映射</span><span>3 附件</span><span>4 筛选</span><span>5 执行</span></div>
+            <div><h2>批量任务</h2><p>导入任务表，完成附件预检与分类筛选后，勾选需要的任务并创建草稿。</p></div>
+            <div class="nmda-stage-strip" aria-label="批量流程"><span>1 导入</span><span>2 识别</span><span>3 附件</span><span>4 选择</span><span>5 创建</span></div>
           </div>
           <section class="nmda-tabpane nmda-page" data-pane="batch" hidden>
             <div class="nmda-batch-setup-grid">
@@ -460,21 +457,20 @@
 
               <div class="nmda-card" id="nmda-sheet-card" hidden>
                 <div class="nmda-card-head"><div><div class="nmda-step-index">02</div><div><div class="nmda-card-title">识别与字段映射</div><div class="nmda-card-desc">自动识别，可人工校正</div></div></div></div>
-                <label class="nmda-field"><span class="nmda-label">工作表</span><select id="nmda-sheet-select"></select></label>
-                <div id="nmda-header-info" class="nmda-hint"></div>
-                <div id="nmda-mapping" class="nmda-mapping"></div>
+                <label class="nmda-field" id="nmda-sheet-field"><span class="nmda-label">工作表</span><select id="nmda-sheet-select"></select></label>
+                <div class="nmda-row nmda-wrap"><div id="nmda-header-info" class="nmda-hint nmda-grow-note"></div><button class="nmda-btn nmda-btn-small" id="nmda-toggle-mapping" type="button">校正字段</button></div>
+                <div id="nmda-mapping" class="nmda-mapping" hidden></div>
               </div>
 
               <div class="nmda-card" id="nmda-attachments-card" hidden>
                 <div class="nmda-card-head"><div><div class="nmda-step-index">03</div><div><div class="nmda-card-title">附件中心</div><div class="nmda-card-desc">公共附件 + 专属附件 + 目录匹配</div></div></div></div>
                 <div id="nmda-attachment-summary" class="nmda-summary">导入任务后会统计需要匹配的附件。</div>
-                <div class="nmda-attachment-grid">
-                  <label class="nmda-file-source"><span class="nmda-label">专属附件</span><span class="nmda-hint">一次多选所有文件</span><input id="nmda-attachment-files" type="file" multiple></label>
-                  <label class="nmda-file-source"><span class="nmda-label">附件总目录</span><span class="nmda-hint">支持相对路径</span><input id="nmda-attachment-dir" type="file" webkitdirectory multiple></label>
-                  <label class="nmda-file-source nmda-file-source-shared"><span class="nmda-label">公共附件</span><span class="nmda-hint">每封邮件都添加</span><input id="nmda-shared-files" type="file" multiple></label>
+                <div class="nmda-attachment-grid nmda-attachment-grid-simple">
+                  <div class="nmda-file-source"><span class="nmda-label">任务附件</span><span class="nmda-hint">表格“附件”列会从这里自动匹配；可选文件或整个目录。</span><div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">选择文件<input id="nmda-attachment-files" type="file" multiple hidden></label><label class="nmda-btn nmda-btn-small nmda-file-button">选择目录<input id="nmda-attachment-dir" type="file" webkitdirectory multiple hidden></label></div></div>
+                  <div class="nmda-file-source nmda-file-source-shared"><span class="nmda-label">公共附件</span><span class="nmda-hint">选择后每封任务都会附加。</span><label class="nmda-btn nmda-btn-small nmda-file-button">选择公共附件<input id="nmda-shared-files" type="file" multiple hidden></label></div>
                 </div>
-                <div id="nmda-attachment-drop" class="nmda-attachment-drop">拖入专属附件文件</div>
-                <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-clear-attachments" type="button">清空附件</button><span id="nmda-file-index-info" class="nmda-hint">尚未选择本地附件。</span></div>
+                <div id="nmda-attachment-drop" class="nmda-attachment-drop">也可以把任务附件直接拖到这里</div>
+                <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-clear-attachments" type="button">清空本批附件</button><span id="nmda-file-index-info" class="nmda-hint">尚未选择本地附件。</span></div>
                 <div id="nmda-attachment-resolution" class="nmda-attachment-resolution" hidden>
                   <div class="nmda-card-subtitle">需要确认的附件</div>
                   <div class="nmda-hint">存在缺失或歧义时，在这里指定一次，本批次复用。</div>
@@ -484,46 +480,40 @@
             </div>
 
             <div class="nmda-card nmda-list-card" id="nmda-preview-card" hidden>
-              <div class="nmda-card-head nmda-list-head"><div><div class="nmda-step-index">04</div><div><div class="nmda-card-title">发送列表</div><div class="nmda-card-desc">检索、分类筛选和发送范围在同一张任务表中完成</div></div></div><div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div></div>
+              <div class="nmda-card-head nmda-list-head"><div><div class="nmda-step-index">04</div><div><div class="nmda-card-title">任务列表</div><div class="nmda-card-desc">检索负责找任务，勾选决定真正执行哪些草稿</div></div></div><div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div></div>
               <div class="nmda-search-bar">
                 <label class="nmda-field nmda-search-field"><span class="nmda-label">检索任务</span><input id="nmda-batch-search" type="search" placeholder="编号 / 收件人 / 主题 / 正文 / 分类 / 附件 / 定时时间"></label>
-                <div class="nmda-search-help">检索会即时缩小当前列表，也可直接作为“本次执行范围”。</div>
+                <div class="nmda-search-help">检索只改变当前视图，不会改变已选择任务。</div>
               </div>
               <div class="nmda-filter-bar">
-                <label class="nmda-field"><span class="nmda-label">包含分类</span><input id="nmda-batch-tag-include" type="text" placeholder="已回复;重点;第一批"></label>
-                <label class="nmda-field nmda-compact-field"><span class="nmda-label">匹配方式</span><select id="nmda-batch-tag-mode"><option value="any">包含任一</option><option value="all">同时包含</option></select></label>
+                <label class="nmda-field"><span class="nmda-label">包含分类</span><input id="nmda-batch-tag-include" type="text" placeholder="已回复;重点;第一批"><span class="nmda-hint">填写多个分类时需同时满足</span></label>
                 <label class="nmda-field"><span class="nmda-label">排除分类</span><input id="nmda-batch-tag-exclude" type="text" placeholder="暂停;不再联系"></label>
                 <button class="nmda-btn nmda-btn-small" id="nmda-clear-tag-filter" type="button">清除检索/筛选</button>
               </div>
               <div id="nmda-batch-tag-chips" class="nmda-tag-chips"></div>
               <div class="nmda-bulk-editor">
                 <input id="nmda-bulk-tag-value" type="text" placeholder="批量自定义分类，如 第一批;重点">
-                <button class="nmda-btn nmda-btn-small" id="nmda-bulk-add-tag" type="button">+ 分类</button>
-                <button class="nmda-btn nmda-btn-small" id="nmda-bulk-remove-tag" type="button">− 分类</button>
-                <button class="nmda-btn nmda-btn-small" id="nmda-bulk-enable" type="button">纳入发送</button>
-                <button class="nmda-btn nmda-btn-small" id="nmda-bulk-disable" type="button">排除发送</button>
+                <button class="nmda-btn nmda-btn-small" id="nmda-bulk-add-tag" type="button">添加分类</button>
+                <button class="nmda-btn nmda-btn-small" id="nmda-bulk-remove-tag" type="button">移除分类</button>
+                <button class="nmda-btn nmda-btn-small" id="nmda-bulk-enable" type="button">选择当前结果</button>
+                <button class="nmda-btn nmda-btn-small" id="nmda-bulk-disable" type="button">取消当前结果</button>
+                <button class="nmda-btn nmda-btn-small" id="nmda-clear-selection" type="button">清空选择</button>
               </div>
-              <div class="nmda-table-wrap nmda-batch-table-wrap"><table class="nmda-table nmda-batch-table"><thead><tr><th>发送</th><th>#</th><th>收件人</th><th>分类</th><th>定时时间</th><th>主题</th><th>附件</th><th>任务状态</th></tr></thead><tbody id="nmda-preview-body"></tbody></table></div>
+              <div class="nmda-table-wrap nmda-batch-table-wrap"><table class="nmda-table nmda-batch-table"><thead><tr><th>选择</th><th>#</th><th>收件人</th><th>分类</th><th>定时时间</th><th>主题</th><th>附件</th><th>任务状态</th></tr></thead><tbody id="nmda-preview-body"></tbody></table></div>
             </div>
 
             <div class="nmda-card nmda-run-card" id="nmda-run-card" hidden>
-              <div class="nmda-run-left"><div class="nmda-step-index">05</div><div><div class="nmda-card-title">顺序创建草稿</div><div id="nmda-batch-status" class="nmda-run-status">请先导入并确认预检结果。</div></div></div>
-              <div class="nmda-run-controls">
-                <label class="nmda-continue-toggle"><input id="nmda-continue-on-error" type="checkbox" checked> 单封失败后继续</label>
-                <fieldset class="nmda-run-scope" aria-label="本次执行范围">
-                  <legend>本次执行范围</legend>
-                  <label class="nmda-scope-option"><input type="radio" name="nmda-run-scope" value="enabled" checked><span>全部已纳入任务</span><strong id="nmda-run-scope-all-count">0</strong></label>
-                  <label class="nmda-scope-option"><input type="radio" name="nmda-run-scope" value="filtered"><span>仅当前检索/筛选结果</span><strong id="nmda-run-scope-filtered-count">0</strong></label>
-                </fieldset>
-                <div class="nmda-run-scope-note">这里只决定“这一次执行哪些已勾选任务”，不会修改列表里的发送勾选状态。</div>
-                <button class="nmda-btn nmda-btn-primary" id="nmda-batch-start" type="button">开始批量建草稿</button>
+              <div class="nmda-run-left"><div class="nmda-step-index">05</div><div><div class="nmda-card-title">创建所选草稿</div><div id="nmda-batch-status" class="nmda-run-status">请先导入并选择要创建的任务。</div></div></div>
+              <div class="nmda-run-controls nmda-run-controls-simple">
+                <div class="nmda-run-rule">仅执行已勾选且预检通过的任务；任何执行错误都会立即停止，避免串稿。</div>
+                <button class="nmda-btn nmda-btn-primary" id="nmda-batch-start" type="button">创建所选草稿</button>
                 <button class="nmda-btn" id="nmda-batch-stop" type="button" disabled>当前封后停止</button>
               </div>
             </div>
           </section>
 
           <div class="nmda-page-head" data-page-head="contacts" hidden>
-            <div><h2>联系人</h2><p>用统一“分类”管理互动阶段、跟进、发送策略、自定义分类与历史。</p></div>
+            <div><h2>联系人</h2><p>用统一“分类”管理互动阶段、跟进、联系策略、自定义分类与历史。</p></div>
           </div>
           <section class="nmda-tabpane nmda-page" data-pane="contacts" hidden>
             <div class="nmda-crm-top-grid">
@@ -533,25 +523,23 @@
                   <label class="nmda-field nmda-inline-field"><span class="nmda-label">读取范围</span><select id="nmda-mail-history-limit"><option value="50">最近 50 封</option><option value="100">最近 100 封</option><option value="200" selected>最近 200 封</option><option value="500">最近 500 封</option><option value="1000">最近 1000 封</option><option value="2000">最近 2000 封</option><option value="all">全部</option></select></label>
                   <span class="nmda-hint">超过 200 封时自动分页读取；“全部”最多保护性读取 10,000 封。</span>
                 </div>
-                <div class="nmda-history-actions">
-                  <div class="nmda-history-source"><div><strong>已发送</strong><small>用于确认真实联系历史，并推进“未联系 → 已发送”</small></div><div class="nmda-row"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-read-sent" type="button">读取已发送</button><button class="nmda-btn nmda-btn-small" id="nmda-open-sent" type="button">打开</button></div></div>
-                  <div class="nmda-history-source"><div><strong>草稿箱</strong><small>只记录“已准备未发送”，不会自动变成“已发送”</small></div><div class="nmda-row"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-read-drafts" type="button">读取草稿箱</button><button class="nmda-btn nmda-btn-small" id="nmda-open-drafts" type="button">打开</button></div></div>
+                <div class="nmda-history-actions nmda-history-actions-unified">
+                  <div class="nmda-history-source"><div><strong>已发送 + 草稿箱</strong><small>一次同步真实发送记录和当前草稿；草稿只产生“有草稿”，不会推进为“已发送”。</small></div><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-sync-history" type="button">同步邮箱历史</button></div>
                 </div>
                 <div id="nmda-contact-status" class="nmda-summary">正在初始化当前邮箱的联系人分类库…</div>
               </div>
               <div class="nmda-card">
                 <div class="nmda-card-head"><div><div class="nmda-card-kicker">CONTACT BOOK</div><div class="nmda-card-title">联系人操作</div></div></div>
-                <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-sync-batch-contacts" type="button">同步当前批量名单/分类</button><button class="nmda-btn nmda-btn-small" id="nmda-export-contacts" type="button">导出联系人 CSV</button></div>
-                <div class="nmda-hint">分类模型：互动阶段（单选）+ 待跟进（标记）+ 发送策略（单选）+ 自定义分类。暂停/不再联系会自动拦截批量任务。</div>
+                <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-export-contacts" type="button">导出联系人 CSV</button></div>
+                <div class="nmda-hint">导入批量任务时会自动建立“未联系”联系人，但任务分类不会自动写入长期联系人分类。暂停/不再联系会自动拦截任务。</div>
               </div>
             </div>
 
             <div class="nmda-card nmda-contact-list-card">
-              <div class="nmda-card-head nmda-list-head"><div><div class="nmda-card-title">联系人列表</div><div class="nmda-card-desc">一个分类入口统一编辑阶段、跟进、发送策略和长期自定义分类</div></div><div id="nmda-contact-summary" class="nmda-summary nmda-summary-inline">0 个联系人</div></div>
+              <div class="nmda-card-head nmda-list-head"><div><div class="nmda-card-title">联系人列表</div><div class="nmda-card-desc">一个分类入口统一编辑阶段、跟进、联系策略和长期自定义分类</div></div><div id="nmda-contact-summary" class="nmda-summary nmda-summary-inline">0 个联系人</div></div>
               <div class="nmda-contact-toolbar nmda-contact-toolbar-unified">
                 <input id="nmda-contact-search" type="text" placeholder="搜索邮箱 / 姓名 / 发送主题 / 草稿主题 / 分类">
-                <input id="nmda-contact-class-filter" type="text" placeholder="分类筛选：已回复;待跟进;重点">
-                <select id="nmda-contact-class-mode"><option value="any">匹配任一</option><option value="all">同时包含</option></select>
+                <input id="nmda-contact-class-filter" type="text" placeholder="分类筛选：已回复;待跟进;重点（多个需同时满足）">
               </div>
               <div id="nmda-contact-class-chips" class="nmda-tag-chips nmda-class-chip-bar"></div>
               <div class="nmda-table-wrap nmda-contact-table-wrap"><table class="nmda-table nmda-contact-table"><thead><tr><th>联系人</th><th>分类</th><th>已发送</th><th>草稿</th><th>最后发送</th><th>最后草稿</th><th>最近发送主题</th></tr></thead><tbody id="nmda-contact-body"></tbody></table></div>
@@ -567,8 +555,8 @@
   const $ = id => ui.querySelector(`#${id}`);
   const launcher = $('nmda-launcher'), panel = $('nmda-panel');
   const recipientsEl = $('nmda-recipients'), subjectEl = $('nmda-subject'), bodyEl = $('nmda-body-text'), filesEl = $('nmda-files');
-  const scheduleEnabledEl = $('nmda-schedule-enabled'), scheduleAtEl = $('nmda-schedule-at'), autoSaveEl = $('nmda-auto-save');
-  const fillButton = $('nmda-fill'), openButton = $('nmda-open-compose'), statusEl = $('nmda-status');
+  const scheduleAtEl = $('nmda-schedule-at');
+  const fillButton = $('nmda-fill'), statusEl = $('nmda-status');
 
   const contactBook = { account: '', contacts: {}, loaded: false };
 
@@ -658,11 +646,10 @@
     if (!body || !summary) return;
     const query = String($('nmda-contact-search')?.value || '').trim().toLowerCase();
     const classFilter = Contacts.parseTags($('nmda-contact-class-filter')?.value || '').map(value => value.toLocaleLowerCase('zh-CN'));
-    const classMode = $('nmda-contact-class-mode')?.value || 'any';
     let list = Object.values(contactBook.contacts || {}).map(contact => Contacts.normalizeContactShape(contact));
     if (classFilter.length) list = list.filter(contact => {
       const own = new Set(Contacts.classificationLabels(contact).map(value => value.toLocaleLowerCase('zh-CN')));
-      return classMode === 'all' ? classFilter.every(value => own.has(value)) : classFilter.some(value => own.has(value));
+      return classFilter.every(value => own.has(value));
     });
     if (query) list = list.filter(contact => `${contact.email} ${contact.name || ''} ${contact.lastSubject || ''} ${contact.lastDraftSubject || ''} ${Contacts.classificationLabels(contact).join(' ')}`.toLowerCase().includes(query));
     list.sort((a, b) => {
@@ -717,7 +704,7 @@
         <td title="${escapeHtml(contact.lastDraftAt || '')}">${escapeHtml(Contacts.formatDisplayTime(contact.lastDraftAt))}${contact.lastDraftSubject ? `<small title="${escapeHtml(contact.lastDraftSubject)}">${escapeHtml(contact.lastDraftSubject)}</small>` : ''}</td>
         <td title="${escapeHtml(contact.lastSubject || '')}">${escapeHtml(contact.lastSubject || '—')}</td>
       </tr>`).join('');
-    if (!list.length) body.innerHTML = '<tr><td colspan="7">暂无匹配联系人。可读取“已发送”、草稿箱或同步当前批量名单。</td></tr>';
+    if (!list.length) body.innerHTML = '<tr><td colspan="7">暂无匹配联系人。可同步邮箱历史或导入批量任务。</td></tr>';
     else if (list.length > 1000) body.insertAdjacentHTML('beforeend', `<tr><td colspan="7">当前显示前 1000 个匹配联系人，共 ${list.length} 个。可用搜索或分类缩小范围。</td></tr>`);
 
     body.querySelectorAll('select[data-contact-stage]').forEach(select => select.addEventListener('change', async () => {
@@ -728,7 +715,7 @@
     body.querySelectorAll('select[data-contact-policy]').forEach(select => select.addEventListener('change', async () => {
       Contacts.setPolicy(contactBook.contacts, select.dataset.contactPolicy, select.value);
       await persistContacts(); renderContacts(); if (typeof renderPreview === 'function') rebuildTasks();
-      setContactStatusMessage(`已更新 ${select.dataset.contactPolicy} 的发送策略：${select.value}。`, select.value === '正常' ? 'ok' : 'warn');
+      setContactStatusMessage(`已更新 ${select.dataset.contactPolicy} 的联系策略：${select.value}。`, select.value === '正常' ? 'ok' : 'warn');
     }));
     body.querySelectorAll('input[data-contact-followup]').forEach(input => input.addEventListener('change', async () => {
       Contacts.setFollowUp(contactBook.contacts, input.dataset.contactFollowup, input.checked);
@@ -747,7 +734,7 @@
     try {
       await ensureContactBook(true);
       renderContacts();
-      setContactStatusMessage(`当前邮箱：${contactBook.account}。联系人分类保存在本机浏览器；旧版状态已自动迁移为阶段 / 跟进 / 发送策略。`, 'ok');
+      setContactStatusMessage(`当前邮箱：${contactBook.account}。联系人分类保存在本机浏览器；旧版状态已自动迁移为阶段 / 跟进 / 联系策略。`, 'ok');
       if (typeof renderPreview === 'function') renderPreview();
     } catch (error) {
       setContactStatusMessage(`联系人初始化失败：${error.message}`, 'error');
@@ -760,7 +747,7 @@
   }
 
   function formState() {
-    return { recipients: recipientsEl.value, subject: subjectEl.value, body: bodyEl.value, scheduleEnabled: scheduleEnabledEl.checked, scheduleAt: scheduleAtEl.value, autoSave: autoSaveEl.checked };
+    return { recipients: recipientsEl.value, subject: subjectEl.value, body: bodyEl.value, scheduleAt: scheduleAtEl.value };
   }
 
   async function saveFormState() {
@@ -772,7 +759,7 @@
       const stored = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
       if (!stored) return;
       recipientsEl.value = stored.recipients || ''; subjectEl.value = stored.subject || ''; bodyEl.value = stored.body || '';
-      scheduleEnabledEl.checked = !!stored.scheduleEnabled; scheduleAtEl.value = stored.scheduleAt || ''; autoSaveEl.checked = !!stored.autoSave;
+      scheduleAtEl.value = stored.scheduleEnabled === false ? '' : (stored.scheduleAt || '');
     } catch (_) {}
   }
 
@@ -784,7 +771,6 @@
 
   launcher.addEventListener('click', () => { panel.hidden = !panel.hidden; });
   $('nmda-close').addEventListener('click', () => { panel.hidden = true; });
-  $('nmda-collapse').addEventListener('click', () => { panel.hidden = true; });
   $('nmda-expand').addEventListener('click', () => {
     panel.classList.toggle('is-maximized');
     $('nmda-expand').textContent = panel.classList.contains('is-maximized') ? '◱' : '⛶';
@@ -792,37 +778,29 @@
   });
   ui.querySelectorAll('.nmda-tab').forEach(tab => tab.addEventListener('click', () => setWorkbenchTab(tab.dataset.tab)));
 
-  [recipientsEl, subjectEl, bodyEl, scheduleEnabledEl, scheduleAtEl, autoSaveEl].forEach(el => {
+  [recipientsEl, subjectEl, bodyEl, scheduleAtEl].forEach(el => {
     el.addEventListener('change', saveFormState); el.addEventListener('input', saveFormState);
   });
 
-  openButton.addEventListener('click', async () => {
-    openButton.disabled = true; setStatus('正在打开写信页…');
-    try { await openCompose(); setStatus('写信页已打开。', 'ok'); }
-    catch (error) { console.error(`[${APP}]`, error); setStatus(error.message, 'error'); }
-    finally { openButton.disabled = false; }
-  });
-
   fillButton.addEventListener('click', async () => {
-    fillButton.disabled = true; openButton.disabled = true; await saveFormState();
+    fillButton.disabled = true; await saveFormState();
     try {
-      setStatus('1/6 打开写信页…'); const root = await openCompose();
-      setStatus('2/6 填写收件人、主题和正文…'); await setRecipients(root, recipientsEl.value); await setSubject(root, subjectEl.value); await setBody(root, bodyEl.value);
+      setStatus('1/5 打开写信页…'); const root = await openCompose();
+      setStatus('2/5 填写收件人、主题和正文…'); await setRecipients(root, recipientsEl.value); await setSubject(root, subjectEl.value); await setBody(root, bodyEl.value);
       if (filesEl.files.length) {
-        setStatus(`3/6 注入附件（0/${filesEl.files.length}）…`);
-        const upload = await addAttachments(root, [...filesEl.files], (done, total, name) => setStatus(`3/6 上传附件（${done}/${total}）：${name}`));
-        if (!upload.verified) setStatus(`3/6 已提交附件，但页面暂未确认：${upload.missing.map(file => file.name).join('、')}。将继续填写草稿。`, 'warn');
-      } else setStatus('3/6 未选择附件，跳过。');
-      if (scheduleEnabledEl.checked) {
-        setStatus('4/6 设置定时发送…'); const minute = await setSchedule(root, scheduleAtEl.value);
+        setStatus(`3/5 注入附件（0/${filesEl.files.length}）…`);
+        const upload = await addAttachments(root, [...filesEl.files], (done, total, name) => setStatus(`3/5 上传附件（${done}/${total}）：${name}`));
+        if (!upload.verified) setStatus(`3/5 已提交附件，但页面暂未确认：${upload.missing.map(file => file.name).join('、')}。将继续保存草稿。`, 'warn');
+      } else setStatus('3/5 未选择附件，跳过。');
+      if (scheduleAtEl.value) {
+        setStatus('4/5 设置定时发送…'); const minute = await setSchedule(root, scheduleAtEl.value);
         const requestedMinute = new Date(scheduleAtEl.value).getMinutes();
-        if (Number(minute) !== requestedMinute) { setStatus(`4/6 定时已设置；分钟被网易可选项调整为 ${minute} 分。`, 'warn'); await sleep(500); }
-      } else setStatus('4/6 未启用定时发送，跳过。');
-      if (autoSaveEl.checked) { setStatus('5/6 保存草稿…'); await saveDraft(root); }
-      else setStatus('5/6 保持在编辑页，不自动保存。');
-      setStatus(autoSaveEl.checked ? '完成：内容已填入并保存为草稿。不会自动发送。' : '完成：内容已填入写信页。请人工检查。', 'ok');
+        if (Number(minute) !== requestedMinute) { setStatus(`4/5 定时已设置；分钟被网易可选项调整为 ${minute} 分。`, 'warn'); await sleep(500); }
+      } else setStatus('4/5 未填写定时时间，按普通草稿处理。');
+      setStatus('5/5 保存草稿…'); await saveDraft(root);
+      setStatus('完成：草稿已创建并保存。不会自动发送。', 'ok');
     } catch (error) { console.error(`[${APP}]`, error); setStatus(`失败：${error.message}`, 'error'); }
-    finally { fillButton.disabled = false; openButton.disabled = false; }
+    finally { fillButton.disabled = false; }
   });
 
   const batch = {
@@ -831,16 +809,33 @@
     attachmentOverrides: new Map(), taskEdits: new Map(), running: false, stopRequested: false
   };
 
-  const importFileEl = $('nmda-import-file'), sheetSelectEl = $('nmda-sheet-select'), mappingEl = $('nmda-mapping');
+  const importFileEl = $('nmda-import-file'), sheetSelectEl = $('nmda-sheet-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
   const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files'), sharedFilesEl = $('nmda-shared-files');
   const previewBodyEl = $('nmda-preview-body'), batchSummaryEl = $('nmda-batch-summary'), batchStatusEl = $('nmda-batch-status');
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop');
   const batchSearchEl = $('nmda-batch-search');
-  const batchTagIncludeEl = $('nmda-batch-tag-include'), batchTagExcludeEl = $('nmda-batch-tag-exclude'), batchTagModeEl = $('nmda-batch-tag-mode');
+  const batchTagIncludeEl = $('nmda-batch-tag-include'), batchTagExcludeEl = $('nmda-batch-tag-exclude');
 
   function currentSheet() { return batch.workbook?.sheets?.[batch.sheetIndex] || null; }
 
   function taskEditKey(rowIndex) { return `${batch.sheetIndex}:${rowIndex}`; }
+
+  async function registerCurrentBatchContacts() {
+    if (!Contacts || !(batch.tasks || []).length) return 0;
+    try {
+      await ensureContactBook();
+      const recipients = [];
+      for (const task of batch.tasks || []) recipients.push(...Contacts.parseRecipients(task.recipients));
+      const added = Contacts.mergeRecipientList(contactBook.contacts, recipients, '未联系');
+      await persistContacts();
+      renderContacts();
+      if (batch.workbook) rebuildTasks();
+      return added;
+    } catch (error) {
+      console.warn(`[${APP}] automatic contact registration failed`, error);
+      return 0;
+    }
+  }
 
   function parseTaskClassifications(value) {
     const items = Contacts?.parseTags?.(value) || [];
@@ -885,12 +880,11 @@
     const own = normalizedTagSet(taskEffectiveClassifications(task));
     const include = Contacts?.parseTags?.(batchTagIncludeEl?.value || '') || [];
     const exclude = Contacts?.parseTags?.(batchTagExcludeEl?.value || '') || [];
-    const mode = batchTagModeEl?.value || 'any';
     const includeKeys = include.map(tag => tag.toLocaleLowerCase('zh-CN'));
     const excludeKeys = exclude.map(tag => tag.toLocaleLowerCase('zh-CN'));
     if (excludeKeys.some(tag => own.has(tag))) return false;
     if (!includeKeys.length) return true;
-    return mode === 'all' ? includeKeys.every(tag => own.has(tag)) : includeKeys.some(tag => own.has(tag));
+    return includeKeys.every(tag => own.has(tag));
   }
 
   function filteredBatchTasks() {
@@ -906,20 +900,6 @@
     if (patch.tags != null) task.tags = parseTaskClassifications(patch.tags);
   }
 
-  async function saveBatchFilterState() {
-    try { await chrome.storage.local.set({ [BATCH_FILTER_STORAGE_KEY]: { search: batchSearchEl?.value || '', include: batchTagIncludeEl?.value || '', exclude: batchTagExcludeEl?.value || '', mode: batchTagModeEl?.value || 'any' } }); } catch (_) {}
-  }
-
-  async function restoreBatchFilterState() {
-    try {
-      const stored = (await chrome.storage.local.get(BATCH_FILTER_STORAGE_KEY))[BATCH_FILTER_STORAGE_KEY] || {};
-      if (batchSearchEl) batchSearchEl.value = stored.search || '';
-      if (batchTagIncludeEl) batchTagIncludeEl.value = stored.include || '';
-      if (batchTagExcludeEl) batchTagExcludeEl.value = stored.exclude || '';
-      if (batchTagModeEl) batchTagModeEl.value = stored.mode === 'all' ? 'all' : 'any';
-    } catch (_) {}
-  }
-
   function mappingSelectHtml(field, headers) {
     const selected = batch.mapping[field.key];
     const options = [`<option value="">— 不导入 —</option>`, ...headers.map((header, index) => `<option value="${index}" ${Number(selected) === index ? 'selected' : ''}>${escapeHtml(header || `列${index + 1}`)}</option>`)].join('');
@@ -933,12 +913,16 @@
     batch.detection = Importer.detectHeader(sheet.rows || []);
     batch.mapping = useAuto ? { ...batch.detection.mapping } : batch.mapping;
     const headers = batch.detection.headers || [];
-    $('nmda-header-info').textContent = `识别表头：第 ${batch.detection.index + 1} 行；自动识别 ${Object.keys(batch.detection.mapping).length} 个字段。可在下方人工改列。`;
+    const detectedCount = Object.keys(batch.detection.mapping).length;
+    const hasCore = batch.detection.mapping.recipients != null && (batch.detection.mapping.subject != null || batch.detection.mapping.body != null);
+    $('nmda-header-info').textContent = `识别表头：第 ${batch.detection.index + 1} 行；自动识别 ${detectedCount} 个字段${hasCore ? '，无需手工设置。' : '，核心字段可能需要校正。'}`;
     mappingEl.innerHTML = Importer.FIELD_DEFS.map(field => mappingSelectHtml(field, headers)).join('');
+    setMappingEditorOpen(!hasCore);
     mappingEl.querySelectorAll('select[data-map-field]').forEach(select => select.addEventListener('change', () => {
       const field = select.dataset.mapField;
       if (select.value === '') delete batch.mapping[field]; else batch.mapping[field] = Number(select.value);
       rebuildTasks();
+      registerCurrentBatchContacts();
     }));
     rebuildTasks();
   }
@@ -968,7 +952,7 @@
     const totalBytes = files.reduce((sum, file) => sum + Number(file.size || 0), 0);
     const sizeText = totalBytes < 1024 * 1024 ? `${Math.round(totalBytes / 1024)} KB` : `${(totalBytes / 1024 / 1024).toFixed(1)} MB`;
     $('nmda-file-index-info').textContent = files.length
-      ? `已选择 ${files.length} 个文件（专属池 ${taskCount}，公共 ${sharedCount}，共 ${sizeText}）。`
+      ? `已选择 ${files.length} 个文件（任务附件 ${taskCount}，公共附件 ${sharedCount}，共 ${sizeText}）。`
       : '尚未选择本地附件。';
     rebuildTasks();
   }
@@ -1016,7 +1000,6 @@
       const body = String(cellValue(row, 'body') ?? '');
       const attachmentRefs = Importer.splitAttachments(cellValue(row, 'attachments'));
       const scheduleRaw = cellValue(row, 'scheduleAt');
-      const scheduleFlag = Importer.parseBoolean(cellValue(row, 'scheduleEnabled'));
       const importedTags = parseTaskClassifications(cellValue(row, 'tags'));
       const id = String(cellValue(row, 'id') ?? '').trim() || String(rowIndex + 1);
       const meaningful = [recipients, subject, body, ...attachmentRefs, String(scheduleRaw ?? ''), ...importedTags].some(v => String(v).trim());
@@ -1030,8 +1013,6 @@
         if (!parsed) errors.push(`定时时间无法识别：${scheduleRaw}`);
         else scheduleAt = Importer.formatLocalDateTime(parsed);
       }
-      if (scheduleFlag === true && !scheduleAt) errors.push('标记为定时发送但没有有效定时时间');
-      if (scheduleFlag === false) scheduleAt = '';
 
       const resolved = resolveAttachmentRefs(attachmentRefs);
       if (resolved.missing.length) errors.push(`缺少附件：${resolved.missing.join('、')}`);
@@ -1042,8 +1023,8 @@
       }
 
       const gate = contactPolicyGateForRecipients(recipients);
-      if (gate.policies.includes('不再联系')) errors.push(`联系人发送策略：不再联系（${gate.reasons.join('、')}）`);
-      else if (gate.policies.includes('暂停')) warnings.push(`联系人发送策略：暂停（${gate.reasons.join('、')}）`);
+      if (gate.policies.includes('不再联系')) errors.push(`联系策略：不再联系（${gate.reasons.join('、')}）`);
+      else if (gate.policies.includes('暂停')) warnings.push(`联系策略：暂停（${gate.reasons.join('、')}）`);
 
       const editKey = taskEditKey(rowIndex);
       const edit = batch.taskEdits.get(editKey) || {};
@@ -1063,7 +1044,7 @@
 
   function statusLabel(task) {
     if (task.policyBlocked && task.status !== 'running' && task.status !== 'done') return `已拦截：${(task.policyReasons || []).join('、')}`;
-    if (!task.enabled && task.status !== 'running' && task.status !== 'done') return '已排除发送';
+    if (!task.enabled && task.status !== 'running' && task.status !== 'done') return '未选择';
     if (task.status === 'done') return '已完成';
     if (task.status === 'running') return '处理中';
     if (task.status === 'error') return task.runtimeError ? `失败：${task.runtimeError}` : `预检失败：${task.errors.join('；')}`;
@@ -1086,7 +1067,6 @@
       const key = clicked.toLocaleLowerCase('zh-CN');
       const exists = tagsNow.some(tag => tag.toLocaleLowerCase('zh-CN') === key);
       batchTagIncludeEl.value = exists ? tagsNow.filter(tag => tag.toLocaleLowerCase('zh-CN') !== key).join(';') : Contacts.mergeTags(tagsNow, [clicked]).join(';');
-      saveBatchFilterState();
       renderPreview();
     }));
   }
@@ -1096,16 +1076,12 @@
     const matched = filteredBatchTasks();
     const errors = tasks.filter(t => t.status === 'error').length;
     const done = tasks.filter(t => t.status === 'done').length;
-    const enabledReady = tasks.filter(t => t.enabled && (t.status === 'ready' || t.status === 'running')).length;
-    const disabled = tasks.filter(t => !t.enabled).length;
-    const matchedEnabled = matched.filter(t => t.enabled).length;
-    batchSummaryEl.innerHTML = `<strong>${tasks.length}</strong> 封任务 · 当前结果 <strong>${matched.length}</strong> 封（已纳入 ${matchedEnabled}） · 全部可执行 ${enabledReady} · 排除 ${disabled} · 错误 ${errors} · 已完成 ${done}`;
-    const allScopeCount = tasks.filter(t => t.enabled && t.status === 'ready').length;
-    const filteredScopeCount = matched.filter(t => t.enabled && t.status === 'ready').length;
-    const allScopeCountEl = $('nmda-run-scope-all-count');
-    const filteredScopeCountEl = $('nmda-run-scope-filtered-count');
-    if (allScopeCountEl) allScopeCountEl.textContent = String(allScopeCount);
-    if (filteredScopeCountEl) filteredScopeCountEl.textContent = String(filteredScopeCount);
+    const selectedReady = tasks.filter(t => t.enabled && t.status === 'ready').length;
+    const selectedTotal = tasks.filter(t => t.enabled && t.status !== 'done').length;
+    const unselected = tasks.filter(t => !t.enabled).length;
+    const matchedSelected = matched.filter(t => t.enabled).length;
+    batchSummaryEl.innerHTML = `<strong>${tasks.length}</strong> 封任务 · 当前结果 <strong>${matched.length}</strong>（已选 ${matchedSelected}） · 已选择 <strong>${selectedTotal}</strong> · 可创建 ${selectedReady} · 未选择 ${unselected} · 错误 ${errors} · 已完成 ${done}`;
+    if (batchStartEl) batchStartEl.textContent = selectedReady ? `创建 ${selectedReady} 封草稿` : '创建所选草稿';
     previewBodyEl.innerHTML = matched.slice(0, 150).map(task => {
       const contactClasses = contactClassificationsForRecipients(task.recipients);
       const effectiveClasses = taskEffectiveClassifications(task);
@@ -1208,12 +1184,20 @@
     try {
       batch.workbook = await Importer.parseFile(file);
       batch.taskEdits.clear();
+      batch.directoryFiles = []; batch.taskFiles = []; batch.sharedFiles = []; batch.attachmentOverrides.clear();
+      batch.fileIndex = Importer.buildFileIndex([]);
+      dirEl.value = ''; taskFilesEl.value = ''; sharedFilesEl.value = '';
+      if (batchSearchEl) batchSearchEl.value = '';
+      if (batchTagIncludeEl) batchTagIncludeEl.value = '';
+      if (batchTagExcludeEl) batchTagExcludeEl.value = '';
       const best = Importer.detectBestSheet(batch.workbook.sheets);
       batch.sheetIndex = best.index;
       sheetSelectEl.innerHTML = batch.workbook.sheets.map((sheet, i) => `<option value="${i}" ${i === best.index ? 'selected' : ''}>${escapeHtml(sheet.name)}（${sheet.rows.length} 行）</option>`).join('');
+      $('nmda-sheet-field').hidden = batch.workbook.sheets.length <= 1;
       $('nmda-sheet-card').hidden = false; $('nmda-attachments-card').hidden = false;
       configureSheet(best.index, true);
-      setBatchStatus(`导入成功：${batch.workbook.sheets.length} 个工作表；已自动选择“${batch.workbook.sheets[best.index].name}”。`, 'ok');
+      const addedContacts = await registerCurrentBatchContacts();
+      setBatchStatus(`导入成功：${batch.workbook.sheets.length} 个工作表；已自动选择“${batch.workbook.sheets[best.index].name}”${addedContacts ? `；新增 ${addedContacts} 个未联系联系人` : ''}。`, 'ok');
     } catch (error) {
       console.error(`[${APP}] import`, error); batch.workbook = null; batch.tasks = [];
       $('nmda-sheet-card').hidden = true; $('nmda-attachments-card').hidden = true; $('nmda-preview-card').hidden = true; $('nmda-run-card').hidden = true;
@@ -1221,7 +1205,7 @@
     }
   });
 
-  sheetSelectEl.addEventListener('change', () => configureSheet(sheetSelectEl.value, true));
+  sheetSelectEl.addEventListener('change', async () => { configureSheet(sheetSelectEl.value, true); await registerCurrentBatchContacts(); });
   dirEl.addEventListener('change', () => {
     batch.directoryFiles = uniqueFiles([...batch.directoryFiles, ...dirEl.files]);
     dirEl.value = ''; refreshFileIndex(true);
@@ -1256,8 +1240,7 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
-  [batchSearchEl, batchTagIncludeEl, batchTagExcludeEl].forEach(el => el?.addEventListener('input', () => { saveBatchFilterState(); renderPreview(); }));
-  batchTagModeEl?.addEventListener('change', () => { saveBatchFilterState(); renderPreview(); });
+  [batchSearchEl, batchTagIncludeEl, batchTagExcludeEl].forEach(el => el?.addEventListener('input', renderPreview));
 
   function bulkEditFiltered(kind) {
     const targets = filteredBatchTasks().filter(task => task.status !== 'running' && task.status !== 'done');
@@ -1280,8 +1263,8 @@
         setTaskEdit(task, { tags: parseTaskClassifications(task.tags || []).filter(tag => !remove.has(tag.toLocaleLowerCase('zh-CN'))) }); affected++;
       }
     }
-    const actionText = { enable: '纳入发送', disable: '排除发送', addTag: `添加分类“${tagsText(parsed)}”`, removeTag: `移除分类“${tagsText(parsed)}”` }[kind];
-    const skippedText = blockedSkipped ? `；另有 ${blockedSkipped} 封受联系人发送策略拦截，未加入发送` : '';
+    const actionText = { enable: '选择当前结果', disable: '取消当前结果', addTag: `添加分类“${tagsText(parsed)}”`, removeTag: `移除分类“${tagsText(parsed)}”` }[kind];
+    const skippedText = blockedSkipped ? `；另有 ${blockedSkipped} 封受联系策略拦截，无法选择` : '';
     setBatchStatus(`已对 ${affected} 封任务执行：${actionText}${skippedText}。`, blockedSkipped ? 'warn' : 'ok');
     renderPreview();
   }
@@ -1290,118 +1273,65 @@
   $('nmda-bulk-remove-tag').addEventListener('click', () => bulkEditFiltered('removeTag'));
   $('nmda-bulk-enable').addEventListener('click', () => bulkEditFiltered('enable'));
   $('nmda-bulk-disable').addEventListener('click', () => bulkEditFiltered('disable'));
+  $('nmda-clear-selection').addEventListener('click', () => {
+    let affected = 0;
+    for (const task of batch.tasks || []) {
+      if (task.status === 'running' || task.status === 'done' || !task.enabled) continue;
+      setTaskEdit(task, { enabled: false }); affected++;
+    }
+    setBatchStatus(`已清空选择：取消 ${affected} 封任务。`, 'ok');
+    renderPreview();
+  });
   $('nmda-clear-tag-filter').addEventListener('click', () => {
     if (batchSearchEl) batchSearchEl.value = '';
     batchTagIncludeEl.value = '';
     batchTagExcludeEl.value = '';
-    batchTagModeEl.value = 'any';
-    saveBatchFilterState();
     renderPreview();
   });
 
   $('nmda-contact-search').addEventListener('input', renderContacts);
   $('nmda-contact-class-filter').addEventListener('input', renderContacts);
-  $('nmda-contact-class-mode').addEventListener('change', renderContacts);
 
-  $('nmda-open-sent').addEventListener('click', async () => {
-    const button = $('nmda-open-sent');
-    button.disabled = true;
-    setContactStatusMessage('正在打开“已发送”…');
-    try {
-      const result = await chrome.runtime.sendMessage({ type: 'NMDA_OPEN_SENT' });
-      if (!result?.ok) throw new Error(result?.reason || '无法打开已发送');
-      setContactStatusMessage('已打开网易“已发送”文件夹。', 'ok');
-    } catch (error) { setContactStatusMessage(`打开失败：${error.message}`, 'error'); }
-    finally { button.disabled = false; }
-  });
-
-  $('nmda-read-sent').addEventListener('click', async () => {
-    const button = $('nmda-read-sent');
+  $('nmda-sync-history').addEventListener('click', async () => {
+    const button = $('nmda-sync-history');
     button.disabled = true;
     const limit = $('nmda-mail-history-limit').value || '200';
-    const rangeText = limit === 'all' ? '全部' : `最近 ${limit} 封`;
-    setContactStatusMessage(`正在读取${rangeText}已发送邮件…`);
+    const rangeText = limit === 'all' ? '全部' : `最近 ${limit} 封/箱`;
+    setContactStatusMessage(`正在同步${rangeText}邮箱历史：先读取已发送，再读取草稿箱…`);
+    const notes = [];
+    let warning = false;
     try {
-      const result = await chrome.runtime.sendMessage({ type: 'NMDA_READ_SENT', limit });
-      if (!result?.ok) throw new Error(result?.reason || '读取已发送失败');
-      const account = Contacts.normalizeEmail(result.uid || await detectAccount()) || 'default';
+      const sent = await chrome.runtime.sendMessage({ type: 'NMDA_READ_SENT', limit });
+      if (!sent?.ok) throw new Error(sent?.reason || '读取已发送失败');
+      const account = Contacts.normalizeEmail(sent.uid || await detectAccount()) || 'default';
       if (!contactBook.loaded || contactBook.account !== account) {
         contactBook.account = account;
         contactBook.contacts = await Contacts.load(account);
         contactBook.loaded = true;
       }
-      const applied = Contacts.applySentMessages(contactBook.contacts, result.messages || []);
+      const sentApplied = Contacts.applySentMessages(contactBook.contacts, sent.messages || []);
+      const successful = (sent.messages || []).filter(message => !message.failed).length;
+      notes.push(`已发送 ${sent.messages?.length || 0} 封（有效 ${successful}，新增历史 ${sentApplied.newLinks}）`);
+      if (sent.truncated) { warning = true; notes.push(`已发送未完整覆盖：${sent.stopReason || '达到读取范围'}`); }
+
+      setContactStatusMessage(`已完成已发送；正在读取${rangeText}草稿箱…`);
+      const drafts = await chrome.runtime.sendMessage({ type: 'NMDA_READ_DRAFTS', limit });
+      if (!drafts?.ok) throw new Error(drafts?.reason || '读取草稿箱失败');
+      const draftApplied = Contacts.applyDraftMessages(contactBook.contacts, drafts.messages || [], { replaceActive: !!drafts.complete });
+      notes.push(`草稿 ${drafts.messages?.length || 0} 封（新增历史 ${draftApplied.newLinks}，无收件人 ${draftApplied.draftsWithoutRecipient}）`);
+      if (drafts.truncated) { warning = true; notes.push(`草稿未完整覆盖：${drafts.stopReason || '达到读取范围'}`); }
+      if (drafts.complete) notes.push('草稿箱已完整覆盖并清理过期“有草稿”标记');
+
       await persistContacts();
       renderContacts();
       renderPreview();
-      const successful = (result.messages || []).filter(message => !message.failed).length;
-      const recipients = new Set((result.messages || []).flatMap(message => (message.recipients || []).map(r => Contacts.normalizeEmail(r.email))).filter(Boolean)).size;
-      const coverage = result.complete ? '完整覆盖当前已发送' : `部分覆盖（邮箱共约 ${result.total || '未知'} 封）`;
-      const paging = result.pages > 1 ? `；分页 ${result.pages} 页` : '';
-      const warning = result.truncated ? `；未读完：${result.stopReason || '达到读取范围'}` : '';
-      setContactStatusMessage(`已发送读取完成：${result.messages?.length || 0} 封，${coverage}${paging}${warning}；其中 ${successful} 封未标记为失败；识别 ${recipients} 个收件邮箱；新增 ${applied.newLinks} 条发送历史关联。`, result.truncated && limit === 'all' ? 'warn' : 'ok');
+      setContactStatusMessage(`邮箱历史同步完成：${notes.join('；')}。草稿不会推进联系人为“已发送”。`, warning ? 'warn' : 'ok');
     } catch (error) {
-      console.error(`[${APP}] sent scan`, error);
-      setContactStatusMessage(`读取失败：${error.message}`, 'error');
+      console.error(`[${APP}] history sync`, error);
+      // Preserve any successfully applied first-stage data instead of discarding it.
+      try { await persistContacts(); renderContacts(); renderPreview(); } catch (_) {}
+      setContactStatusMessage(`邮箱历史同步中断：${error.message}${notes.length ? `；已保留：${notes.join('；')}` : ''}`, 'error');
     } finally { button.disabled = false; }
-  });
-
-  $('nmda-open-drafts').addEventListener('click', async () => {
-    const button = $('nmda-open-drafts');
-    button.disabled = true;
-    setContactStatusMessage('正在打开“草稿箱”…');
-    try {
-      const result = await chrome.runtime.sendMessage({ type: 'NMDA_OPEN_DRAFTS' });
-      if (!result?.ok) throw new Error(result?.reason || '无法打开草稿箱');
-      setContactStatusMessage('已打开网易“草稿箱”。', 'ok');
-    } catch (error) { setContactStatusMessage(`打开失败：${error.message}`, 'error'); }
-    finally { button.disabled = false; }
-  });
-
-  $('nmda-read-drafts').addEventListener('click', async () => {
-    const button = $('nmda-read-drafts');
-    button.disabled = true;
-    const limit = $('nmda-mail-history-limit').value || '200';
-    const rangeText = limit === 'all' ? '全部' : `最近 ${limit} 封`;
-    setContactStatusMessage(`正在读取${rangeText}草稿…`);
-    try {
-      const result = await chrome.runtime.sendMessage({ type: 'NMDA_READ_DRAFTS', limit });
-      if (!result?.ok) throw new Error(result?.reason || '读取草稿箱失败');
-      const account = Contacts.normalizeEmail(result.uid || await detectAccount()) || 'default';
-      if (!contactBook.loaded || contactBook.account !== account) {
-        contactBook.account = account;
-        contactBook.contacts = await Contacts.load(account);
-        contactBook.loaded = true;
-      }
-      const applied = Contacts.applyDraftMessages(contactBook.contacts, result.messages || [], { replaceActive: !!result.complete });
-      await persistContacts();
-      renderContacts();
-      renderPreview();
-      const recipients = new Set((result.messages || []).flatMap(message => (message.recipients || []).map(r => Contacts.normalizeEmail(r.email))).filter(Boolean)).size;
-      const coverage = result.complete ? '已完整同步当前草稿箱，因此会清理已删除/已发送的旧草稿标记' : `部分同步（邮箱共约 ${result.total || '未知'} 封草稿），不会删除旧草稿标记`;
-      const paging = result.pages > 1 ? `；分页 ${result.pages} 页` : '';
-      const warning = result.truncated ? `；未读完：${result.stopReason || '达到读取范围'}` : '';
-      setContactStatusMessage(`草稿箱读取完成：${result.messages?.length || 0} 封；${coverage}${paging}${warning}；关联 ${recipients} 个收件邮箱，新增 ${applied.newLinks} 条草稿关联；${applied.draftsWithoutRecipient} 封草稿尚未填写收件人，未关联联系人。草稿不会推进联系人为“已发送”。`, result.truncated && limit === 'all' ? 'warn' : 'ok');
-    } catch (error) {
-      console.error(`[${APP}] draft scan`, error);
-      setContactStatusMessage(`草稿箱读取失败：${error.message}`, 'error');
-    } finally { button.disabled = false; }
-  });
-
-  $('nmda-sync-batch-contacts').addEventListener('click', async () => {
-    try {
-      await ensureContactBook();
-      const recipients = [];
-      for (const task of batch.tasks || []) {
-        const taskTags = parseTaskClassifications(task.tags || []);
-        recipients.push(...Contacts.parseRecipients(task.recipients).map(item => ({ ...item, tags: taskTags })));
-      }
-      const added = Contacts.mergeRecipientList(contactBook.contacts, recipients, '未联系');
-      await persistContacts();
-      renderContacts();
-      renderPreview();
-      setContactStatusMessage(`已同步当前批量任务中的 ${new Set(recipients.map(item => item.email)).size} 个邮箱及任务分类；新增联系人 ${added} 个。`, 'ok');
-    } catch (error) { setContactStatusMessage(`同步失败：${error.message}`, 'error'); }
   });
 
   $('nmda-export-contacts').addEventListener('click', async () => {
@@ -1423,23 +1353,17 @@
   });
 
   function setBatchPlanningLocked(locked) {
-    [batchSearchEl, batchTagIncludeEl, batchTagExcludeEl, batchTagModeEl].forEach(el => { if (el) el.disabled = !!locked; });
-    ui.querySelectorAll('input[name="nmda-run-scope"]').forEach(el => { el.disabled = !!locked; });
-    ['nmda-clear-tag-filter','nmda-bulk-add-tag','nmda-bulk-remove-tag','nmda-bulk-enable','nmda-bulk-disable'].forEach(id => {
+    [batchSearchEl, batchTagIncludeEl, batchTagExcludeEl].forEach(el => { if (el) el.disabled = !!locked; });
+    if (mappingToggleEl) mappingToggleEl.disabled = !!locked;
+    ['nmda-clear-tag-filter','nmda-bulk-add-tag','nmda-bulk-remove-tag','nmda-bulk-enable','nmda-bulk-disable','nmda-clear-selection'].forEach(id => {
       const el = $(id); if (el) el.disabled = !!locked;
     });
   }
 
-  function selectedRunScope() {
-    return ui.querySelector('input[name="nmda-run-scope"]:checked')?.value === 'filtered' ? 'filtered' : 'enabled';
-  }
-
   batchStartEl.addEventListener('click', async () => {
     if (batch.running) return;
-    const runFilteredOnly = selectedRunScope() === 'filtered';
-    const inRunScope = task => task.enabled && task.status === 'ready' && (!runFilteredOnly || taskMatchesTagFilter(task));
-    const executable = batch.tasks.filter(inRunScope);
-    if (!executable.length) { setBatchStatus(runFilteredOnly ? '当前检索/筛选结果中没有可执行任务。' : '没有可执行任务，请先修正预检错误或联系人发送策略。', 'error'); return; }
+    const executable = batch.tasks.filter(task => task.enabled && task.status === 'ready');
+    if (!executable.length) { setBatchStatus('没有已选择且预检通过的任务。请先在列表中勾选需要创建的草稿。', 'error'); return; }
     const executableKeys = new Set(executable.map(task => task.editKey)); // freeze this run at start
     batch.running = true; batch.stopRequested = false; batchStartEl.disabled = true; batchStopEl.disabled = false;
     importFileEl.disabled = true; sheetSelectEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; sharedFilesEl.disabled = true;
@@ -1477,8 +1401,8 @@
         } catch (error) {
           console.error(`[${APP}] batch row ${task.excelRow}`, error);
           task.status = 'error'; task.runtimeError = error.message || String(error); failed++; renderPreview();
-          if (!$('nmda-continue-on-error').checked) { setBatchStatus(`任务 ${task.id} 失败，已停止：${task.runtimeError}`, 'error'); break; }
-          await sleep(500);
+          setBatchStatus(`任务 ${task.id} 失败，已自动停止：${task.runtimeError}。为避免页面状态异常导致串稿，不继续执行后续任务。`, 'error');
+          break;
         }
       }
       const remaining = batch.tasks.filter(t => executableKeys.has(t.editKey) && t.status === 'ready').length;
@@ -1494,7 +1418,7 @@
   });
 
   restoreFormState();
-  restoreBatchFilterState().then(renderPreview);
+  renderPreview();
   initContacts();
-  console.info(`[${APP}] v0.8.0 loaded`);
+  console.info(`[${APP}] v1.0.0 loaded`);
 })();
