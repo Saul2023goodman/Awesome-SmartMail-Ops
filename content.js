@@ -7,6 +7,7 @@
   const STORAGE_KEY = 'nmda.form.v2';
   const DEFAULT_TIMEOUT = 10000;
   const Importer = globalThis.NMDAImporter;
+  const Contacts = globalThis.NMDAContacts;
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   function visible(el) {
@@ -388,6 +389,7 @@
         <div class="nmda-tabs">
           <button class="nmda-tab is-active" data-tab="single" type="button">单封</button>
           <button class="nmda-tab" data-tab="batch" type="button">批量</button>
+          <button class="nmda-tab" data-tab="contacts" type="button">联系人</button>
         </div>
 
         <div class="nmda-body nmda-tabpane" data-pane="single">
@@ -436,7 +438,7 @@
           <div class="nmda-import-card" id="nmda-preview-card" hidden>
             <div class="nmda-card-title">4. 导入预检</div>
             <div id="nmda-batch-summary" class="nmda-summary"></div>
-            <div class="nmda-table-wrap"><table class="nmda-table"><thead><tr><th>#</th><th>收件人</th><th>主题</th><th>附件</th><th>定时</th><th>状态</th></tr></thead><tbody id="nmda-preview-body"></tbody></table></div>
+            <div class="nmda-table-wrap"><table class="nmda-table"><thead><tr><th>#</th><th>收件人</th><th>联系人状态</th><th>主题</th><th>附件</th><th>定时</th><th>任务状态</th></tr></thead><tbody id="nmda-preview-body"></tbody></table></div>
           </div>
 
           <div class="nmda-import-card" id="nmda-run-card" hidden>
@@ -444,6 +446,32 @@
             <div class="nmda-row nmda-wrap"><label><input id="nmda-continue-on-error" type="checkbox" checked> 单封失败后继续下一封</label></div>
             <div class="nmda-actions"><button class="nmda-btn nmda-btn-primary" id="nmda-batch-start" type="button">开始批量建草稿</button><button class="nmda-btn" id="nmda-batch-stop" type="button" disabled>当前封完成后停止</button></div>
             <div id="nmda-batch-status">请先导入并确认预检结果。</div>
+          </div>
+        </div>
+
+        <div class="nmda-body nmda-tabpane" data-pane="contacts" hidden>
+          <div class="nmda-import-card">
+            <div class="nmda-card-title">联系人状态库</div>
+            <div class="nmda-hint">读取网易“已发送”邮件后自动建立联系人记录。自动扫描只会把“未联系”升级为“已发送”，不会覆盖你手工标记的“已回复 / 待跟进 / 暂停 / 不再联系”。</div>
+            <div class="nmda-row nmda-wrap">
+              <label class="nmda-field nmda-inline-field"><span class="nmda-label">读取范围</span><select id="nmda-sent-limit"><option value="50">最近 50 封</option><option value="100">最近 100 封</option><option value="200" selected>最近 200 封</option></select></label>
+              <button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-read-sent" type="button">读取已发送</button>
+              <button class="nmda-btn nmda-btn-small" id="nmda-open-sent" type="button">打开已发送</button>
+            </div>
+            <div class="nmda-row nmda-wrap">
+              <button class="nmda-btn nmda-btn-small" id="nmda-sync-batch-contacts" type="button">同步当前批量名单</button>
+              <button class="nmda-btn nmda-btn-small" id="nmda-export-contacts" type="button">导出联系人 CSV</button>
+            </div>
+            <div id="nmda-contact-status" class="nmda-summary">正在初始化当前邮箱的联系人状态库…</div>
+          </div>
+
+          <div class="nmda-import-card">
+            <div class="nmda-row nmda-contact-toolbar">
+              <input id="nmda-contact-search" type="text" placeholder="搜索邮箱 / 姓名 / 最近主题">
+              <select id="nmda-contact-filter"><option value="">全部状态</option>${Contacts ? Contacts.STATUS_OPTIONS.map(status => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`).join('') : ''}</select>
+            </div>
+            <div id="nmda-contact-summary" class="nmda-summary">0 个联系人</div>
+            <div class="nmda-table-wrap nmda-contact-table-wrap"><table class="nmda-table nmda-contact-table"><thead><tr><th>联系人</th><th>状态</th><th>发送</th><th>最后发送</th><th>最近主题</th></tr></thead><tbody id="nmda-contact-body"></tbody></table></div>
           </div>
         </div>
       </section>`;
@@ -457,6 +485,100 @@
   const recipientsEl = $('nmda-recipients'), subjectEl = $('nmda-subject'), bodyEl = $('nmda-body-text'), filesEl = $('nmda-files');
   const scheduleEnabledEl = $('nmda-schedule-enabled'), scheduleAtEl = $('nmda-schedule-at'), autoSaveEl = $('nmda-auto-save');
   const fillButton = $('nmda-fill'), openButton = $('nmda-open-compose'), statusEl = $('nmda-status');
+
+  const contactBook = { account: '', contacts: {}, loaded: false };
+
+  async function detectAccount() {
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'NMDA_ACCOUNT_INFO' });
+      if (result?.ok && result.uid) return Contacts?.normalizeEmail?.(result.uid) || String(result.uid).toLowerCase();
+    } catch (_) {}
+    const text = document.querySelector('#spnUid')?.textContent || '';
+    return text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase() || 'default';
+  }
+
+  async function ensureContactBook(force = false) {
+    if (!Contacts) return contactBook;
+    const account = await detectAccount();
+    if (force || !contactBook.loaded || contactBook.account !== account) {
+      contactBook.account = account;
+      contactBook.contacts = await Contacts.load(account);
+      contactBook.loaded = true;
+    }
+    return contactBook;
+  }
+
+  async function persistContacts() {
+    if (!Contacts || !contactBook.loaded) return;
+    await Contacts.save(contactBook.account, contactBook.contacts);
+  }
+
+  function contactStatusForRecipients(raw) {
+    if (!Contacts || !contactBook.loaded) return '未载入';
+    const recipients = Contacts.parseRecipients(raw);
+    if (!recipients.length) return '—';
+    const states = [...new Set(recipients.map(item => contactBook.contacts[item.email]?.status || '未联系'))];
+    return states.join(' / ');
+  }
+
+  function setContactStatusMessage(message, kind = '') {
+    const el = $('nmda-contact-status');
+    if (!el) return;
+    el.textContent = message;
+    if (kind) el.dataset.kind = kind; else delete el.dataset.kind;
+  }
+
+  function renderContacts() {
+    if (!Contacts) return;
+    const body = $('nmda-contact-body');
+    const summary = $('nmda-contact-summary');
+    if (!body || !summary) return;
+    const query = String($('nmda-contact-search')?.value || '').trim().toLowerCase();
+    const filter = $('nmda-contact-filter')?.value || '';
+    let list = Object.values(contactBook.contacts || {});
+    if (filter) list = list.filter(contact => contact.status === filter);
+    if (query) list = list.filter(contact => `${contact.email} ${contact.name || ''} ${contact.lastSubject || ''}`.toLowerCase().includes(query));
+    list.sort((a, b) => {
+      const ta = Date.parse(a.lastSentAt || '') || 0, tb = Date.parse(b.lastSentAt || '') || 0;
+      return tb - ta || String(a.email).localeCompare(String(b.email));
+    });
+
+    const all = Object.values(contactBook.contacts || {});
+    const counts = {};
+    for (const contact of all) counts[contact.status || '未联系'] = (counts[contact.status || '未联系'] || 0) + 1;
+    summary.textContent = `${all.length} 个联系人 · ${Contacts.STATUS_OPTIONS.map(status => `${status} ${counts[status] || 0}`).join(' · ')}`;
+
+    body.innerHTML = list.slice(0, 300).map(contact => `
+      <tr>
+        <td><strong>${escapeHtml(contact.name || contact.email)}</strong><small>${escapeHtml(contact.name ? contact.email : '')}</small></td>
+        <td><select class="nmda-contact-status-select" data-contact-email="${escapeHtml(contact.email)}">${Contacts.STATUS_OPTIONS.map(status => `<option value="${escapeHtml(status)}" ${contact.status === status ? 'selected' : ''}>${escapeHtml(status)}</option>`).join('')}</select></td>
+        <td>${Number(contact.sentCount || 0)}</td>
+        <td title="${escapeHtml(contact.lastSentAt || '')}">${escapeHtml(Contacts.formatDisplayTime(contact.lastSentAt))}</td>
+        <td title="${escapeHtml(contact.lastSubject || '')}">${escapeHtml(contact.lastSubject || '—')}</td>
+      </tr>`).join('');
+    if (!list.length) body.innerHTML = '<tr><td colspan="5">暂无联系人。可读取“已发送”或同步当前批量名单。</td></tr>';
+    else if (list.length > 300) body.insertAdjacentHTML('beforeend', `<tr><td colspan="5">当前显示前 300 个匹配联系人，共 ${list.length} 个。</td></tr>`);
+
+    body.querySelectorAll('select[data-contact-email]').forEach(select => select.addEventListener('change', async () => {
+      Contacts.setStatus(contactBook.contacts, select.dataset.contactEmail, select.value);
+      await persistContacts();
+      renderContacts();
+      if (typeof renderPreview === 'function') renderPreview();
+      setContactStatusMessage(`已将 ${select.dataset.contactEmail} 标记为“${select.value}”。`, 'ok');
+    }));
+  }
+
+  async function initContacts() {
+    if (!Contacts) { setContactStatusMessage('联系人模块未加载。', 'error'); return; }
+    try {
+      await ensureContactBook(true);
+      renderContacts();
+      setContactStatusMessage(`当前邮箱：${contactBook.account}。联系人状态保存在本机浏览器，不会上传到外部服务。`, 'ok');
+      if (typeof renderPreview === 'function') renderPreview();
+    } catch (error) {
+      setContactStatusMessage(`联系人初始化失败：${error.message}`, 'error');
+    }
+  }
 
   function setStatus(message, kind = '') {
     statusEl.textContent = message;
@@ -677,9 +799,12 @@
     const done = tasks.filter(t => t.status === 'done').length;
     const ready = tasks.filter(t => t.status === 'ready' || t.status === 'running').length;
     batchSummaryEl.innerHTML = `<strong>${tasks.length}</strong> 封任务 · <span>${ready} 可执行</span> · <span>${errors} 错误</span> · <span>${done} 已完成</span>`;
-    previewBodyEl.innerHTML = tasks.slice(0, 100).map(task => `
-      <tr data-status="${task.status}"><td>${escapeHtml(task.id)}</td><td title="${escapeHtml(task.recipients)}">${escapeHtml(task.recipients || '—')}</td><td title="${escapeHtml(task.subject)}">${escapeHtml(task.subject || '—')}</td><td title="${escapeHtml(task.files.map(file => file.name).join('；'))}">${task.files.length}</td><td>${escapeHtml(task.scheduleAt ? task.scheduleAt.replace('T', ' ') : '—')}</td><td title="${escapeHtml(statusLabel(task))}">${escapeHtml(statusLabel(task))}</td></tr>`).join('');
-    if (tasks.length > 100) previewBodyEl.insertAdjacentHTML('beforeend', `<tr><td colspan="6">仅显示前 100 行，实际将处理 ${tasks.length} 行。</td></tr>`);
+    previewBodyEl.innerHTML = tasks.slice(0, 100).map(task => {
+      const contactStatus = contactStatusForRecipients(task.recipients);
+      return `
+      <tr data-status="${task.status}"><td>${escapeHtml(task.id)}</td><td title="${escapeHtml(task.recipients)}">${escapeHtml(task.recipients || '—')}</td><td title="${escapeHtml(contactStatus)}">${escapeHtml(contactStatus)}</td><td title="${escapeHtml(task.subject)}">${escapeHtml(task.subject || '—')}</td><td title="${escapeHtml(task.files.map(file => file.name).join('；'))}">${task.files.length}</td><td>${escapeHtml(task.scheduleAt ? task.scheduleAt.replace('T', ' ') : '—')}</td><td title="${escapeHtml(statusLabel(task))}">${escapeHtml(statusLabel(task))}</td></tr>`;
+    }).join('');
+    if (tasks.length > 100) previewBodyEl.insertAdjacentHTML('beforeend', `<tr><td colspan="7">仅显示前 100 行，实际将处理 ${tasks.length} 行。</td></tr>`);
     $('nmda-preview-card').hidden = !batch.workbook;
     $('nmda-run-card').hidden = !batch.workbook;
     batchStartEl.disabled = batch.running || !tasks.some(t => t.status === 'ready');
@@ -787,6 +912,73 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
+  $('nmda-contact-search').addEventListener('input', renderContacts);
+  $('nmda-contact-filter').addEventListener('change', renderContacts);
+
+  $('nmda-open-sent').addEventListener('click', async () => {
+    const button = $('nmda-open-sent');
+    button.disabled = true;
+    setContactStatusMessage('正在打开“已发送”…');
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'NMDA_OPEN_SENT' });
+      if (!result?.ok) throw new Error(result?.reason || '无法打开已发送');
+      setContactStatusMessage('已打开网易“已发送”文件夹。', 'ok');
+    } catch (error) { setContactStatusMessage(`打开失败：${error.message}`, 'error'); }
+    finally { button.disabled = false; }
+  });
+
+  $('nmda-read-sent').addEventListener('click', async () => {
+    const button = $('nmda-read-sent');
+    button.disabled = true;
+    const limit = Number($('nmda-sent-limit').value || 200);
+    setContactStatusMessage(`正在读取最近 ${limit} 封已发送邮件…`);
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'NMDA_READ_SENT', limit });
+      if (!result?.ok) throw new Error(result?.reason || '读取已发送失败');
+      const account = Contacts.normalizeEmail(result.uid || await detectAccount()) || 'default';
+      if (!contactBook.loaded || contactBook.account !== account) {
+        contactBook.account = account;
+        contactBook.contacts = await Contacts.load(account);
+        contactBook.loaded = true;
+      }
+      const applied = Contacts.applySentMessages(contactBook.contacts, result.messages || []);
+      await persistContacts();
+      renderContacts();
+      renderPreview();
+      const successful = (result.messages || []).filter(message => !message.failed).length;
+      const recipients = new Set((result.messages || []).flatMap(message => (message.recipients || []).map(r => Contacts.normalizeEmail(r.email))).filter(Boolean)).size;
+      setContactStatusMessage(`读取完成：获得 ${result.messages?.length || 0} 封记录，其中 ${successful} 封未标记为发送失败；识别 ${recipients} 个收件邮箱；新增 ${applied.newLinks} 条“联系人 ↔ 已发送邮件”关联。`, 'ok');
+    } catch (error) {
+      console.error(`[${APP}] sent scan`, error);
+      setContactStatusMessage(`读取失败：${error.message}`, 'error');
+    } finally { button.disabled = false; }
+  });
+
+  $('nmda-sync-batch-contacts').addEventListener('click', async () => {
+    try {
+      await ensureContactBook();
+      const recipients = [];
+      for (const task of batch.tasks || []) recipients.push(...Contacts.parseRecipients(task.recipients));
+      const added = Contacts.mergeRecipientList(contactBook.contacts, recipients, '未联系');
+      await persistContacts();
+      renderContacts();
+      renderPreview();
+      setContactStatusMessage(`已同步当前批量任务中的 ${new Set(recipients.map(item => item.email)).size} 个邮箱；新增联系人 ${added} 个。`, 'ok');
+    } catch (error) { setContactStatusMessage(`同步失败：${error.message}`, 'error'); }
+  });
+
+  $('nmda-export-contacts').addEventListener('click', async () => {
+    try {
+      await ensureContactBook();
+      const csv = Contacts.toCsv(contactBook.contacts);
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = `netease-contacts-${contactBook.account.replace(/[^a-z0-9@._-]+/ig, '_')}.csv`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setContactStatusMessage('联系人状态已导出为 CSV。', 'ok');
+    } catch (error) { setContactStatusMessage(`导出失败：${error.message}`, 'error'); }
+  });
+
   batchStopEl.addEventListener('click', () => {
     batch.stopRequested = true;
     batchStopEl.disabled = true;
@@ -848,5 +1040,6 @@
   });
 
   restoreFormState();
-  console.info(`[${APP}] v0.3.0 loaded`);
+  initContacts();
+  console.info(`[${APP}] v0.4.0 loaded`);
 })();
