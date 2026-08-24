@@ -428,41 +428,116 @@
   }
 
   function normalizeFileKey(value) {
-    return String(value ?? '').trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\/+/, '').toLowerCase();
+    return String(value ?? '')
+      .normalize('NFKC')
+      .trim()
+      .replace(/\\/g, '/')
+      .replace(/^\.\//, '')
+      .replace(/^\/+/, '')
+      .replace(/\/{2,}/g, '/')
+      .toLowerCase();
+  }
+
+  function baseName(value) {
+    const key = normalizeFileKey(value);
+    return key.split('/').filter(Boolean).pop() || '';
+  }
+
+  // Chrome/Windows 下载重复文件时经常自动出现 “(1)” / “（2）”。
+  // 只把它作为低一级候选，不会覆盖真正的精确匹配。
+  function relaxedFileName(value) {
+    const name = baseName(value);
+    const dot = name.lastIndexOf('.');
+    const stem = dot > 0 ? name.slice(0, dot) : name;
+    const ext = dot > 0 ? name.slice(dot) : '';
+    return `${stem.replace(/\s*[（(]\d+[）)]\s*$/, '').trim()}${ext}`;
+  }
+
+  function fileIdentity(file) {
+    return `${normalizeFileKey(file?.webkitRelativePath || file?.name)}|${Number(file?.size || 0)}|${Number(file?.lastModified || 0)}`;
+  }
+
+  function addIndex(map, key, file) {
+    if (!key) return;
+    if (!map.has(key)) map.set(key, []);
+    const list = map.get(key);
+    if (!list.some(item => fileIdentity(item) === fileIdentity(file))) list.push(file);
   }
 
   function buildFileIndex(files) {
     const exact = new Map();
     const byName = new Map();
+    const relaxedByName = new Map();
+    const unique = new Map();
     for (const file of files || []) {
-      const paths = [file.name, file.webkitRelativePath].filter(Boolean).map(normalizeFileKey);
-      for (const path of paths) {
-        if (!exact.has(path)) exact.set(path, []);
-        exact.get(path).push(file);
-      }
-      const name = normalizeFileKey(file.name);
-      if (!byName.has(name)) byName.set(name, []);
-      byName.get(name).push(file);
+      if (!file) continue;
+      unique.set(fileIdentity(file), file);
+      const relative = normalizeFileKey(file.webkitRelativePath || '');
+      const relativeWithoutRoot = relative.includes('/') ? relative.split('/').slice(1).join('/') : '';
+      const paths = [file.name, relative, relativeWithoutRoot].filter(Boolean).map(normalizeFileKey);
+      for (const path of paths) addIndex(exact, path, file);
+      const name = baseName(file.name);
+      addIndex(byName, name, file);
+      addIndex(relaxedByName, relaxedFileName(name), file);
     }
-    return { exact, byName };
+    return { exact, byName, relaxedByName, files: [...unique.values()] };
+  }
+
+  function resolveOneFile(ref, index) {
+    const key = normalizeFileKey(ref);
+    if (!key) return { ref, status: 'missing', candidates: [], method: 'empty' };
+    let matches = index?.exact?.get(key) || [];
+    if (matches.length === 1) return { ref, status: 'matched', file: matches[0], candidates: matches, method: 'exact' };
+    if (matches.length > 1) return { ref, status: 'ambiguous', candidates: matches, method: 'exact' };
+
+    const basename = baseName(key);
+    matches = index?.byName?.get(basename) || [];
+    if (matches.length === 1) return { ref, status: 'matched', file: matches[0], candidates: matches, method: 'basename' };
+    if (matches.length > 1) return { ref, status: 'ambiguous', candidates: matches, method: 'basename' };
+
+    const relaxed = relaxedFileName(basename);
+    matches = index?.relaxedByName?.get(relaxed) || [];
+    if (matches.length === 1) return { ref, status: 'matched', file: matches[0], candidates: matches, method: 'relaxed-copy-suffix' };
+    if (matches.length > 1) return { ref, status: 'ambiguous', candidates: matches, method: 'relaxed-copy-suffix' };
+    return { ref, status: 'missing', candidates: [], method: 'none' };
+  }
+
+  function candidateScore(ref, file) {
+    const wanted = baseName(ref);
+    const actual = baseName(file?.name);
+    if (!wanted || !actual) return 0;
+    if (wanted === actual) return 100;
+    if (relaxedFileName(wanted) === relaxedFileName(actual)) return 90;
+    const wStem = wanted.replace(/\.[^.]+$/, '');
+    const aStem = actual.replace(/\.[^.]+$/, '');
+    if (wStem && aStem && (wStem.includes(aStem) || aStem.includes(wStem))) return 65;
+    const tokens = new Set(wStem.split(/[^\p{L}\p{N}]+/u).filter(t => t.length > 1));
+    const other = new Set(aStem.split(/[^\p{L}\p{N}]+/u).filter(t => t.length > 1));
+    let overlap = 0;
+    for (const token of tokens) if (other.has(token)) overlap++;
+    return overlap ? 30 + Math.min(30, overlap * 10) : 0;
+  }
+
+  function suggestFiles(ref, index, limit = 12) {
+    return [...(index?.files || [])]
+      .map(file => ({ file, score: candidateScore(ref, file) }))
+      .sort((a, b) => b.score - a.score || String(a.file.name).localeCompare(String(b.file.name)))
+      .slice(0, Math.max(1, limit));
   }
 
   function resolveFiles(refs, index) {
     const files = [];
     const missing = [];
     const ambiguous = [];
+    const details = [];
     for (const ref of refs || []) {
-      const key = normalizeFileKey(ref);
-      let matches = index.exact.get(key) || [];
-      if (!matches.length) {
-        const basename = key.split('/').pop();
-        matches = index.byName.get(basename) || [];
-      }
-      if (matches.length === 1) files.push(matches[0]);
-      else if (matches.length === 0) missing.push(ref);
+      const detail = resolveOneFile(ref, index || buildFileIndex([]));
+      details.push(detail);
+      if (detail.status === 'matched') files.push(detail.file);
+      else if (detail.status === 'missing') missing.push(ref);
       else ambiguous.push(ref);
     }
-    return { files, missing, ambiguous };
+    return { files, missing, ambiguous, details };
   }
 
   globalThis.NMDAImporter = {
@@ -476,7 +551,12 @@
     formatLocalDateTime,
     parseBoolean,
     splitAttachments,
+    normalizeFileKey,
+    relaxedFileName,
+    fileIdentity,
     buildFileIndex,
+    resolveOneFile,
+    suggestFiles,
     resolveFiles
   };
 })();

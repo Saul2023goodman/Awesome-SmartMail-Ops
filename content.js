@@ -214,18 +214,72 @@
       || root.querySelector('input[type="file"]') || null;
   }
 
-  async function addAttachments(root, files, onProgress = () => {}) {
-    if (!files?.length) return;
-    const input = await waitFor(() => findAttachmentInput(root), 8000, 120, '未找到网易邮箱附件控件。');
-    for (let i = 0; i < files.length; i++) {
-      const dt = new DataTransfer();
-      dt.items.add(files[i]);
-      try { input.files = dt.files; }
-      catch (error) { throw new Error(`附件“${files[i].name}”无法注入：${error.message}`); }
-      fire(input, 'change');
-      onProgress(i + 1, files.length, files[i].name);
-      await sleep(1000);
+  function uniqueFiles(files) {
+    const map = new Map();
+    for (const file of files || []) {
+      if (!file) continue;
+      const key = Importer?.fileIdentity?.(file) || `${file.name}|${file.size}|${file.lastModified}`;
+      if (!map.has(key)) map.set(key, file);
     }
+    return [...map.values()];
+  }
+
+  function attachmentNameVisible(root, fileName) {
+    const wanted = compactText(fileName).toLowerCase();
+    if (!wanted) return false;
+    const nodes = root.querySelectorAll('a,span,div,li,p,[title],[aria-label]');
+    for (const el of nodes) {
+      if (el.matches?.('input[type="file"], [id$="_attachBrowser"]')) continue;
+      const text = compactText(`${textOf(el)} ${el.getAttribute?.('title') || ''} ${el.getAttribute?.('aria-label') || ''}`).toLowerCase();
+      if (text.includes(wanted)) return true;
+    }
+    return false;
+  }
+
+  async function waitAttachmentEvidence(root, files, timeout = 9000) {
+    const start = Date.now();
+    let missing = [...files];
+    while (Date.now() - start < timeout) {
+      missing = files.filter(file => !attachmentNameVisible(root, file.name));
+      if (!missing.length) return { verified: true, missing: [] };
+      await sleep(250);
+    }
+    return { verified: false, missing };
+  }
+
+  async function injectFilesIntoInput(input, files) {
+    const dt = new DataTransfer();
+    files.forEach(file => dt.items.add(file));
+    try { input.files = dt.files; }
+    catch (error) { throw new Error(`无法把附件交给网易上传控件：${error.message}`); }
+    fire(input, 'input');
+    fire(input, 'change');
+  }
+
+  async function addAttachments(root, files, onProgress = () => {}) {
+    const selected = uniqueFiles(files);
+    if (!selected.length) return { verified: true, missing: [], mode: 'none' };
+    let input = await waitFor(() => findAttachmentInput(root), 8000, 120, '未找到网易邮箱附件控件。');
+
+    // 优先模拟用户在文件选择器中一次多选：速度更快，也更贴近真实上传。
+    if (input.multiple || selected.length === 1) {
+      await injectFilesIntoInput(input, selected);
+      onProgress(selected.length, selected.length, selected.map(file => file.name).join('、'));
+      await sleep(450);
+      const evidence = await waitAttachmentEvidence(root, selected);
+      return { ...evidence, mode: 'multi' };
+    }
+
+    // 如果网易当前实例的 input 没有 multiple，则逐个交给控件；每次重新寻找 input，
+    // 因为网易可能在一次上传后替换该 DOM 节点。
+    for (let i = 0; i < selected.length; i++) {
+      input = await waitFor(() => findAttachmentInput(root), 8000, 120, '附件上传过程中网易附件控件消失。');
+      await injectFilesIntoInput(input, [selected[i]]);
+      onProgress(i + 1, selected.length, selected[i].name);
+      await sleep(550);
+    }
+    const evidence = await waitAttachmentEvidence(root, selected);
+    return { ...evidence, mode: 'sequential' };
   }
 
   function findMoreSendOptions(root) {
@@ -362,10 +416,21 @@
           </div>
 
           <div class="nmda-import-card" id="nmda-attachments-card" hidden>
-            <div class="nmda-card-title">3. 建立附件文件池</div>
-            <label class="nmda-field"><span class="nmda-label">选择附件目录</span><input id="nmda-attachment-dir" type="file" webkitdirectory multiple><span class="nmda-hint">表格“附件”列写文件名或相对路径，例如 offer.pdf；A/offer.pdf</span></label>
-            <label class="nmda-field"><span class="nmda-label">追加独立文件</span><input id="nmda-attachment-files" type="file" multiple></label>
-            <div id="nmda-file-index-info" class="nmda-hint">尚未选择附件。</div>
+            <div class="nmda-card-title">3. 准备附件</div>
+            <div class="nmda-hint">实际使用建议：表格只写每封邮件的专属附件名；同一份 CV、成绩单等可直接设为“公共附件”，无需在每一行重复填写。</div>
+            <div id="nmda-attachment-summary" class="nmda-summary">导入任务后会统计需要匹配的附件。</div>
+            <div class="nmda-attachment-grid">
+              <label class="nmda-field"><span class="nmda-label">选择专属附件文件（推荐）</span><input id="nmda-attachment-files" type="file" multiple><span class="nmda-hint">可一次多选所有附件；插件按表格中的文件名自动分配到对应邮件。</span></label>
+              <label class="nmda-field"><span class="nmda-label">或扫描附件总目录</span><input id="nmda-attachment-dir" type="file" webkitdirectory multiple><span class="nmda-hint">适合附件很多或按学生/导师分文件夹保存；支持相对路径匹配。</span></label>
+            </div>
+            <div id="nmda-attachment-drop" class="nmda-attachment-drop">也可以把专属附件文件直接拖到这里</div>
+            <label class="nmda-field nmda-shared-box"><span class="nmda-label">公共附件（每一封都添加）</span><input id="nmda-shared-files" type="file" multiple><span class="nmda-hint">例如统一 CV / 成绩单。表格“附件”列可以留空，也可以再写每封专属文件。</span></label>
+            <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-clear-attachments" type="button">清空附件选择</button><span id="nmda-file-index-info" class="nmda-hint">尚未选择本地附件。</span></div>
+            <div id="nmda-attachment-resolution" class="nmda-attachment-resolution" hidden>
+              <div class="nmda-card-subtitle">需要你确认的附件</div>
+              <div class="nmda-hint">找不到或出现同名文件时，不再阻塞在“猜文件”：直接在这里指定一次，本批次所有相同引用都会复用该选择。</div>
+              <div id="nmda-attachment-resolution-list"></div>
+            </div>
           </div>
 
           <div class="nmda-import-card" id="nmda-preview-card" hidden>
@@ -440,7 +505,8 @@
       setStatus('2/6 填写收件人、主题和正文…'); await setRecipients(root, recipientsEl.value); await setSubject(root, subjectEl.value); await setBody(root, bodyEl.value);
       if (filesEl.files.length) {
         setStatus(`3/6 注入附件（0/${filesEl.files.length}）…`);
-        await addAttachments(root, [...filesEl.files], (done, total, name) => setStatus(`3/6 注入附件（${done}/${total}）：${name}`));
+        const upload = await addAttachments(root, [...filesEl.files], (done, total, name) => setStatus(`3/6 上传附件（${done}/${total}）：${name}`));
+        if (!upload.verified) setStatus(`3/6 已提交附件，但页面暂未确认：${upload.missing.map(file => file.name).join('、')}。将继续填写草稿。`, 'warn');
       } else setStatus('3/6 未选择附件，跳过。');
       if (scheduleEnabledEl.checked) {
         setStatus('4/6 设置定时发送…'); const minute = await setSchedule(root, scheduleAtEl.value);
@@ -456,12 +522,12 @@
 
   const batch = {
     workbook: null, sheetIndex: 0, detection: null, mapping: {}, tasks: [],
-    directoryFiles: [], extraFiles: [], fileIndex: Importer?.buildFileIndex?.([]),
-    running: false, stopRequested: false
+    directoryFiles: [], taskFiles: [], sharedFiles: [], fileIndex: Importer?.buildFileIndex?.([]),
+    attachmentOverrides: new Map(), running: false, stopRequested: false
   };
 
   const importFileEl = $('nmda-import-file'), sheetSelectEl = $('nmda-sheet-select'), mappingEl = $('nmda-mapping');
-  const dirEl = $('nmda-attachment-dir'), extraFilesEl = $('nmda-attachment-files');
+  const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files'), sharedFilesEl = $('nmda-shared-files');
   const previewBodyEl = $('nmda-preview-body'), batchSummaryEl = $('nmda-batch-summary'), batchStatusEl = $('nmda-batch-status');
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop');
 
@@ -491,19 +557,59 @@
   }
 
   function allAttachmentFiles() {
-    const map = new Map();
-    for (const file of [...batch.directoryFiles, ...batch.extraFiles]) {
-      const key = `${file.webkitRelativePath || file.name}|${file.size}|${file.lastModified}`;
-      if (!map.has(key)) map.set(key, file);
-    }
-    return [...map.values()];
+    return uniqueFiles([...batch.directoryFiles, ...batch.taskFiles, ...batch.sharedFiles]);
   }
 
-  function refreshFileIndex() {
+  function attachmentPoolFiles() {
+    return uniqueFiles([...batch.directoryFiles, ...batch.taskFiles]);
+  }
+
+  function clearStaleOverrides() {
+    const valid = new Set(allAttachmentFiles().map(file => Importer.fileIdentity(file)));
+    for (const [key, file] of batch.attachmentOverrides) {
+      if (!valid.has(Importer.fileIdentity(file))) batch.attachmentOverrides.delete(key);
+    }
+  }
+
+  function refreshFileIndex(resetOverrides = false) {
+    if (resetOverrides) batch.attachmentOverrides.clear();
+    clearStaleOverrides();
     const files = allAttachmentFiles();
     batch.fileIndex = Importer.buildFileIndex(files);
-    $('nmda-file-index-info').textContent = files.length ? `已建立 ${files.length} 个本地文件的匹配索引。` : '尚未选择附件。';
+    const taskCount = attachmentPoolFiles().length;
+    const sharedCount = uniqueFiles(batch.sharedFiles).length;
+    const totalBytes = files.reduce((sum, file) => sum + Number(file.size || 0), 0);
+    const sizeText = totalBytes < 1024 * 1024 ? `${Math.round(totalBytes / 1024)} KB` : `${(totalBytes / 1024 / 1024).toFixed(1)} MB`;
+    $('nmda-file-index-info').textContent = files.length
+      ? `已选择 ${files.length} 个文件（专属池 ${taskCount}，公共 ${sharedCount}，共 ${sizeText}）。`
+      : '尚未选择本地附件。';
     rebuildTasks();
+  }
+
+  function mergeTaskFiles(resolvedFiles) {
+    return uniqueFiles([...batch.sharedFiles, ...(resolvedFiles || [])]);
+  }
+
+  function resolveAttachmentRefs(refs) {
+    const resolved = Importer.resolveFiles(refs, batch.fileIndex || Importer.buildFileIndex([]));
+    const files = [];
+    const missing = [];
+    const ambiguous = [];
+    const details = [];
+    for (const detail of resolved.details || []) {
+      const key = Importer.normalizeFileKey(detail.ref);
+      const override = batch.attachmentOverrides.get(key);
+      if (override) {
+        files.push(override);
+        details.push({ ...detail, status: 'matched', file: override, method: 'manual' });
+      } else if (detail.status === 'matched') {
+        files.push(detail.file); details.push(detail);
+      } else {
+        details.push(detail);
+        if (detail.status === 'missing') missing.push(detail.ref); else ambiguous.push(detail.ref);
+      }
+    }
+    return { files: uniqueFiles(files), missing, ambiguous, details };
   }
 
   function cellValue(row, field) {
@@ -539,14 +645,18 @@
       if (scheduleFlag === true && !scheduleAt) errors.push('标记为定时发送但没有有效定时时间');
       if (scheduleFlag === false) scheduleAt = '';
 
-      const resolved = Importer.resolveFiles(attachmentRefs, batch.fileIndex || Importer.buildFileIndex([]));
+      const resolved = resolveAttachmentRefs(attachmentRefs);
       if (resolved.missing.length) errors.push(`缺少附件：${resolved.missing.join('、')}`);
       if (resolved.ambiguous.length) errors.push(`附件同名冲突：${resolved.ambiguous.join('、')}`);
+      for (const detail of resolved.details) {
+        if (detail.status === 'matched' && detail.method === 'relaxed-copy-suffix')
+          warnings.push(`附件按下载副本名匹配：${detail.ref} → ${detail.file.name}`);
+      }
 
       tasks.push({
         id, rowIndex, excelRow: rowIndex + 1, recipients, subject, body, attachmentRefs,
-        files: resolved.files, scheduleAt, errors, warnings,
-        status: errors.length ? 'error' : 'ready', runtimeError: '', note: ''
+        files: mergeTaskFiles(resolved.files), tableFiles: resolved.files, attachmentDetails: resolved.details,
+        scheduleAt, errors, warnings, status: errors.length ? 'error' : 'ready', runtimeError: '', note: ''
       });
     }
     batch.tasks = tasks;
@@ -568,11 +678,54 @@
     const ready = tasks.filter(t => t.status === 'ready' || t.status === 'running').length;
     batchSummaryEl.innerHTML = `<strong>${tasks.length}</strong> 封任务 · <span>${ready} 可执行</span> · <span>${errors} 错误</span> · <span>${done} 已完成</span>`;
     previewBodyEl.innerHTML = tasks.slice(0, 100).map(task => `
-      <tr data-status="${task.status}"><td>${escapeHtml(task.id)}</td><td title="${escapeHtml(task.recipients)}">${escapeHtml(task.recipients || '—')}</td><td title="${escapeHtml(task.subject)}">${escapeHtml(task.subject || '—')}</td><td>${task.attachmentRefs.length}</td><td>${escapeHtml(task.scheduleAt ? task.scheduleAt.replace('T', ' ') : '—')}</td><td title="${escapeHtml(statusLabel(task))}">${escapeHtml(statusLabel(task))}</td></tr>`).join('');
+      <tr data-status="${task.status}"><td>${escapeHtml(task.id)}</td><td title="${escapeHtml(task.recipients)}">${escapeHtml(task.recipients || '—')}</td><td title="${escapeHtml(task.subject)}">${escapeHtml(task.subject || '—')}</td><td title="${escapeHtml(task.files.map(file => file.name).join('；'))}">${task.files.length}</td><td>${escapeHtml(task.scheduleAt ? task.scheduleAt.replace('T', ' ') : '—')}</td><td title="${escapeHtml(statusLabel(task))}">${escapeHtml(statusLabel(task))}</td></tr>`).join('');
     if (tasks.length > 100) previewBodyEl.insertAdjacentHTML('beforeend', `<tr><td colspan="6">仅显示前 100 行，实际将处理 ${tasks.length} 行。</td></tr>`);
     $('nmda-preview-card').hidden = !batch.workbook;
     $('nmda-run-card').hidden = !batch.workbook;
     batchStartEl.disabled = batch.running || !tasks.some(t => t.status === 'ready');
+    renderAttachmentCenter();
+  }
+
+  function renderAttachmentCenter() {
+    const allRefs = [];
+    for (const task of batch.tasks || []) allRefs.push(...(task.attachmentRefs || []));
+    const uniqueRefs = [...new Map(allRefs.map(ref => [Importer.normalizeFileKey(ref), ref])).values()];
+    const issues = new Map();
+    let matched = 0;
+    for (const ref of uniqueRefs) {
+      const key = Importer.normalizeFileKey(ref);
+      const override = batch.attachmentOverrides.get(key);
+      if (override) { matched++; continue; }
+      const detail = Importer.resolveOneFile(ref, batch.fileIndex || Importer.buildFileIndex([]));
+      if (detail.status === 'matched') matched++;
+      else issues.set(key, detail);
+    }
+    const shared = uniqueFiles(batch.sharedFiles);
+    $('nmda-attachment-summary').innerHTML = uniqueRefs.length
+      ? `<strong>${matched}/${uniqueRefs.length}</strong> 个表格附件引用已匹配 · <strong>${shared.length}</strong> 个公共附件将加入每封邮件${issues.size ? ` · <span class="nmda-danger">${issues.size} 个待确认</span>` : ''}`
+      : `表格没有专属附件引用 · <strong>${shared.length}</strong> 个公共附件将加入每封邮件`;
+
+    const box = $('nmda-attachment-resolution');
+    const list = $('nmda-attachment-resolution-list');
+    if (!issues.size) { box.hidden = true; list.innerHTML = ''; return; }
+    box.hidden = false;
+    const pool = allAttachmentFiles();
+    list.innerHTML = [...issues.values()].map(detail => {
+      const suggestions = Importer.suggestFiles(detail.ref, batch.fileIndex, Math.min(18, Math.max(8, pool.length)));
+      const suggestedIds = new Set(suggestions.filter(item => item.score > 0).map(item => Importer.fileIdentity(item.file)));
+      const candidates = suggestions.filter(item => item.score > 0);
+      if (pool.length <= 24) {
+        for (const file of pool) if (!suggestedIds.has(Importer.fileIdentity(file))) candidates.push({ file, score: 0 });
+      }
+      const options = candidates.map(item => `<option value="${escapeHtml(Importer.fileIdentity(item.file))}">${escapeHtml(item.file.webkitRelativePath || item.file.name)}${item.score >= 90 ? '（推荐）' : ''}</option>`).join('');
+      return `<div class="nmda-resolve-row"><div><strong title="${escapeHtml(detail.ref)}">${escapeHtml(detail.ref)}</strong><small>${detail.status === 'ambiguous' ? '发现多个同名文件' : '尚未自动匹配'}</small></div><select data-attachment-ref="${escapeHtml(Importer.normalizeFileKey(detail.ref))}"><option value="">— 手动指定文件 —</option>${options}</select></div>`;
+    }).join('');
+    list.querySelectorAll('select[data-attachment-ref]').forEach(select => select.addEventListener('change', () => {
+      const key = select.dataset.attachmentRef;
+      const file = allAttachmentFiles().find(item => Importer.fileIdentity(item) === select.value);
+      if (file) batch.attachmentOverrides.set(key, file); else batch.attachmentOverrides.delete(key);
+      rebuildTasks();
+    }));
   }
 
   function setBatchStatus(message, kind = '') {
@@ -600,11 +753,35 @@
   });
 
   sheetSelectEl.addEventListener('change', () => configureSheet(sheetSelectEl.value, true));
-  dirEl.addEventListener('change', () => { batch.directoryFiles = [...dirEl.files]; refreshFileIndex(); });
-  extraFilesEl.addEventListener('change', () => { batch.extraFiles = [...extraFilesEl.files]; refreshFileIndex(); });
+  dirEl.addEventListener('change', () => {
+    batch.directoryFiles = uniqueFiles([...batch.directoryFiles, ...dirEl.files]);
+    dirEl.value = ''; refreshFileIndex(true);
+  });
+  taskFilesEl.addEventListener('change', () => {
+    batch.taskFiles = uniqueFiles([...batch.taskFiles, ...taskFilesEl.files]);
+    taskFilesEl.value = ''; refreshFileIndex(true);
+  });
+  sharedFilesEl.addEventListener('change', () => {
+    batch.sharedFiles = uniqueFiles([...batch.sharedFiles, ...sharedFilesEl.files]);
+    sharedFilesEl.value = ''; refreshFileIndex(false);
+  });
+  const attachmentDropEl = $('nmda-attachment-drop');
+  ['dragenter','dragover'].forEach(type => attachmentDropEl.addEventListener(type, event => { event.preventDefault(); attachmentDropEl.classList.add('is-dragging'); }));
+  ['dragleave','drop'].forEach(type => attachmentDropEl.addEventListener(type, event => { event.preventDefault(); attachmentDropEl.classList.remove('is-dragging'); }));
+  attachmentDropEl.addEventListener('drop', event => {
+    const dropped = [...(event.dataTransfer?.files || [])].filter(file => file && file.name);
+    if (!dropped.length) return;
+    batch.taskFiles = uniqueFiles([...batch.taskFiles, ...dropped]);
+    refreshFileIndex(true);
+  });
+  $('nmda-clear-attachments').addEventListener('click', () => {
+    dirEl.value = ''; taskFilesEl.value = ''; sharedFilesEl.value = '';
+    batch.directoryFiles = []; batch.taskFiles = []; batch.sharedFiles = []; batch.attachmentOverrides.clear();
+    refreshFileIndex(true);
+  });
 
   $('nmda-template').addEventListener('click', () => {
-    const csv = '\ufeff编号,收件人,主题,正文,附件,定时时间\r\n001,mail-test@example.com,测试主题,这是正文,材料.pdf;附件2.docx,2026-08-25 09:30\r\n';
+    const csv = '\ufeff编号,收件人,主题,正文,附件,定时时间\r\n001,mail-test@example.com,测试主题,这是正文,该封专属材料.pdf,2026-08-25 09:30\r\n002,mail-test-2@example.com,测试主题2,这是正文2,,2026-08-25 10:00\r\n';
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a'); a.href = url; a.download = 'netease-mail-batch-template.csv'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -621,7 +798,7 @@
     const executable = batch.tasks.filter(t => t.status === 'ready');
     if (!executable.length) { setBatchStatus('没有可执行任务，请先修正预检错误。', 'error'); return; }
     batch.running = true; batch.stopRequested = false; batchStartEl.disabled = true; batchStopEl.disabled = false;
-    importFileEl.disabled = true; sheetSelectEl.disabled = true; dirEl.disabled = true; extraFilesEl.disabled = true;
+    importFileEl.disabled = true; sheetSelectEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; sharedFilesEl.disabled = true;
     let succeeded = 0, failed = 0;
     try {
       for (let i = 0; i < batch.tasks.length; i++) {
@@ -635,7 +812,13 @@
           await setRecipients(root, task.recipients);
           await setSubject(root, task.subject);
           await setBody(root, task.body);
-          if (task.files.length) await addAttachments(root, task.files, (done, total, name) => setBatchStatus(`任务 ${task.id}：附件 ${done}/${total} · ${name}`));
+          if (task.files.length) {
+            const upload = await addAttachments(root, task.files, (done, total, name) => setBatchStatus(`任务 ${task.id}：附件 ${done}/${total} · ${name}`));
+            if (!upload.verified) {
+              const missingNames = upload.missing.map(file => file.name).join('、');
+              task.note = [task.note, `附件已提交上传，但页面未确认：${missingNames}`].filter(Boolean).join('；');
+            }
+          }
           if (task.scheduleAt) {
             const actualMinute = await setSchedule(root, task.scheduleAt);
             const requestedMinute = new Date(task.scheduleAt).getMinutes();
@@ -659,11 +842,11 @@
       else setBatchStatus(`批量处理完成：成功创建并保存 ${succeeded} 封草稿。不会自动发送。`, 'ok');
     } finally {
       batch.running = false; batchStopEl.disabled = true;
-      importFileEl.disabled = false; sheetSelectEl.disabled = false; dirEl.disabled = false; extraFilesEl.disabled = false;
+      importFileEl.disabled = false; sheetSelectEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; sharedFilesEl.disabled = false;
       renderPreview();
     }
   });
 
   restoreFormState();
-  console.info(`[${APP}] v0.2.1 loaded`);
+  console.info(`[${APP}] v0.3.0 loaded`);
 })();
