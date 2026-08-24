@@ -8,6 +8,39 @@
     return String(value || '').trim().toLowerCase();
   }
 
+  function normalizeTag(value) {
+    return String(value ?? '').trim().replace(/\s+/g, ' ');
+  }
+
+  function parseTags(value) {
+    const raw = Array.isArray(value) ? value : String(value ?? '').split(/[;,，；|\n]+/);
+    const seen = new Set();
+    const tags = [];
+    for (const item of raw) {
+      const tag = normalizeTag(item);
+      if (!tag) continue;
+      const key = tag.toLocaleLowerCase('zh-CN');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      tags.push(tag);
+    }
+    return tags;
+  }
+
+  function mergeTags(...values) {
+    const seen = new Set();
+    const tags = [];
+    for (const value of values) {
+      for (const tag of parseTags(value)) {
+        const key = tag.toLocaleLowerCase('zh-CN');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        tags.push(tag);
+      }
+    }
+    return tags;
+  }
+
   function parseRecipients(raw) {
     const text = String(raw || '');
     const results = [];
@@ -34,6 +67,9 @@
     const key = storageKey(account);
     const stored = (await chrome.storage.local.get(key))[key];
     if (!stored || typeof stored !== 'object') return {};
+    for (const contact of Object.values(stored)) {
+      if (contact && typeof contact === 'object') contact.tags = parseTags(contact.tags || []);
+    }
     return stored;
   }
 
@@ -51,6 +87,7 @@
       email,
       name: patch.name || prev.name || '',
       status: prev.status || patch.status || '未联系',
+      tags: mergeTags(prev.tags || [], patch.tags || []),
       sentCount: Number(prev.sentCount || 0),
       lastSentAt: prev.lastSentAt || '',
       lastSubject: prev.lastSubject || '',
@@ -63,6 +100,8 @@
       email
     };
     if (prev.status) next.status = prev.status;
+    next.tags = patch.replaceTags ? parseTags(patch.tags || []) : mergeTags(prev.tags || [], patch.tags || []);
+    delete next.replaceTags;
     if (!STATUS_OPTIONS.includes(next.status)) next.status = '未联系';
     contacts[email] = next;
     return next;
@@ -123,7 +162,6 @@
           contact.lastSentAt = sentIso;
           contact.lastSubject = message.subject || contact.lastSubject || '';
         }
-        // Automatic evidence should never overwrite a stronger manual workflow state.
         if (!contact.status || contact.status === '未联系') contact.status = '已发送';
         contact.updatedAt = new Date().toISOString();
       }
@@ -137,7 +175,7 @@
       const email = normalizeEmail(item.email || item.address);
       if (!email) continue;
       const existed = !!contacts[email];
-      ensureContact(contacts, email, { name: item.name || '', status: defaultStatus });
+      ensureContact(contacts, email, { name: item.name || '', status: defaultStatus, tags: item.tags || [] });
       if (!existed) added++;
     }
     return added;
@@ -153,6 +191,34 @@
     return contact;
   }
 
+  function setTags(contacts, email, tags) {
+    const contact = ensureContact(contacts, email);
+    if (!contact) return null;
+    contact.tags = parseTags(tags);
+    contact.tagsChangedAt = new Date().toISOString();
+    contact.updatedAt = contact.tagsChangedAt;
+    return contact;
+  }
+
+  function addTags(contacts, email, tags) {
+    const contact = ensureContact(contacts, email);
+    if (!contact) return null;
+    contact.tags = mergeTags(contact.tags || [], tags || []);
+    contact.tagsChangedAt = new Date().toISOString();
+    contact.updatedAt = contact.tagsChangedAt;
+    return contact;
+  }
+
+  function removeTags(contacts, email, tags) {
+    const contact = ensureContact(contacts, email);
+    if (!contact) return null;
+    const remove = new Set(parseTags(tags).map(tag => tag.toLocaleLowerCase('zh-CN')));
+    contact.tags = parseTags(contact.tags || []).filter(tag => !remove.has(tag.toLocaleLowerCase('zh-CN')));
+    contact.tagsChangedAt = new Date().toISOString();
+    contact.updatedAt = contact.tagsChangedAt;
+    return contact;
+  }
+
   function formatDisplayTime(value) {
     const ms = timeMs(value);
     if (!ms) return '—';
@@ -165,9 +231,9 @@
   }
 
   function toCsv(contacts) {
-    const rows = [['邮箱', '姓名', '状态', '已识别发送次数', '最后发送时间', '最后主题']];
+    const rows = [['邮箱', '姓名', '状态', '标签', '已识别发送次数', '最后发送时间', '最后主题']];
     Object.values(contacts || {}).sort((a, b) => normalizeEmail(a.email).localeCompare(normalizeEmail(b.email))).forEach(c => {
-      rows.push([c.email, c.name || '', c.status || '未联系', c.sentCount || 0, c.lastSentAt || '', c.lastSubject || '']);
+      rows.push([c.email, c.name || '', c.status || '未联系', parseTags(c.tags || []).join(';'), c.sentCount || 0, c.lastSentAt || '', c.lastSubject || '']);
     });
     return '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n');
   }
@@ -175,6 +241,9 @@
   globalThis.NMDAContacts = {
     STATUS_OPTIONS,
     normalizeEmail,
+    normalizeTag,
+    parseTags,
+    mergeTags,
     parseRecipients,
     load,
     save,
@@ -182,6 +251,9 @@
     applySentMessages,
     mergeRecipientList,
     setStatus,
+    setTags,
+    addTags,
+    removeTags,
     formatDisplayTime,
     toCsv
   };
