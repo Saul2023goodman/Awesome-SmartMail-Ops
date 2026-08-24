@@ -665,5 +665,5 @@
   });
 
   restoreFormState();
-  console.info(`[${APP}] v0.2.0 loaded`);
+  console.info(`[${APP}] v0.2.1 loaded`);
 })();

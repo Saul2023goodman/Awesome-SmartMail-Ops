@@ -262,23 +262,52 @@
     return Math.max(0, n - 1);
   }
 
+  // OOXML is namespace-qualified. Excel/WPS/other writers may emit either
+  // <sheet> or <x:sheet> (and likewise row/c/v/t). Looking up only the
+  // literal tag name silently returns zero nodes for prefixed documents.
+  // Always resolve elements by localName so both forms work.
+  function elementsByLocalName(root, localName) {
+    if (!root) return [];
+    try {
+      if (typeof root.getElementsByTagNameNS === 'function') {
+        const nodes = root.getElementsByTagNameNS('*', localName);
+        if (nodes?.length) return Array.from(nodes);
+      }
+    } catch (_) {}
+
+    try {
+      return Array.from(root.getElementsByTagName('*') || []).filter(el => {
+        const tag = String(el.localName || el.tagName || '');
+        return tag === localName || tag.endsWith(`:${localName}`);
+      });
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function firstByLocalName(root, localName) {
+    return elementsByLocalName(root, localName)[0] || null;
+  }
+
   function parseSharedStrings(doc) {
     if (!doc) return [];
-    return [...doc.getElementsByTagName('si')].map(si => [...si.getElementsByTagName('t')].map(t => t.textContent || '').join(''));
+    return elementsByLocalName(doc, 'si').map(si =>
+      elementsByLocalName(si, 't').map(t => t.textContent || '').join('')
+    );
   }
 
   function parseWorksheet(doc, sharedStrings) {
     const rows = [];
-    for (const rowEl of [...doc.getElementsByTagName('row')]) {
+    for (const rowEl of elementsByLocalName(doc, 'row')) {
       const rowNumber = Number(rowEl.getAttribute('r')) || rows.length + 1;
       const row = [];
-      for (const c of [...rowEl.getElementsByTagName('c')]) {
+      for (const c of elementsByLocalName(rowEl, 'c')) {
         const col = columnIndex(c.getAttribute('r'));
         const type = c.getAttribute('t') || '';
-        const v = c.getElementsByTagName('v')[0]?.textContent ?? '';
+        const v = firstByLocalName(c, 'v')?.textContent ?? '';
         let value = v;
         if (type === 's') value = sharedStrings[Number(v)] ?? '';
-        else if (type === 'inlineStr') value = [...c.getElementsByTagName('t')].map(t => t.textContent || '').join('');
+        else if (type === 'inlineStr') value = elementsByLocalName(c, 't').map(t => t.textContent || '').join('');
         else if (type === 'b') value = v === '1';
         else if (type === 'n' || !type) {
           const num = Number(v);
@@ -311,10 +340,10 @@
     const rels = xml(entries, 'xl/_rels/workbook.xml.rels');
     const shared = parseSharedStrings(xml(entries, 'xl/sharedStrings.xml', false));
     const relMap = new Map();
-    for (const rel of [...rels.getElementsByTagName('Relationship')]) relMap.set(rel.getAttribute('Id'), rel.getAttribute('Target'));
+    for (const rel of elementsByLocalName(rels, 'Relationship')) relMap.set(rel.getAttribute('Id'), rel.getAttribute('Target'));
 
     const sheets = [];
-    for (const sheetEl of [...workbook.getElementsByTagName('sheet')]) {
+    for (const sheetEl of elementsByLocalName(workbook, 'sheet')) {
       const name = sheetEl.getAttribute('name') || `Sheet${sheets.length + 1}`;
       const rid = sheetEl.getAttribute('r:id') || sheetEl.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
       const target = relMap.get(rid);
@@ -323,7 +352,11 @@
       const ws = xml(entries, path);
       sheets.push({ name, rows: parseWorksheet(ws, shared) });
     }
-    if (!sheets.length) throw new Error('XLSX 中没有可读取的工作表。');
+    if (!sheets.length) {
+      const sheetCount = elementsByLocalName(workbook, 'sheet').length;
+      const relCount = elementsByLocalName(rels, 'Relationship').length;
+      throw new Error(`XLSX 中没有可读取的工作表（workbook sheets=${sheetCount}, relationships=${relCount}）。`);
+    }
     return { sheets };
   }
 
