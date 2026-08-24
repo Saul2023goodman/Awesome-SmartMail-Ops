@@ -322,7 +322,7 @@
   }
 
   function toCsv(contacts) {
-    const rows = [['邮箱', '姓名', '互动阶段', '待跟进', '发送策略', '自定义标签', '已识别发送次数', '最后发送时间', '最后主题']];
+    const rows = [['邮箱', '姓名', '互动阶段', '待跟进', '发送策略', '自定义分类', '已识别发送次数', '最后发送时间', '最后主题']];
     Object.values(contacts || {}).sort((a, b) => normalizeEmail(a.email).localeCompare(normalizeEmail(b.email))).forEach(raw => {
       const c = normalizeContactShape(raw);
       rows.push([c.email, c.name || '', c.stage || '未联系', c.followUp ? '是' : '否', c.policy || '正常', parseContactTags(c.tags || []).join(';'), c.sentCount || 0, c.lastSentAt || '', c.lastSubject || '']);
