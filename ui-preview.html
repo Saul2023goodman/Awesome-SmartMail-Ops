@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="content.css"><style>html,body{margin:0;width:100%;height:100%;background:#eef2f7;font-family:Arial} .fake{padding:32px;color:#64748b}</style></head><body><div class="fake"><h1>网易邮箱模拟页面</h1><p>仅用于 v0.6 UI 回归预览。</p></div>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="content.css"><style>html,body{margin:0;width:100%;height:100%;background:#eef2f7;font-family:Arial} .fake{padding:32px;color:#64748b}</style></head><body><div class="fake"><h1>网易邮箱模拟页面</h1><p>仅用于 v0.9 UI 回归预览。</p></div>
 <script>
 window.chrome={storage:{local:{_d:{},async get(k){if(typeof k==='string')return {[k]:this._d[k]};return {...this._d}},async set(o){Object.assign(this._d,o)}}},runtime:{async sendMessage(msg){if(msg.type==='NMDA_ACCOUNT_INFO')return {ok:true,uid:'preview@example.com'};return {ok:false,reason:'preview'}}}};
 </script>

@@ -5,7 +5,7 @@
   const STAGE_OPTIONS = ['未联系', '已发送', '已回复'];
   const POLICY_OPTIONS = ['正常', '暂停', '不再联系'];
   const STATUS_OPTIONS = ['未联系', '已发送', '已回复', '待跟进', '暂停', '不再联系']; // compatibility
-  const SYSTEM_CLASSIFICATIONS = new Set([...STAGE_OPTIONS, '待跟进', ...POLICY_OPTIONS]);
+  const SYSTEM_CLASSIFICATIONS = new Set([...STAGE_OPTIONS, '待跟进', ...POLICY_OPTIONS, '有草稿']);
 
   function normalizeEmail(value) {
     return String(value || '').trim().toLowerCase();
@@ -95,6 +95,14 @@
     contact.policy = POLICY_OPTIONS.includes(contact.policy) ? contact.policy : legacy.policy;
     contact.followUp = typeof contact.followUp === 'boolean' ? contact.followUp : legacy.followUp;
     contact.tags = parseContactTags(contact.tags || []);
+    contact.sentCount = Number(contact.sentCount || 0);
+    contact.sentMessageIds = Array.isArray(contact.sentMessageIds) ? contact.sentMessageIds : [];
+    contact.history = Array.isArray(contact.history) ? contact.history : [];
+    contact.draftCount = Number(contact.draftCount || 0);
+    contact.draftMessageIds = Array.isArray(contact.draftMessageIds) ? contact.draftMessageIds : [];
+    contact.draftHistory = Array.isArray(contact.draftHistory) ? contact.draftHistory : [];
+    contact.lastDraftAt = contact.lastDraftAt || '';
+    contact.lastDraftSubject = contact.lastDraftSubject || '';
     // Keep a backward-compatible shadow value. New code never uses it as the full workflow state.
     contact.status = contact.stage;
     return contact;
@@ -133,6 +141,11 @@
       lastSubject: prev.lastSubject || '',
       sentMessageIds: Array.isArray(prev.sentMessageIds) ? prev.sentMessageIds : [],
       history: Array.isArray(prev.history) ? prev.history : [],
+      draftCount: Number(prev.draftCount || 0),
+      lastDraftAt: prev.lastDraftAt || '',
+      lastDraftSubject: prev.lastDraftSubject || '',
+      draftMessageIds: Array.isArray(prev.draftMessageIds) ? prev.draftMessageIds : [],
+      draftHistory: Array.isArray(prev.draftHistory) ? prev.draftHistory : [],
       createdAt: prev.createdAt || now,
       updatedAt: now,
       ...prev,
@@ -213,6 +226,61 @@
       }
     }
     return { contacts, contactsTouched, newLinks, failedMessages };
+  }
+
+  function draftRecordId(message, email) {
+    return String(message.id || `${message.savedAt || message.sentAt || message.date || ''}|${message.subject || ''}|${email}`);
+  }
+
+  function clearActiveDraftState(contacts) {
+    for (const raw of Object.values(contacts || {})) {
+      const contact = normalizeContactShape(raw);
+      contact.draftCount = 0;
+      contact.draftMessageIds = [];
+      contact.draftHistory = [];
+      contact.lastDraftAt = '';
+      contact.lastDraftSubject = '';
+    }
+  }
+
+  function applyDraftMessages(contacts, messages, options = {}) {
+    const replaceActive = !!options.replaceActive;
+    if (replaceActive) clearActiveDraftState(contacts);
+    let contactsTouched = 0;
+    let newLinks = 0;
+    let draftsWithoutRecipient = 0;
+    for (const message of messages || []) {
+      const savedIso = isoTime(message.savedAt ?? message.sentAt ?? message.sentDate ?? message.date ?? message.receivedDate);
+      const recipients = message.recipients || [];
+      if (!recipients.length) { draftsWithoutRecipient++; continue; }
+      for (const recipient of recipients) {
+        const email = normalizeEmail(recipient.email || recipient.address);
+        if (!email) continue;
+        const contact = ensureContact(contacts, email, { name: recipient.name || '' });
+        contactsTouched++;
+        const mid = draftRecordId(message, email);
+        const ids = new Set(contact.draftMessageIds || []);
+        if (!ids.has(mid)) {
+          ids.add(mid);
+          newLinks++;
+          contact.draftMessageIds = [...ids].slice(-1000);
+        }
+        const history = [
+          { id: mid, subject: message.subject || '', savedAt: savedIso, to: recipient.name || email },
+          ...(contact.draftHistory || []).filter(item => item.id !== mid)
+        ];
+        history.sort((a, b) => timeMs(b.savedAt) - timeMs(a.savedAt));
+        contact.draftHistory = history.slice(0, 100);
+        contact.draftCount = contact.draftMessageIds.length;
+        if (savedIso && (!contact.lastDraftAt || timeMs(savedIso) >= timeMs(contact.lastDraftAt))) {
+          contact.lastDraftAt = savedIso;
+          contact.lastDraftSubject = message.subject || contact.lastDraftSubject || '';
+        }
+        // Drafts are preparation state only. Never advance 未联系 -> 已发送 here.
+        contact.updatedAt = new Date().toISOString();
+      }
+    }
+    return { contacts, contactsTouched, newLinks, draftsWithoutRecipient, replaceActive };
   }
 
   function mergeRecipientList(contacts, recipients, defaultStage = '未联系') {
@@ -297,6 +365,7 @@
     const items = [{ kind: 'stage', value: contact.stage || '未联系' }];
     if (contact.followUp) items.push({ kind: 'followup', value: '待跟进' });
     if (contact.policy && contact.policy !== '正常') items.push({ kind: 'policy', value: contact.policy });
+    if (Number(contact.draftCount || 0) > 0) items.push({ kind: 'draft', value: '有草稿' });
     for (const tag of parseContactTags(contact.tags || [])) items.push({ kind: 'tag', value: tag });
     return items;
   }
@@ -322,10 +391,10 @@
   }
 
   function toCsv(contacts) {
-    const rows = [['邮箱', '姓名', '互动阶段', '待跟进', '发送策略', '自定义分类', '已识别发送次数', '最后发送时间', '最后主题']];
+    const rows = [['邮箱', '姓名', '互动阶段', '待跟进', '发送策略', '自定义分类', '已识别发送次数', '最后发送时间', '最后发送主题', '当前草稿数', '最后草稿时间', '最后草稿主题']];
     Object.values(contacts || {}).sort((a, b) => normalizeEmail(a.email).localeCompare(normalizeEmail(b.email))).forEach(raw => {
       const c = normalizeContactShape(raw);
-      rows.push([c.email, c.name || '', c.stage || '未联系', c.followUp ? '是' : '否', c.policy || '正常', parseContactTags(c.tags || []).join(';'), c.sentCount || 0, c.lastSentAt || '', c.lastSubject || '']);
+      rows.push([c.email, c.name || '', c.stage || '未联系', c.followUp ? '是' : '否', c.policy || '正常', parseContactTags(c.tags || []).join(';'), c.sentCount || 0, c.lastSentAt || '', c.lastSubject || '', c.draftCount || 0, c.lastDraftAt || '', c.lastDraftSubject || '']);
     });
     return '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n');
   }
@@ -347,6 +416,8 @@
     save,
     ensureContact,
     applySentMessages,
+    applyDraftMessages,
+    clearActiveDraftState,
     mergeRecipientList,
     setStatus,
     setStage,

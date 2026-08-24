@@ -527,12 +527,15 @@
           </div>
           <section class="nmda-tabpane nmda-page" data-pane="contacts" hidden>
             <div class="nmda-crm-top-grid">
-              <div class="nmda-card">
-                <div class="nmda-card-head"><div><div class="nmda-card-kicker">SENT MAIL</div><div class="nmda-card-title">同步已发送</div></div></div>
-                <div class="nmda-row nmda-wrap">
-                  <label class="nmda-field nmda-inline-field"><span class="nmda-label">读取范围</span><select id="nmda-sent-limit"><option value="50">最近 50 封</option><option value="100">最近 100 封</option><option value="200" selected>最近 200 封</option></select></label>
-                  <button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-read-sent" type="button">读取已发送</button>
-                  <button class="nmda-btn nmda-btn-small" id="nmda-open-sent" type="button">打开已发送</button>
+              <div class="nmda-card nmda-mail-history-card">
+                <div class="nmda-card-head"><div><div class="nmda-card-kicker">MAIL HISTORY</div><div class="nmda-card-title">邮箱历史同步</div></div></div>
+                <div class="nmda-history-range">
+                  <label class="nmda-field nmda-inline-field"><span class="nmda-label">读取范围</span><select id="nmda-mail-history-limit"><option value="50">最近 50 封</option><option value="100">最近 100 封</option><option value="200" selected>最近 200 封</option><option value="500">最近 500 封</option><option value="1000">最近 1000 封</option><option value="2000">最近 2000 封</option><option value="all">全部</option></select></label>
+                  <span class="nmda-hint">超过 200 封时自动分页读取；“全部”最多保护性读取 10,000 封。</span>
+                </div>
+                <div class="nmda-history-actions">
+                  <div class="nmda-history-source"><div><strong>已发送</strong><small>用于确认真实联系历史，并推进“未联系 → 已发送”</small></div><div class="nmda-row"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-read-sent" type="button">读取已发送</button><button class="nmda-btn nmda-btn-small" id="nmda-open-sent" type="button">打开</button></div></div>
+                  <div class="nmda-history-source"><div><strong>草稿箱</strong><small>只记录“已准备未发送”，不会自动变成“已发送”</small></div><div class="nmda-row"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-read-drafts" type="button">读取草稿箱</button><button class="nmda-btn nmda-btn-small" id="nmda-open-drafts" type="button">打开</button></div></div>
                 </div>
                 <div id="nmda-contact-status" class="nmda-summary">正在初始化当前邮箱的联系人分类库…</div>
               </div>
@@ -546,12 +549,12 @@
             <div class="nmda-card nmda-contact-list-card">
               <div class="nmda-card-head nmda-list-head"><div><div class="nmda-card-title">联系人列表</div><div class="nmda-card-desc">一个分类入口统一编辑阶段、跟进、发送策略和长期自定义分类</div></div><div id="nmda-contact-summary" class="nmda-summary nmda-summary-inline">0 个联系人</div></div>
               <div class="nmda-contact-toolbar nmda-contact-toolbar-unified">
-                <input id="nmda-contact-search" type="text" placeholder="搜索邮箱 / 姓名 / 最近主题 / 分类">
+                <input id="nmda-contact-search" type="text" placeholder="搜索邮箱 / 姓名 / 发送主题 / 草稿主题 / 分类">
                 <input id="nmda-contact-class-filter" type="text" placeholder="分类筛选：已回复;待跟进;重点">
                 <select id="nmda-contact-class-mode"><option value="any">匹配任一</option><option value="all">同时包含</option></select>
               </div>
               <div id="nmda-contact-class-chips" class="nmda-tag-chips nmda-class-chip-bar"></div>
-              <div class="nmda-table-wrap nmda-contact-table-wrap"><table class="nmda-table nmda-contact-table"><thead><tr><th>联系人</th><th>分类</th><th>发送</th><th>最后发送</th><th>最近主题</th></tr></thead><tbody id="nmda-contact-body"></tbody></table></div>
+              <div class="nmda-table-wrap nmda-contact-table-wrap"><table class="nmda-table nmda-contact-table"><thead><tr><th>联系人</th><th>分类</th><th>已发送</th><th>草稿</th><th>最后发送</th><th>最后草稿</th><th>最近发送主题</th></tr></thead><tbody id="nmda-contact-body"></tbody></table></div>
             </div>
           </section>
         </main>
@@ -661,24 +664,26 @@
       const own = new Set(Contacts.classificationLabels(contact).map(value => value.toLocaleLowerCase('zh-CN')));
       return classMode === 'all' ? classFilter.every(value => own.has(value)) : classFilter.some(value => own.has(value));
     });
-    if (query) list = list.filter(contact => `${contact.email} ${contact.name || ''} ${contact.lastSubject || ''} ${Contacts.classificationLabels(contact).join(' ')}`.toLowerCase().includes(query));
+    if (query) list = list.filter(contact => `${contact.email} ${contact.name || ''} ${contact.lastSubject || ''} ${contact.lastDraftSubject || ''} ${Contacts.classificationLabels(contact).join(' ')}`.toLowerCase().includes(query));
     list.sort((a, b) => {
-      const ta = Date.parse(a.lastSentAt || '') || 0, tb = Date.parse(b.lastSentAt || '') || 0;
+      const ta = Math.max(Date.parse(a.lastSentAt || '') || 0, Date.parse(a.lastDraftAt || '') || 0);
+      const tb = Math.max(Date.parse(b.lastSentAt || '') || 0, Date.parse(b.lastDraftAt || '') || 0);
       return tb - ta || String(a.email).localeCompare(String(b.email));
     });
 
     const all = Object.values(contactBook.contacts || {}).map(contact => Contacts.normalizeContactShape(contact));
     const stageCounts = Object.fromEntries(Contacts.STAGE_OPTIONS.map(stage => [stage, 0]));
-    let followCount = 0, pausedCount = 0, noContactCount = 0;
+    let followCount = 0, pausedCount = 0, noContactCount = 0, withDraftCount = 0;
     const classCounts = new Map();
     for (const contact of all) {
       stageCounts[contact.stage] = (stageCounts[contact.stage] || 0) + 1;
       if (contact.followUp) followCount++;
       if (contact.policy === '暂停') pausedCount++;
       if (contact.policy === '不再联系') noContactCount++;
+      if (Number(contact.draftCount || 0) > 0) withDraftCount++;
       for (const value of Contacts.classificationLabels(contact)) classCounts.set(value, (classCounts.get(value) || 0) + 1);
     }
-    summary.textContent = `${all.length} 个联系人 · ${Contacts.STAGE_OPTIONS.map(stage => `${stage} ${stageCounts[stage] || 0}`).join(' · ')} · 待跟进 ${followCount} · 暂停 ${pausedCount} · 不再联系 ${noContactCount}`;
+    summary.textContent = `${all.length} 个联系人 · ${Contacts.STAGE_OPTIONS.map(stage => `${stage} ${stageCounts[stage] || 0}`).join(' · ')} · 有草稿 ${withDraftCount} · 待跟进 ${followCount} · 暂停 ${pausedCount} · 不再联系 ${noContactCount}`;
 
     if (chipBar) {
       const top = [...classCounts.entries()].sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0], 'zh-CN')).slice(0, 40);
@@ -694,7 +699,7 @@
       }));
     }
 
-    body.innerHTML = list.slice(0, 300).map(contact => `
+    body.innerHTML = list.slice(0, 1000).map(contact => `
       <tr>
         <td><strong>${escapeHtml(contact.name || contact.email)}</strong><small>${escapeHtml(contact.name ? contact.email : '')}</small></td>
         <td class="nmda-contact-class-cell">
@@ -707,11 +712,13 @@
           </div>
         </td>
         <td>${Number(contact.sentCount || 0)}</td>
+        <td><strong>${Number(contact.draftCount || 0)}</strong>${Number(contact.draftCount || 0) > 0 ? '<small>当前已识别</small>' : ''}</td>
         <td title="${escapeHtml(contact.lastSentAt || '')}">${escapeHtml(Contacts.formatDisplayTime(contact.lastSentAt))}</td>
+        <td title="${escapeHtml(contact.lastDraftAt || '')}">${escapeHtml(Contacts.formatDisplayTime(contact.lastDraftAt))}${contact.lastDraftSubject ? `<small title="${escapeHtml(contact.lastDraftSubject)}">${escapeHtml(contact.lastDraftSubject)}</small>` : ''}</td>
         <td title="${escapeHtml(contact.lastSubject || '')}">${escapeHtml(contact.lastSubject || '—')}</td>
       </tr>`).join('');
-    if (!list.length) body.innerHTML = '<tr><td colspan="5">暂无匹配联系人。可读取“已发送”或同步当前批量名单。</td></tr>';
-    else if (list.length > 300) body.insertAdjacentHTML('beforeend', `<tr><td colspan="5">当前显示前 300 个匹配联系人，共 ${list.length} 个。</td></tr>`);
+    if (!list.length) body.innerHTML = '<tr><td colspan="7">暂无匹配联系人。可读取“已发送”、草稿箱或同步当前批量名单。</td></tr>';
+    else if (list.length > 1000) body.insertAdjacentHTML('beforeend', `<tr><td colspan="7">当前显示前 1000 个匹配联系人，共 ${list.length} 个。可用搜索或分类缩小范围。</td></tr>`);
 
     body.querySelectorAll('select[data-contact-stage]').forEach(select => select.addEventListener('change', async () => {
       Contacts.setStage(contactBook.contacts, select.dataset.contactStage, select.value);
@@ -1311,8 +1318,9 @@
   $('nmda-read-sent').addEventListener('click', async () => {
     const button = $('nmda-read-sent');
     button.disabled = true;
-    const limit = Number($('nmda-sent-limit').value || 200);
-    setContactStatusMessage(`正在读取最近 ${limit} 封已发送邮件…`);
+    const limit = $('nmda-mail-history-limit').value || '200';
+    const rangeText = limit === 'all' ? '全部' : `最近 ${limit} 封`;
+    setContactStatusMessage(`正在读取${rangeText}已发送邮件…`);
     try {
       const result = await chrome.runtime.sendMessage({ type: 'NMDA_READ_SENT', limit });
       if (!result?.ok) throw new Error(result?.reason || '读取已发送失败');
@@ -1328,10 +1336,55 @@
       renderPreview();
       const successful = (result.messages || []).filter(message => !message.failed).length;
       const recipients = new Set((result.messages || []).flatMap(message => (message.recipients || []).map(r => Contacts.normalizeEmail(r.email))).filter(Boolean)).size;
-      setContactStatusMessage(`读取完成：获得 ${result.messages?.length || 0} 封记录，其中 ${successful} 封未标记为发送失败；识别 ${recipients} 个收件邮箱；新增 ${applied.newLinks} 条“联系人 ↔ 已发送邮件”关联。`, 'ok');
+      const coverage = result.complete ? '完整覆盖当前已发送' : `部分覆盖（邮箱共约 ${result.total || '未知'} 封）`;
+      const paging = result.pages > 1 ? `；分页 ${result.pages} 页` : '';
+      const warning = result.truncated ? `；未读完：${result.stopReason || '达到读取范围'}` : '';
+      setContactStatusMessage(`已发送读取完成：${result.messages?.length || 0} 封，${coverage}${paging}${warning}；其中 ${successful} 封未标记为失败；识别 ${recipients} 个收件邮箱；新增 ${applied.newLinks} 条发送历史关联。`, result.truncated && limit === 'all' ? 'warn' : 'ok');
     } catch (error) {
       console.error(`[${APP}] sent scan`, error);
       setContactStatusMessage(`读取失败：${error.message}`, 'error');
+    } finally { button.disabled = false; }
+  });
+
+  $('nmda-open-drafts').addEventListener('click', async () => {
+    const button = $('nmda-open-drafts');
+    button.disabled = true;
+    setContactStatusMessage('正在打开“草稿箱”…');
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'NMDA_OPEN_DRAFTS' });
+      if (!result?.ok) throw new Error(result?.reason || '无法打开草稿箱');
+      setContactStatusMessage('已打开网易“草稿箱”。', 'ok');
+    } catch (error) { setContactStatusMessage(`打开失败：${error.message}`, 'error'); }
+    finally { button.disabled = false; }
+  });
+
+  $('nmda-read-drafts').addEventListener('click', async () => {
+    const button = $('nmda-read-drafts');
+    button.disabled = true;
+    const limit = $('nmda-mail-history-limit').value || '200';
+    const rangeText = limit === 'all' ? '全部' : `最近 ${limit} 封`;
+    setContactStatusMessage(`正在读取${rangeText}草稿…`);
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'NMDA_READ_DRAFTS', limit });
+      if (!result?.ok) throw new Error(result?.reason || '读取草稿箱失败');
+      const account = Contacts.normalizeEmail(result.uid || await detectAccount()) || 'default';
+      if (!contactBook.loaded || contactBook.account !== account) {
+        contactBook.account = account;
+        contactBook.contacts = await Contacts.load(account);
+        contactBook.loaded = true;
+      }
+      const applied = Contacts.applyDraftMessages(contactBook.contacts, result.messages || [], { replaceActive: !!result.complete });
+      await persistContacts();
+      renderContacts();
+      renderPreview();
+      const recipients = new Set((result.messages || []).flatMap(message => (message.recipients || []).map(r => Contacts.normalizeEmail(r.email))).filter(Boolean)).size;
+      const coverage = result.complete ? '已完整同步当前草稿箱，因此会清理已删除/已发送的旧草稿标记' : `部分同步（邮箱共约 ${result.total || '未知'} 封草稿），不会删除旧草稿标记`;
+      const paging = result.pages > 1 ? `；分页 ${result.pages} 页` : '';
+      const warning = result.truncated ? `；未读完：${result.stopReason || '达到读取范围'}` : '';
+      setContactStatusMessage(`草稿箱读取完成：${result.messages?.length || 0} 封；${coverage}${paging}${warning}；关联 ${recipients} 个收件邮箱，新增 ${applied.newLinks} 条草稿关联；${applied.draftsWithoutRecipient} 封草稿尚未填写收件人，未关联联系人。草稿不会推进联系人为“已发送”。`, result.truncated && limit === 'all' ? 'warn' : 'ok');
+    } catch (error) {
+      console.error(`[${APP}] draft scan`, error);
+      setContactStatusMessage(`草稿箱读取失败：${error.message}`, 'error');
     } finally { button.disabled = false; }
   });
 
