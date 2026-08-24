@@ -906,6 +906,14 @@
     return `<label class="nmda-map-row"><span>${escapeHtml(field.label)}</span><select data-map-field="${field.key}">${options}</select></label>`;
   }
 
+  function setMappingEditorOpen(open) {
+    if (!mappingEl || !mappingToggleEl) return;
+    const isOpen = !!open;
+    mappingEl.hidden = !isOpen;
+    mappingToggleEl.setAttribute('aria-expanded', String(isOpen));
+    mappingToggleEl.textContent = isOpen ? '收起字段' : '校正字段';
+  }
+
   function configureSheet(index, useAuto = true) {
     batch.sheetIndex = Number(index) || 0;
     const sheet = currentSheet();
@@ -1205,6 +1213,7 @@
     }
   });
 
+  mappingToggleEl?.addEventListener('click', () => setMappingEditorOpen(mappingEl.hidden));
   sheetSelectEl.addEventListener('change', async () => { configureSheet(sheetSelectEl.value, true); await registerCurrentBatchContacts(); });
   dirEl.addEventListener('change', () => {
     batch.directoryFiles = uniqueFiles([...batch.directoryFiles, ...dirEl.files]);
@@ -1420,5 +1429,5 @@
   restoreFormState();
   renderPreview();
   initContacts();
-  console.info(`[${APP}] v1.0.0 loaded`);
+  console.info(`[${APP}] v1.0.1 loaded`);
 })();
