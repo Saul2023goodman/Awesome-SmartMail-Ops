@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "0.5.0",
-  "description": "网易邮箱网页版批量草稿与联系人助手：智能导入、附件匹配、标签筛选编辑发送列表、定时草稿、读取已发送并维护联系人状态；不会自动发送。",
+  "version": "0.6.0",
+  "description": "网易邮箱网页版桌面级外联工作台：单封/批量草稿、智能导入、附件中心、标签筛选编辑、联系人状态与已发送历史；不会自动发送。",
   "permissions": [
     "storage",
     "scripting"
