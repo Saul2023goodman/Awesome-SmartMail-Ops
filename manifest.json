@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "NetEase Mail Draft Assistant",
+  "version": "0.1.0",
+  "description": "在网易邮箱网页版中自动填入收件人、主题、正文、附件和定时发送设置，并可选择存为草稿。",
+  "permissions": ["storage"],
+  "host_permissions": ["https://mail.163.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://mail.163.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
