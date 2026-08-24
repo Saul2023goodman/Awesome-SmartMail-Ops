@@ -196,3 +196,150 @@
   background: #ffebe9;
   color: #a40e26;
 }
+
+/* v0.2 batch workspace */
+#nmda-panel {
+  width: min(620px, calc(100vw - 36px));
+}
+
+.nmda-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 8px 16px 0;
+  background: rgba(255,255,255,.96);
+}
+
+.nmda-tab {
+  min-height: 34px;
+  border: 1px solid #d0d7de;
+  border-radius: 9px;
+  background: #f6f8fa;
+  color: #57606a;
+  font: 700 12px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.nmda-tab.is-active {
+  border-color: #0969da;
+  background: #ddf4ff;
+  color: #0550ae;
+}
+
+.nmda-tabpane[hidden] { display: none !important; }
+
+#nmda-panel select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #d0d7de;
+  border-radius: 9px;
+  background: #fff;
+  padding: 6px 8px;
+  color: #1f2328;
+  font: inherit;
+}
+
+.nmda-import-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d8dee4;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.nmda-card-title {
+  font-weight: 750;
+  font-size: 13px;
+}
+
+.nmda-wrap { flex-wrap: wrap; }
+
+.nmda-btn-small {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.nmda-mapping {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nmda-map-row {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nmda-map-row > span {
+  color: #57606a;
+  font-size: 12px;
+}
+
+.nmda-summary {
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: #f6f8fa;
+  color: #57606a;
+}
+
+.nmda-table-wrap {
+  max-height: 250px;
+  overflow: auto;
+  border: 1px solid #d8dee4;
+  border-radius: 9px;
+}
+
+.nmda-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11px;
+}
+
+.nmda-table th,
+.nmda-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid #eaeef2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.nmda-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f6f8fa;
+  color: #57606a;
+}
+
+.nmda-table th:nth-child(1), .nmda-table td:nth-child(1) { width: 52px; }
+.nmda-table th:nth-child(4), .nmda-table td:nth-child(4) { width: 54px; }
+.nmda-table th:nth-child(5), .nmda-table td:nth-child(5) { width: 112px; }
+.nmda-table th:nth-child(6), .nmda-table td:nth-child(6) { width: 150px; }
+.nmda-table tr[data-status="error"] td { background: #ffebe9; color: #a40e26; }
+.nmda-table tr[data-status="done"] td { background: #dafbe1; color: #116329; }
+.nmda-table tr[data-status="running"] td { background: #fff8c5; color: #7d4e00; }
+
+#nmda-batch-status {
+  min-height: 42px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: #f6f8fa;
+  color: #57606a;
+  white-space: pre-wrap;
+}
+
+#nmda-batch-status[data-kind="ok"] { background: #dafbe1; color: #116329; }
+#nmda-batch-status[data-kind="warn"] { background: #fff8c5; color: #7d4e00; }
+#nmda-batch-status[data-kind="error"] { background: #ffebe9; color: #a40e26; }
+
+@media (max-width: 720px) {
+  .nmda-mapping { grid-template-columns: 1fr; }
+}
