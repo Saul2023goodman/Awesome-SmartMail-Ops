@@ -393,16 +393,95 @@
     catch (_) { return false; }
   }
 
-  async function saveDraft(root) {
-    // Saving is a hard boundary between tasks: never continue until NetEase
-    // has accepted the explicit “存草稿” action and switched this compose
-    // instance into draft state. This prevents the next task from reusing an
-    // unsaved compose page and mixing content across rows.
+  function regularDraftSuccessSignals() {
+    // Normal drafts stay on the Compose page. NetEase confirms the save with a
+    // transient green success tip such as “邮件已于13:23成功保存到草稿箱”.
+    // Only visible success/tip nodes count; hidden historical tips remain in the DOM.
+    const selectors = [
+      '.nui-tips-suc',
+      '.nui-frameTips.nui-tips-suc',
+      '[aria-live="polite"]',
+      '[role="status"]'
+    ].join(',');
+    return [...document.querySelectorAll(selectors)]
+      .filter(visible)
+      .filter(el => {
+        const text = compactText(el);
+        return text.includes('草稿箱') && (
+          text.includes('成功保存') ||
+          text.includes('已保存') ||
+          text.includes('保存成功')
+        );
+      });
+  }
+
+  function draftSignalFingerprint(el) {
+    if (!el) return '';
+    return `${el.id || ''}|${compactText(el)}`;
+  }
+
+  function captureDraftSaveBaseline() {
+    return {
+      routeWasDraft: isDraftRoute(),
+      regularSignals: new Set(regularDraftSuccessSignals().map(draftSignalFingerprint)),
+      timedSuccessVisible: isTimedDraftSuccessVisible()
+    };
+  }
+
+  function isTimedDraftSuccessVisible() {
+    // Scheduled drafts use a different NetEase state machine: clicking “存草稿”
+    // commits the schedule and replaces the editor body with a success result page.
+    // The business evidence is the result text, not a particular generated id/URL.
+    const candidates = [
+      ...document.querySelectorAll('h1,h2,h3,section,div,[role="main"],[role="status"]')
+    ].filter(visible);
+    return candidates.some(el => compactText(el).includes('定时发信设置成功'));
+  }
+
+  function findFreshRegularDraftSuccess(baseline) {
+    const before = baseline?.regularSignals || new Set();
+    return regularDraftSuccessSignals().find(el => !before.has(draftSignalFingerprint(el))) || null;
+  }
+
+  async function waitForDraftSaveOutcome({ scheduled, baseline }) {
+    const timeout = scheduled ? 9000 : 7000;
+    return waitFor(() => {
+      if (scheduled) {
+        if (!baseline?.timedSuccessVisible && isTimedDraftSuccessVisible()) {
+          return { kind: 'scheduled-result', evidence: '定时发信设置成功' };
+        }
+        return null;
+      }
+
+      const tip = findFreshRegularDraftSuccess(baseline);
+      if (tip) return { kind: 'regular-tip', evidence: textOf(tip) };
+
+      // Compatibility fallback: some NetEase variants may still transition from a
+      // fresh compose route to type:draft. It is accepted only as a NEW transition,
+      // never merely because the current page was already editing a draft.
+      if (!baseline?.routeWasDraft && isDraftRoute()) {
+        return { kind: 'draft-route', evidence: 'Compose 路由进入 draft' };
+      }
+      return null;
+    }, timeout, 100, scheduled
+      ? '已点击“存草稿”，但未检测到“定时发信设置成功”，已停止，避免继续写下一封。'
+      : '已点击“存草稿”，但未检测到网易“成功保存到草稿箱”的新提示，已停止，避免继续写下一封。');
+  }
+
+  async function saveDraft(root, options = {}) {
+    // “存草稿” is a hard transaction boundary, but NetEase has TWO success
+    // state machines:
+    //   normal draft    -> editor remains open + transient success tip
+    //   scheduled draft -> dedicated “定时发信设置成功” result page
+    // Never infer success solely from navigation. Require fresh business evidence
+    // produced after this click before the next batch task is allowed to start.
+    const scheduled = !!options.scheduled;
     const button = await waitFor(() => findSaveDraftButton(root), 5000, 120, '未找到“存草稿”按钮，已停止，避免草稿未保存。');
+    const baseline = captureDraftSaveBaseline();
     button.click();
-    await waitFor(isDraftRoute, 5000, 100, '已点击“存草稿”，但未确认保存成功，已停止，避免继续写下一封。');
-    await sleep(250);
-    return true;
+    const outcome = await waitForDraftSaveOutcome({ scheduled, baseline });
+    await sleep(scheduled ? 350 : 250);
+    return outcome;
   }
 
   function escapeHtml(value) {
@@ -830,8 +909,9 @@
         const requestedMinute = new Date(scheduleAtEl.value).getMinutes();
         if (Number(minute) !== requestedMinute) { setStatus(`4/5 定时已设置；分钟被网易可选项调整为 ${minute} 分。`, 'warn'); await sleep(500); }
       } else setStatus('4/5 未填写定时时间，按普通草稿处理。');
-      setStatus('5/5 点击“存草稿”并确认保存…'); await saveDraft(root);
-      setStatus('完成：已点击“存草稿”并确认保存成功。不会自动发送。', 'ok');
+      setStatus(`5/5 点击“存草稿”并确认${scheduleAtEl.value ? '定时设置成功' : '保存到草稿箱'}…`);
+      const saveOutcome = await saveDraft(root, { scheduled: !!scheduleAtEl.value });
+      setStatus(`完成：草稿已确认保存（${saveOutcome.evidence}）。不会自动发送。`, 'ok');
     } catch (error) { console.error(`[${APP}]`, error); setStatus(`失败：${error.message}`, 'error'); }
     finally { fillButton.disabled = false; }
   });
@@ -1435,9 +1515,9 @@
             const requestedMinute = new Date(task.scheduleAt).getMinutes();
             if (Number(actualMinute) !== requestedMinute) task.note = `分钟由 ${requestedMinute} 调整为 ${actualMinute}`;
           }
-          setBatchStatus(`任务 ${task.id}：点击“存草稿”并确认保存…`);
-          await saveDraft(root);
-          task.note = [task.note, '已点击“存草稿”并确认保存'].filter(Boolean).join('；');
+          setBatchStatus(`任务 ${task.id}：点击“存草稿”并确认${task.scheduleAt ? '定时设置成功' : '保存到草稿箱'}…`);
+          const saveOutcome = await saveDraft(root, { scheduled: !!task.scheduleAt });
+          task.note = [task.note, `草稿已确认保存（${saveOutcome.kind}）`].filter(Boolean).join('；');
           task.status = 'done'; succeeded++;
           renderPreview();
           await sleep(600);
