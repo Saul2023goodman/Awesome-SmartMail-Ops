@@ -366,10 +366,15 @@
   }
 
   async function saveDraft(root) {
-    const button = await waitFor(() => findSaveDraftButton(root), 5000, 120, '未找到“存草稿”按钮。');
+    // Saving is a hard boundary between tasks: never continue until NetEase
+    // has accepted the explicit “存草稿” action and switched this compose
+    // instance into draft state. This prevents the next task from reusing an
+    // unsaved compose page and mixing content across rows.
+    const button = await waitFor(() => findSaveDraftButton(root), 5000, 120, '未找到“存草稿”按钮，已停止，避免草稿未保存。');
     button.click();
-    try { await waitFor(isDraftRoute, 2200, 100, ''); return true; }
-    catch (_) { await sleep(500); return false; }
+    await waitFor(isDraftRoute, 5000, 100, '已点击“存草稿”，但未确认保存成功，已停止，避免继续写下一封。');
+    await sleep(250);
+    return true;
   }
 
   function escapeHtml(value) {
@@ -797,8 +802,8 @@
         const requestedMinute = new Date(scheduleAtEl.value).getMinutes();
         if (Number(minute) !== requestedMinute) { setStatus(`4/5 定时已设置；分钟被网易可选项调整为 ${minute} 分。`, 'warn'); await sleep(500); }
       } else setStatus('4/5 未填写定时时间，按普通草稿处理。');
-      setStatus('5/5 保存草稿…'); await saveDraft(root);
-      setStatus('完成：草稿已创建并保存。不会自动发送。', 'ok');
+      setStatus('5/5 点击“存草稿”并确认保存…'); await saveDraft(root);
+      setStatus('完成：已点击“存草稿”并确认保存成功。不会自动发送。', 'ok');
     } catch (error) { console.error(`[${APP}]`, error); setStatus(`失败：${error.message}`, 'error'); }
     finally { fillButton.disabled = false; }
   });
@@ -1402,8 +1407,9 @@
             const requestedMinute = new Date(task.scheduleAt).getMinutes();
             if (Number(actualMinute) !== requestedMinute) task.note = `分钟由 ${requestedMinute} 调整为 ${actualMinute}`;
           }
-          const verified = await saveDraft(root);
-          task.note = [task.note, verified ? '草稿路由已确认' : '已点击存草稿（路由未确认）'].filter(Boolean).join('；');
+          setBatchStatus(`任务 ${task.id}：点击“存草稿”并确认保存…`);
+          await saveDraft(root);
+          task.note = [task.note, '已点击“存草稿”并确认保存'].filter(Boolean).join('；');
           task.status = 'done'; succeeded++;
           renderPreview();
           await sleep(600);
@@ -1429,5 +1435,5 @@
   restoreFormState();
   renderPreview();
   initContacts();
-  console.info(`[${APP}] v1.0.1 loaded`);
+  console.info(`[${APP}] v1.0.2 loaded`);
 })();
