@@ -9,6 +9,31 @@
   function formatLocalDateTime(date){if(!(date instanceof Date)||Number.isNaN(date.getTime()))return'';const p=n=>String(n).padStart(2,'0');return`${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;}
   function parseDateValue(value){return Core.parseDateLoose(value);}
 
+
+  function mergeWordTaskRecordSets(recordSets,{namePrefix='Word文档批次',source='multi-word',packageMode=false}={}){
+    const candidates=(recordSets||[]).filter(rs=>rs.meta?.wordTaskRows && !rs.meta?.supplemental);
+    if(candidates.length<2)return false;
+    const header=['编号','收件人','主题','正文','附件','定时时间','任务分类','来源文件'],rows=[header],rowMeta={};
+    let mailFrameCount=0, confidenceTotal=0, confidenceCount=0, scanBlocks=0, scanSubjects=0, scanSalutations=0, scanClosings=0, scanEmails=0;
+    for(const rs of candidates){
+      const d=Core.detectHeader(rs.rows||[]);
+      for(let rowIndex=d.index+1;rowIndex<(rs.rows||[]).length;rowIndex++){
+        const row=rs.rows[rowIndex]; if(!row?.some(v=>String(v??'').trim()))continue;
+        rows.push(header.map((_,i)=>row[i]??''));
+        const meta=rs.meta?.rowMeta?.[rowIndex]; if(meta)rowMeta[rows.length-1]={...meta};
+      }
+      if(rs.meta?.mailFrames){
+        mailFrameCount++;
+        const scan=rs.meta?.mailScan||{};scanBlocks+=Number(scan.blocks||0);scanSubjects+=Number(scan.subjects||0);scanSalutations+=Number(scan.salutations||0);scanClosings+=Number(scan.closings||0);scanEmails+=Number(scan.emails||0);
+        for(const meta of Object.values(rs.meta?.rowMeta||{})){if(Number(meta?.confidence)>0){confidenceTotal+=Number(meta.confidence);confidenceCount++;}}
+      }
+    }
+    for(let i=recordSets.length-1;i>=0;i--)if(candidates.includes(recordSets[i]))recordSets.splice(i,1);
+    const dataRows=rows.slice(1), mailScan=mailFrameCount?{blocks:scanBlocks,subjects:scanSubjects,salutations:scanSalutations,closings:scanClosings,emails:scanEmails,records:dataRows.length,complete:dataRows.filter(r=>String(r[1]||'').trim()&&String(r[2]||'').trim()&&String(r[3]||'').trim()).length,missingRecipients:dataRows.filter(r=>!String(r[1]||'').trim()).length,averageConfidence:confidenceCount?Math.round(confidenceTotal/confidenceCount):0}:null;
+    recordSets.unshift(new Core.NormalizedRecordSet({name:`${namePrefix}（${rows.length-1} 条）`,rows,source,meta:{word:true,merged:true,wordTaskRows:true,preferred:true,package:packageMode,mailFrames:mailFrameCount>0,rowMeta,...(mailScan?{mailScan}: {})}}));
+    return true;
+  }
+
   class UniversalImportEngine{
     constructor({registry=A.registry, detectorInstance=detector}={}){this.registry=registry;this.detector=detectorInstance;}
 
@@ -37,16 +62,8 @@
           for(const rs of ds.sheets||[]){const prefix=list.length>1?`${file.name} · `:'';recordSets.push(new Core.NormalizedRecordSet({name:`${prefix}${rs.name}`,rows:rs.rows,source:file.name,meta:{...(rs.meta||{}),format:ds.format}}));}
         }catch(error){if(ignoreUnsupported){warnings.push(`${file.name}: ${error.message}`);continue;}throw error;}
       }
-      // 多个“一文件一封”或字段式 Word 自动合并成一个真正的批处理 RecordSet。
-      if(list.length>1){
-        const wordSets=recordSets.filter(rs=>rs.meta?.wordTaskRows);
-        if(wordSets.length>=2){
-          const header=['编号','收件人','主题','正文','附件','定时时间','任务分类','来源文件'],rows=[header];
-          for(const rs of wordSets){const d=Core.detectHeader(rs.rows||[]);for(const row of (rs.rows||[]).slice(d.index+1))if(row?.some(v=>String(v??'').trim()))rows.push(header.map((_,i)=>row[i]??''));}
-          for(let i=recordSets.length-1;i>=0;i--)if(recordSets[i].meta?.wordTaskRows)recordSets.splice(i,1);
-          recordSets.unshift(new Core.NormalizedRecordSet({name:`Word文档批次（${rows.length-1} 条）`,rows,source:'multi-word',meta:{word:true,merged:true,wordTaskRows:true}}));
-        }
-      }
+      // 多个“一文件一封”/字段式 Word/邮件原语集合自动合并，并保留逐条识别证据。
+      if(list.length>1)mergeWordTaskRecordSets(recordSets,{source:'multi-word'});
       if(!recordSets.length)throw new Error(warnings.length?`没有成功读取的数据文件。${warnings[0]}`:'没有可读取的数据。');
       return new Core.NormalizedDataset({format:[...new Set(formats)].join('+')||'multi',recordSets,sourceFiles,embeddedFiles,warnings,meta:{multiFile:list.length>1}});
     }
@@ -67,13 +84,7 @@
       if(!taskNames.length)throw new Error('ZIP 中没有找到任务数据文件。建议包含 manifest.json + tasks.xlsx/csv/json/docx。');
       const recordSets=[],sourceFiles=[];
       for(const name of taskNames){const bytes=entries.get(name),vf=A.makeVirtualFile(name,bytes);try{const ds=await this.parseFile(vf,{allowZipBatch:false});sourceFiles.push(vf);for(const rs of ds.sheets)recordSets.push(new Core.NormalizedRecordSet({name:`${name} · ${rs.name}`,rows:rs.rows,source:name,meta:{...(rs.meta||{}),package:true,format:ds.format}}));}catch(e){warnings.push(`${name}: ${e.message}`);}}
-      const zipWordSets=recordSets.filter(rs=>rs.meta?.wordTaskRows);
-      if(zipWordSets.length>=2){
-        const header=['编号','收件人','主题','正文','附件','定时时间','任务分类','来源文件'],rows=[header];
-        for(const rs of zipWordSets){const d=Core.detectHeader(rs.rows||[]);for(const row of (rs.rows||[]).slice(d.index+1))if(row?.some(v=>String(v??'').trim()))rows.push(header.map((_,i)=>row[i]??''));}
-        for(let i=recordSets.length-1;i>=0;i--)if(recordSets[i].meta?.wordTaskRows)recordSets.splice(i,1);
-        recordSets.unshift(new Core.NormalizedRecordSet({name:`Word文档批次（${rows.length-1} 条）`,rows,source:zipFile.name,meta:{word:true,merged:true,package:true,wordTaskRows:true}}));
-      }
+      mergeWordTaskRecordSets(recordSets,{source:zipFile.name,packageMode:true});
       const taskSet=new Set(taskNames);
       const attachmentRoot=String(manifest?.attachmentRoot||'').replace(/^\.\//,'').replace(/\/+$/,'');
       for(const name of names){if(taskSet.has(name)||/^manifest\.json$/i.test(name))continue;if(attachmentRoot&&!(name===attachmentRoot||name.startsWith(`${attachmentRoot}/`)))continue;embeddedFiles.push(A.makeVirtualFile(name,entries.get(name)));}
@@ -111,7 +122,7 @@
   function resolveFiles(refs,index){const files=[],missing=[],ambiguous=[],details=[];for(const ref of refs||[]){const d=resolveOneFile(ref,index||buildFileIndex([]));details.push(d);if(d.status==='matched')files.push(d.file);else if(d.status==='missing')missing.push(ref);else ambiguous.push(ref);}return{files,missing,ambiguous,details};}
 
   globalThis.NMDAImporter={
-    version:'1.4.0', engine, UniversalImportEngine,
+    version:'1.5.0', engine, UniversalImportEngine,
     FIELD_DEFS:Core.FIELD_DEFS, normalizeHeader:Core.normalizeHeader, mappingForHeaders:Core.mappingForHeaders,
     detectHeader:Core.detectHeader, detectBestSheet:Core.detectBestSheet, detectBestRecordSet:Core.detectBestRecordSet, parseFile, parseFiles, parseDirectory,
     parseDateValue,formatLocalDateTime,createProfile,loadProfiles,saveProfile,deleteProfile,suggestProfile,

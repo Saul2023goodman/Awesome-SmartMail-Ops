@@ -1,4 +1,4 @@
-/* NetEase Mail Draft Assistant v1.4 — desktop workbench UI */
+/* NetEase Mail Draft Assistant v1.5 — desktop workbench UI */
 #nmda-root,
 #nmda-root * { box-sizing: border-box; }
 
@@ -596,3 +596,22 @@
 .nmda-collection-main strong, .nmda-collection-main small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .nmda-collection-main strong { color:#1e293b; font-size:9.3px; }
 .nmda-collection-main small { margin-top:2px; color:#94a3b8; font-size:8px; }
+
+/* v1.5 — primitive mail recognition + human review queue */
+.nmda-structure-identity[data-tone="mail"] > span { font-size:18px; }
+.nmda-import-preview-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.nmda-import-validation-stack { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+.nmda-import-validation-stack small { color:#64748b; font-size:8px; line-height:1.25; }
+.nmda-btn-tiny { min-height:22px !important; padding:2px 7px !important; font-size:8px !important; border-radius:6px !important; }
+.nmda-import-editor-overlay { position:fixed; inset:0; z-index:2147483646; background:rgba(15,23,42,.38); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; padding:24px; }
+.nmda-import-editor-overlay[hidden] { display:none !important; }
+.nmda-import-editor { width:min(880px,94vw); max-height:88vh; overflow:auto; background:#fff; border:1px solid #dbe4f0; border-radius:16px; box-shadow:0 28px 80px rgba(15,23,42,.28); padding:18px; }
+.nmda-import-editor-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding-bottom:12px; border-bottom:1px solid #edf2f7; }
+.nmda-import-editor-grid { display:grid; grid-template-columns:1fr 260px; gap:12px; margin-top:14px; }
+.nmda-import-editor-wide { grid-column:1 / -1; }
+.nmda-import-editor textarea { min-height:260px; resize:vertical; }
+.nmda-import-editor-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:16px; padding-top:14px; border-top:1px solid #edf2f7; }
+@media (max-width:900px) {
+  .nmda-import-editor-grid { grid-template-columns:1fr; }
+  .nmda-import-editor-wide { grid-column:auto; }
+}

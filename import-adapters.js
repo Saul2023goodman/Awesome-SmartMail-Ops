@@ -1,6 +1,7 @@
 (() => {
   'use strict';
-  const Core=globalThis.NMDAImportCore;
+  const Core=globalThis.NMDAImportCore, Mail=globalThis.NMDAMailRecognizer;
+  if(!Core||!Mail)throw new Error('Import Adapter 初始化失败：邮件识别核心未加载。');
 
   function bytesOf(buffer){ return buffer instanceof Uint8Array?buffer:new Uint8Array(buffer); }
   function decodeText(buffer){
@@ -84,7 +85,6 @@
 
   function parseHtmlTables(text){
     const doc=new DOMParser().parseFromString(text,'text/html'), tables=[...doc.querySelectorAll('table')];
-    if(!tables.length)throw new Error('HTML 中没有找到表格。');
     return tables.map((table,i)=>{const rows=[...table.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll(':scope > th, :scope > td')].map(td=>td.innerText||td.textContent||'')); return {name:table.getAttribute('aria-label')||table.querySelector('caption')?.textContent?.trim()||`HTML表格${i+1}`,rows};});
   }
 
@@ -98,6 +98,43 @@
     if(!sheets.length)throw new Error('ODS/FODS 中没有工作表。'); return sheets;
   }
 
+
+  // ---------- Source-agnostic Mail Primitive Bridge ----------
+  // Every text-capable format can feed ordered blocks here. Format adapters only preserve order;
+  // mail-recognizer.js owns segmentation and semantic evidence.
+  function mailRecordSetFromBlocks(blocks,sourceFile,{preferred=true,minStrongRatio=.6}={}){
+    const scan=Mail.recognizeMailFrames(blocks,{sourceFile,includeWeak:true});
+    if(!scan.records.length)return null;
+    const strong=scan.records.filter(r=>r.confidence>=70).length;
+    if(strong<Math.max(1,Math.ceil(scan.records.length*minStrongRatio)))return null;
+    const recordSet={name:`邮件基础信息识别（${scan.records.length} 条）`,rows:Mail.recordsToRows(scan.records),source:sourceFile,meta:{kind:'mail-frames',mailFrames:true,preferred,rowMeta:Mail.rowMetaFromRecords(scan.records),mailScan:scan.stats}};
+    const incomplete=scan.records.filter(r=>!r.recipients||!r.subject||!r.body).length;
+    const warnings=[];
+    if(incomplete)warnings.push(`邮件原语识别得到 ${scan.records.length} 条邮件，其中 ${incomplete} 条缺少收件人/主题/正文之一，已保留进入人工校正队列。`);
+    if(scan.stats.averageConfidence<80)warnings.push(`邮件原语识别平均置信度 ${scan.stats.averageConfidence}%，建议检查待确认记录。`);
+    return{recordSet,scan,warnings};
+  }
+
+  function htmlOrderedBlocks(text){
+    const doc=new DOMParser().parseFromString(text,'text/html'), body=doc.body;
+    if(!body)return[];
+    const selector='h1,h2,h3,h4,h5,h6,p,li,pre,blockquote,address,tr,div,section,article';
+    const blocks=[];
+    for(const el of Array.from(body.querySelectorAll(selector))){
+      const tag=(el.tagName||'').toLowerCase();
+      if(['div','section','article'].includes(tag) && el.querySelector(selector))continue;
+      let value='';
+      if(tag==='tr')value=Array.from(el.querySelectorAll(':scope > th, :scope > td')).map(x=>x.textContent||'').join(' | ');
+      else value=el.textContent||'';
+      value=value.replace(/\r\n?/g,'\n').replace(/[ \t]+\n/g,'\n').trim();
+      if(value)blocks.push({type:`html-${tag}`,text:value});
+    }
+    if(!blocks.length){
+      const raw=String(body.textContent||'').replace(/\r\n?/g,'\n');
+      for(const line of raw.split(/\n+/).map(x=>x.trim()).filter(Boolean))blocks.push({type:'html-text',text:line});
+    }
+    return blocks;
+  }
 
   // ---------- Word OOXML Adapter ----------
   // 只提取语义文本与表格；不把 Word HTML/样式注入网易页面。
@@ -204,29 +241,50 @@
   }
   function parseDocxDocument(doc,sourceFile=''){
     const body=first(doc,'body');if(!body)throw new Error('DOCX 缺少 Word 正文。');
-    const tables=[],paragraphs=[];let tableIndex=0;
+    const tables=[],paragraphs=[],blocks=[];let tableIndex=0;
     for(const child of Array.from(body.children||[])){
       const n=localName(child);
       if(n==='tbl'){
         const rows=parseWordTable(child);
-        if(rows.some(r=>r.some(v=>String(v??'').trim())))tables.push({name:`Word表格${++tableIndex}`,rows,source:sourceFile,meta:{word:true,kind:'table'}});
-      }else if(n==='p')paragraphs.push({text:wordNodeText(child),style:wordParagraphStyle(child)});
+        if(rows.some(r=>r.some(v=>String(v??'').trim()))){
+          const table={name:`Word表格${++tableIndex}`,rows,source:sourceFile,meta:{word:true,kind:'table'}};
+          tables.push(table);
+          for(const row of rows){const text=(row||[]).map(v=>String(v??'').trim()).filter(Boolean).join(' | ');if(text)blocks.push({type:'table-row',text,table:table.name});}
+        }
+      }else if(n==='p'){
+        const para={text:wordNodeText(child),style:wordParagraphStyle(child)};
+        paragraphs.push(para); if(para.text)blocks.push({type:'paragraph',text:para.text,style:para.style});
+      }
     }
-    return{tables,paragraphs};
+    return{tables,paragraphs,blocks};
   }
   async function parseDocx(buffer,file){
     const entries=await unzip(buffer),documentBytes=entries.get('word/document.xml');
     if(!documentBytes)throw new Error('DOCX 缺少 word/document.xml。');
     const parsed=parseDocxDocument(xmlFromBytes(documentBytes,'Word document.xml'),file.name);
     const recordSets=[],warnings=[];
+
+    // Source-agnostic first pass: find actual mail frames from the most primitive email evidence.
+    // Word paragraph/table structure is treated only as an ordered text carrier.
+    const mailBridge=mailRecordSetFromBlocks(parsed.blocks,file.name,{preferred:true,minStrongRatio:.55});
+    const mailScan=mailBridge?.scan || {records:[],stats:{records:0,averageConfidence:0}};
+    if(mailBridge){
+      mailBridge.recordSet.meta={...mailBridge.recordSet.meta,word:true,wordTaskRows:true};
+      recordSets.push(mailBridge.recordSet);
+      warnings.push(...mailBridge.warnings);
+    }
+
+    // Structured fallbacks remain available when no robust mail frame exists.
     for(const table of parsed.tables){
       const kv=parseWordKeyValueTable(table.rows,file.name);
-      if(kv)recordSets.push({name:`${table.name} · 字段记录`,rows:kv,source:file.name,meta:{word:true,kind:'key-value-table',wordTaskRows:true}});
-      else recordSets.push(table);
+      if(kv)recordSets.push({name:`${table.name} · 字段记录`,rows:kv,source:file.name,meta:{word:true,kind:'key-value-table',wordTaskRows:true,supplemental:mailScan.records.length>0}});
+      else recordSets.push({...table,meta:{...(table.meta||{}),supplemental:mailScan.records.length>0}});
     }
     const paragraphs=parsed.paragraphs.map(p=>p.text);
-    const structured=parseWordKeyValueRecords(paragraphs,file.name);
-    if(structured)recordSets.push({name:'Word字段记录',rows:structured,source:file.name,meta:{word:true,kind:'records',wordTaskRows:true}});
+    if(!mailScan.records.length){
+      const structured=parseWordKeyValueRecords(paragraphs,file.name);
+      if(structured)recordSets.push({name:'Word字段记录',rows:structured,source:file.name,meta:{word:true,kind:'records',wordTaskRows:true}});
+    }
     if(!recordSets.length){
       const body=paragraphs.filter(Boolean).join('\n\n').trim();
       if(!body)throw new Error('Word 文档没有可读取的正文或表格。');
@@ -235,7 +293,7 @@
     }
     const media=[...entries.keys()].filter(n=>n.startsWith('word/media/')&&!n.endsWith('/'));
     if(media.length)warnings.push(`Word 文档包含 ${media.length} 个内嵌媒体文件；当前只提取正文/表格，内嵌图片不会自动作为邮件附件。`);
-    return{recordSets,warnings,entries};
+    return{recordSets,warnings,entries,mailScan};
   }
 
   function resolveTarget(base,target){if(String(target||'').startsWith('/'))return String(target).replace(/^\/+/, '');const p=base.split('/');p.pop();for(const part of String(target||'').split('/')){if(!part||part==='.')continue;if(part==='..')p.pop();else p.push(part);}return p.join('/');}
@@ -283,10 +341,26 @@
   registry.register({name:'ODS Adapter',formats:['ods'],async parse({file,buffer}){const r=await parseOdsZip(buffer);return new Core.NormalizedDataset({format:'ods',sourceFiles:[file],recordSets:r.sheets.map(s=>({...s,source:file.name}))});}});
   registry.register({name:'FODS Adapter',formats:['fods'],async parse({file,buffer}){const doc=xmlFromText(decodeText(buffer),'FODS');return new Core.NormalizedDataset({format:'fods',sourceFiles:[file],recordSets:parseOdsDocument(doc).map(s=>({...s,source:file.name}))});}});
   registry.register({name:'Excel 2003 XML Adapter',formats:['spreadsheetml'],async parse({file,buffer}){return new Core.NormalizedDataset({format:'spreadsheetml',sourceFiles:[file],recordSets:parseSpreadsheetXml(xmlFromText(decodeText(buffer),'Excel XML')).map(s=>({...s,source:file.name}))});}});
-  registry.register({name:'HTML Table Adapter',formats:['html'],async parse({file,buffer}){return new Core.NormalizedDataset({format:'html',sourceFiles:[file],recordSets:parseHtmlTables(decodeText(buffer)).map(s=>({...s,source:file.name}))});}});
+  registry.register({name:'HTML Adapter',formats:['html'],async parse({file,buffer}){
+    const text=decodeText(buffer), tables=parseHtmlTables(text), bridge=mailRecordSetFromBlocks(htmlOrderedBlocks(text),file.name,{preferred:true,minStrongRatio:.6});
+    const recordSets=[]; const warnings=[];
+    if(bridge){recordSets.push(bridge.recordSet);warnings.push(...bridge.warnings);}
+    for(const table of tables)recordSets.push({...table,source:file.name,meta:{...(table.meta||{}),supplemental:!!bridge}});
+    if(!recordSets.length)throw new Error('HTML 中没有识别到邮件正文或表格记录。');
+    return new Core.NormalizedDataset({format:'html',sourceFiles:[file],recordSets,warnings});
+  }});
   registry.register({name:'JSON Adapter',formats:['json'],async parse({file,buffer}){return new Core.NormalizedDataset({format:'json',sourceFiles:[file],recordSets:[{name:file.name,rows:parseJsonValue(JSON.parse(decodeText(buffer))),source:file.name}]});}});
   registry.register({name:'NDJSON Adapter',formats:['ndjson'],async parse({file,buffer}){return new Core.NormalizedDataset({format:'ndjson',sourceFiles:[file],recordSets:[{name:file.name,rows:parseNdjson(decodeText(buffer)),source:file.name}]});}});
-  registry.register({name:'Delimited Text Adapter',formats:['delimited','txt','csv','tsv','psv','text'],async parse({file,buffer,detection}){const text=decodeText(buffer), vertical=parseVerticalRecords(text);if(vertical)return new Core.NormalizedDataset({format:'vertical-text',sourceFiles:[file],recordSets:[{name:file.name,rows:vertical,source:file.name}]});const delimiter=detection.delimiter||detectDelimited(text);return new Core.NormalizedDataset({format:'delimited',sourceFiles:[file],recordSets:[{name:file.name,rows:parseDelimited(text,delimiter),source:file.name}],meta:{delimiter}});}});
+  registry.register({name:'Delimited Text Adapter',formats:['delimited','txt','csv','tsv','psv','text'],async parse({file,buffer,detection}){
+    const text=decodeText(buffer), ext=extOf(file?.name);
+    // Plain/free text may be a concatenation of complete emails. Detect mail frames before assuming rows/columns.
+    if(!['csv','tsv','psv'].includes(ext)){
+      const bridge=mailRecordSetFromBlocks(String(text||'').replace(/\r\n?/g,'\n').split(/\n+/).map(text=>({type:'text-line',text})),file.name,{preferred:true,minStrongRatio:.6});
+      if(bridge)return new Core.NormalizedDataset({format:'mail-text',sourceFiles:[file],recordSets:[bridge.recordSet],warnings:bridge.warnings});
+    }
+    const vertical=parseVerticalRecords(text);if(vertical)return new Core.NormalizedDataset({format:'vertical-text',sourceFiles:[file],recordSets:[{name:file.name,rows:vertical,source:file.name}]});
+    const delimiter=detection.delimiter||detectDelimited(text);return new Core.NormalizedDataset({format:'delimited',sourceFiles:[file],recordSets:[{name:file.name,rows:parseDelimited(text,delimiter),source:file.name}],meta:{delimiter}});
+  }});
 
-  globalThis.NMDAImportAdapters={FormatDetector,AdapterRegistry,registry,decodeText,unzip,parseXlsx,parseOdsZip,parseDelimited,detectDelimited,parseJsonValue,parseNdjson,parseVerticalRecords,parseHtmlTables,parseSpreadsheetXml,parseOdsDocument,parseDocx,parseDocxDocument,parseWordTable,parseWordKeyValueTable,parseWordKeyValueRecords,makeVirtualFile,candidateDataFile,extOf,SUPPORTED_EXT};
+  globalThis.NMDAImportAdapters={FormatDetector,AdapterRegistry,registry,decodeText,unzip,parseXlsx,parseOdsZip,parseDelimited,detectDelimited,parseJsonValue,parseNdjson,parseVerticalRecords,parseHtmlTables,parseSpreadsheetXml,parseOdsDocument,parseDocx,parseDocxDocument,parseWordTable,parseWordKeyValueTable,parseWordKeyValueRecords,mailRecordSetFromBlocks,htmlOrderedBlocks,makeVirtualFile,candidateDataFile,extOf,SUPPORTED_EXT};
 })();
