@@ -88,8 +88,9 @@
   async function parseFiles(files){return engine.parseFiles(files);}
   async function parseDirectory(files){return engine.parseDirectory(files);}
 
-  function createProfile({name='',format='',sheetName='',headers=[],mapping={},confidence={}}={}){
-    return {id:`profile_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,name:name||`导入模板 ${new Date().toLocaleDateString()}`,format,sheetName,headers:[...headers],normalizedHeaders:headers.map(Core.normalizeHeader),mapping:{...mapping},confidence:{...confidence},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  function createProfile({name='',format='',collectionName='',sheetName='',headers=[],mapping={},confidence={}}={}){
+    const sourceCollection = collectionName || sheetName || '';
+    return {id:`profile_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,name:name||`导入模板 ${new Date().toLocaleDateString()}`,format,collectionName:sourceCollection,sheetName:sourceCollection,headers:[...headers],normalizedHeaders:headers.map(Core.normalizeHeader),mapping:{...mapping},confidence:{...confidence},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   }
   function loadProfiles(){try{return JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]').filter(x=>x&&x.id);}catch(_){return[];}}
   function saveProfile(profile){const all=loadProfiles(),i=all.findIndex(x=>x.id===profile.id),next={...profile,updatedAt:new Date().toISOString()};if(i>=0)all[i]=next;else all.push(next);localStorage.setItem(PROFILE_KEY,JSON.stringify(all.slice(-50)));return next;}
@@ -110,9 +111,9 @@
   function resolveFiles(refs,index){const files=[],missing=[],ambiguous=[],details=[];for(const ref of refs||[]){const d=resolveOneFile(ref,index||buildFileIndex([]));details.push(d);if(d.status==='matched')files.push(d.file);else if(d.status==='missing')missing.push(ref);else ambiguous.push(ref);}return{files,missing,ambiguous,details};}
 
   globalThis.NMDAImporter={
-    version:'1.2.0', engine, UniversalImportEngine,
+    version:'1.4.0', engine, UniversalImportEngine,
     FIELD_DEFS:Core.FIELD_DEFS, normalizeHeader:Core.normalizeHeader, mappingForHeaders:Core.mappingForHeaders,
-    detectHeader:Core.detectHeader, detectBestSheet:Core.detectBestSheet, parseFile, parseFiles, parseDirectory,
+    detectHeader:Core.detectHeader, detectBestSheet:Core.detectBestSheet, detectBestRecordSet:Core.detectBestRecordSet, parseFile, parseFiles, parseDirectory,
     parseDateValue,formatLocalDateTime,createProfile,loadProfiles,saveProfile,deleteProfile,suggestProfile,
     splitAttachments,normalizeFileKey,relaxedFileName,fileIdentity,buildFileIndex,resolveOneFile,suggestFiles,resolveFiles,
     supportedFormats:['XLSX','ODS','FODS','DOCX/DOCM/DOTX','CSV','TSV','PSV','TXT','JSON','JSONL/NDJSON','HTML table','Excel 2003 XML','ZIP batch'],

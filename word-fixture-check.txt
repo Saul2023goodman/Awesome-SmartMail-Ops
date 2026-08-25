@@ -1,5 +1,0 @@
-test-word-table.docx: tables=1, paragraphs=22
-test-word-mail-1.docx: tables=0, paragraphs=10
-test-word-mail-2.docx: tables=0, paragraphs=10
-test-word-kv-table.docx: tables=1, paragraphs=12
-test-word-plain.docx: tables=0, paragraphs=3

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "1.3.0",
-  "description": "网易邮箱网页版外联工作台：独立导入工作台 + Universal Import Engine + Word/表格/ZIP 多格式识别，批量任务、联系人、附件与定时；只创建并确认保存草稿，不自动发送。",
+  "version": "1.4.0",
+  "description": "网易邮箱网页版外联工作台：源无关数据摄取工作台（文件/目录/Word/JSON/文本/ZIP）+ 结构理解 + 语义映射 + 任务预览，批量草稿、联系人、附件与定时；只创建并确认保存草稿，不自动发送。",
   "permissions": [
     "storage",
     "scripting"

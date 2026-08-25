@@ -193,6 +193,8 @@
     return best || { index:0, detection:detectHeader([]), score:0 };
   }
 
+  function detectBestRecordSet(recordSets) { return detectBestSheet(recordSets); }
+
   function mappingForHeaders(headers) { return assignFields(analyzeColumns(headers, [])).mapping; }
 
   function normalizeRows(rows) {
@@ -243,7 +245,7 @@
 
   globalThis.NMDAImportCore={
     FIELD_DEFS, FIELD_KEYS, CORE_FIELDS, normalizeHeader, matchHeader, mappingForHeaders,
-    parseDateLoose, detectHeader, detectBestSheet, analyzeColumns, profileColumn,
+    parseDateLoose, detectHeader, detectBestSheet, detectBestRecordSet, analyzeColumns, profileColumn,
     NormalizedRecordSet, NormalizedDataset, confidenceLabel, profileSimilarity, normalizeRows
   };
 })();
