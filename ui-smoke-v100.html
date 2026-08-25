@@ -5,6 +5,6 @@ window.chrome={
  runtime:{async sendMessage(msg){ if(msg.type==='NMDA_ACCOUNT_INFO')return{ok:true,uid:'demo@example.com'}; return{ok:false,reason:'smoke'}; }}
 };
 </script>
-<script src="importer.js"></script><script src="contacts.js"></script><script src="content.js"></script>
+<script src="import-core.js"></script><script src="import-adapters.js"></script><script src="importer.js"></script><script src="contacts.js"></script><script src="content.js"></script>
 <script>setTimeout(()=>{document.querySelector('#nmda-panel').hidden=false;document.querySelector('[data-tab="batch"]').click();},200);</script>
 </body></html>
