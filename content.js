@@ -562,8 +562,8 @@
           <section class="nmda-tabpane nmda-page" data-pane="batch" hidden>
             <div class="nmda-batch-setup-grid">
               <div class="nmda-card" id="nmda-import-card">
-                <div class="nmda-card-head"><div><div class="nmda-step-index">01</div><div><div class="nmda-card-title">通用导入</div><div class="nmda-card-desc">表格 / 文本 / JSON / HTML / XML / ZIP · 支持多文件</div></div></div></div>
-                <input id="nmda-import-file" type="file" multiple accept=".xlsx,.xls,.ods,.fods,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
+                <div class="nmda-card-head"><div><div class="nmda-step-index">01</div><div><div class="nmda-card-title">通用导入</div><div class="nmda-card-desc">表格 / Word / 文本 / JSON / HTML / XML / ZIP · 支持多文件</div></div></div></div>
+                <input id="nmda-import-file" type="file" multiple accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
                 <div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">导入数据目录<input id="nmda-import-dir" type="file" webkitdirectory multiple hidden></label><button class="nmda-btn nmda-btn-small" id="nmda-template" type="button">下载 CSV 模板</button></div>
                 <div id="nmda-import-format-info" class="nmda-hint">自动识别真实格式；多文件会合并成多个数据集。旧 .xls 可识别但需转换为 XLSX/ODS/CSV。</div>
               </div>
@@ -1624,5 +1624,5 @@
   restoreFormState();
   renderPreview();
   initContacts();
-  console.info(`[${APP}] v1.1.0 loaded`);
+  console.info(`[${APP}] v1.2.0 loaded`);
 })();

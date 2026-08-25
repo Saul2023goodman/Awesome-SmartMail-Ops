@@ -15,7 +15,8 @@
     async parseFile(file,{allowZipBatch=true}={}){
       if(!file)throw new Error('没有选择导入文件。');
       const buffer=await file.arrayBuffer(), detection=await this.detector.detect(file,buffer);
-      if(detection.format==='xls')throw new Error('已识别为旧版 Excel .xls（OLE/BIFF）。浏览器原生解析层不安全支持该二进制格式；请另存为 XLSX/ODS/CSV，或在后续第三方 SheetJS 适配器启用后直接读取。');
+      if(detection.format==='xls')throw new Error('已识别为旧版 Excel .xls（OLE/BIFF）。当前通用引擎尚未启用二进制 XLS Adapter；请另存为 XLSX/ODS/CSV。');
+      if(detection.format==='doc')throw new Error('已识别为旧版 Word .doc（二进制 OLE）。WordAdapter 当前支持 DOCX/DOCM/DOTX；请在 Word/WPS 中另存为 .docx 后批量导入。');
       if(detection.format==='zip'){
         if(!allowZipBatch)throw new Error('ZIP 内再次嵌套 ZIP 暂不支持。');
         return this.parseZipBatch(file,buffer,detection.entries||await A.unzip(buffer));
@@ -36,6 +37,16 @@
           for(const rs of ds.sheets||[]){const prefix=list.length>1?`${file.name} · `:'';recordSets.push(new Core.NormalizedRecordSet({name:`${prefix}${rs.name}`,rows:rs.rows,source:file.name,meta:{...(rs.meta||{}),format:ds.format}}));}
         }catch(error){if(ignoreUnsupported){warnings.push(`${file.name}: ${error.message}`);continue;}throw error;}
       }
+      // 多个“一文件一封”或字段式 Word 自动合并成一个真正的批处理 RecordSet。
+      if(list.length>1){
+        const wordSets=recordSets.filter(rs=>rs.meta?.wordTaskRows);
+        if(wordSets.length>=2){
+          const header=['编号','收件人','主题','正文','附件','定时时间','任务分类','来源文件'],rows=[header];
+          for(const rs of wordSets){const d=Core.detectHeader(rs.rows||[]);for(const row of (rs.rows||[]).slice(d.index+1))if(row?.some(v=>String(v??'').trim()))rows.push(header.map((_,i)=>row[i]??''));}
+          for(let i=recordSets.length-1;i>=0;i--)if(recordSets[i].meta?.wordTaskRows)recordSets.splice(i,1);
+          recordSets.unshift(new Core.NormalizedRecordSet({name:`Word文档批次（${rows.length-1} 条）`,rows,source:'multi-word',meta:{word:true,merged:true,wordTaskRows:true}}));
+        }
+      }
       if(!recordSets.length)throw new Error(warnings.length?`没有成功读取的数据文件。${warnings[0]}`:'没有可读取的数据。');
       return new Core.NormalizedDataset({format:[...new Set(formats)].join('+')||'multi',recordSets,sourceFiles,embeddedFiles,warnings,meta:{multiFile:list.length>1}});
     }
@@ -53,9 +64,16 @@
       let taskNames=[];
       if(manifest?.taskFile){const exact=String(manifest.taskFile).replace(/^\.\//,'');if(!entries.has(exact))throw new Error(`ZIP manifest 指定的任务文件不存在：${exact}`);taskNames=[exact];}
       else taskNames=names.filter(n=>A.SUPPORTED_EXT.has(A.extOf(n))&&A.extOf(n)!=='zip'&&!/^manifest\.json$/i.test(n));
-      if(!taskNames.length)throw new Error('ZIP 中没有找到任务数据文件。建议包含 manifest.json + tasks.xlsx/csv/json。');
+      if(!taskNames.length)throw new Error('ZIP 中没有找到任务数据文件。建议包含 manifest.json + tasks.xlsx/csv/json/docx。');
       const recordSets=[],sourceFiles=[];
-      for(const name of taskNames){const bytes=entries.get(name),vf=A.makeVirtualFile(name,bytes);try{const ds=await this.parseFile(vf,{allowZipBatch:false});sourceFiles.push(vf);for(const rs of ds.sheets)recordSets.push(new Core.NormalizedRecordSet({name:`${name} · ${rs.name}`,rows:rs.rows,source:name,meta:{package:true,format:ds.format}}));}catch(e){warnings.push(`${name}: ${e.message}`);}}
+      for(const name of taskNames){const bytes=entries.get(name),vf=A.makeVirtualFile(name,bytes);try{const ds=await this.parseFile(vf,{allowZipBatch:false});sourceFiles.push(vf);for(const rs of ds.sheets)recordSets.push(new Core.NormalizedRecordSet({name:`${name} · ${rs.name}`,rows:rs.rows,source:name,meta:{...(rs.meta||{}),package:true,format:ds.format}}));}catch(e){warnings.push(`${name}: ${e.message}`);}}
+      const zipWordSets=recordSets.filter(rs=>rs.meta?.wordTaskRows);
+      if(zipWordSets.length>=2){
+        const header=['编号','收件人','主题','正文','附件','定时时间','任务分类','来源文件'],rows=[header];
+        for(const rs of zipWordSets){const d=Core.detectHeader(rs.rows||[]);for(const row of (rs.rows||[]).slice(d.index+1))if(row?.some(v=>String(v??'').trim()))rows.push(header.map((_,i)=>row[i]??''));}
+        for(let i=recordSets.length-1;i>=0;i--)if(recordSets[i].meta?.wordTaskRows)recordSets.splice(i,1);
+        recordSets.unshift(new Core.NormalizedRecordSet({name:`Word文档批次（${rows.length-1} 条）`,rows,source:zipFile.name,meta:{word:true,merged:true,package:true,wordTaskRows:true}}));
+      }
       const taskSet=new Set(taskNames);
       const attachmentRoot=String(manifest?.attachmentRoot||'').replace(/^\.\//,'').replace(/\/+$/,'');
       for(const name of names){if(taskSet.has(name)||/^manifest\.json$/i.test(name))continue;if(attachmentRoot&&!(name===attachmentRoot||name.startsWith(`${attachmentRoot}/`)))continue;embeddedFiles.push(A.makeVirtualFile(name,entries.get(name)));}
@@ -92,12 +110,12 @@
   function resolveFiles(refs,index){const files=[],missing=[],ambiguous=[],details=[];for(const ref of refs||[]){const d=resolveOneFile(ref,index||buildFileIndex([]));details.push(d);if(d.status==='matched')files.push(d.file);else if(d.status==='missing')missing.push(ref);else ambiguous.push(ref);}return{files,missing,ambiguous,details};}
 
   globalThis.NMDAImporter={
-    version:'1.1.0', engine, UniversalImportEngine,
+    version:'1.2.0', engine, UniversalImportEngine,
     FIELD_DEFS:Core.FIELD_DEFS, normalizeHeader:Core.normalizeHeader, mappingForHeaders:Core.mappingForHeaders,
     detectHeader:Core.detectHeader, detectBestSheet:Core.detectBestSheet, parseFile, parseFiles, parseDirectory,
     parseDateValue,formatLocalDateTime,createProfile,loadProfiles,saveProfile,deleteProfile,suggestProfile,
     splitAttachments,normalizeFileKey,relaxedFileName,fileIdentity,buildFileIndex,resolveOneFile,suggestFiles,resolveFiles,
-    supportedFormats:['XLSX','ODS','FODS','CSV','TSV','PSV','TXT','JSON','JSONL/NDJSON','HTML table','Excel 2003 XML','ZIP batch'],
+    supportedFormats:['XLSX','ODS','FODS','DOCX/DOCM/DOTX','CSV','TSV','PSV','TXT','JSON','JSONL/NDJSON','HTML table','Excel 2003 XML','ZIP batch'],
     candidateDataFile:A.candidateDataFile
   };
 })();

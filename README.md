@@ -1,6 +1,6 @@
-# NetEase Mail Draft Assistant v1.1.0
+# NetEase Mail Draft Assistant v1.2.0
 
-v1.1.0 将导入系统重构为 **Universal Import Engine**。邮件执行、附件、联系人、分类、定时与“存草稿”状态机继续沿用 v1.0.4；本版本重点替换“文件 → 批量任务”的入口层。
+v1.2.0 在 Universal Import Engine 上新增 **WordAdapter**。邮件执行、附件、联系人、分类、定时与“存草稿”状态机保持不变；本版本重点扩展 Word → NormalizedDataset。
 
 ## 新导入架构
 
@@ -33,6 +33,7 @@ FieldRecognizer（表头语义 + 数据分布 + 置信度）
 - XLSX
 - ODS
 - FODS
+- Word DOCX / DOCM / DOTX（OOXML）
 - CSV
 - TSV
 - PSV（`|` 分隔）
@@ -45,13 +46,26 @@ FieldRecognizer（表头语义 + 数据分布 + 置信度）
 - 多文件同时导入
 - 数据目录批量扫描
 
+### Word 适配
+
+WordAdapter 支持四种常见结构：
+
+1. **横向 Word 表格**：表头 + 多行邮件记录，直接进入字段识别。
+2. **两列字段表**：左列为“收件人/主题/正文/附件/定时时间”等字段名，右列为值，自动转为一条标准任务。
+3. **字段式正文**：支持 `收件人: ...`、`主题: ...`、`正文:`、`附件:`、`定时时间:`、`分类:`，正文可跨多个段落。
+4. **一文件一封**：如果没有明确字段结构，则文件名作为编号、Word 全文作为正文候选；一次选择多个 Word 时，自动合并为一个 `Word文档批次`，实现批量校正和批量建草稿。
+
+Word 内嵌图片不会自动伪装成邮件附件；插件会提示存在内嵌媒体，附件仍通过现有附件中心显式匹配。这样避免把签名 Logo、截图等错误当成附件。
+
+旧 `.doc` 属于 OLE 二进制格式，本版会准确识别并要求另存为 `.docx`，不会把 `.doc` 错当 Excel 或文本。
+
 ### `.xls`
 
 旧 `.xls` 会通过 OLE magic bytes 被准确识别，不再误当文本或 XLSX；当前原生 Adapter 不解析 BIFF 二进制，因此会明确提示转换为 XLSX / ODS / CSV。后续可以通过 Adapter Registry 接入 SheetJS 作为 XLS/XLSB/ET/Numbers 等格式的成熟解析器，而无需改动业务层。
 
 ## 字段识别升级
 
-旧版主要依赖表头同义词。v1.1.0 同时使用：
+字段识别继续同时使用：
 
 1. 表头精确/模糊语义；
 2. 邮箱值比例；
@@ -138,6 +152,11 @@ ZIP 中的附件会直接转成浏览器 `File` 对象并进入本批附件池�
 - 多文件：多个 CSV 合并为多个数据集。
 - 纵向 key-value TXT：转为标准记录。
 - 假 `.xls` OLE 文件：被明确识别为旧 BIFF，并返回可操作提示。
+- Word 横向表格：收件人/主题/正文/附件/定时/分类均自动映射。
+- Word 两列表格：自动转为标准任务。
+- Word 字段式正文：多段正文正确拼接。
+- Word 一文件一封：生成标准回退任务。
+- 多个 Word：自动合并为 `Word文档批次`；浏览器 Runtime 回归 2 个 Word → 2 条任务通过。
 
 ## 成熟第三方资源的接入位置
 
@@ -145,7 +164,7 @@ ZIP 中的附件会直接转成浏览器 `File` 对象并进入本批附件池�
 
 - SheetJS：XLS/XLSB/ET/Numbers 及更广电子表格；
 - Papa Parse：超大 CSV、streaming、worker、复杂 CSV；
-- Mammoth.js：DOCX；
+- Mammoth.js：如果后续需要更完整的脚注、复杂文本框、样式语义，可作为 WordAdapter 的增强/替换解析器；
 - PDF.js：文本 PDF；
 - Tesseract.js：扫描件 OCR fallback；
 - postal-mime：EML；
@@ -159,7 +178,7 @@ ZIP 中的附件会直接转成浏览器 `File` 对象并进入本批附件池�
 2. 打开 `chrome://extensions/`。
 3. 开启开发者模式。
 4. 加载已解压扩展程序。
-5. 选择 `netease-mail-draft-assistant-v1.1.0`。
+5. 选择 `netease-mail-draft-assistant-v1.2.0`。
 6. 刷新网易邮箱。
 
 插件只创建并保存草稿，不自动发送邮件。

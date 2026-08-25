@@ -1,0 +1,174 @@
+[
+  {
+    "name": "test-word-table.docx",
+    "ok": true,
+    "format": "docx",
+    "sheets": [
+      {
+        "name": "Word表格1",
+        "rows": 3,
+        "meta": {
+          "word": true,
+          "kind": "table"
+        }
+      }
+    ],
+    "mapping": {
+      "id": 0,
+      "recipients": 1,
+      "subject": 2,
+      "body": 3,
+      "attachments": 4,
+      "scheduleAt": 5,
+      "tags": 6
+    },
+    "warnings": []
+  },
+  {
+    "name": "test-word-mail-1.docx",
+    "ok": true,
+    "format": "docx",
+    "sheets": [
+      {
+        "name": "Word字段记录",
+        "rows": 2,
+        "meta": {
+          "word": true,
+          "kind": "records",
+          "wordTaskRows": true
+        }
+      }
+    ],
+    "mapping": {
+      "id": 0,
+      "recipients": 1,
+      "subject": 2,
+      "body": 3,
+      "attachments": 4,
+      "scheduleAt": 5,
+      "tags": 6
+    },
+    "warnings": []
+  },
+  {
+    "name": "test-word-mail-2.docx",
+    "ok": true,
+    "format": "docx",
+    "sheets": [
+      {
+        "name": "Word字段记录",
+        "rows": 2,
+        "meta": {
+          "word": true,
+          "kind": "records",
+          "wordTaskRows": true
+        }
+      }
+    ],
+    "mapping": {
+      "id": 0,
+      "recipients": 1,
+      "subject": 2,
+      "body": 3,
+      "attachments": 4,
+      "scheduleAt": 5,
+      "tags": 6
+    },
+    "warnings": []
+  },
+  {
+    "name": "test-word-kv-table.docx",
+    "ok": true,
+    "format": "docx",
+    "sheets": [
+      {
+        "name": "Word表格1 · 字段记录",
+        "rows": 2,
+        "meta": {
+          "word": true,
+          "kind": "key-value-table",
+          "wordTaskRows": true
+        }
+      }
+    ],
+    "mapping": {
+      "id": 0,
+      "recipients": 1,
+      "subject": 2,
+      "body": 3,
+      "attachments": 4,
+      "scheduleAt": 5,
+      "tags": 6
+    },
+    "warnings": []
+  },
+  {
+    "name": "test-word-plain.docx",
+    "ok": true,
+    "format": "docx",
+    "sheets": [
+      {
+        "name": "Word文档任务",
+        "rows": 2,
+        "meta": {
+          "word": true,
+          "kind": "document",
+          "wordTaskRows": true,
+          "oneFileTask": true
+        }
+      }
+    ],
+    "mapping": {
+      "id": 0,
+      "recipients": 1,
+      "subject": 2,
+      "body": 3,
+      "attachments": 4,
+      "scheduleAt": 5,
+      "tags": 6
+    },
+    "warnings": []
+  },
+  {
+    "name": "multi-word",
+    "ok": true,
+    "sheets": [
+      {
+        "name": "Word文档批次（2 条）",
+        "rows": 3,
+        "head": [
+          [
+            "编号",
+            "收件人",
+            "主题",
+            "正文",
+            "附件",
+            "定时时间",
+            "任务分类",
+            "来源文件"
+          ],
+          [
+            "D001",
+            "prof1@example.com",
+            "Word字段邮件 1",
+            "Dear Professor 1,\nThis is paragraph one.\nThis is paragraph two.",
+            "CV_1.pdf",
+            "2026-09-01 08:30",
+            "第一批;Word",
+            "test-word-mail-1.docx"
+          ],
+          [
+            "D002",
+            "prof2@example.com",
+            "Word字段邮件 2",
+            "Dear Professor 2,\nThis is paragraph one.\nThis is paragraph two.",
+            "CV_2.pdf",
+            "2026-09-02 08:30",
+            "第一批;Word",
+            "test-word-mail-2.docx"
+          ]
+        ]
+      }
+    ]
+  }
+]

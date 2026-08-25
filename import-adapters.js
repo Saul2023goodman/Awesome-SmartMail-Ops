@@ -98,6 +98,146 @@
     if(!sheets.length)throw new Error('ODS/FODS 中没有工作表。'); return sheets;
   }
 
+
+  // ---------- Word OOXML Adapter ----------
+  // 只提取语义文本与表格；不把 Word HTML/样式注入网易页面。
+  function localName(node){return (node?.localName||node?.nodeName||'').split(':').pop();}
+  function wordNodeText(root){
+    if(!root)return'';
+    let out='';
+    const walk=node=>{
+      const name=localName(node);
+      if(name==='t'||name==='delText'||name==='instrText')out+=node.textContent||'';
+      else if(name==='tab')out+='\t';
+      else if(name==='br'||name==='cr')out+='\n';
+      else if(name==='noBreakHyphen')out+='-';
+      else if(name==='softHyphen')out+='\u00ad';
+      else for(const child of Array.from(node.childNodes||[]))walk(child);
+    };
+    walk(root);
+    return out.replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  }
+  function wordParagraphStyle(p){
+    const pPr=Array.from(p?.children||[]).find(x=>localName(x)==='pPr');
+    const pStyle=pPr&&els(pPr,'pStyle')[0];
+    return attrLocal(pStyle,'val')||'';
+  }
+  function parseWordTable(tbl){
+    const rows=[];
+    for(const tr of Array.from(tbl.children||[]).filter(x=>localName(x)==='tr')){
+      const row=[];
+      for(const tc of Array.from(tr.children||[]).filter(x=>localName(x)==='tc')){
+        const parts=[];
+        for(const child of Array.from(tc.children||[])){
+          const n=localName(child);
+          if(n==='p'){const t=wordNodeText(child);if(t)parts.push(t);}
+          else if(n==='tbl'){
+            const nested=parseWordTable(child);
+            const t=nested.map(r=>r.filter(Boolean).join(' | ')).filter(Boolean).join('\n');
+            if(t)parts.push(t);
+          }
+        }
+        row.push(parts.join('\n'));
+      }
+      rows.push(row);
+    }
+    return Core.normalizeRows(rows);
+  }
+  function splitWordFieldLine(text){
+    const m=String(text||'').match(/^\s*([^:：]{1,48})\s*[:：]\s*(.*)$/s);
+    if(!m)return null;
+    const match=Core.matchHeader(m[1]);
+    return match?{field:match.field,value:m[2]||'',label:m[1].trim()}:null;
+  }
+  const WORD_STD_HEADERS=['编号','收件人','主题','正文','附件','定时时间','任务分类','来源文件'];
+  function standardWordRows(records){
+    return [WORD_STD_HEADERS,...records.map(r=>[
+      r.id||'',r.recipients||'',r.subject||'',r.body||'',r.attachments||'',r.scheduleAt||'',r.tags||'',r.sourceFile||''
+    ])];
+  }
+  function parseWordKeyValueTable(rows,sourceFile=''){
+    const usable=(rows||[]).filter(r=>r?.some(v=>String(v??'').trim()));
+    if(usable.length<2)return null;
+    const recognized=usable.filter(r=>Core.matchHeader(String(r?.[0]??'').trim())).length;
+    if(recognized<2||recognized/usable.length<0.55)return null;
+    const records=[];let current={};
+    const flush=()=>{if(Object.keys(current).length){current.sourceFile=sourceFile;records.push(current);}current={};};
+    for(const row of usable){
+      const label=String(row?.[0]??'').trim();
+      const value=(row||[]).slice(1).map(v=>String(v??'').trim()).filter(Boolean).join('\n');
+      const m=Core.matchHeader(label);if(!m)continue;
+      if((m.field==='recipients'||m.field==='id')&&current[m.field]&&Object.keys(current).length>=2)flush();
+      if(current[m.field])current[m.field]=`${current[m.field]};${value}`;else current[m.field]=value;
+    }
+    flush();
+    return records.length?standardWordRows(records):null;
+  }
+  function parseWordKeyValueRecords(paragraphs,sourceFile=''){
+    const records=[];let current={},activeField=null,recognized=0;
+    const flush=()=>{
+      if(Object.keys(current).some(k=>k!=='sourceFile'&&String(current[k]??'').trim())){
+        current.sourceFile=sourceFile;records.push(current);
+      }
+      current={};activeField=null;
+    };
+    for(const raw of paragraphs){
+      const text=String(raw?.text??raw??'');
+      if(!text.trim()){
+        if(activeField==='body'&&current.body&&!current.body.endsWith('\n'))current.body+='\n';
+        continue;
+      }
+      const parsed=splitWordFieldLine(text);
+      if(parsed){
+        if((parsed.field==='recipients'||parsed.field==='id')&&current[parsed.field]&&Object.keys(current).length>=2)flush();
+        recognized++;activeField=parsed.field;
+        if(parsed.field==='body')current.body=parsed.value||'';
+        else if(current[parsed.field])current[parsed.field]=`${current[parsed.field]};${parsed.value}`;
+        else current[parsed.field]=parsed.value;
+        continue;
+      }
+      if(activeField==='body')current.body=(current.body?`${current.body}\n`:'')+text;
+      else if((current.recipients||current.subject)&&!current.body){current.body=text;activeField='body';}
+    }
+    flush();
+    const useful=records.filter(r=>r.recipients||r.subject||r.body);
+    return useful.length&&recognized>=1?standardWordRows(useful):null;
+  }
+  function parseDocxDocument(doc,sourceFile=''){
+    const body=first(doc,'body');if(!body)throw new Error('DOCX 缺少 Word 正文。');
+    const tables=[],paragraphs=[];let tableIndex=0;
+    for(const child of Array.from(body.children||[])){
+      const n=localName(child);
+      if(n==='tbl'){
+        const rows=parseWordTable(child);
+        if(rows.some(r=>r.some(v=>String(v??'').trim())))tables.push({name:`Word表格${++tableIndex}`,rows,source:sourceFile,meta:{word:true,kind:'table'}});
+      }else if(n==='p')paragraphs.push({text:wordNodeText(child),style:wordParagraphStyle(child)});
+    }
+    return{tables,paragraphs};
+  }
+  async function parseDocx(buffer,file){
+    const entries=await unzip(buffer),documentBytes=entries.get('word/document.xml');
+    if(!documentBytes)throw new Error('DOCX 缺少 word/document.xml。');
+    const parsed=parseDocxDocument(xmlFromBytes(documentBytes,'Word document.xml'),file.name);
+    const recordSets=[],warnings=[];
+    for(const table of parsed.tables){
+      const kv=parseWordKeyValueTable(table.rows,file.name);
+      if(kv)recordSets.push({name:`${table.name} · 字段记录`,rows:kv,source:file.name,meta:{word:true,kind:'key-value-table',wordTaskRows:true}});
+      else recordSets.push(table);
+    }
+    const paragraphs=parsed.paragraphs.map(p=>p.text);
+    const structured=parseWordKeyValueRecords(paragraphs,file.name);
+    if(structured)recordSets.push({name:'Word字段记录',rows:structured,source:file.name,meta:{word:true,kind:'records',wordTaskRows:true}});
+    if(!recordSets.length){
+      const body=paragraphs.filter(Boolean).join('\n\n').trim();
+      if(!body)throw new Error('Word 文档没有可读取的正文或表格。');
+      const stem=String(file.name||'Word').replace(/\.[^.]+$/,'');
+      recordSets.push({name:'Word文档任务',rows:standardWordRows([{id:stem,body,sourceFile:file.name}]),source:file.name,meta:{word:true,kind:'document',wordTaskRows:true,oneFileTask:true}});
+    }
+    const media=[...entries.keys()].filter(n=>n.startsWith('word/media/')&&!n.endsWith('/'));
+    if(media.length)warnings.push(`Word 文档包含 ${media.length} 个内嵌媒体文件；当前只提取正文/表格，内嵌图片不会自动作为邮件附件。`);
+    return{recordSets,warnings,entries};
+  }
+
   function resolveTarget(base,target){if(String(target||'').startsWith('/'))return String(target).replace(/^\/+/, '');const p=base.split('/');p.pop();for(const part of String(target||'').split('/')){if(!part||part==='.')continue;if(part==='..')p.pop();else p.push(part);}return p.join('/');}
   function columnIndex(ref){const letters=String(ref||'').match(/^[A-Z]+/i)?.[0]?.toUpperCase()||'';let n=0;for(const ch of letters)n=n*26+ch.charCodeAt(0)-64;return Math.max(0,n-1);}
   function parseSharedStrings(doc){return doc?els(doc,'si').map(si=>els(si,'t').map(t=>t.textContent||'').join('')):[];}
@@ -108,15 +248,15 @@
 
   function makeVirtualFile(name,bytes){const file=new File([bytes],name,{type:'application/octet-stream'});try{Object.defineProperty(file,'_nmdaPath',{value:name,configurable:true});}catch(_){}return file;}
 
-  const SUPPORTED_EXT=new Set(['xlsx','ods','fods','csv','tsv','txt','psv','json','jsonl','ndjson','html','htm','xml','zip']);
+  const SUPPORTED_EXT=new Set(['xlsx','ods','fods','docx','docm','dotx','doc','csv','tsv','txt','psv','json','jsonl','ndjson','html','htm','xml','zip']);
   function candidateDataFile(file){return SUPPORTED_EXT.has(extOf(file?.name));}
 
   class FormatDetector {
     async detect(file,buffer=null){
       const ext=extOf(file?.name), ab=buffer||await file.arrayBuffer(), bytes=bytesOf(ab), head=decodeText(bytes.slice(0,Math.min(bytes.length,4096))).trimStart();
-      if(starts(bytes,[0xD0,0xCF,0x11,0xE0,0xA1,0xB1,0x1A,0xE1]))return {format:'xls',container:'ole',ext};
+      if(starts(bytes,[0xD0,0xCF,0x11,0xE0,0xA1,0xB1,0x1A,0xE1]))return {format:['doc','dot'].includes(ext)?'doc':'xls',container:'ole',ext};
       if(starts(bytes,[0x50,0x4B,0x03,0x04])){
-        try{const entries=await unzip(ab);if(entries.has('xl/workbook.xml'))return{format:'xlsx',container:'zip',ext,entries};if(entries.has('content.xml')&&entries.has('META-INF/manifest.xml'))return{format:'ods',container:'zip',ext,entries};return{format:'zip',container:'zip',ext,entries};}catch(_){return{format:'zip',container:'zip',ext};}
+        try{const entries=await unzip(ab);if(entries.has('xl/workbook.xml'))return{format:'xlsx',container:'zip',ext,entries};if(entries.has('word/document.xml'))return{format:'docx',container:'zip',ext,entries};if(entries.has('content.xml')&&entries.has('META-INF/manifest.xml'))return{format:'ods',container:'zip',ext,entries};return{format:'zip',container:'zip',ext,entries};}catch(_){return{format:'zip',container:'zip',ext};}
       }
       if(/^\s*[\[{]/.test(head)){if(ext==='jsonl'||ext==='ndjson')return{format:'ndjson',container:'text',ext};try{JSON.parse(head.length<4096?head:decodeText(bytes));return{format:'json',container:'text',ext};}catch(_){}}
       if(/^<\?xml/i.test(head) || (ext==='xml' && /^<[^>]+/.test(head))){
@@ -139,6 +279,7 @@
 
   const registry=new AdapterRegistry();
   registry.register({name:'XLSX Adapter',formats:['xlsx'],async parse({file,buffer}){const r=await parseXlsx(buffer);return new Core.NormalizedDataset({format:'xlsx',sourceFiles:[file],recordSets:r.sheets.map(s=>({...s,source:file.name}))});}});
+  registry.register({name:'Word DOCX Adapter',formats:['docx'],async parse({file,buffer}){const r=await parseDocx(buffer,file);return new Core.NormalizedDataset({format:'docx',sourceFiles:[file],recordSets:r.recordSets,warnings:r.warnings,meta:{word:true}});}});
   registry.register({name:'ODS Adapter',formats:['ods'],async parse({file,buffer}){const r=await parseOdsZip(buffer);return new Core.NormalizedDataset({format:'ods',sourceFiles:[file],recordSets:r.sheets.map(s=>({...s,source:file.name}))});}});
   registry.register({name:'FODS Adapter',formats:['fods'],async parse({file,buffer}){const doc=xmlFromText(decodeText(buffer),'FODS');return new Core.NormalizedDataset({format:'fods',sourceFiles:[file],recordSets:parseOdsDocument(doc).map(s=>({...s,source:file.name}))});}});
   registry.register({name:'Excel 2003 XML Adapter',formats:['spreadsheetml'],async parse({file,buffer}){return new Core.NormalizedDataset({format:'spreadsheetml',sourceFiles:[file],recordSets:parseSpreadsheetXml(xmlFromText(decodeText(buffer),'Excel XML')).map(s=>({...s,source:file.name}))});}});
@@ -147,5 +288,5 @@
   registry.register({name:'NDJSON Adapter',formats:['ndjson'],async parse({file,buffer}){return new Core.NormalizedDataset({format:'ndjson',sourceFiles:[file],recordSets:[{name:file.name,rows:parseNdjson(decodeText(buffer)),source:file.name}]});}});
   registry.register({name:'Delimited Text Adapter',formats:['delimited','txt','csv','tsv','psv','text'],async parse({file,buffer,detection}){const text=decodeText(buffer), vertical=parseVerticalRecords(text);if(vertical)return new Core.NormalizedDataset({format:'vertical-text',sourceFiles:[file],recordSets:[{name:file.name,rows:vertical,source:file.name}]});const delimiter=detection.delimiter||detectDelimited(text);return new Core.NormalizedDataset({format:'delimited',sourceFiles:[file],recordSets:[{name:file.name,rows:parseDelimited(text,delimiter),source:file.name}],meta:{delimiter}});}});
 
-  globalThis.NMDAImportAdapters={FormatDetector,AdapterRegistry,registry,decodeText,unzip,parseXlsx,parseOdsZip,parseDelimited,detectDelimited,parseJsonValue,parseNdjson,parseVerticalRecords,parseHtmlTables,parseSpreadsheetXml,parseOdsDocument,makeVirtualFile,candidateDataFile,extOf,SUPPORTED_EXT};
+  globalThis.NMDAImportAdapters={FormatDetector,AdapterRegistry,registry,decodeText,unzip,parseXlsx,parseOdsZip,parseDelimited,detectDelimited,parseJsonValue,parseNdjson,parseVerticalRecords,parseHtmlTables,parseSpreadsheetXml,parseOdsDocument,parseDocx,parseDocxDocument,parseWordTable,parseWordKeyValueTable,parseWordKeyValueRecords,makeVirtualFile,candidateDataFile,extOf,SUPPORTED_EXT};
 })();
