@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><pre id="out">RUNNING</pre>
+<script src="import-core.js"></script><script src="mail-recognizer.js"></script><script src="import-adapters.js"></script><script src="importer.js"></script><script src="scheduler.js"></script>
+<script>
+(async()=>{try{
+ const blob=await (await fetch('test-hardcase.docx')).blob(); const file=new File([blob],'hardcase.docx',{type:blob.type});
+ const ds=await NMDAImporter.parseFile(file); const rs=(ds.recordSets||ds.sheets).find(x=>x.meta&&x.meta.mailFrames);
+ const d=NMDAImporter.detectHeader(rs.rows); const schoolCol=d.mapping.school; const schools=rs.rows.slice(d.index+1).map(r=>String(r[schoolCol]||'').trim()).filter(Boolean);
+ const tasks=[
+ {editKey:'uq1',enabled:true,status:'ready',school:'University of Queensland',recipients:'a@uq.edu.au',scheduleAt:'',scheduleSource:''},
+ {editKey:'uq2',enabled:true,status:'ready',school:'University of Queensland',recipients:'b@uq.edu.au',scheduleAt:'',scheduleSource:''},
+ {editKey:'mon1',enabled:true,status:'ready',school:'Monash University',recipients:'c@monash.edu',scheduleAt:'',scheduleSource:''}
+ ];
+ const plan=NMDAScheduler.buildPlan(tasks,{startAt:'2026-09-03T07:30',maxPerGroupPerRound:1,intervalDays:7,preserveExisting:true},new Date('2026-08-26T14:00:00'));
+ document.querySelector('#out').textContent=JSON.stringify({records:rs.meta.mailScan.records,complete:rs.meta.mailScan.complete,mapping:d.mapping,schoolCount:schools.length,schoolSample:schools.slice(0,8),plan:plan.assignments.map(x=>[x.editKey,x.scheduleAt,x.groupLabel])},null,2);
+}catch(e){document.querySelector('#out').textContent='ERROR '+e.stack}})();
+</script>

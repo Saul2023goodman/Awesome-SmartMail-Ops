@@ -9,6 +9,7 @@
   const Importer = globalThis.NMDAImporter;
   const Contacts = globalThis.NMDAContacts;
   const Scheduler = globalThis.NMDAScheduler;
+  const Roster = globalThis.NMDARoster;
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   function visible(el) {
@@ -563,6 +564,7 @@
                 <input id="nmda-import-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
                 <input id="nmda-import-dir" type="file" webkitdirectory multiple hidden>
                 <input id="nmda-import-package" type="file" hidden accept=".zip">
+                <input id="nmda-roster-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
                 <div class="nmda-source-action-grid">
                   <label class="nmda-source-action" for="nmda-import-file"><span class="nmda-source-action-icon">＋</span><strong>选择文件</strong><small>可多选、可混合格式</small></label>
                   <label class="nmda-source-action" for="nmda-import-dir"><span class="nmda-source-action-icon">▤</span><strong>选择文件夹</strong><small>批量扫描整个目录</small></label>
@@ -574,6 +576,11 @@
                   <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-paste-import" type="button">识别粘贴内容</button><span class="nmda-hint">原始排版可以混乱，识别器优先寻找邮件基础信息。</span></div>
                 </div>
                 <div class="nmda-ingest-source-tools"><span id="nmda-import-format-info" class="nmda-hint">支持 Word、表格、JSON/JSONL、文本、HTML/XML、多文件、目录与 ZIP。</span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-template" type="button">任务模板</button></div>
+                <div class="nmda-roster-source-strip">
+                  <div><strong>总套磁名单 <span>可选参考源</span></strong><small>用于身份核验、院校补全和覆盖检查；不会生成邮件任务，也不要求与已撰写邮件数量相等。</small></div>
+                  <div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small" for="nmda-roster-file">导入总名单</label><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-remove" type="button" hidden>移除</button></div>
+                </div>
+                <div id="nmda-roster-source-status" class="nmda-hint">尚未载入总套磁名单。</div>
                 <div id="nmda-import-status" class="nmda-summary nmda-import-status">尚未载入数据源。</div>
                 <div id="nmda-source-inventory" class="nmda-source-inventory" hidden></div>
               </div>
@@ -585,6 +592,20 @@
                 </div>
                 <div id="nmda-import-preview-summary" class="nmda-ingest-health"></div>
                 <div id="nmda-review-guidance" class="nmda-review-guidance">系统完成识别后，会把“自动通过 / 待确认 / 阻塞问题”分开。人工校正只处理待确认项。</div>
+              </div>
+
+              <div class="nmda-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
+                <div class="nmda-card-head">
+                  <div><div class="nmda-card-title">总名单交叉核验</div><div class="nmda-card-desc">把总套磁名单当作参考主数据：核对身份、补学校，并解释“总名单数量 ≠ 已撰写邮件数量”的差异。</div></div>
+                  <div class="nmda-row nmda-wrap"><label class="nmda-toggle-inline"><input id="nmda-roster-enabled" type="checkbox" checked>启用核验</label><label class="nmda-toggle-inline"><input id="nmda-roster-auto-school" type="checkbox" checked>自动补空缺学校</label></div>
+                </div>
+                <div id="nmda-roster-audit-summary" class="nmda-ingest-health"></div>
+                <div id="nmda-roster-audit-note" class="nmda-review-guidance"></div>
+                <details class="nmda-roster-details">
+                  <summary>查看差异与核验策略</summary>
+                  <div class="nmda-row nmda-wrap nmda-roster-policy"><label class="nmda-toggle-inline"><input id="nmda-roster-strict" type="checkbox">严格模式：名单外邮件需人工确认</label><span class="nmda-hint">默认只提示，不阻塞；适合总名单仍在持续变化的业务。</span></div>
+                  <div id="nmda-roster-audit-details" class="nmda-roster-audit-details"></div>
+                </details>
               </div>
 
               <div class="nmda-card nmda-review-workbench" id="nmda-import-editor-overlay" hidden>
@@ -1062,10 +1083,11 @@
     attachmentOverrides: new Map(), taskEdits: new Map(), running: false, stopRequested: false,
     importMeta: null, profileSuggestion: null, importPreviewExpanded: false,
     sessionId: 0, importBusy: false, schedulePlan: null,
-    scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' }
+    scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
+    roster: { dataset:null, entries:[], audit:null, warnings:[], enabled:true, autoSchool:true, strict:false, sourceNames:[] }
   };
 
-  const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
+  const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), rosterFileEl = $('nmda-roster-file'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
   const pasteSourceEl = $('nmda-paste-source'), importPreviewBodyEl = $('nmda-import-preview-body'), importPreviewSummaryEl = $('nmda-import-preview-summary'), importReviewBtnEl = $('nmda-review-import-issues');
   const importEditorOverlayEl = $('nmda-import-editor-overlay'), importEditRecipientsEl = $('nmda-import-edit-recipients'), importEditSubjectEl = $('nmda-import-edit-subject'), importEditBodyEl = $('nmda-import-edit-body'), importEditAttachmentsEl = $('nmda-import-edit-attachments'), importEditScheduleEl = $('nmda-import-edit-schedule'), importEditTagsEl = $('nmda-import-edit-tags'), importEditorEvidenceEl = $('nmda-import-editor-evidence');
   const reviewQueueEl = $('nmda-review-queue'), reviewSourceContextEl = $('nmda-review-source-context'), reviewSourceMetaEl = $('nmda-review-source-meta'), reviewCandidatesEl = $('nmda-review-email-candidates'), reviewProgressEl = $('nmda-review-progress'), reviewProblemSummaryEl = $('nmda-review-problem-summary'), reviewFeedbackEl = $('nmda-review-feedback');
@@ -1116,7 +1138,7 @@
   batch.scheduleRules = freshScheduleRules();
 
   function renderImportLifecycleState() {
-    const active = !!batch.dataset || !!batch.importBusy;
+    const active = !!batch.dataset || !!batch.importBusy || !!batch.roster?.entries?.length;
     if (resetImportEl) resetImportEl.hidden = !active;
     if (importBusyBadgeEl) importBusyBadgeEl.hidden = !batch.importBusy;
     const sourceCard = $('nmda-import-card');
@@ -1127,7 +1149,16 @@
   }
 
   function beginImportSession(message) {
+    // The reference roster is an independent master-data source. Replacing the mail source keeps it;
+    // only explicit ‘重新开始’ / ‘移除总名单’ clears the reference source.
+    const keepRoster = batch.roster?.entries?.length ? batch.roster : null;
     resetImportWorkspace({ keepStatus: true, invalidate: true });
+    if (keepRoster) {
+      batch.roster = keepRoster;
+      const rosterStatus=$('nmda-roster-source-status'); if(rosterStatus)rosterStatus.textContent=`已载入 ${keepRoster.entries.length} 条总名单记录${keepRoster.sourceNames?.length?` · ${keepRoster.sourceNames.join('、')}`:''}`;
+      const rosterRemove=$('nmda-roster-remove'); if(rosterRemove)rosterRemove.hidden=false;
+      renderRosterAudit();
+    }
     const token = batch.sessionId;
     batch.importBusy = true;
     renderImportLifecycleState();
@@ -1316,17 +1347,19 @@
     else if (!recipientLooksValid(task.recipients)) out.push('收件人邮箱格式无效');
     if (!String(task?.subject||'').trim()) out.push('缺少主题');
     if (!String(task?.body||'').trim()) out.push('缺少正文');
-    // Once a human explicitly confirms a mail frame, do not keep resurfacing soft evidence warnings.
-    if (task?.reviewConfirmed) return out;
-    if (task?.importConfidence && task.importConfidence < 70) out.push(`邮件边界证据 ${Math.round(task.importConfidence)}%`);
-    for (const issue of task?.importIssues || []) {
-      if (/未定位收件人/.test(issue) && task.recipients) continue;
-      if (/主题为空/.test(issue) && task.subject) continue;
-      if (/正文过短/.test(issue) && String(task.body||'').length>=40) continue;
-      if (/置信度/.test(issue) && task.importConfidence>=70) continue;
-      if (/未找到邮件落款|未找到邮件称呼|未找到 Subject/.test(issue) && task.importConfidence >= 80) continue;
-      if (!out.includes(issue)) out.push(issue);
+    // Human confirmation is scoped: mail-frame confirmation must not silently suppress later roster conflicts.
+    if (!task?.reviewConfirmed) {
+      if (task?.importConfidence && task.importConfidence < 70) out.push(`邮件边界证据 ${Math.round(task.importConfidence)}%`);
+      for (const issue of task?.importIssues || []) {
+        if (/未定位收件人/.test(issue) && task.recipients) continue;
+        if (/主题为空/.test(issue) && task.subject) continue;
+        if (/正文过短/.test(issue) && String(task.body||'').length>=40) continue;
+        if (/置信度/.test(issue) && task.importConfidence>=70) continue;
+        if (/未找到邮件落款|未找到邮件称呼|未找到 Subject/.test(issue) && task.importConfidence >= 80) continue;
+        if (!out.includes(issue)) out.push(issue);
+      }
     }
+    if (!task?.rosterConfirmed) for (const issue of task?.rosterIssues || []) if (!out.includes(issue)) out.push(issue);
     return out;
   }
 
@@ -1379,6 +1412,7 @@
         }
       }
     }
+    if(task?.rosterEmailCandidate) add(task.rosterEmailCandidate,null,112,'总套磁名单唯一匹配',task?.rosterReference?.name||task?.rosterReference?.school||'总名单参考记录');
     return candidates.sort((a,b)=>b.score-a.score).slice(0,8);
   }
 
@@ -1527,7 +1561,7 @@
     const coreValid=recipientLooksValid(recipients)&&!!subject&&!!String(body||'').trim();
     setTaskEdit(task,{
       recipients,subject,body,attachments:importEditAttachmentsEl.value.trim(),scheduleAt:importEditScheduleEl.value,tags:importEditTagsEl.value,
-      reviewConfirmed:coreValid
+      reviewConfirmed:coreValid, rosterConfirmed: coreValid && !!(task.rosterIssues||[]).length ? true : (batch.taskEdits.get(key)?.rosterConfirmed||false)
     });
     rebuildTasks();
     const current=(batch.tasks||[]).find(t=>t.editKey===key);
@@ -1747,6 +1781,117 @@
     return { files: uniqueFiles(files), missing, ambiguous, details };
   }
 
+  function rosterState() {
+    if (!batch.roster) batch.roster={dataset:null,entries:[],audit:null,warnings:[],enabled:true,autoSchool:true,strict:false,sourceNames:[]};
+    return batch.roster;
+  }
+
+  function applyRosterCrossCheck(tasks) {
+    const state=rosterState();
+    if(!Roster || !state.enabled || !state.entries.length){state.audit=null;return null;}
+    const audit=Roster.crossCheck(tasks,state.entries);
+    const byKey=new Map((tasks||[]).map(t=>[t.editKey,t]));
+    for(const match of audit.matches){
+      const task=match.task;if(!task)continue;
+      const edit=batch.taskEdits.get(task.editKey)||{};
+      task.rosterMatchStatus=match.status;
+      task.rosterMatchScore=Number(match.score||0);
+      task.rosterMatchBy=match.by||'';
+      task.rosterReference=match.entry?{...match.entry}:null;
+      task.rosterEmailCandidate=match.emailCandidate||'';
+      task.rosterIssues=[];
+      if(match.schoolSupplement && state.autoSchool && match.entry?.school && !task.school){
+        task.school=match.entry.school;task.schoolSource='roster';task.rosterSchoolSupplemented=true;
+      }
+      if(!edit.rosterConfirmed){
+        if(match.status==='conflict')task.rosterIssues.push(`总名单院校冲突：当前“${task.school||'未填写'}” / 总名单“${match.entry?.school||'未填写'}”`);
+        if(match.status==='ambiguous')task.rosterIssues.push('总名单匹配存在多个候选，需要确认身份');
+        if(match.status==='off-roster' && state.strict)task.rosterIssues.push('当前邮件未在总套磁名单中找到对应导师');
+      }
+      if(match.entry){
+        task.rosterMeta={batch:match.entry.batch||'',status:match.entry.status||'',priority:match.entry.priority||'',tags:[...(match.entry.tags||[])],notes:match.entry.notes||''};
+      }
+    }
+    for(const dup of audit.duplicateMatches||[]){
+      for(const m of dup.matches||[]){
+        const task=byKey.get(m.task?.editKey);if(!task)continue;
+        const edit=batch.taskEdits.get(task.editKey)||{};
+        task.rosterDuplicate=true;
+        if(!edit.rosterConfirmed && !task.rosterIssues.includes('总名单核验：同一导师对应多封当前邮件'))task.rosterIssues.push('总名单核验：同一导师对应多封当前邮件');
+      }
+    }
+    for(const task of tasks||[]){
+      if(task.rosterMatchStatus==='off-roster' && !state.strict) task.warnings=[...new Set([...(task.warnings||[]),'总名单：当前邮件未匹配到参考名单（仅提示）'])];
+      if((task.rosterIssues||[]).length){task.errors=[...new Set([...(task.errors||[]),...task.rosterIssues])];task.status='error';}
+    }
+    state.audit=audit;
+    return audit;
+  }
+
+  function rosterEntryLabel(entry){
+    if(!entry)return '未知记录';
+    return [entry.name,entry.school,entry.email].filter(Boolean).join(' · ')||`第 ${entry.sourceRow||'?'} 行`;
+  }
+
+  function renderRosterAudit(){
+    const state=rosterState(),card=$('nmda-roster-audit-card'),summary=$('nmda-roster-audit-summary'),note=$('nmda-roster-audit-note'),details=$('nmda-roster-audit-details');
+    const enabledEl=$('nmda-roster-enabled'),schoolEl=$('nmda-roster-auto-school'),strictEl=$('nmda-roster-strict');
+    if(enabledEl)enabledEl.checked=state.enabled!==false;if(schoolEl)schoolEl.checked=state.autoSchool!==false;if(strictEl)strictEl.checked=!!state.strict;
+    if(!card)return;
+    card.hidden=!state.entries.length;
+    if(!state.entries.length)return;
+    const audit=state.audit || (Roster&&batch.tasks?.length?Roster.crossCheck(batch.tasks,state.entries):null);
+    if(!audit){
+      if(summary)summary.innerHTML=`<div class="nmda-import-metric"><strong>${state.entries.length}</strong><span>总名单记录</span></div>`;
+      if(note)note.textContent='总名单已载入。继续导入实际邮件后，系统会进行身份对齐与覆盖核验。';
+      if(details)details.innerHTML='';
+      return;
+    }
+    const x=audit.summary;
+    if(summary)summary.innerHTML=`<div class="nmda-import-metric"><strong>${x.roster}</strong><span>总名单</span></div><div class="nmda-import-metric"><strong>${x.tasks}</strong><span>已撰写邮件</span></div><div class="nmda-import-metric"><strong>${x.matched}</strong><span>已对齐</span></div><div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>名单未撰写</span></div><div class="nmda-import-metric ${x.offRoster?'is-warn':''}"><strong>${x.offRoster}</strong><span>名单外邮件</span></div><div class="nmda-import-metric ${(x.ambiguous+x.conflicts+x.duplicates)?'is-warn':''}"><strong>${x.ambiguous+x.conflicts+x.duplicates}</strong><span>需核验差异</span></div>`;
+    if(note)note.innerHTML=`数量不要求相等：总名单是候选池，实际邮件只是当前已撰写子集。已用总名单自动补充 <strong>${x.schoolSupplements}</strong> 条空缺院校信息${x.emailCandidates?`；为 <strong>${x.emailCandidates}</strong> 条缺邮箱邮件提供可信候选`:''}。名单未撰写只表示“尚未进入邮件执行层”，不会被当成错误。`;
+    if(details){
+      const off=(audit.matches||[]).filter(m=>m.status==='off-roster').slice(0,12);
+      const conflicts=(audit.matches||[]).filter(m=>m.status==='conflict'||m.status==='ambiguous').slice(0,12);
+      const unwritten=(audit.unwritten||[]).slice(0,12);
+      const dups=(audit.duplicateMatches||[]).slice(0,8);
+      const section=(title,items,render,more=0)=>`<div class="nmda-roster-diff-section"><strong>${escapeHtml(title)}</strong>${items.length?`<div>${items.map(render).join('')}</div>`:'<small>无</small>'}${more>items.length?`<small>另有 ${more-items.length} 条未展开</small>`:''}</div>`;
+      details.innerHTML=
+        section('总名单尚未撰写',unwritten,e=>`<span>${escapeHtml(rosterEntryLabel(e))}${e.batch?` · ${escapeHtml(e.batch)}`:''}</span>`,audit.unwritten?.length||0)+
+        section('当前邮件不在总名单',off,m=>`<span>${escapeHtml(m.task?.id||m.task?.recipients||'邮件')} · ${escapeHtml(m.task?.recipients||'')}</span>`,(audit.matches||[]).filter(m=>m.status==='off-roster').length)+
+        section('身份 / 院校冲突',conflicts,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → ${escapeHtml(m.status==='ambiguous'?'多个总名单候选':rosterEntryLabel(m.entry))}</span>`,(audit.matches||[]).filter(m=>m.status==='conflict'||m.status==='ambiguous').length)+
+        section('疑似重复撰写',dups,d=>`<span>${escapeHtml(rosterEntryLabel(d.entry))} · ${d.matches?.length||0} 封邮件</span>`,audit.duplicateMatches?.length||0);
+    }
+  }
+
+  async function loadRosterFiles(files){
+    const list=[...(files||[])].filter(Boolean);if(!list.length||!Importer||!Roster)return;
+    const token=batch.sessionId;const status=$('nmda-roster-source-status');
+    if(status)status.textContent=`正在读取总套磁名单（${list.length} 个文件）…`;
+    try{
+      const dataset=list.length===1?await Importer.parseFile(list[0]):await Importer.parseFiles(list,{ignoreUnsupported:true});
+      if(!isCurrentBatchSession(token))return;
+      const parsed=Roster.parseDataset(dataset);
+      if(!parsed.entries.length)throw new Error('没有识别到可用于核验的导师记录。总名单至少应包含导师姓名、邮箱或学校中的一项。');
+      for(const [key,edit] of batch.taskEdits.entries()){if(edit?.rosterConfirmed){const next={...edit};delete next.rosterConfirmed;batch.taskEdits.set(key,next);}}
+      batch.roster={...rosterState(),dataset,entries:parsed.entries,warnings:parsed.warnings||[],sourceNames:list.map(f=>f.name),audit:null};
+      const remove=$('nmda-roster-remove');if(remove)remove.hidden=false;
+      if(status)status.textContent=`已载入 ${parsed.stats.total} 条总名单记录 · 邮箱 ${parsed.stats.withEmail} · 院校 ${parsed.stats.withSchool}${parsed.stats.duplicates?` · 重复 ${parsed.stats.duplicates}`:''}`;
+      if(batch.dataset)rebuildTasks();else renderRosterAudit();
+      renderImportLifecycleState();
+    }catch(error){console.error(`[${APP}] roster`,error);if(status)status.textContent=`总名单读取失败：${error.message}`;}
+    finally{if(rosterFileEl)rosterFileEl.value='';}
+  }
+
+  function removeRoster(){
+    for(const [key,edit] of batch.taskEdits.entries()){if(edit?.rosterConfirmed){const next={...edit};delete next.rosterConfirmed;batch.taskEdits.set(key,next);}}
+    batch.roster={dataset:null,entries:[],audit:null,warnings:[],enabled:true,autoSchool:true,strict:false,sourceNames:[]};
+    const status=$('nmda-roster-source-status');if(status)status.textContent='尚未载入总套磁名单。';
+    const remove=$('nmda-roster-remove');if(remove)remove.hidden=true;
+    if(batch.dataset)rebuildTasks();else renderRosterAudit();
+    renderImportLifecycleState();
+  }
+
   function rebuildTasks() {
     if (!batch.dataset) { batch.tasks = []; renderPreview(); return; }
     const tasks = [];
@@ -1833,11 +1978,12 @@
           files: mergeTaskFiles(resolved.files), tableFiles: resolved.files, attachmentDetails: resolved.details,
           scheduleAt, scheduleSource, scheduleReason:String(edit.scheduleReason||''), errors:[...new Set(errors)], warnings:[...new Set(warnings)], status: errors.length ? 'error' : 'ready', runtimeError: '', note: '',
           importConfidence, importEvidence:[...(rowMeta?.evidence || [])], importIssues, importHeading:rowMeta?.heading || '', importRecipientEvidence:rowMeta?.recipientEvidence || null,
-          reviewConfirmed: !!edit.reviewConfirmed, importExcluded:false,
+          reviewConfirmed: !!edit.reviewConfirmed, rosterConfirmed: !!edit.rosterConfirmed, importExcluded:false,
           manuallyEdited: ['recipients','school','subject','body','attachments','scheduleAt','tags'].some(key=>edit[key]!=null)
         });
       }
     }
+    applyRosterCrossCheck(tasks);
     batch.tasks = tasks;
     renderPreview();
   }
@@ -2002,8 +2148,9 @@
         return classificationChipHtml({ kind, value }).replace('class="nmda-class-chip"', `class="nmda-class-chip" title="${escapeHtml(source)}"`);
       }).join('') : '<span class="nmda-hint">未分类</span>';
       const group = Scheduler?.groupForTask?.(task) || {label:task.school||'未识别学校',source:task.school?'school':'unknown'};
-      const groupSourceLabel = group.source === 'domain' ? '域名兜底' : group.source === 'manual' ? '手工' : group.source === 'recognized' ? 'Word识别' : group.source === 'imported' ? '导入' : (task.school ? '学校' : '待确认');
-      const schoolHtml = `<div class="nmda-school-cell"><input data-task-school="${escapeHtml(task.editKey)}" value="${escapeHtml(task.school||'')}" placeholder="学校 / 机构" ${batch.running?'disabled':''}><small title="${escapeHtml(group.label)}">${escapeHtml(task.school ? groupSourceLabel : group.label)}</small></div>`;
+      const groupSourceLabel = group.source === 'domain' ? '域名兜底' : group.source === 'manual' ? '手工' : group.source === 'roster' ? '总名单补全' : group.source === 'recognized' ? 'Word识别' : group.source === 'imported' ? '导入' : (task.school ? '学校' : '待确认');
+      const rosterHint=[task.rosterMeta?.batch,task.rosterMeta?.priority,task.rosterMeta?.status].filter(Boolean).join(' · ');
+      const schoolHtml = `<div class="nmda-school-cell"><input data-task-school="${escapeHtml(task.editKey)}" value="${escapeHtml(task.school||'')}" placeholder="学校 / 机构" ${batch.running?'disabled':''}><small title="${escapeHtml(group.label + (rosterHint?` · 总名单：${rosterHint}`:''))}">${escapeHtml(task.school ? groupSourceLabel : group.label)}</small></div>`;
       const sourceLabel=scheduleSourceLabel(task);
       const scheduleHtml = `<div class="nmda-schedule-edit-cell"><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}" ${batch.running?'disabled':''}><small title="${escapeHtml(task.scheduleReason||sourceLabel)}">${escapeHtml(sourceLabel)}${task.scheduleReason?` · ${escapeHtml(task.scheduleReason)}`:''}</small></div>`;
       return `
@@ -2052,6 +2199,7 @@
     renderScheduleCenter();
     renderAttachmentCenter();
     renderImportTaskPreview();
+    renderRosterAudit();
     renderImportHandoff();
   }
 
@@ -2177,10 +2325,11 @@
     batch.stopRequested = false;
     batch.schedulePlan = null;
     batch.scheduleRules = freshScheduleRules();
+    batch.roster = { dataset:null, entries:[], audit:null, warnings:[], enabled:true, autoSchool:true, strict:false, sourceNames:[] };
     syncScheduleRuleControls();
 
     closeImportTaskEditor();
-    [importFileEl, importDirEl, importPackageEl, dirEl, taskFilesEl, sharedFilesEl].forEach(el => { if (el) el.value = ''; });
+    [importFileEl, importDirEl, importPackageEl, rosterFileEl, dirEl, taskFilesEl, sharedFilesEl].forEach(el => { if (el) el.value = ''; });
     if (pasteSourceEl) pasteSourceEl.value = '';
     const pastePanel = $('nmda-paste-panel'); if (pastePanel) pastePanel.hidden = true;
     const diagnostics = $('nmda-ingest-diagnostics'); if (diagnostics) { diagnostics.hidden = true; diagnostics.open = false; }
@@ -2190,7 +2339,7 @@
     if (batchTagExcludeEl) batchTagExcludeEl.value = '';
     const bulkTag = $('nmda-bulk-tag-value'); if (bulkTag) bulkTag.value = '';
 
-    ['nmda-structure-card','nmda-mapping-card','nmda-ingest-diagnostics','nmda-ingest-result-card','nmda-import-preview-card','nmda-attachments-card','nmda-import-handoff-card','nmda-preview-card','nmda-scheduler-card','nmda-run-card'].forEach(id => {
+    ['nmda-structure-card','nmda-mapping-card','nmda-ingest-diagnostics','nmda-ingest-result-card','nmda-roster-audit-card','nmda-import-preview-card','nmda-attachments-card','nmda-import-handoff-card','nmda-preview-card','nmda-scheduler-card','nmda-run-card'].forEach(id => {
       const el = $(id); if (el) el.hidden = true;
     });
     const inventory = $('nmda-source-inventory'); if (inventory) { inventory.hidden = true; inventory.innerHTML = ''; }
@@ -2221,6 +2370,10 @@
 
     $('nmda-batch-empty').hidden = false;
     $('nmda-import-format-info').textContent = '支持 Word、表格、JSON/JSONL、文本、HTML/XML、多文件、目录与 ZIP。';
+    const rosterStatus=$('nmda-roster-source-status'); if(rosterStatus)rosterStatus.textContent='尚未载入总套磁名单。';
+    const rosterRemove=$('nmda-roster-remove'); if(rosterRemove)rosterRemove.hidden=true;
+    const rosterSummary=$('nmda-roster-audit-summary'); if(rosterSummary)rosterSummary.innerHTML='';
+    const rosterDetails=$('nmda-roster-audit-details'); if(rosterDetails)rosterDetails.innerHTML='';
     setBatchStatus('请先导入任务。');
     renderImportLifecycleState();
     if (!keepStatus) setImportStatus(message || '尚未载入数据源。');
@@ -2271,6 +2424,24 @@
     finally { finishImportSession(token); if (importPackageEl) importPackageEl.value = ''; }
   });
 
+
+  rosterFileEl?.addEventListener('change', async () => {
+    const files=[...(rosterFileEl.files||[])];
+    if(files.length)await loadRosterFiles(files);
+  });
+  $('nmda-roster-remove')?.addEventListener('click', removeRoster);
+  $('nmda-roster-enabled')?.addEventListener('change', e => {
+    rosterState().enabled=!!e.target.checked;
+    if(batch.dataset)rebuildTasks();else renderRosterAudit();
+  });
+  $('nmda-roster-auto-school')?.addEventListener('change', e => {
+    rosterState().autoSchool=!!e.target.checked;
+    if(batch.dataset)rebuildTasks();else renderRosterAudit();
+  });
+  $('nmda-roster-strict')?.addEventListener('change', e => {
+    rosterState().strict=!!e.target.checked;
+    if(batch.dataset)rebuildTasks();else renderRosterAudit();
+  });
 
   $('nmda-show-paste')?.addEventListener('click', () => {
     const panel = $('nmda-paste-panel');
@@ -2575,7 +2746,7 @@
     if(staleScheduled.length){setBatchStatus(`有 ${staleScheduled.length} 封已选择任务的定时时间已过。请先在“智能排程”中更新，或手工清空对应定时时间。`,'error');return;}
     const executableKeys = new Set(executable.map(task => task.editKey)); // freeze this run at start
     batch.running = true; batch.stopRequested = false; batchStartEl.disabled = true; batchStopEl.disabled = false;
-    importFileEl.disabled = true; if (importDirEl) importDirEl.disabled = true; if (importPackageEl) importPackageEl.disabled = true; collectionSelectEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; sharedFilesEl.disabled = true; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=true; });
+    importFileEl.disabled = true; if (importDirEl) importDirEl.disabled = true; if (importPackageEl) importPackageEl.disabled = true; if (rosterFileEl) rosterFileEl.disabled = true; collectionSelectEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; sharedFilesEl.disabled = true; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=true; });
     setBatchPlanningLocked(true);
     let succeeded = 0, failed = 0;
     try {
@@ -2621,7 +2792,7 @@
       else setBatchStatus(`批量处理完成：成功创建并保存 ${succeeded} 封草稿。不会自动发送。`, 'ok');
     } finally {
       batch.running = false; batchStopEl.disabled = true;
-      importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (importPackageEl) importPackageEl.disabled = false; collectionSelectEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; sharedFilesEl.disabled = false; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=false; });
+      importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (importPackageEl) importPackageEl.disabled = false; if (rosterFileEl) rosterFileEl.disabled = false; collectionSelectEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; sharedFilesEl.disabled = false; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=false; });
       setBatchPlanningLocked(false);
       renderPreview();
     }
@@ -2630,5 +2801,5 @@
   restoreFormState();
   renderPreview();
   initContacts();
-  console.info(`[${APP}] v1.9.0 loaded`);
+  console.info(`[${APP}] v1.10.0 loaded`);
 })();
