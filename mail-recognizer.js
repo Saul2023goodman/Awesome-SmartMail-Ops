@@ -260,6 +260,7 @@
         salutation:salutInfo?.text||'', closing:closeInfo?.text||'',
         startBlock:subjectBlock, endBlock:body.endBlock, heading:heading?.text||'',
         recipientEvidence:recipientContext.selected||null,
+        recipientCandidates:(recipientContext.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),
         evidence:['subject',...(salutInfo?['salutation']:[]),...(closeInfo?['closing']:[]),...(body.text.length>=80?['body']:[]),...(recipients?['recipient-email']:[])],
         issues
       };
@@ -297,7 +298,7 @@
       const rc=nearestRecipientContext(blocks,prevEnd+1,i,salut.text);
       const heading=headingContext(blocks,prevEnd+1,i);
       const frame={id:deriveId(heading,records.length+1),recipients:rc.selected?.email||'',subject:'',body:body.text,attachments:'',scheduleAt:'',tags:'',sourceFile,
-        salutation:salut.text,closing:close.text,startBlock:i,endBlock:body.endBlock,heading:heading?.text||'',recipientEvidence:rc.selected||null,
+        salutation:salut.text,closing:close.text,startBlock:i,endBlock:body.endBlock,heading:heading?.text||'',recipientEvidence:rc.selected||null,recipientCandidates:(rc.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),
         evidence:['salutation','closing',...(body.text.length>=80?['body']:[]),...(rc.selected?['recipient-email']:[])],issues:['未找到 Subject 标记']};
       frame.confidence=scoreFrame(frame);
       if(!frame.recipients)frame.issues.push('未定位收件人邮箱');
@@ -333,7 +334,19 @@
 
   function rowMetaFromRecords(records) {
     const meta={};
-    (records||[]).forEach((r,i)=>{meta[i+1]={confidence:r.confidence||0,evidence:[...(r.evidence||[])],issues:[...(r.issues||[])],heading:r.heading||'',startBlock:r.startBlock,endBlock:r.endBlock,recipientEvidence:r.recipientEvidence?{email:r.recipientEvidence.email,index:r.recipientEvidence.index,score:r.recipientEvidence.score}:null};});
+    (records||[]).forEach((r,i)=>{meta[i+1]={
+      confidence:r.confidence||0,
+      evidence:[...(r.evidence||[])],
+      issues:[...(r.issues||[])],
+      heading:r.heading||'',
+      sourceFile:r.sourceFile||'',
+      salutation:r.salutation||'',
+      closing:r.closing||'',
+      startBlock:r.startBlock,
+      endBlock:r.endBlock,
+      recipientEvidence:r.recipientEvidence?{email:r.recipientEvidence.email,index:r.recipientEvidence.index,score:r.recipientEvidence.score,text:r.recipientEvidence.text||''}:null,
+      recipientCandidates:(r.recipientCandidates||[]).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text||''}))
+    };});
     return meta;
   }
 

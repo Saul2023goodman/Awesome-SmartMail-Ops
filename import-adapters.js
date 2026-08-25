@@ -107,7 +107,21 @@
     if(!scan.records.length)return null;
     const strong=scan.records.filter(r=>r.confidence>=70).length;
     if(strong<Math.max(1,Math.ceil(scan.records.length*minStrongRatio)))return null;
-    const recordSet={name:`邮件基础信息识别（${scan.records.length} 条）`,rows:Mail.recordsToRows(scan.records),source:sourceFile,meta:{kind:'mail-frames',mailFrames:true,preferred,rowMeta:Mail.rowMetaFromRecords(scan.records),mailScan:scan.stats}};
+    const sourceBlocks=(scan.blocks||[]).map(b=>({index:b.index,type:b.type||'block',style:b.style||'',text:b.text||''}));
+    const rowMeta=Mail.rowMetaFromRecords(scan.records);
+    // Keep a compact evidence window per mail row. This survives multi-file merging, where collection-level
+    // sourceBlocks would otherwise become ambiguous across different source documents.
+    for(const meta of Object.values(rowMeta)){
+      const start=Math.max(0,Number(meta.startBlock||0)-8), end=Math.min(sourceBlocks.length-1,Number(meta.endBlock ?? meta.startBlock ?? 0)+8);
+      meta.sourceContext=sourceBlocks.slice(start,end+1).map((b,pos)=>({...b,position:start+pos}));
+      meta.sourceContextStart=start;
+    }
+    const recordSet={name:`邮件基础信息识别（${scan.records.length} 条）`,rows:Mail.recordsToRows(scan.records),source:sourceFile,meta:{
+      kind:'mail-frames',mailFrames:true,preferred,rowMeta,mailScan:scan.stats,
+      // Preserve full ordered primitive blocks for single-source diagnostics; rowMeta.sourceContext is the
+      // portable human-review evidence used after multi-source merges.
+      sourceBlocks
+    }};
     const incomplete=scan.records.filter(r=>!r.recipients||!r.subject||!r.body).length;
     const warnings=[];
     if(incomplete)warnings.push(`邮件原语识别得到 ${scan.records.length} 条邮件，其中 ${incomplete} 条缺少收件人/主题/正文之一，已保留进入人工校正队列。`);
