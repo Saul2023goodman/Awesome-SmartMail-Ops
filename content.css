@@ -742,3 +742,40 @@
   .nmda-read-arrow { transform:rotate(90deg); justify-content:center; }
   .nmda-history-actions-maintenance { grid-template-columns:1fr; }
 }
+
+/* v1.8 — lifecycle-safe import + simpler product UI */
+#nmda-panel { width:min(1280px,97vw); grid-template-columns:176px minmax(0,1fr); }
+.nmda-page-head { min-height:64px; padding:11px 20px 10px; }
+.nmda-page-head h2 { font-size:17px; }
+.nmda-page-head p { max-width:760px; }
+.nmda-ingest-page { padding:14px 16px 84px; }
+.nmda-ingest-workspace-v2 { gap:10px; }
+.nmda-ingest-workspace-v2 > .nmda-card { padding:12px; }
+.nmda-source-action-grid { gap:7px; }
+.nmda-source-action { min-height:68px; grid-template-columns:28px minmax(0,1fr); padding:8px 9px; border-radius:10px; }
+.nmda-source-action-icon { width:28px; height:28px; border-radius:8px; }
+.nmda-source-action strong { font-size:10px; }
+.nmda-source-action small { font-size:7.8px; }
+.nmda-ingest-source-tools { min-height:24px; }
+.nmda-ingest-source-tools .nmda-hint { font-size:8.7px; }
+.nmda-import-status { padding:8px 10px !important; min-height:0 !important; }
+.nmda-import-busy-badge { display:inline-flex; align-items:center; min-height:28px; padding:4px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:8.5px; font-weight:800; }
+.nmda-import-busy-badge[hidden] { display:none !important; }
+#nmda-import-card[data-busy="1"] { border-color:#bfdbfe; box-shadow:0 0 0 2px rgba(37,99,235,.04); }
+#nmda-import-card[data-loaded="1"] .nmda-source-action { background:#fff; }
+.nmda-ingest-health { grid-template-columns:repeat(auto-fit,minmax(128px,1fr)); gap:7px; }
+.nmda-health-metric { padding:9px 10px; }
+.nmda-health-metric strong { font-size:17px; }
+.nmda-review-guidance { margin-top:7px; padding:7px 9px; }
+.nmda-ingest-result-card { padding-bottom:11px !important; }
+.nmda-import-attachments-card { gap:8px !important; }
+.nmda-import-handoff-card { position:sticky; bottom:0; z-index:5; border-color:#bfdbfe !important; background:rgba(255,255,255,.97) !important; box-shadow:0 -8px 24px rgba(15,23,42,.08) !important; backdrop-filter:blur(10px); }
+.nmda-import-handoff-card .nmda-card-head { display:none; }
+.nmda-import-ready-summary { padding-top:0; }
+.nmda-import-handoff-actions { padding-top:0; }
+.nmda-ingest-diagnostics > summary { padding:8px 11px; }
+.nmda-import-preview-card .nmda-card-desc { max-width:680px; }
+@media (max-width:900px) {
+  #nmda-panel { grid-template-columns:160px minmax(0,1fr); }
+  .nmda-source-action-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}

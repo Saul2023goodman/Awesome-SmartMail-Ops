@@ -501,7 +501,7 @@
             <div class="nmda-brand-mark">N</div>
             <div>
               <div class="nmda-title">网易邮箱外联工作台</div>
-              <div class="nmda-subtitle">草稿 · 数据摄取 · 批量 · 联系人</div>
+              <div class="nmda-subtitle">草稿 · 导入 · 批量 · 联系人</div>
             </div>
           </div>
           <div class="nmda-head-actions">
@@ -514,15 +514,10 @@
         <nav class="nmda-tabs" aria-label="工作台模块">
           <div class="nmda-nav-label">工作区</div>
           <button class="nmda-tab is-active" data-tab="single" type="button"><span class="nmda-tab-icon">✎</span><span><strong>单封草稿</strong><small>快速填写一封</small></span></button>
-          <button class="nmda-tab" data-tab="import" type="button"><span class="nmda-tab-icon">⇧</span><span><strong>数据摄取</strong><small>来源、识别、校验</small></span></button>
+          <button class="nmda-tab" data-tab="import" type="button"><span class="nmda-tab-icon">⇧</span><span><strong>导入任务</strong><small>载入、校验、交接</small></span></button>
           <button class="nmda-tab" data-tab="batch" type="button"><span class="nmda-tab-icon">▦</span><span><strong>批量任务</strong><small>筛选、选择、执行</small></span></button>
           <button class="nmda-tab" data-tab="contacts" type="button"><span class="nmda-tab-icon">◎</span><span><strong>联系人</strong><small>分类与历史</small></span></button>
-          <div class="nmda-nav-foot">
-            <div class="nmda-nav-foot-title">当前原则</div>
-            <div>数据摄取只负责生成任务</div>
-            <div>勾选是唯一执行依据</div>
-            <div>任何执行错误立即停止</div>
-          </div>
+
         </nav>
 
         <main class="nmda-main">
@@ -558,34 +553,33 @@
 
 
           <div class="nmda-page-head" data-page-head="import" hidden>
-            <div><h2>批次摄取与校验</h2><p>系统负责自动理解来源；人工只处理真正不确定的邮件。核心目标是得到可靠的“收件人 + 主题 + 正文”。</p></div>
-            <div class="nmda-stage-strip" aria-label="数据摄取流程"><span>1 载入来源</span><span>2 自动识别</span><span>3 处理异常</span><span>4 附件</span><span>5 交接</span></div>
+            <div><h2>导入任务</h2><p>把文件、目录、ZIP 或粘贴内容转换成可靠邮件任务。机器先处理，只有异常才需要人工确认。</p></div>
           </div>
           <section class="nmda-tabpane nmda-page nmda-ingest-page" data-pane="import" hidden>
             <div class="nmda-ingest-workspace nmda-ingest-workspace-v2">
               <div class="nmda-card nmda-ingest-source-card" id="nmda-import-card">
-                <div class="nmda-card-head"><div><div class="nmda-step-index">01</div><div><div class="nmda-card-title">载入来源</div><div class="nmda-card-desc">文件只是载体。系统自行探测格式、提取内容并寻找邮件。</div></div></div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button">清空本批次</button></div>
+                <div class="nmda-card-head"><div><div class="nmda-card-title">选择来源</div><div class="nmda-card-desc">无需先整理格式；系统自动寻找邮件并生成任务。</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" id="nmda-import-busy-badge" hidden>正在处理…</span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button" hidden title="清除当前来源、识别结果、人工修正、附件匹配和任务；不会删除联系人历史">重新开始</button></div></div>
                 <input id="nmda-import-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
                 <input id="nmda-import-dir" type="file" webkitdirectory multiple hidden>
                 <input id="nmda-import-package" type="file" hidden accept=".zip">
                 <div class="nmda-source-action-grid">
-                  <label class="nmda-source-action" for="nmda-import-file"><span class="nmda-source-action-icon">＋</span><strong>文件 / 多文件</strong><small>Word、表格、JSON、文本可混合</small></label>
-                  <label class="nmda-source-action" for="nmda-import-dir"><span class="nmda-source-action-icon">▤</span><strong>整个目录</strong><small>批量扫描可识别来源</small></label>
-                  <label class="nmda-source-action" for="nmda-import-package"><span class="nmda-source-action-icon">▣</span><strong>ZIP 批次包</strong><small>数据与附件一起载入</small></label>
-                  <button class="nmda-source-action nmda-source-action-button" id="nmda-show-paste" type="button"><span class="nmda-source-action-icon">⌘</span><strong>粘贴内容</strong><small>邮件文本、CSV、JSON 等</small></button>
+                  <label class="nmda-source-action" for="nmda-import-file"><span class="nmda-source-action-icon">＋</span><strong>选择文件</strong><small>可多选、可混合格式</small></label>
+                  <label class="nmda-source-action" for="nmda-import-dir"><span class="nmda-source-action-icon">▤</span><strong>选择文件夹</strong><small>批量扫描整个目录</small></label>
+                  <label class="nmda-source-action" for="nmda-import-package"><span class="nmda-source-action-icon">▣</span><strong>打开 ZIP</strong><small>任务与附件一起导入</small></label>
+                  <button class="nmda-source-action nmda-source-action-button" id="nmda-show-paste" type="button"><span class="nmda-source-action-icon">⌘</span><strong>粘贴内容</strong><small>直接解析剪贴板文本</small></button>
                 </div>
                 <div class="nmda-paste-panel" id="nmda-paste-panel" hidden>
                   <textarea id="nmda-paste-source" placeholder="直接粘贴原始内容。无需先整理成 Excel；系统会先寻找邮件本体。"></textarea>
                   <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-paste-import" type="button">识别粘贴内容</button><span class="nmda-hint">原始排版可以混乱，识别器优先寻找邮件基础信息。</span></div>
                 </div>
-                <div class="nmda-ingest-source-tools"><button class="nmda-btn nmda-btn-small" id="nmda-template" type="button">下载标准任务 CSV 示例</button><span id="nmda-import-format-info" class="nmda-hint">支持 Word、表格、JSON/JSONL、文本、HTML/XML、多文件、目录与 ZIP。</span></div>
+                <div class="nmda-ingest-source-tools"><span id="nmda-import-format-info" class="nmda-hint">支持 Word、表格、JSON/JSONL、文本、HTML/XML、多文件、目录与 ZIP。</span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-template" type="button">任务模板</button></div>
                 <div id="nmda-import-status" class="nmda-summary nmda-import-status">尚未载入数据源。</div>
                 <div id="nmda-source-inventory" class="nmda-source-inventory" hidden></div>
               </div>
 
               <div class="nmda-card nmda-ingest-result-card" id="nmda-ingest-result-card" hidden>
                 <div class="nmda-card-head nmda-ingest-result-head">
-                  <div><div class="nmda-step-index">02</div><div><div class="nmda-card-title">自动识别结果</div><div class="nmda-card-desc">先看结果，不要求理解工作表、字段或解析器。只有异常才需要人工介入。</div></div></div>
+                  <div><div><div class="nmda-card-title">识别结果</div><div class="nmda-card-desc">先看能否直接使用；只有不确定项才进入人工处理。</div></div></div>
                   <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-import-issues" type="button" hidden>处理待确认</button></div>
                 </div>
                 <div id="nmda-import-preview-summary" class="nmda-ingest-health"></div>
@@ -661,7 +655,7 @@
               </div>
 
               <div class="nmda-card nmda-import-attachments-card" id="nmda-attachments-card" hidden>
-                <div class="nmda-card-head"><div><div class="nmda-step-index">04</div><div><div class="nmda-card-title">附件匹配</div><div class="nmda-card-desc">只有任务引用了附件时才需要介入；ZIP 内附件会自动进入本批次</div></div></div></div>
+                <div class="nmda-card-head"><div><div><div class="nmda-card-title">附件</div><div class="nmda-card-desc">自动匹配任务附件；公共附件会加入每一封邮件。</div></div></div></div>
                 <div id="nmda-attachment-summary" class="nmda-summary">解析出任务后会统计需要匹配的附件。</div>
                 <div class="nmda-attachment-grid nmda-attachment-grid-simple">
                   <div class="nmda-file-source"><span class="nmda-label">任务文件池</span><span class="nmda-hint">按相对路径 / 文件名 / 下载副本名自动匹配。</span><div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">选择文件<input id="nmda-attachment-files" type="file" multiple hidden></label><label class="nmda-btn nmda-btn-small nmda-file-button">选择目录<input id="nmda-attachment-dir" type="file" webkitdirectory multiple hidden></label></div></div>
@@ -673,21 +667,20 @@
               </div>
 
               <div class="nmda-card nmda-import-handoff-card" id="nmda-import-handoff-card" hidden>
-                <div class="nmda-card-head"><div><div class="nmda-step-index">05</div><div><div class="nmda-card-title">批次交接</div><div class="nmda-card-desc">只有核心邮件信息和附件问题处理完成后，才交给批量任务工作台</div></div></div></div>
+                <div class="nmda-card-head"><div><div><div class="nmda-card-title">完成导入</div><div class="nmda-card-desc">问题全部处理后，再进入批量任务。</div></div></div></div>
                 <div id="nmda-import-ready-summary" class="nmda-import-ready-summary">尚未生成任务。</div>
-                <div class="nmda-row nmda-import-handoff-actions"><span class="nmda-hint" id="nmda-handoff-hint">数据摄取只负责得到可信 MailTask，不会操作网易写信页面。</span><button class="nmda-btn nmda-btn-primary" id="nmda-go-batch" type="button">进入批量任务</button></div>
+                <div class="nmda-row nmda-import-handoff-actions"><span class="nmda-hint" id="nmda-handoff-hint">导入阶段只生成任务，不会操作网易写信页面。</span><button class="nmda-btn nmda-btn-primary" id="nmda-go-batch" type="button">进入批量任务</button></div>
               </div>
             </div>
           </section>
 
           <div class="nmda-page-head" data-page-head="batch" hidden>
-            <div><h2>批量任务</h2><p>对已经导入的任务进行检索、分类、选择和草稿创建。</p></div>
-            <div class="nmda-stage-strip" aria-label="批量流程"><span>1 管理任务</span><span>2 创建草稿</span></div>
+            <div><h2>批量任务</h2><p>检索负责找到任务，勾选决定真正创建哪些草稿。</p></div>
           </div>
           <section class="nmda-tabpane nmda-page" data-pane="batch" hidden>
             <div class="nmda-card nmda-batch-empty" id="nmda-batch-empty">
-              <div><div class="nmda-card-kicker">NO TASKS</div><div class="nmda-card-title">还没有可管理的批量任务</div><div class="nmda-card-desc">先在数据摄取工作台载入来源、确认语义并完成附件匹配。</div></div>
-              <button class="nmda-btn nmda-btn-primary" id="nmda-go-import" type="button">前往数据摄取</button>
+              <div><div class="nmda-card-kicker">NO TASKS</div><div class="nmda-card-title">还没有可管理的批量任务</div><div class="nmda-card-desc">先在导入任务中载入来源并处理必要问题。</div></div>
+              <button class="nmda-btn nmda-btn-primary" id="nmda-go-import" type="button">前往导入任务</button>
             </div>
 
             <div class="nmda-card nmda-list-card" id="nmda-preview-card" hidden>
@@ -1016,7 +1009,6 @@
     $('nmda-expand').title = panel.classList.contains('is-maximized') ? '还原工作台' : '全屏工作台';
   });
   ui.querySelectorAll('.nmda-tab').forEach(tab => tab.addEventListener('click', () => setWorkbenchTab(tab.dataset.tab)));
-  $('nmda-go-batch')?.addEventListener('click', () => setWorkbenchTab('batch'));
   $('nmda-go-import')?.addEventListener('click', () => setWorkbenchTab('import'));
 
   [recipientsEl, subjectEl, bodyEl, scheduleAtEl].forEach(el => {
@@ -1049,7 +1041,8 @@
     dataset: null, collectionIndex: 0, collectionConfigs: new Map(), detection: null, mapping: {}, tasks: [],
     directoryFiles: [], taskFiles: [], sharedFiles: [], fileIndex: Importer?.buildFileIndex?.([]),
     attachmentOverrides: new Map(), taskEdits: new Map(), running: false, stopRequested: false,
-    importMeta: null, profileSuggestion: null, importPreviewExpanded: false
+    importMeta: null, profileSuggestion: null, importPreviewExpanded: false,
+    sessionId: 0, importBusy: false
   };
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
@@ -1061,6 +1054,36 @@
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop');
   const batchSearchEl = $('nmda-batch-search');
   const batchTagIncludeEl = $('nmda-batch-tag-include'), batchTagExcludeEl = $('nmda-batch-tag-exclude');
+  const importBusyBadgeEl = $('nmda-import-busy-badge'), resetImportEl = $('nmda-reset-import');
+
+  function isCurrentBatchSession(token) { return Number(token) === Number(batch.sessionId); }
+
+  function renderImportLifecycleState() {
+    const active = !!batch.dataset || !!batch.importBusy;
+    if (resetImportEl) resetImportEl.hidden = !active;
+    if (importBusyBadgeEl) importBusyBadgeEl.hidden = !batch.importBusy;
+    const sourceCard = $('nmda-import-card');
+    if (sourceCard) {
+      sourceCard.dataset.busy = batch.importBusy ? '1' : '0';
+      sourceCard.dataset.loaded = batch.dataset ? '1' : '0';
+    }
+  }
+
+  function beginImportSession(message) {
+    resetImportWorkspace({ keepStatus: true, invalidate: true });
+    const token = batch.sessionId;
+    batch.importBusy = true;
+    renderImportLifecycleState();
+    setImportStatus(message || '正在读取来源…');
+    return token;
+  }
+
+  function finishImportSession(token) {
+    if (!isCurrentBatchSession(token)) return false;
+    batch.importBusy = false;
+    renderImportLifecycleState();
+    return true;
+  }
 
   function recordSets() { return batch.dataset?.recordSets || batch.dataset?.sheets || []; }
 
@@ -1134,6 +1157,7 @@
     const sources = [...(dataset.sourceFiles || [])];
     const embeddedCount = (dataset.embeddedFiles || []).length;
     const warnings = dataset.warnings || [];
+    if (sources.length <= 1 && !embeddedCount && !warnings.length) { box.hidden = true; box.innerHTML = ''; return; }
     const sourceRows = sources.length ? sources.map((file, index) => {
       const name = sourceFileName(file);
       const related = sets.filter(rs => String(rs.source || '') === String(file.name || '') || String(rs.source || '') === name);
@@ -1176,7 +1200,6 @@
       collectionSelectEl.value = String(index);
       configureCollection(index, false);
       renderCollectionList();
-      await registerCurrentBatchContacts();
     }));
   }
 
@@ -1450,7 +1473,6 @@
       reviewConfirmed:coreValid
     });
     rebuildTasks();
-    await registerCurrentBatchContacts();
     const current=(batch.tasks||[]).find(t=>t.editKey===key);
     if(current && taskNeedsImportReview(current)){
       if(reviewFeedbackEl){reviewFeedbackEl.hidden=false;reviewFeedbackEl.textContent=`仍需处理：${unresolvedImportIssues(current).join('；')}`;}
@@ -1470,19 +1492,23 @@
     if(next)openImportTaskEditor(next);else closeImportTaskEditor();
   }
 
-  async function registerCurrentBatchContacts() {
-    if (!Contacts || !(batch.tasks || []).length) return 0;
+  async function registerCurrentBatchContacts(sessionToken = batch.sessionId) {
+    if (!Contacts || !(batch.tasks || []).length || !isCurrentBatchSession(sessionToken)) return 0;
     try {
       await ensureContactBook();
+      if (!isCurrentBatchSession(sessionToken)) return 0;
       const recipients = [];
       for (const task of batch.tasks || []) recipients.push(...Contacts.parseRecipients(task.recipients));
+      if (!isCurrentBatchSession(sessionToken)) return 0;
       const added = Contacts.mergeRecipientList(contactBook.contacts, recipients, '未联系');
+      if (!isCurrentBatchSession(sessionToken)) return 0;
       await persistContacts();
+      if (!isCurrentBatchSession(sessionToken)) return added;
       renderContacts();
       if (batch.dataset) rebuildTasks();
       return added;
     } catch (error) {
-      console.warn(`[${APP}] automatic contact registration failed`, error);
+      console.warn(`[${APP}] contact registration failed`, error);
       return 0;
     }
   }
@@ -1602,7 +1628,6 @@
       batch.mapping = config.mapping;
       renderSemanticSummary();
       rebuildTasks();
-      registerCurrentBatchContacts();
     }));
     rebuildTasks();
   }
@@ -1935,7 +1960,8 @@
     if (kind) batchStatusEl.dataset.kind = kind; else delete batchStatusEl.dataset.kind;
   }
 
-  async function applyImportedDataset(dataset, label = '数据') {
+  async function applyImportedDataset(dataset, label = '数据', sessionToken = batch.sessionId) {
+    if (!isCurrentBatchSession(sessionToken)) return false;
     batch.dataset = dataset;
     batch.importMeta = dataset?.meta || null;
     batch.collectionConfigs.clear();
@@ -1969,72 +1995,131 @@
     renderSourceInventory();
     configureCollection(best.index, false);
     refreshFileIndex(false);
-    const addedContacts = await registerCurrentBatchContacts();
+    if (!isCurrentBatchSession(sessionToken)) return false;
     const warningText = dataset.warnings?.length ? `；${dataset.warnings.length} 条解析警告` : '';
     const embeddedText = dataset.embeddedFiles?.length ? `；自动载入 ${dataset.embeddedFiles.length} 个包内附件` : '';
     const formatText = dataset.format ? `；${formatDisplayName(dataset.format)}` : '';
     $('nmda-import-format-info').textContent = `已载入 ${dataset.sourceFiles?.length || 1} 个数据源，提取 ${sets.length} 个内容集合${formatText}${embeddedText}${warningText}。`;
     const selected = sets[best.index];
     const includedCount = [...batch.collectionConfigs.values()].filter(config => config.enabled).length;
-    setImportStatus(`解析完成：${label}；提取 ${sets.length} 个内容集合，自动纳入 ${includedCount} 个；当前检查“${selected?.name || '内容集合'}”${addedContacts ? `；新增 ${addedContacts} 个未联系联系人` : ''}${warningText}。`, dataset.warnings?.length ? 'warn' : 'ok');
-    setBatchStatus(`数据摄取工作台已生成 ${batch.tasks.length} 封标准任务。请在批量任务中检索、检查并选择需要创建的草稿。`, 'ok');
+    setImportStatus(`解析完成：${label}；提取 ${sets.length} 个内容集合，自动纳入 ${includedCount} 个；当前检查“${selected?.name || '内容集合'}”${warningText}。`, dataset.warnings?.length ? 'warn' : 'ok');
+    renderImportLifecycleState();
+    setBatchStatus(`已导入 ${batch.tasks.length} 封任务。进入批量任务后再选择需要创建的草稿。`, 'ok');
+    return true;
   }
 
-  function resetImportWorkspace({ keepStatus = false } = {}) {
-    batch.dataset = null; batch.importMeta = null; batch.collectionIndex = 0; batch.collectionConfigs.clear(); batch.detection = null; batch.mapping = {}; batch.tasks = [];
-    batch.directoryFiles = []; batch.taskFiles = []; batch.sharedFiles = []; batch.attachmentOverrides.clear(); batch.taskEdits.clear();
-    batch.fileIndex = Importer.buildFileIndex([]); batch.profileSuggestion = null; batch.importPreviewExpanded=false; closeImportTaskEditor();
+  function resetImportWorkspace({ keepStatus = false, invalidate = true, message = '' } = {}) {
+    if (invalidate) batch.sessionId += 1;
+    batch.importBusy = false;
+    batch.dataset = null;
+    batch.importMeta = null;
+    batch.collectionIndex = 0;
+    batch.collectionConfigs.clear();
+    batch.detection = null;
+    batch.mapping = {};
+    batch.tasks = [];
+    batch.directoryFiles = [];
+    batch.taskFiles = [];
+    batch.sharedFiles = [];
+    batch.attachmentOverrides.clear();
+    batch.taskEdits.clear();
+    batch.fileIndex = Importer.buildFileIndex([]);
+    batch.profileSuggestion = null;
+    batch.importPreviewExpanded = false;
+    batch.stopRequested = false;
+
+    closeImportTaskEditor();
     [importFileEl, importDirEl, importPackageEl, dirEl, taskFilesEl, sharedFilesEl].forEach(el => { if (el) el.value = ''; });
     if (pasteSourceEl) pasteSourceEl.value = '';
-    ['nmda-structure-card','nmda-mapping-card','nmda-ingest-diagnostics','nmda-ingest-result-card','nmda-import-preview-card','nmda-attachments-card','nmda-import-handoff-card','nmda-preview-card','nmda-run-card'].forEach(id => { const el = $(id); if (el) el.hidden = true; });
+    const pastePanel = $('nmda-paste-panel'); if (pastePanel) pastePanel.hidden = true;
+    const diagnostics = $('nmda-ingest-diagnostics'); if (diagnostics) { diagnostics.hidden = true; diagnostics.open = false; }
+
+    if (batchSearchEl) batchSearchEl.value = '';
+    if (batchTagIncludeEl) batchTagIncludeEl.value = '';
+    if (batchTagExcludeEl) batchTagExcludeEl.value = '';
+    const bulkTag = $('nmda-bulk-tag-value'); if (bulkTag) bulkTag.value = '';
+
+    ['nmda-structure-card','nmda-mapping-card','nmda-ingest-diagnostics','nmda-ingest-result-card','nmda-import-preview-card','nmda-attachments-card','nmda-import-handoff-card','nmda-preview-card','nmda-run-card'].forEach(id => {
+      const el = $(id); if (el) el.hidden = true;
+    });
     const inventory = $('nmda-source-inventory'); if (inventory) { inventory.hidden = true; inventory.innerHTML = ''; }
-    const mapping = $('nmda-mapping'); if (mapping) mapping.innerHTML = '';
+    if (collectionSelectEl) collectionSelectEl.innerHTML = '';
+    const collectionList = $('nmda-collection-list'); if (collectionList) collectionList.innerHTML = '';
+    const structureSummary = $('nmda-structure-summary'); if (structureSummary) structureSummary.innerHTML = '';
+    const headerInfo = $('nmda-header-info'); if (headerInfo) headerInfo.textContent = '';
+    const profileInfo = $('nmda-profile-info'); if (profileInfo) profileInfo.textContent = '';
+    const mapping = $('nmda-mapping'); if (mapping) { mapping.innerHTML = ''; mapping.hidden = true; }
     const semantic = $('nmda-semantic-summary'); if (semantic) semantic.innerHTML = '';
     const structure = $('nmda-structure-preview'); if (structure) structure.innerHTML = '';
+    const summary = $('nmda-import-preview-summary'); if (summary) summary.innerHTML = '';
+    if (importPreviewBodyEl) importPreviewBodyEl.innerHTML = '';
+    if (importPreviewSummaryEl) importPreviewSummaryEl.innerHTML = '';
+    if (reviewQueueEl) reviewQueueEl.innerHTML = '';
+    if (reviewSourceContextEl) reviewSourceContextEl.innerHTML = '';
+    if (reviewSourceMetaEl) reviewSourceMetaEl.innerHTML = '';
+    if (reviewCandidatesEl) reviewCandidatesEl.innerHTML = '';
+    if (reviewProgressEl) reviewProgressEl.textContent = '';
+    const reviewGuide = $('nmda-review-guidance'); if (reviewGuide) reviewGuide.textContent = '载入来源后，系统会把自动通过与待确认邮件分开。';
+    const reviewBtn = $('nmda-review-import-issues'); if (reviewBtn) { reviewBtn.hidden = true; reviewBtn.textContent = '处理待确认'; }
+    const restoreBtn = $('nmda-restore-excluded'); if (restoreBtn) restoreBtn.hidden = true;
+    const fileInfo = $('nmda-file-index-info'); if (fileInfo) fileInfo.textContent = '尚未选择本地附件。';
+    const attachmentSummary = $('nmda-attachment-summary'); if (attachmentSummary) attachmentSummary.textContent = '解析出任务后会统计需要匹配的附件。';
+    const attachmentResolution = $('nmda-attachment-resolution'); if (attachmentResolution) attachmentResolution.hidden = true;
+    const attachmentResolutionList = $('nmda-attachment-resolution-list'); if (attachmentResolutionList) attachmentResolutionList.innerHTML = '';
+    const readySummary = $('nmda-import-ready-summary'); if (readySummary) readySummary.textContent = '尚未生成任务。';
+
     $('nmda-batch-empty').hidden = false;
-    $('nmda-import-format-info').textContent = '支持 Word、表格、JSON/JSONL、文本、HTML/XML、多文件、目录与 ZIP；系统优先寻找邮件本体。';
-    if (!keepStatus) setImportStatus('尚未载入数据源。');
+    $('nmda-import-format-info').textContent = '支持 Word、表格、JSON/JSONL、文本、HTML/XML、多文件、目录与 ZIP。';
+    setBatchStatus('请先导入任务。');
+    renderImportLifecycleState();
+    if (!keepStatus) setImportStatus(message || '尚未载入数据源。');
     renderPreview();
   }
 
-  function clearImportOnError(error) {
+  function clearImportOnError(error, sessionToken = batch.sessionId) {
+    if (!isCurrentBatchSession(sessionToken)) return;
     console.error(`[${APP}] import`, error);
-    resetImportWorkspace({ keepStatus: true });
+    resetImportWorkspace({ keepStatus: true, invalidate: true });
     setImportStatus(`解析失败：${error.message}`, 'error');
   }
+
 
   importFileEl.addEventListener('change', async () => {
     const files = [...(importFileEl.files || [])];
     if (!files.length || !Importer) return;
-    setImportStatus(`正在解析 ${files.length === 1 ? files[0].name : `${files.length} 个文件`}…`);
+    const token = beginImportSession(`正在解析 ${files.length === 1 ? files[0].name : `${files.length} 个文件`}…`);
     try {
       const dataset = files.length === 1 ? await Importer.parseFile(files[0]) : await Importer.parseFiles(files);
-      await applyImportedDataset(dataset, files.length === 1 ? files[0].name : `${files.length} 个文件`);
-    } catch (error) { clearImportOnError(error); }
-    finally { importFileEl.value = ''; }
+      if (!isCurrentBatchSession(token)) return;
+      await applyImportedDataset(dataset, files.length === 1 ? files[0].name : `${files.length} 个文件`, token);
+    } catch (error) { clearImportOnError(error, token); }
+    finally { finishImportSession(token); if (importFileEl) importFileEl.value = ''; }
   });
 
   importDirEl?.addEventListener('change', async () => {
     const files = [...(importDirEl.files || [])];
     if (!files.length || !Importer) return;
-    setImportStatus(`正在扫描数据目录（${files.length} 个文件）…`);
+    const token = beginImportSession(`正在扫描文件夹（${files.length} 个文件）…`);
     try {
       const dataset = await Importer.parseDirectory(files);
-      await applyImportedDataset(dataset, `数据目录（${dataset.sourceFiles?.length || 0} 个可读取文件）`);
-    } catch (error) { clearImportOnError(error); }
-    finally { importDirEl.value = ''; }
+      if (!isCurrentBatchSession(token)) return;
+      await applyImportedDataset(dataset, `文件夹（${dataset.sourceFiles?.length || 0} 个可读取文件）`, token);
+    } catch (error) { clearImportOnError(error, token); }
+    finally { finishImportSession(token); if (importDirEl) importDirEl.value = ''; }
   });
 
   importPackageEl?.addEventListener('change', async () => {
     const file = importPackageEl.files?.[0];
     if (!file || !Importer) return;
-    setImportStatus(`正在解析批次包 ${file.name}…`);
+    const token = beginImportSession(`正在解析 ZIP ${file.name}…`);
     try {
       const dataset = await Importer.parseFile(file);
-      await applyImportedDataset(dataset, `批次包 ${file.name}`);
-    } catch (error) { clearImportOnError(error); }
-    finally { importPackageEl.value = ''; }
+      if (!isCurrentBatchSession(token)) return;
+      await applyImportedDataset(dataset, `ZIP ${file.name}`, token);
+    } catch (error) { clearImportOnError(error, token); }
+    finally { finishImportSession(token); if (importPackageEl) importPackageEl.value = ''; }
   });
+
 
   $('nmda-show-paste')?.addEventListener('click', () => {
     const panel = $('nmda-paste-panel');
@@ -2045,18 +2130,36 @@
   $('nmda-paste-import')?.addEventListener('click', async () => {
     const text = String(pasteSourceEl?.value || '').trim();
     if (!text) { setImportStatus('请先粘贴需要解析的数据。', 'warn'); return; }
-    setImportStatus('正在识别粘贴内容的结构…');
+    const token = beginImportSession('正在识别粘贴内容…');
     try {
       const file = new File([text], `pasted-${Date.now()}.txt`, { type:'text/plain;charset=utf-8', lastModified:Date.now() });
       const dataset = await Importer.parseFile(file);
+      if (!isCurrentBatchSession(token)) return;
       dataset.meta = { ...(dataset.meta || {}), pasted:true };
-      await applyImportedDataset(dataset, '粘贴数据');
-    } catch (error) { clearImportOnError(error); }
+      await applyImportedDataset(dataset, '粘贴内容', token);
+    } catch (error) { clearImportOnError(error, token); }
+    finally { finishImportSession(token); }
   });
 
   $('nmda-reset-import')?.addEventListener('click', () => {
-    if (batch.running) { setImportStatus('批量任务运行期间不能清空导入。', 'warn'); return; }
-    resetImportWorkspace();
+    if (batch.running) { setImportStatus('批量任务正在执行，不能开始新批次。', 'warn'); return; }
+    resetImportWorkspace({ message: '当前批次已彻底清空，可以载入新的来源。' });
+  });
+
+  $('nmda-go-batch')?.addEventListener('click', async () => {
+    const button = $('nmda-go-batch');
+    if (!button || button.disabled || !batch.dataset || !batch.tasks.length) return;
+    const token = batch.sessionId;
+    button.disabled = true;
+    button.textContent = '正在准备批量任务…';
+    try {
+      await registerCurrentBatchContacts(token);
+      if (!isCurrentBatchSession(token)) return;
+      setWorkbenchTab('batch');
+      setBatchStatus(`已接收 ${batch.tasks.length} 封任务。勾选决定实际创建哪些草稿。`, 'ok');
+    } finally {
+      if (isCurrentBatchSession(token)) renderImportHandoff();
+    }
   });
 
   importReviewBtnEl?.addEventListener('click', () => {
@@ -2075,7 +2178,7 @@
   });
   $('nmda-restore-excluded')?.addEventListener('click', () => {
     for (const [key,edit] of batch.taskEdits) if(edit?.importExcluded) batch.taskEdits.set(key,{...edit,importExcluded:false});
-    rebuildTasks(); registerCurrentBatchContacts();
+    rebuildTasks();
   });
 
   mappingToggleEl?.addEventListener('click', () => setMappingEditorOpen(mappingEl.hidden));
@@ -2122,13 +2225,13 @@
       const field = select.dataset.mapField;
       if (select.value === '') delete config.mapping[field]; else config.mapping[field] = Number(select.value);
       batch.mapping = config.mapping;
-      renderSemanticSummary(); rebuildTasks(); registerCurrentBatchContacts();
+      renderSemanticSummary(); rebuildTasks();
     }));
     setMappingEditorOpen(true);
-    renderSemanticSummary(); rebuildTasks(); registerCurrentBatchContacts();
+    renderSemanticSummary(); rebuildTasks();
     $('nmda-profile-info').textContent = `已应用识别模板“${profile.name}”。请检查语义映射和任务预览。`;
   });
-  collectionSelectEl.addEventListener('change', async () => { configureCollection(collectionSelectEl.value, false); renderCollectionList(); await registerCurrentBatchContacts(); });
+  collectionSelectEl.addEventListener('change', () => { configureCollection(collectionSelectEl.value, false); renderCollectionList(); });
   dirEl.addEventListener('change', () => {
     batch.directoryFiles = uniqueFiles([...batch.directoryFiles, ...dirEl.files]);
     dirEl.value = ''; refreshFileIndex(true);
@@ -2369,5 +2472,5 @@
   restoreFormState();
   renderPreview();
   initContacts();
-  console.info(`[${APP}] v1.7.0 loaded`);
+  console.info(`[${APP}] v1.8.0 loaded`);
 })();

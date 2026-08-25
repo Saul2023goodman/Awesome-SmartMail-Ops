@@ -160,7 +160,6 @@
     const prev = normalizeContactShape(contacts[email] || {}, email);
     const legacyPatch = patch.status ? legacyDimensions(patch.status, prev.sentCount) : {};
     const next = {
-      email,
       name: patch.name || prev.name || '',
       stage: STAGE_OPTIONS.includes(patch.stage) ? patch.stage : (legacyPatch.stage || prev.stage || '未联系'),
       policy: POLICY_OPTIONS.includes(patch.policy) ? patch.policy : (legacyPatch.policy || prev.policy || '正常'),
