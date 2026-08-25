@@ -724,3 +724,21 @@
 }
 .nmda-review-core-fields .nmda-field[data-resolved="1"][data-issue="0"] { border-color:transparent; background:transparent; }
 .nmda-review-core-fields .nmda-field[data-resolved="1"] .nmda-label::after { content:' ✓'; color:#16a34a; font-weight:850; }
+
+/* v1.7 mailbox reading = source snapshot maintenance, not a range picker */
+.nmda-read-model { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:8px; align-items:stretch; }
+.nmda-read-layer { padding:10px 11px; border:1px solid var(--nmda-border); border-radius:10px; background:#f8fafc; min-width:0; }
+.nmda-read-layer strong, .nmda-read-layer span, .nmda-read-layer small { display:block; }
+.nmda-read-layer strong { color:#0f172a; font-size:10.5px; }
+.nmda-read-layer span { margin-top:3px; color:#334155; font-size:9px; line-height:1.45; }
+.nmda-read-layer small { margin-top:4px; color:#64748b; font-size:8.2px; line-height:1.4; }
+.nmda-read-arrow { display:flex; align-items:center; color:#94a3b8; font-size:16px; }
+.nmda-history-actions-maintenance { grid-template-columns:1fr 1fr; }
+.nmda-history-source-rebuild { background:#fffdf7; border-color:#fde7b0; }
+.nmda-read-meta { padding:8px 10px; border:1px solid var(--nmda-border); border-radius:9px; background:#fff; color:#64748b; font-size:8.8px; line-height:1.45; }
+.nmda-read-meta[data-complete="true"] { background:var(--nmda-green-soft); color:var(--nmda-green); border-color:#bbf7d0; }
+@media (max-width: 900px) {
+  .nmda-read-model { grid-template-columns:1fr; }
+  .nmda-read-arrow { transform:rotate(90deg); justify-content:center; }
+  .nmda-history-actions-maintenance { grid-template-columns:1fr; }
+}

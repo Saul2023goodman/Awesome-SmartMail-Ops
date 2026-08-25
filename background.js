@@ -17,7 +17,10 @@ function readMailbox(tabId, fid, requested) {
       if (!window.$?.DataAction) return resolve({ ok: false, reason: '$.DataAction unavailable' });
       const uid = typeof window.$S === 'function' ? String(window.$S('uid') || '') : '';
       const PAGE_SIZE = 200;
-      const HARD_MAX = 10000;
+      // Full rebuild is an explicit maintenance operation. Keep a high safety ceiling,
+      // but never call a capped scan 'complete'.
+      const HARD_MAX = 100000;
+      const MAX_PAGES = 600;
       const requestedAll = Number(requestedArg) < 0;
       const wanted = requestedAll ? HARD_MAX : Math.max(1, Math.min(HARD_MAX, Number(requestedArg) || 200));
 
@@ -134,7 +137,7 @@ function readMailbox(tabId, fid, requested) {
         return false;
       }
 
-      while (messages.length < wanted && !exhausted && (!totalKnown || messages.length < total) && pages < 60) {
+      while (messages.length < wanted && !exhausted && (!totalKnown || messages.length < total) && pages < MAX_PAGES) {
         if (!mode) {
           const ok = await probeMode();
           if (!ok) { stopReason = 'pagination-unavailable'; break; }
@@ -164,7 +167,8 @@ function readMailbox(tabId, fid, requested) {
       const resultMessages = messages.slice(0, targetCount);
       const complete = totalKnown ? (resultMessages.length >= effectiveTotal || effectiveTotal === 0) : exhausted;
       const reachedRequested = requestedAll ? complete : (resultMessages.length >= wanted || complete);
-      if (requestedAll && totalKnown && effectiveTotal > HARD_MAX) stopReason = 'hard-cap-10000';
+      if (requestedAll && totalKnown && effectiveTotal > HARD_MAX) stopReason = `hard-cap-${HARD_MAX}`;
+      if (!complete && pages >= MAX_PAGES && !stopReason) stopReason = `page-cap-${MAX_PAGES}`;
 
       resolve({
         ok: true,
@@ -184,6 +188,26 @@ function readMailbox(tabId, fid, requested) {
       resolve({ ok: false, reason: error?.message || String(error) });
     }
   }), [fid, requestedLimit]);
+}
+
+async function readMailboxState(tabId, mode = 'quick') {
+  const full = mode === 'full';
+  const requested = full ? 'all' : 500;
+  const sent = await readMailbox(tabId, 3, requested);
+  if (!sent?.ok) return { ok: false, phase: 'sent', reason: sent?.reason || '读取已发送失败', sent };
+  const drafts = await readMailbox(tabId, 2, requested);
+  if (!drafts?.ok) return { ok: false, phase: 'drafts', reason: drafts?.reason || '读取草稿箱失败', sent, drafts };
+  const complete = !!sent.complete && !!drafts.complete;
+  return {
+    ok: true,
+    mode: full ? 'full' : 'quick',
+    uid: sent.uid || drafts.uid || '',
+    sent, drafts, complete,
+    coverage: {
+      sent: { read: sent.messages?.length || 0, total: sent.total || 0, complete: !!sent.complete, pages: sent.pages || 0 },
+      drafts: { read: drafts.messages?.length || 0, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 }
+    }
+  };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -217,6 +241,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return { ok: false, reason: error?.message || String(error) };
       }
     }).then(sendResponse).catch(error => sendResponse({ ok: false, reason: error?.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === 'NMDA_READ_MAILBOX_STATE') {
+    readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick').then(sendResponse).catch(error => sendResponse({ ok: false, reason: error?.message || String(error) }));
     return true;
   }
 

@@ -2,6 +2,7 @@
   'use strict';
 
   const STORAGE_PREFIX = 'nmda.contacts.v1:'; // keep the old key so v0.6 data migrates in place
+  const SYNC_META_PREFIX = 'nmda.mailboxSync.v2:';
   const STAGE_OPTIONS = ['未联系', '已发送', '已回复'];
   const POLICY_OPTIONS = ['正常', '暂停', '不再联系'];
   const STATUS_OPTIONS = ['未联系', '已发送', '已回复', '待跟进', '暂停', '不再联系']; // compatibility
@@ -92,6 +93,9 @@
     const legacy = legacyDimensions(contact.status, contact.sentCount);
     contact.email = normalizeEmail(contact.email || email);
     contact.stage = STAGE_OPTIONS.includes(contact.stage) ? contact.stage : legacy.stage;
+    contact.stageSource = ['manual', 'mailbox', 'default'].includes(contact.stageSource)
+      ? contact.stageSource
+      : (contact.stageChangedAt ? 'manual' : (contact.stage === '已回复' ? 'manual' : (Number(contact.sentCount || 0) > 0 ? 'mailbox' : 'default')));
     contact.policy = POLICY_OPTIONS.includes(contact.policy) ? contact.policy : legacy.policy;
     contact.followUp = typeof contact.followUp === 'boolean' ? contact.followUp : legacy.followUp;
     contact.tags = parseContactTags(contact.tags || []);
@@ -103,6 +107,11 @@
     contact.draftHistory = Array.isArray(contact.draftHistory) ? contact.draftHistory : [];
     contact.lastDraftAt = contact.lastDraftAt || '';
     contact.lastDraftSubject = contact.lastDraftSubject || '';
+    // v1.7+ durable send evidence is created only by an actual v1.7 reader observation.
+    // Do not infer it from legacy counters: the purpose of a full rebuild is to be able
+    // to correct stale/incorrect pre-v1.7 mailbox-derived data.
+    contact.knownSentAt = contact.knownSentAt || '';
+    contact.mailboxSnapshotAt = contact.mailboxSnapshotAt || '';
     // Keep a backward-compatible shadow value. New code never uses it as the full workflow state.
     contact.status = contact.stage;
     return contact;
@@ -121,6 +130,27 @@
     const normalized = {};
     for (const [email, contact] of Object.entries(contacts || {})) normalized[normalizeEmail(email)] = normalizeContactShape(contact, email);
     await chrome.storage.local.set({ [key]: normalized });
+  }
+
+  function syncMetaKey(account) {
+    return `${SYNC_META_PREFIX}${normalizeEmail(account) || 'default'}`;
+  }
+
+  async function loadSyncMeta(account) {
+    const key = syncMetaKey(account);
+    const stored = (await chrome.storage.local.get(key))[key];
+    return stored && typeof stored === 'object' ? stored : {};
+  }
+
+  async function saveSyncMeta(account, meta) {
+    const key = syncMetaKey(account);
+    await chrome.storage.local.set({ [key]: { ...(meta || {}), account: normalizeEmail(account) || 'default' } });
+  }
+
+  function cloneContacts(contacts) {
+    const cloned = {};
+    for (const [email, contact] of Object.entries(contacts || {})) cloned[normalizeEmail(email)] = normalizeContactShape(JSON.parse(JSON.stringify(contact || {})), email);
+    return cloned;
   }
 
   function ensureContact(contacts, email, patch = {}) {
@@ -220,7 +250,8 @@
           contact.lastSentAt = sentIso;
           contact.lastSubject = message.subject || contact.lastSubject || '';
         }
-        if (contact.stage === '未联系') contact.stage = '已发送';
+        if (sentIso && (!contact.knownSentAt || timeMs(sentIso) >= timeMs(contact.knownSentAt))) contact.knownSentAt = sentIso;
+        if (contact.stageSource !== 'manual' && contact.stage !== '已回复') { contact.stage = '已发送'; contact.stageSource = 'mailbox'; }
         contact.status = contact.stage;
         contact.updatedAt = new Date().toISOString();
       }
@@ -283,6 +314,127 @@
     return { contacts, contactsTouched, newLinks, draftsWithoutRecipient, replaceActive };
   }
 
+  function buildMailboxSnapshot(sentMessages, draftMessages) {
+    const facts = {};
+    const now = new Date().toISOString();
+    const ensureFact = (email, name = '') => {
+      email = normalizeEmail(email);
+      if (!email) return null;
+      if (!facts[email]) facts[email] = {
+        email, name: name || '', sentMessageIds: [], history: [], sentCount: 0, lastSentAt: '', lastSubject: '',
+        draftMessageIds: [], draftHistory: [], draftCount: 0, lastDraftAt: '', lastDraftSubject: ''
+      };
+      if (!facts[email].name && name) facts[email].name = name;
+      return facts[email];
+    };
+
+    let failedMessages = 0, draftsWithoutRecipient = 0;
+    for (const message of sentMessages || []) {
+      if (message.failed) { failedMessages++; continue; }
+      const sentIso = isoTime(message.sentAt ?? message.sentDate ?? message.date);
+      for (const recipient of message.recipients || []) {
+        const email = normalizeEmail(recipient.email || recipient.address);
+        const fact = ensureFact(email, recipient.name || '');
+        if (!fact) continue;
+        const mid = sentRecordId(message, email);
+        if (!fact.sentMessageIds.includes(mid)) {
+          fact.sentMessageIds.push(mid);
+          fact.history.push({ id: mid, subject: message.subject || '', sentAt: sentIso, to: recipient.name || email });
+        }
+        if (sentIso && (!fact.lastSentAt || timeMs(sentIso) >= timeMs(fact.lastSentAt))) {
+          fact.lastSentAt = sentIso;
+          fact.lastSubject = message.subject || fact.lastSubject || '';
+        }
+      }
+    }
+    for (const fact of Object.values(facts)) {
+      fact.history.sort((a, b) => timeMs(b.sentAt) - timeMs(a.sentAt));
+      fact.sentCount = fact.sentMessageIds.length;
+      fact.sentMessageIds = fact.sentMessageIds.slice(-5000);
+      fact.history = fact.history.slice(0, 200);
+    }
+
+    for (const message of draftMessages || []) {
+      const savedIso = isoTime(message.savedAt ?? message.sentAt ?? message.sentDate ?? message.date ?? message.receivedDate);
+      const recipients = message.recipients || [];
+      if (!recipients.length) { draftsWithoutRecipient++; continue; }
+      for (const recipient of recipients) {
+        const email = normalizeEmail(recipient.email || recipient.address);
+        const fact = ensureFact(email, recipient.name || '');
+        if (!fact) continue;
+        const mid = draftRecordId(message, email);
+        if (!fact.draftMessageIds.includes(mid)) fact.draftMessageIds.push(mid);
+        fact.draftHistory = [
+          { id: mid, subject: message.subject || '', savedAt: savedIso, to: recipient.name || email },
+          ...fact.draftHistory.filter(item => item.id !== mid)
+        ];
+        if (savedIso && (!fact.lastDraftAt || timeMs(savedIso) >= timeMs(fact.lastDraftAt))) {
+          fact.lastDraftAt = savedIso;
+          fact.lastDraftSubject = message.subject || fact.lastDraftSubject || '';
+        }
+      }
+    }
+    for (const fact of Object.values(facts)) {
+      fact.draftHistory.sort((a, b) => timeMs(b.savedAt) - timeMs(a.savedAt));
+      fact.draftCount = fact.draftMessageIds.length;
+      fact.draftMessageIds = fact.draftMessageIds.slice(-5000);
+      fact.draftHistory = fact.draftHistory.slice(0, 200);
+    }
+    return { facts, builtAt: now, failedMessages, draftsWithoutRecipient };
+  }
+
+  function rebuildMailboxSnapshot(existingContacts, sentMessages, draftMessages) {
+    const snapshot = buildMailboxSnapshot(sentMessages, draftMessages);
+    const contacts = cloneContacts(existingContacts);
+    const now = snapshot.builtAt;
+
+    // Replace ONLY mailbox-derived facts. Manual CRM dimensions survive intact.
+    for (const [email, raw] of Object.entries(contacts)) {
+      const contact = normalizeContactShape(raw, email);
+      contact.sentCount = 0; contact.lastSentAt = ''; contact.lastSubject = ''; contact.sentMessageIds = []; contact.history = [];
+      contact.draftCount = 0; contact.lastDraftAt = ''; contact.lastDraftSubject = ''; contact.draftMessageIds = []; contact.draftHistory = [];
+      contact.mailboxSnapshotAt = now;
+      contacts[email] = contact;
+    }
+
+    for (const [email, fact] of Object.entries(snapshot.facts)) {
+      const contact = ensureContact(contacts, email, { name: fact.name || '' });
+      if (!contact.name && fact.name) contact.name = fact.name;
+      contact.sentCount = fact.sentCount;
+      contact.lastSentAt = fact.lastSentAt;
+      contact.lastSubject = fact.lastSubject;
+      contact.sentMessageIds = [...fact.sentMessageIds];
+      contact.history = [...fact.history];
+      contact.draftCount = fact.draftCount;
+      contact.lastDraftAt = fact.lastDraftAt;
+      contact.lastDraftSubject = fact.lastDraftSubject;
+      contact.draftMessageIds = [...fact.draftMessageIds];
+      contact.draftHistory = [...fact.draftHistory];
+      if (fact.lastSentAt && (!contact.knownSentAt || timeMs(fact.lastSentAt) >= timeMs(contact.knownSentAt))) contact.knownSentAt = fact.lastSentAt;
+      contact.mailboxSnapshotAt = now;
+      contact.updatedAt = now;
+    }
+
+    for (const contact of Object.values(contacts)) {
+      // A full rebuild corrects the current mailbox snapshot, but never forgets that
+      // a send was observed before merely because the user later deleted Sent mail.
+      if (contact.stageSource !== 'manual') {
+        if (contact.knownSentAt || Number(contact.sentCount || 0) > 0) { contact.stage = '已发送'; contact.stageSource = 'mailbox'; }
+        else { contact.stage = '未联系'; contact.stageSource = 'default'; }
+        contact.status = contact.stage;
+      }
+    }
+
+    return {
+      contacts, builtAt: now,
+      contactFacts: Object.keys(snapshot.facts).length,
+      sentMessages: (sentMessages || []).length,
+      draftMessages: (draftMessages || []).length,
+      failedMessages: snapshot.failedMessages,
+      draftsWithoutRecipient: snapshot.draftsWithoutRecipient
+    };
+  }
+
   function mergeRecipientList(contacts, recipients, defaultStage = '未联系') {
     let added = 0;
     for (const item of recipients || []) {
@@ -301,6 +453,7 @@
     if (!contact) return null;
     contact.stage = stage;
     contact.status = stage;
+    contact.stageSource = 'manual';
     contact.stageChangedAt = new Date().toISOString();
     contact.updatedAt = contact.stageChangedAt;
     return contact;
@@ -414,9 +567,14 @@
     normalizeContactShape,
     load,
     save,
+    loadSyncMeta,
+    saveSyncMeta,
+    cloneContacts,
     ensureContact,
     applySentMessages,
     applyDraftMessages,
+    buildMailboxSnapshot,
+    rebuildMailboxSnapshot,
     clearActiveDraftState,
     mergeRecipientList,
     setStatus,

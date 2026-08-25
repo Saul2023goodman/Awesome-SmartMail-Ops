@@ -729,14 +729,17 @@
           <section class="nmda-tabpane nmda-page" data-pane="contacts" hidden>
             <div class="nmda-crm-top-grid">
               <div class="nmda-card nmda-mail-history-card">
-                <div class="nmda-card-head"><div><div class="nmda-card-kicker">MAIL HISTORY</div><div class="nmda-card-title">邮箱历史同步</div></div></div>
-                <div class="nmda-history-range">
-                  <label class="nmda-field nmda-inline-field"><span class="nmda-label">读取范围</span><select id="nmda-mail-history-limit"><option value="50">最近 50 封</option><option value="100">最近 100 封</option><option value="200" selected>最近 200 封</option><option value="500">最近 500 封</option><option value="1000">最近 1000 封</option><option value="2000">最近 2000 封</option><option value="all">全部</option></select></label>
-                  <span class="nmda-hint">超过 200 封时自动分页读取；“全部”最多保护性读取 10,000 封。</span>
+                <div class="nmda-card-head"><div><div class="nmda-card-kicker">MAILBOX STATE</div><div class="nmda-card-title">邮箱读取与重建</div><div class="nmda-card-desc">读取的本质是重建“已发送 / 当前草稿”的邮箱证据层；联系人分类与人工决策独立保存。</div></div></div>
+                <div class="nmda-read-model">
+                  <div class="nmda-read-layer"><strong>邮箱证据</strong><span>已发送、草稿、时间、主题、收件人</span><small>可重新读取、可完整重建</small></div>
+                  <div class="nmda-read-arrow">→</div>
+                  <div class="nmda-read-layer"><strong>联系人决策</strong><span>已回复、待跟进、暂停、不再联系、自定义分类</span><small>完整重建也不会覆盖</small></div>
                 </div>
-                <div class="nmda-history-actions nmda-history-actions-unified">
-                  <div class="nmda-history-source"><div><strong>已发送 + 草稿箱</strong><small>一次同步真实发送记录和当前草稿；草稿只产生“有草稿”，不会推进为“已发送”。</small></div><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-sync-history" type="button">同步邮箱历史</button></div>
+                <div class="nmda-history-actions nmda-history-actions-maintenance">
+                  <div class="nmda-history-source"><div><strong>快速刷新</strong><small>读取最近变化并增量合并。适合日常使用，不负责清除已经从邮箱中删除的旧快照记录。</small></div><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-refresh-history" type="button">快速刷新</button></div>
+                  <div class="nmda-history-source nmda-history-source-rebuild"><div><strong>完整重建</strong><small>完整分页读取“已发送 + 草稿箱”，两边都完整后才原子替换邮箱快照；失败则旧数据完全不动。</small></div><button class="nmda-btn nmda-btn-small" id="nmda-rebuild-history" type="button">完整重建</button></div>
                 </div>
+                <div id="nmda-mailbox-read-meta" class="nmda-read-meta">尚未读取邮箱状态。</div>
                 <div id="nmda-contact-status" class="nmda-summary">正在初始化当前邮箱的联系人分类库…</div>
               </div>
               <div class="nmda-card">
@@ -849,6 +852,30 @@
     if (kind) el.dataset.kind = kind; else delete el.dataset.kind;
   }
 
+  function mailboxCoverageText(meta = {}) {
+    if (!meta || (!meta.lastQuickAt && !meta.lastFullAt)) return '尚未读取邮箱状态。';
+    const parts = [];
+    if (meta.lastFullAt) parts.push(`最近完整重建：${Contacts.formatDisplayTime(meta.lastFullAt)}`);
+    else if (meta.lastQuickAt) parts.push(`最近快速刷新：${Contacts.formatDisplayTime(meta.lastQuickAt)}`);
+    if (meta.sent) parts.push(`已发送 ${meta.sent.read ?? 0}${meta.sent.complete ? '（完整）' : meta.sent.total ? ` / ${meta.sent.total}` : ''}`);
+    if (meta.drafts) parts.push(`草稿 ${meta.drafts.read ?? 0}${meta.drafts.complete ? '（完整）' : meta.drafts.total ? ` / ${meta.drafts.total}` : ''}`);
+    if (meta.lastMode === 'full' && meta.complete) parts.push('当前邮箱快照已完整重建');
+    return parts.join(' · ');
+  }
+
+  async function renderMailboxReadMeta(meta = null) {
+    const el = $('nmda-mailbox-read-meta');
+    if (!el || !Contacts) return;
+    try {
+      if (!meta) {
+        await ensureContactBook();
+        meta = await Contacts.loadSyncMeta(contactBook.account);
+      }
+      el.textContent = mailboxCoverageText(meta || {});
+      el.dataset.complete = meta?.lastMode === 'full' && meta?.complete ? 'true' : 'false';
+    } catch (_) { el.textContent = '读取状态元数据不可用。'; }
+  }
+
   function renderContacts() {
     if (!Contacts) return;
     const body = $('nmda-contact-body');
@@ -915,7 +942,7 @@
         <td title="${escapeHtml(contact.lastDraftAt || '')}">${escapeHtml(Contacts.formatDisplayTime(contact.lastDraftAt))}${contact.lastDraftSubject ? `<small title="${escapeHtml(contact.lastDraftSubject)}">${escapeHtml(contact.lastDraftSubject)}</small>` : ''}</td>
         <td title="${escapeHtml(contact.lastSubject || '')}">${escapeHtml(contact.lastSubject || '—')}</td>
       </tr>`).join('');
-    if (!list.length) body.innerHTML = '<tr><td colspan="7">暂无匹配联系人。可同步邮箱历史或导入批量任务。</td></tr>';
+    if (!list.length) body.innerHTML = '<tr><td colspan="7">暂无匹配联系人。可快速刷新 / 完整重建邮箱状态，或导入批量任务。</td></tr>';
     else if (list.length > 1000) body.insertAdjacentHTML('beforeend', `<tr><td colspan="7">当前显示前 1000 个匹配联系人，共 ${list.length} 个。可用搜索或分类缩小范围。</td></tr>`);
 
     body.querySelectorAll('select[data-contact-stage]').forEach(select => select.addEventListener('change', async () => {
@@ -945,7 +972,8 @@
     try {
       await ensureContactBook(true);
       renderContacts();
-      setContactStatusMessage(`当前邮箱：${contactBook.account}。联系人分类保存在本机浏览器；旧版状态已自动迁移为阶段 / 跟进 / 联系策略。`, 'ok');
+      await renderMailboxReadMeta();
+      setContactStatusMessage(`当前邮箱：${contactBook.account}。邮箱读取只维护“邮箱证据层”；人工分类、跟进和联系策略独立保存。`, 'ok');
       if (typeof renderPreview === 'function') renderPreview();
     } catch (error) {
       setContactStatusMessage(`联系人初始化失败：${error.message}`, 'error');
@@ -2187,47 +2215,72 @@
   $('nmda-contact-search').addEventListener('input', renderContacts);
   $('nmda-contact-class-filter').addEventListener('input', renderContacts);
 
-  $('nmda-sync-history').addEventListener('click', async () => {
-    const button = $('nmda-sync-history');
-    button.disabled = true;
-    const limit = $('nmda-mail-history-limit').value || '200';
-    const rangeText = limit === 'all' ? '全部' : `最近 ${limit} 封/箱`;
-    setContactStatusMessage(`正在同步${rangeText}邮箱历史：先读取已发送，再读取草稿箱…`);
-    const notes = [];
-    let warning = false;
+  async function runMailboxRead(mode = 'quick') {
+    const full = mode === 'full';
+    const refreshButton = $('nmda-refresh-history');
+    const rebuildButton = $('nmda-rebuild-history');
+    if (refreshButton) refreshButton.disabled = true;
+    if (rebuildButton) rebuildButton.disabled = true;
+    setContactStatusMessage(full
+      ? '正在完整读取已发送与草稿箱；只有两个文件夹都完整覆盖后才会替换当前邮箱快照…'
+      : '正在快速读取最近邮箱变化…');
     try {
-      const sent = await chrome.runtime.sendMessage({ type: 'NMDA_READ_SENT', limit });
-      if (!sent?.ok) throw new Error(sent?.reason || '读取已发送失败');
-      const account = Contacts.normalizeEmail(sent.uid || await detectAccount()) || 'default';
-      if (!contactBook.loaded || contactBook.account !== account) {
-        contactBook.account = account;
-        contactBook.contacts = await Contacts.load(account);
-        contactBook.loaded = true;
+      await ensureContactBook();
+      const result = await chrome.runtime.sendMessage({ type: 'NMDA_READ_MAILBOX_STATE', mode: full ? 'full' : 'quick' });
+      if (!result?.ok) throw new Error(`${result?.phase ? `${result.phase}：` : ''}${result?.reason || '邮箱读取失败'}`);
+      const sent = result.sent || {}, drafts = result.drafts || {};
+      const sentMessages = sent.messages || [], draftMessages = drafts.messages || [];
+
+      if (full) {
+        // Destructive replacement is allowed only from a proven complete snapshot.
+        if (!sent.complete || !drafts.complete) {
+          const sentWhy = sent.complete ? '完整' : (sent.stopReason || `${sent.messages?.length || 0}/${sent.total || '?'}`);
+          const draftWhy = drafts.complete ? '完整' : (drafts.stopReason || `${drafts.messages?.length || 0}/${drafts.total || '?'}`);
+          throw new Error(`完整覆盖未完成（已发送：${sentWhy}；草稿：${draftWhy}）。为保护现有数据，本次没有修改联系人库。`);
+        }
+        const rebuilt = Contacts.rebuildMailboxSnapshot(contactBook.contacts, sentMessages, draftMessages);
+        // Persist the replacement before switching the live in-memory book: atomic at app level.
+        await Contacts.save(contactBook.account, rebuilt.contacts);
+        contactBook.contacts = rebuilt.contacts;
+        const meta = {
+          lastMode: 'full', complete: true, lastFullAt: new Date().toISOString(),
+          sent: result.coverage?.sent || { read: sentMessages.length, total: sent.total || sentMessages.length, complete: true, pages: sent.pages || 0 },
+          drafts: result.coverage?.drafts || { read: draftMessages.length, total: drafts.total || draftMessages.length, complete: true, pages: drafts.pages || 0 }
+        };
+        const previous = await Contacts.loadSyncMeta(contactBook.account);
+        await Contacts.saveSyncMeta(contactBook.account, { ...previous, ...meta });
+        await renderMailboxReadMeta({ ...previous, ...meta });
+        renderContacts(); renderPreview();
+        setContactStatusMessage(`完整重建完成：已发送 ${sentMessages.length} 封、草稿 ${draftMessages.length} 封；重算 ${rebuilt.contactFacts} 个联系人邮箱证据。已回复 / 待跟进 / 暂停 / 不再联系 / 自定义分类均保留。${rebuilt.draftsWithoutRecipient ? ` ${rebuilt.draftsWithoutRecipient} 封草稿没有收件人，未关联联系人。` : ''}`, 'ok');
+      } else {
+        // Quick refresh works on a clone, so a storage failure never leaves a half-applied live state.
+        const nextContacts = Contacts.cloneContacts(contactBook.contacts);
+        const sentApplied = Contacts.applySentMessages(nextContacts, sentMessages);
+        const draftApplied = Contacts.applyDraftMessages(nextContacts, draftMessages, { replaceActive: false });
+        await Contacts.save(contactBook.account, nextContacts);
+        contactBook.contacts = nextContacts;
+        const previous = await Contacts.loadSyncMeta(contactBook.account);
+        const meta = {
+          ...previous, lastMode: 'quick', complete: false, lastQuickAt: new Date().toISOString(),
+          sent: result.coverage?.sent || { read: sentMessages.length, total: sent.total || 0, complete: !!sent.complete, pages: sent.pages || 0 },
+          drafts: result.coverage?.drafts || { read: draftMessages.length, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 }
+        };
+        await Contacts.saveSyncMeta(contactBook.account, meta);
+        await renderMailboxReadMeta(meta);
+        renderContacts(); renderPreview();
+        setContactStatusMessage(`快速刷新完成：读取已发送 ${sentMessages.length} 封、草稿 ${draftMessages.length} 封；新增发送证据 ${sentApplied.newLinks} 条、草稿证据 ${draftApplied.newLinks} 条。快速刷新不会删除旧快照；需要彻底校准时使用“完整重建”。`, 'ok');
       }
-      const sentApplied = Contacts.applySentMessages(contactBook.contacts, sent.messages || []);
-      const successful = (sent.messages || []).filter(message => !message.failed).length;
-      notes.push(`已发送 ${sent.messages?.length || 0} 封（有效 ${successful}，新增历史 ${sentApplied.newLinks}）`);
-      if (sent.truncated) { warning = true; notes.push(`已发送未完整覆盖：${sent.stopReason || '达到读取范围'}`); }
-
-      setContactStatusMessage(`已完成已发送；正在读取${rangeText}草稿箱…`);
-      const drafts = await chrome.runtime.sendMessage({ type: 'NMDA_READ_DRAFTS', limit });
-      if (!drafts?.ok) throw new Error(drafts?.reason || '读取草稿箱失败');
-      const draftApplied = Contacts.applyDraftMessages(contactBook.contacts, drafts.messages || [], { replaceActive: !!drafts.complete });
-      notes.push(`草稿 ${drafts.messages?.length || 0} 封（新增历史 ${draftApplied.newLinks}，无收件人 ${draftApplied.draftsWithoutRecipient}）`);
-      if (drafts.truncated) { warning = true; notes.push(`草稿未完整覆盖：${drafts.stopReason || '达到读取范围'}`); }
-      if (drafts.complete) notes.push('草稿箱已完整覆盖并清理过期“有草稿”标记');
-
-      await persistContacts();
-      renderContacts();
-      renderPreview();
-      setContactStatusMessage(`邮箱历史同步完成：${notes.join('；')}。草稿不会推进联系人为“已发送”。`, warning ? 'warn' : 'ok');
     } catch (error) {
-      console.error(`[${APP}] history sync`, error);
-      // Preserve any successfully applied first-stage data instead of discarding it.
-      try { await persistContacts(); renderContacts(); renderPreview(); } catch (_) {}
-      setContactStatusMessage(`邮箱历史同步中断：${error.message}${notes.length ? `；已保留：${notes.join('；')}` : ''}`, 'error');
-    } finally { button.disabled = false; }
-  });
+      console.error(`[${APP}] mailbox read ${mode}`, error);
+      setContactStatusMessage(`${full ? '完整重建' : '快速刷新'}失败：${error.message}`, 'error');
+    } finally {
+      if (refreshButton) refreshButton.disabled = false;
+      if (rebuildButton) rebuildButton.disabled = false;
+    }
+  }
+
+  $('nmda-refresh-history')?.addEventListener('click', () => runMailboxRead('quick'));
+  $('nmda-rebuild-history')?.addEventListener('click', () => runMailboxRead('full'));
 
   $('nmda-export-contacts').addEventListener('click', async () => {
     try {
@@ -2316,5 +2369,5 @@
   restoreFormState();
   renderPreview();
   initContacts();
-  console.info(`[${APP}] v1.6.0 loaded`);
+  console.info(`[${APP}] v1.7.0 loaded`);
 })();
