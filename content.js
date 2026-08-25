@@ -501,7 +501,7 @@
             <div class="nmda-brand-mark">N</div>
             <div>
               <div class="nmda-title">网易邮箱外联工作台</div>
-              <div class="nmda-subtitle">草稿 · 批量 · 分类 · 联系人</div>
+              <div class="nmda-subtitle">草稿 · 导入 · 批量 · 联系人</div>
             </div>
           </div>
           <div class="nmda-head-actions">
@@ -514,11 +514,12 @@
         <nav class="nmda-tabs" aria-label="工作台模块">
           <div class="nmda-nav-label">工作区</div>
           <button class="nmda-tab is-active" data-tab="single" type="button"><span class="nmda-tab-icon">✎</span><span><strong>单封草稿</strong><small>快速填写一封</small></span></button>
-          <button class="nmda-tab" data-tab="batch" type="button"><span class="nmda-tab-icon">▦</span><span><strong>批量任务</strong><small>导入、筛选、执行</small></span></button>
+          <button class="nmda-tab" data-tab="import" type="button"><span class="nmda-tab-icon">⇧</span><span><strong>导入工作台</strong><small>解析、识别、附件</small></span></button>
+          <button class="nmda-tab" data-tab="batch" type="button"><span class="nmda-tab-icon">▦</span><span><strong>批量任务</strong><small>筛选、选择、执行</small></span></button>
           <button class="nmda-tab" data-tab="contacts" type="button"><span class="nmda-tab-icon">◎</span><span><strong>联系人</strong><small>分类与历史</small></span></button>
           <div class="nmda-nav-foot">
             <div class="nmda-nav-foot-title">当前原则</div>
-            <div>筛选只负责找任务</div>
+            <div>导入只负责生成任务</div>
             <div>勾选是唯一执行依据</div>
             <div>任何执行错误立即停止</div>
           </div>
@@ -555,33 +556,34 @@
             </div>
           </section>
 
-          <div class="nmda-page-head" data-page-head="batch" hidden>
-            <div><h2>批量任务</h2><p>导入任务表，完成附件预检与分类筛选后，勾选需要的任务并创建草稿。</p></div>
-            <div class="nmda-stage-strip" aria-label="批量流程"><span>1 导入</span><span>2 识别</span><span>3 附件</span><span>4 选择</span><span>5 创建</span></div>
+          <div class="nmda-page-head" data-page-head="import" hidden>
+            <div><h2>导入工作台</h2><p>把不同来源的数据解析、识别并整理成标准邮件任务，再交给批量工作台执行。</p></div>
+            <div class="nmda-stage-strip" aria-label="导入流程"><span>1 来源</span><span>2 识别</span><span>3 附件</span><span>4 生成任务</span></div>
           </div>
-          <section class="nmda-tabpane nmda-page" data-pane="batch" hidden>
-            <div class="nmda-batch-setup-grid">
+          <section class="nmda-tabpane nmda-page" data-pane="import" hidden>
+            <div class="nmda-import-workspace-grid">
               <div class="nmda-card" id="nmda-import-card">
-                <div class="nmda-card-head"><div><div class="nmda-step-index">01</div><div><div class="nmda-card-title">通用导入</div><div class="nmda-card-desc">表格 / Word / 文本 / JSON / HTML / XML / ZIP · 支持多文件</div></div></div></div>
+                <div class="nmda-card-head"><div><div class="nmda-step-index">01</div><div><div class="nmda-card-title">选择数据来源</div><div class="nmda-card-desc">表格 / Word / 文本 / JSON / HTML / XML / ZIP · 支持多文件与目录</div></div></div></div>
                 <input id="nmda-import-file" type="file" multiple accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
                 <div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">导入数据目录<input id="nmda-import-dir" type="file" webkitdirectory multiple hidden></label><button class="nmda-btn nmda-btn-small" id="nmda-template" type="button">下载 CSV 模板</button></div>
                 <div id="nmda-import-format-info" class="nmda-hint">自动识别真实格式；多文件会合并成多个数据集。旧 .xls 可识别但需转换为 XLSX/ODS/CSV。</div>
+                <div id="nmda-import-status" class="nmda-summary nmda-import-status">尚未导入数据。</div>
               </div>
 
               <div class="nmda-card" id="nmda-sheet-card" hidden>
-                <div class="nmda-card-head"><div><div class="nmda-step-index">02</div><div><div class="nmda-card-title">识别与字段映射</div><div class="nmda-card-desc">自动识别，可人工校正</div></div></div></div>
-                <label class="nmda-field" id="nmda-sheet-field"><span class="nmda-label">工作表</span><select id="nmda-sheet-select"></select></label>
+                <div class="nmda-card-head"><div><div class="nmda-step-index">02</div><div><div class="nmda-card-title">识别与字段映射</div><div class="nmda-card-desc">自动识别结构和字段；低置信度时人工校正一次</div></div></div></div>
+                <label class="nmda-field" id="nmda-sheet-field"><span class="nmda-label">数据集 / 工作表</span><select id="nmda-sheet-select"></select></label>
                 <div class="nmda-row nmda-wrap"><div id="nmda-header-info" class="nmda-hint nmda-grow-note"></div><button class="nmda-btn nmda-btn-small" id="nmda-apply-profile" type="button" hidden>应用识别模板</button><button class="nmda-btn nmda-btn-small" id="nmda-save-profile" type="button">保存识别模板</button><button class="nmda-btn nmda-btn-small" id="nmda-toggle-mapping" type="button">校正字段</button></div>
                 <div id="nmda-profile-info" class="nmda-hint"></div>
                 <div id="nmda-mapping" class="nmda-mapping" hidden></div>
               </div>
 
-              <div class="nmda-card" id="nmda-attachments-card" hidden>
-                <div class="nmda-card-head"><div><div class="nmda-step-index">03</div><div><div class="nmda-card-title">附件中心</div><div class="nmda-card-desc">公共附件 + 专属附件 + 目录匹配</div></div></div></div>
+              <div class="nmda-card nmda-import-attachments-card" id="nmda-attachments-card" hidden>
+                <div class="nmda-card-head"><div><div class="nmda-step-index">03</div><div><div class="nmda-card-title">附件匹配</div><div class="nmda-card-desc">公共附件 + 任务专属附件 + 目录自动匹配</div></div></div></div>
                 <div id="nmda-attachment-summary" class="nmda-summary">导入任务后会统计需要匹配的附件。</div>
                 <div class="nmda-attachment-grid nmda-attachment-grid-simple">
-                  <div class="nmda-file-source"><span class="nmda-label">任务附件</span><span class="nmda-hint">表格“附件”列会从这里自动匹配；可选文件或整个目录。</span><div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">选择文件<input id="nmda-attachment-files" type="file" multiple hidden></label><label class="nmda-btn nmda-btn-small nmda-file-button">选择目录<input id="nmda-attachment-dir" type="file" webkitdirectory multiple hidden></label></div></div>
-                  <div class="nmda-file-source nmda-file-source-shared"><span class="nmda-label">公共附件</span><span class="nmda-hint">选择后每封任务都会附加。</span><label class="nmda-btn nmda-btn-small nmda-file-button">选择公共附件<input id="nmda-shared-files" type="file" multiple hidden></label></div>
+                  <div class="nmda-file-source"><span class="nmda-label">任务附件</span><span class="nmda-hint">任务中的“附件”字段会从这里自动匹配；可选文件或整个目录。</span><div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">选择文件<input id="nmda-attachment-files" type="file" multiple hidden></label><label class="nmda-btn nmda-btn-small nmda-file-button">选择目录<input id="nmda-attachment-dir" type="file" webkitdirectory multiple hidden></label></div></div>
+                  <div class="nmda-file-source nmda-file-source-shared"><span class="nmda-label">公共附件</span><span class="nmda-hint">选择后自动加入本批次每封邮件。</span><label class="nmda-btn nmda-btn-small nmda-file-button">选择公共附件<input id="nmda-shared-files" type="file" multiple hidden></label></div>
                 </div>
                 <div id="nmda-attachment-drop" class="nmda-attachment-drop">也可以把任务附件直接拖到这里</div>
                 <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-clear-attachments" type="button">清空本批附件</button><span id="nmda-file-index-info" class="nmda-hint">尚未选择本地附件。</span></div>
@@ -591,10 +593,27 @@
                   <div id="nmda-attachment-resolution-list"></div>
                 </div>
               </div>
+
+              <div class="nmda-card nmda-import-handoff-card" id="nmda-import-handoff-card" hidden>
+                <div class="nmda-card-head"><div><div class="nmda-step-index">04</div><div><div class="nmda-card-title">生成任务</div><div class="nmda-card-desc">确认导入结果后交给批量工作台</div></div></div></div>
+                <div id="nmda-import-ready-summary" class="nmda-import-ready-summary">尚未生成任务。</div>
+                <div class="nmda-row nmda-import-handoff-actions"><span class="nmda-hint">导入工作台不会创建草稿；真正执行只发生在“批量任务”。</span><button class="nmda-btn nmda-btn-primary" id="nmda-go-batch" type="button">进入批量任务</button></div>
+              </div>
+            </div>
+          </section>
+
+          <div class="nmda-page-head" data-page-head="batch" hidden>
+            <div><h2>批量任务</h2><p>对已经导入的任务进行检索、分类、选择和草稿创建。</p></div>
+            <div class="nmda-stage-strip" aria-label="批量流程"><span>1 管理任务</span><span>2 创建草稿</span></div>
+          </div>
+          <section class="nmda-tabpane nmda-page" data-pane="batch" hidden>
+            <div class="nmda-card nmda-batch-empty" id="nmda-batch-empty">
+              <div><div class="nmda-card-kicker">NO TASKS</div><div class="nmda-card-title">还没有可管理的批量任务</div><div class="nmda-card-desc">先在导入工作台解析文件、校正字段并完成附件匹配。</div></div>
+              <button class="nmda-btn nmda-btn-primary" id="nmda-go-import" type="button">前往导入工作台</button>
             </div>
 
             <div class="nmda-card nmda-list-card" id="nmda-preview-card" hidden>
-              <div class="nmda-card-head nmda-list-head"><div><div class="nmda-step-index">04</div><div><div class="nmda-card-title">任务列表</div><div class="nmda-card-desc">检索负责找任务，勾选决定真正执行哪些草稿</div></div></div><div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div></div>
+              <div class="nmda-card-head nmda-list-head"><div><div class="nmda-step-index">01</div><div><div class="nmda-card-title">任务列表</div><div class="nmda-card-desc">检索负责找任务，勾选决定真正执行哪些草稿</div></div></div><div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div></div>
               <div class="nmda-search-bar">
                 <label class="nmda-field nmda-search-field"><span class="nmda-label">检索任务</span><input id="nmda-batch-search" type="search" placeholder="编号 / 收件人 / 主题 / 正文 / 分类 / 附件 / 定时时间"></label>
                 <div class="nmda-search-help">检索只改变当前视图，不会改变已选择任务。</div>
@@ -617,7 +636,7 @@
             </div>
 
             <div class="nmda-card nmda-run-card" id="nmda-run-card" hidden>
-              <div class="nmda-run-left"><div class="nmda-step-index">05</div><div><div class="nmda-card-title">创建所选草稿</div><div id="nmda-batch-status" class="nmda-run-status">请先导入并选择要创建的任务。</div></div></div>
+              <div class="nmda-run-left"><div class="nmda-step-index">02</div><div><div class="nmda-card-title">创建所选草稿</div><div id="nmda-batch-status" class="nmda-run-status">请先导入并选择要创建的任务。</div></div></div>
               <div class="nmda-run-controls nmda-run-controls-simple">
                 <div class="nmda-run-rule">仅执行已勾选且预检通过的任务；任何执行错误都会立即停止，避免串稿。</div>
                 <button class="nmda-btn nmda-btn-primary" id="nmda-batch-start" type="button">创建所选草稿</button>
@@ -891,6 +910,8 @@
     $('nmda-expand').title = panel.classList.contains('is-maximized') ? '还原工作台' : '全屏工作台';
   });
   ui.querySelectorAll('.nmda-tab').forEach(tab => tab.addEventListener('click', () => setWorkbenchTab(tab.dataset.tab)));
+  $('nmda-go-batch')?.addEventListener('click', () => setWorkbenchTab('batch'));
+  $('nmda-go-import')?.addEventListener('click', () => setWorkbenchTab('import'));
 
   [recipientsEl, subjectEl, bodyEl, scheduleAtEl].forEach(el => {
     el.addEventListener('change', saveFormState); el.addEventListener('input', saveFormState);
@@ -927,7 +948,7 @@
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), sheetSelectEl = $('nmda-sheet-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
   const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files'), sharedFilesEl = $('nmda-shared-files');
-  const previewBodyEl = $('nmda-preview-body'), batchSummaryEl = $('nmda-batch-summary'), batchStatusEl = $('nmda-batch-status');
+  const previewBodyEl = $('nmda-preview-body'), batchSummaryEl = $('nmda-batch-summary'), batchStatusEl = $('nmda-batch-status'), importStatusEl = $('nmda-import-status');
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop');
   const batchSearchEl = $('nmda-batch-search');
   const batchTagIncludeEl = $('nmda-batch-tag-include'), batchTagExcludeEl = $('nmda-batch-tag-exclude');
@@ -1203,6 +1224,39 @@
     }));
   }
 
+  function importAttachmentStats() {
+    const refs = [];
+    for (const task of batch.tasks || []) refs.push(...(task.attachmentRefs || []));
+    const uniqueRefs = [...new Map(refs.map(ref => [Importer.normalizeFileKey(ref), ref])).values()];
+    let matched = 0, issues = 0;
+    for (const ref of uniqueRefs) {
+      const key = Importer.normalizeFileKey(ref);
+      if (batch.attachmentOverrides.get(key)) { matched++; continue; }
+      const detail = Importer.resolveOneFile(ref, batch.fileIndex || Importer.buildFileIndex([]));
+      if (detail.status === 'matched') matched++; else issues++;
+    }
+    return { total: uniqueRefs.length, matched, issues, shared: uniqueFiles(batch.sharedFiles).length };
+  }
+
+  function renderImportHandoff() {
+    const card = $('nmda-import-handoff-card');
+    const summary = $('nmda-import-ready-summary');
+    const button = $('nmda-go-batch');
+    const hasDataset = !!batch.workbook;
+    if (!card || !summary || !button) return;
+    card.hidden = !hasDataset;
+    if (!hasDataset) return;
+    const tasks = batch.tasks || [];
+    const ready = tasks.filter(task => task.status === 'ready').length;
+    const errors = tasks.filter(task => task.status === 'error').length;
+    const scheduled = tasks.filter(task => !!task.scheduleAt).length;
+    const stats = importAttachmentStats();
+    const sources = batch.workbook?.sourceFiles?.length || 1;
+    summary.innerHTML = `<div class="nmda-import-metric"><strong>${sources}</strong><span>数据源</span></div><div class="nmda-import-metric"><strong>${tasks.length}</strong><span>生成任务</span></div><div class="nmda-import-metric"><strong>${ready}</strong><span>预检可用</span></div><div class="nmda-import-metric"><strong>${scheduled}</strong><span>定时任务</span></div><div class="nmda-import-metric ${errors ? 'is-warn' : ''}"><strong>${errors}</strong><span>任务错误</span></div><div class="nmda-import-metric ${stats.issues ? 'is-warn' : ''}"><strong>${stats.issues}</strong><span>附件待确认</span></div>`;
+    button.textContent = tasks.length ? `进入批量任务（${tasks.length}）` : '进入批量任务';
+    button.disabled = !tasks.length;
+  }
+
   function renderPreview() {
     const tasks = batch.tasks || [];
     const matched = filteredBatchTasks();
@@ -1255,11 +1309,14 @@
       setTaskEdit(task, { tags: input.value });
       renderPreview();
     }));
-    $('nmda-preview-card').hidden = !batch.workbook;
-    $('nmda-run-card').hidden = !batch.workbook;
+    const hasTasks = !!batch.workbook && tasks.length > 0;
+    $('nmda-preview-card').hidden = !hasTasks;
+    $('nmda-run-card').hidden = !hasTasks;
+    $('nmda-batch-empty').hidden = hasTasks;
     batchStartEl.disabled = batch.running || !tasks.some(t => t.enabled && t.status === 'ready');
     renderTagChips();
     renderAttachmentCenter();
+    renderImportHandoff();
   }
 
   function renderAttachmentCenter() {
@@ -1304,6 +1361,12 @@
     }));
   }
 
+  function setImportStatus(message, kind = '') {
+    if (!importStatusEl) return;
+    importStatusEl.textContent = message;
+    if (kind) importStatusEl.dataset.kind = kind; else delete importStatusEl.dataset.kind;
+  }
+
   function setBatchStatus(message, kind = '') {
     batchStatusEl.textContent = message;
     if (kind) batchStatusEl.dataset.kind = kind; else delete batchStatusEl.dataset.kind;
@@ -1331,19 +1394,20 @@
     const embeddedText = dataset.embeddedFiles?.length ? `；ZIP 自动载入 ${dataset.embeddedFiles.length} 个附件` : '';
     const formatText = dataset.format ? `；格式 ${dataset.format}` : '';
     $('nmda-import-format-info').textContent = `已导入 ${dataset.sourceFiles?.length || 1} 个数据源，生成 ${dataset.sheets.length} 个数据集${formatText}${embeddedText}${warningText}。`;
-    setBatchStatus(`导入成功：${label}；已自动选择“${batch.workbook.sheets[best.index].name}”${addedContacts ? `；新增 ${addedContacts} 个未联系联系人` : ''}${warningText}。`, dataset.warnings?.length ? 'warn' : 'ok');
+    setImportStatus(`导入成功：${label}；已自动选择“${batch.workbook.sheets[best.index].name}”${addedContacts ? `；新增 ${addedContacts} 个未联系联系人` : ''}${warningText}。`, dataset.warnings?.length ? 'warn' : 'ok');
+    setBatchStatus(`已从导入工作台生成 ${batch.tasks.length} 封任务。请检索、检查并勾选需要创建的草稿。`, 'ok');
   }
 
   function clearImportOnError(error) {
     console.error(`[${APP}] import`, error); batch.workbook = null; batch.tasks = [];
-    $('nmda-sheet-card').hidden = true; $('nmda-attachments-card').hidden = true; $('nmda-preview-card').hidden = true; $('nmda-run-card').hidden = true;
-    setBatchStatus(`导入失败：${error.message}`, 'error');
+    $('nmda-sheet-card').hidden = true; $('nmda-attachments-card').hidden = true; $('nmda-import-handoff-card').hidden = true; $('nmda-preview-card').hidden = true; $('nmda-run-card').hidden = true; $('nmda-batch-empty').hidden = false;
+    setImportStatus(`导入失败：${error.message}`, 'error');
   }
 
   importFileEl.addEventListener('change', async () => {
     const files = [...(importFileEl.files || [])];
     if (!files.length || !Importer) return;
-    setBatchStatus(`正在解析 ${files.length === 1 ? files[0].name : `${files.length} 个文件`}…`);
+    setImportStatus(`正在解析 ${files.length === 1 ? files[0].name : `${files.length} 个文件`}…`);
     try {
       const dataset = files.length === 1 ? await Importer.parseFile(files[0]) : await Importer.parseFiles(files);
       await applyImportedDataset(dataset, files.length === 1 ? files[0].name : `${files.length} 个文件`);
@@ -1353,7 +1417,7 @@
   importDirEl?.addEventListener('change', async () => {
     const files = [...(importDirEl.files || [])];
     if (!files.length || !Importer) return;
-    setBatchStatus(`正在扫描数据目录（${files.length} 个文件）…`);
+    setImportStatus(`正在扫描数据目录（${files.length} 个文件）…`);
     try {
       const dataset = await Importer.parseDirectory(files);
       await applyImportedDataset(dataset, `数据目录（${dataset.sourceFiles?.length || 0} 个可读取文件）`);
@@ -1624,5 +1688,5 @@
   restoreFormState();
   renderPreview();
   initContacts();
-  console.info(`[${APP}] v1.2.0 loaded`);
+  console.info(`[${APP}] v1.3.0 loaded`);
 })();

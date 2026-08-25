@@ -1,184 +1,123 @@
-# NetEase Mail Draft Assistant v1.2.0
+# NetEase Mail Draft Assistant v1.3.0
 
-v1.2.0 在 Universal Import Engine 上新增 **WordAdapter**。邮件执行、附件、联系人、分类、定时与“存草稿”状态机保持不变；本版本重点扩展 Word → NormalizedDataset。
+v1.3.0 将 **导入设立为独立一级工作台**。Universal Import Engine、WordAdapter、附件匹配和识别模板均保留，但不再与批量执行列表混在同一页面。
 
-## 新导入架构
+## 产品逻辑
+
+现在工作台分为四个一级模块：
+
+1. **单封草稿**：快速创建一封草稿。
+2. **导入工作台**：来源 → 识别 → 附件 → 生成标准任务。
+3. **批量任务**：检索 / 分类 / 勾选 / 创建草稿。
+4. **联系人**：联系人分类与邮箱历史。
+
+核心边界：
 
 ```text
-File / Files / Directory / ZIP
-        ↓
-FormatDetector
-        ↓
-AdapterRegistry
-        ↓
-NormalizedDataset / NormalizedRecordSet
-        ↓
-FieldRecognizer（表头语义 + 数据分布 + 置信度）
-        ↓
-人工字段校正 / ImportProfile
-        ↓
-现有 MailTask 批量流程
+各种文件 / 多文件 / 目录 / ZIP
+          ↓
+      导入工作台
+来源 → 自动解析 → 字段识别 → 人工校正 → 附件匹配
+          ↓
+      标准 MailTask[]
+          ↓
+      批量任务工作台
+检索 → 分类 → 勾选 → 预检 → 创建并确认保存草稿
 ```
 
-### 文件拆分
+**导入工作台本身不会操作网易写信页，也不会创建草稿。** 真正执行只发生在“批量任务”。
 
-- `import-core.js`：统一数据模型、字段定义、数据画像、字段识别、置信度。
-- `import-adapters.js`：格式探测器、Adapter Registry、XLSX/ODS/文本/JSON/HTML/XML/ZIP 解析器。
-- `importer.js`：UniversalImportEngine façade、Import Profile、附件索引与匹配兼容 API。
+## 导入工作台
 
-`content.js` 不再关心具体文件格式，只消费统一的 `dataset.sheets`。
+### 01 选择数据来源
 
-## 当前原生支持格式
+支持当前 Universal Import Engine 的所有来源：
 
-- XLSX
-- ODS
-- FODS
-- Word DOCX / DOCM / DOTX（OOXML）
-- CSV
-- TSV
-- PSV（`|` 分隔）
-- TXT（自动分隔符或纵向 key-value 记录）
-- JSON
-- JSONL / NDJSON
+- XLSX / ODS / FODS
+- DOCX / DOCM / DOTX
+- CSV / TSV / PSV / TXT
+- JSON / JSONL / NDJSON
 - HTML table
 - Excel 2003 XML / SpreadsheetML
-- ZIP 批次包
+- ZIP 批次
 - 多文件同时导入
-- 数据目录批量扫描
+- 整个数据目录
 
-### Word 适配
+旧 `.xls` / `.doc` 可可靠识别，但当前要求转换为现代格式后导入。
 
-WordAdapter 支持四种常见结构：
+### 02 识别与字段映射
 
-1. **横向 Word 表格**：表头 + 多行邮件记录，直接进入字段识别。
-2. **两列字段表**：左列为“收件人/主题/正文/附件/定时时间”等字段名，右列为值，自动转为一条标准任务。
-3. **字段式正文**：支持 `收件人: ...`、`主题: ...`、`正文:`、`附件:`、`定时时间:`、`分类:`，正文可跨多个段落。
-4. **一文件一封**：如果没有明确字段结构，则文件名作为编号、Word 全文作为正文候选；一次选择多个 Word 时，自动合并为一个 `Word文档批次`，实现批量校正和批量建草稿。
+自动完成：
 
-Word 内嵌图片不会自动伪装成邮件附件；插件会提示存在内嵌媒体，附件仍通过现有附件中心显式匹配。这样避免把签名 Logo、截图等错误当成附件。
+- 数据集 / 工作表选择
+- 表头定位
+- 收件人 / 主题 / 正文 / 附件 / 定时时间 / 分类 / 编号映射
+- 字段置信度判断
+- Import Profile 相似模板建议
 
-旧 `.doc` 属于 OLE 二进制格式，本版会准确识别并要求另存为 `.docx`，不会把 `.doc` 错当 Excel 或文本。
+低置信度时可以在同一工作台人工校正；校正结果立刻重新生成标准任务。
 
-### `.xls`
+### 03 附件匹配
 
-旧 `.xls` 会通过 OLE magic bytes 被准确识别，不再误当文本或 XLSX；当前原生 Adapter 不解析 BIFF 二进制，因此会明确提示转换为 XLSX / ODS / CSV。后续可以通过 Adapter Registry 接入 SheetJS 作为 XLS/XLSB/ET/Numbers 等格式的成熟解析器，而无需改动业务层。
+导入工作台集中处理：
 
-## 字段识别升级
+- 任务专属附件
+- 附件目录
+- 公共附件
+- ZIP 包内嵌附件
+- 缺失附件
+- 同名歧义
+- 一次人工指定、本批次复用
 
-字段识别继续同时使用：
+附件问题不会再占用批量任务页面的主要空间。
 
-1. 表头精确/模糊语义；
-2. 邮箱值比例；
-3. 日期值比例；
-4. 附件文件名/路径比例；
-5. 正文长度与多行文本特征；
-6. ID 唯一性与短文本特征。
+### 04 生成任务 / 交接
 
-每个自动映射都有置信度。低置信度字段会自动展开“字段校正”，而不是静默接受。
+导入完成后显示独立摘要：
 
-## Import Profile
+- 数据源数量
+- 生成任务数量
+- 预检可用数量
+- 定时任务数量
+- 任务错误数量
+- 附件待确认数量
 
-人工校正字段后可以保存“识别模板”。以后出现相似表头时插件会提示复用。
+确认后点击 **“进入批量任务”**。这只是工作区切换，不会自动创建邮件。
 
-模板保存：
-- 来源格式
-- 表头结构
-- 字段映射
-- 字段对应表头
-- 识别置信度
+## 批量任务工作台
 
-应用模板时会优先按规范化表头重新定位列，而不是死记旧列号，因此允许一定程度的列顺序变化。
+批量页不再承担文件导入和字段映射，只处理已经标准化的 MailTask：
 
-## 多文件 / 数据目录
+- 全文检索
+- 统一分类筛选
+- 批量加 / 移除任务分类
+- 选择当前结果 / 取消选择 / 清空选择
+- 显示定时时间
+- 显示附件数与预检状态
+- 顺序创建并强制点击“存草稿”
 
-导入控件支持多选文件。多个数据文件会被解析为多个 RecordSet，并在工作表选择器中显示来源文件名。
+若当前没有任务，页面只显示一个空状态和 **“前往导入工作台”**，避免出现与当前阶段无关的控件。
 
-“导入数据目录”会扫描目录中的支持格式文件，并以 `ignoreUnsupported` 模式批量解析：单个坏文件只形成警告，不会让整个目录完全失败；如果没有任何可读数据才整体失败。
+## 为什么拆分
 
-## ZIP 批次
+原来的“批量任务”同时承担：
 
-推荐 ZIP 结构：
+`文件选择 + 格式解析 + 工作表 + 字段映射 + 附件 + 筛选 + 选择 + 执行`
 
-```text
-batch.zip
-├─ manifest.json
-├─ tasks.xlsx / tasks.csv
-└─ attachments/
-   ├─ CV.pdf
-   └─ proposal.pdf
-```
+随着 Word、多文件、ZIP、Import Profile 和未来 PDF/EML Adapter 增加，这会让页面越来越像配置面板，而不是任务工作台。
 
-`manifest.json` 示例：
+v1.3.0 改为两条清晰职责：
 
-```json
-{
-  "version": 1,
-  "taskFile": "tasks.csv",
-  "attachmentRoot": "attachments"
-}
-```
+- **导入 = 把外部世界转换成 MailTask**
+- **批量 = 管理并执行 MailTask**
 
-ZIP 中的附件会直接转成浏览器 `File` 对象并进入本批附件池，因此不需要再次选择附件目录。
+因此后续增加 PDFAdapter、EmlAdapter、SheetJSAdapter 等只会扩充“导入工作台”，不会继续挤压发送列表 UI。
 
-如果没有 manifest，Importer 会尝试把 ZIP 中所有支持的数据文件作为候选 RecordSet；正式批次建议使用 manifest，避免 TXT/HTML 附件被误认为任务数据。
+## 安全原则
 
-## 纵向文本
-
-以下 TXT 也能批量识别：
-
-```text
-收件人: a@example.com
-主题: A
-正文: hello
-
-收件人: b@example.com
-主题: B
-正文: world
-```
-
-系统会转成统一二维 RecordSet，再走同一套字段识别与批处理流程。
-
-## 浏览器级回归
-
-已在实际 Chromium JS 环境中验证：
-
-- 项目真实 XLSX：2 个 Sheet 正常读取；核心字段全部识别。
-- ODS：正常读取并识别收件人/主题/正文。
-- CSV：正常读取。
-- JSONL / NDJSON：正常读取。
-- HTML table：正常读取。
-- Excel 2003 XML：正常读取。
-- ZIP package：读取 tasks.csv，同时自动载入附件。
-- 多文件：多个 CSV 合并为多个数据集。
-- 纵向 key-value TXT：转为标准记录。
-- 假 `.xls` OLE 文件：被明确识别为旧 BIFF，并返回可操作提示。
-- Word 横向表格：收件人/主题/正文/附件/定时/分类均自动映射。
-- Word 两列表格：自动转为标准任务。
-- Word 字段式正文：多段正文正确拼接。
-- Word 一文件一封：生成标准回退任务。
-- 多个 Word：自动合并为 `Word文档批次`；浏览器 Runtime 回归 2 个 Word → 2 条任务通过。
-
-## 成熟第三方资源的接入位置
-
-架构已经为后续成熟库预留 Adapter Registry：
-
-- SheetJS：XLS/XLSB/ET/Numbers 及更广电子表格；
-- Papa Parse：超大 CSV、streaming、worker、复杂 CSV；
-- Mammoth.js：如果后续需要更完整的脚注、复杂文本框、样式语义，可作为 WordAdapter 的增强/替换解析器；
-- PDF.js：文本 PDF；
-- Tesseract.js：扫描件 OCR fallback；
-- postal-mime：EML；
-- DuckDB-Wasm：大型 CSV/JSON/Parquet。
-
-这些能力以后只增加 Adapter，不再修改批量邮件业务逻辑。
-
-## 安装
-
-1. 解压 ZIP。
-2. 打开 `chrome://extensions/`。
-3. 开启开发者模式。
-4. 加载已解压扩展程序。
-5. 选择 `netease-mail-draft-assistant-v1.2.0`。
-6. 刷新网易邮箱。
-
-插件只创建并保存草稿，不自动发送邮件。
+- 插件只创建草稿，不自动发送。
+- 每封完成后必须主动点击网易“存草稿”。
+- 普通草稿以新的“保存到草稿箱”成功提示确认。
+- 定时草稿以“定时发信设置成功”结果确认。
+- 任一执行错误立即停止后续任务，避免串稿。
+- `暂停 / 不再联系` 联系人策略仍会在批量任务预检中拦截。

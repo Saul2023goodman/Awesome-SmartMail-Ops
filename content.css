@@ -1,4 +1,4 @@
-/* NetEase Mail Draft Assistant v0.6 — desktop workbench UI */
+/* NetEase Mail Draft Assistant v1.3 — desktop workbench UI */
 #nmda-root,
 #nmda-root * { box-sizing: border-box; }
 
@@ -437,3 +437,39 @@
 .nmda-bulk-editor { grid-template-columns:minmax(190px,1fr) repeat(5,auto); }
 @media (max-width:1100px) { .nmda-bulk-editor { grid-template-columns:minmax(190px,1fr) repeat(3,auto); } }
 @media (max-width:980px) { .nmda-bulk-editor { grid-template-columns:1fr; } }
+
+/* v1.3 — independent import workspace */
+.nmda-import-workspace-grid {
+  display:grid;
+  grid-template-columns:minmax(280px,.82fr) minmax(380px,1.18fr);
+  gap:12px;
+  align-items:start;
+}
+.nmda-import-workspace-grid #nmda-import-card,
+.nmda-import-workspace-grid #nmda-sheet-card { align-self:start; }
+.nmda-import-workspace-grid .nmda-import-attachments-card,
+.nmda-import-workspace-grid .nmda-import-handoff-card { grid-column:1 / -1; }
+.nmda-import-status { margin-top:2px; min-height:34px; display:flex; align-items:center; }
+#nmda-import-status[data-kind="ok"] { background:var(--nmda-green-soft); color:var(--nmda-green); }
+#nmda-import-status[data-kind="warn"] { background:var(--nmda-amber-soft); color:var(--nmda-amber); }
+#nmda-import-status[data-kind="error"] { background:var(--nmda-red-soft); color:var(--nmda-red); }
+.nmda-import-ready-summary { display:grid; grid-template-columns:repeat(6,minmax(90px,1fr)); gap:8px; }
+.nmda-import-metric { display:grid; gap:2px; min-width:0; padding:10px; border:1px solid var(--nmda-border); border-radius:10px; background:#f8fafc; }
+.nmda-import-metric strong { color:#0f172a; font-size:18px; line-height:1; letter-spacing:-.03em; }
+.nmda-import-metric span { color:#64748b; font-size:9px; font-weight:700; }
+.nmda-import-metric.is-warn { border-color:#fde68a; background:#fffbeb; }
+.nmda-import-metric.is-warn strong { color:#b45309; }
+.nmda-import-handoff-actions { justify-content:space-between; align-items:center; padding-top:2px; }
+.nmda-batch-empty { min-height:220px; place-items:center; align-content:center; text-align:center; gap:14px; }
+.nmda-batch-empty .nmda-card-desc { max-width:520px; font-size:10px; }
+@media (max-width:980px) {
+  .nmda-import-workspace-grid { grid-template-columns:1fr; }
+  .nmda-import-workspace-grid .nmda-import-attachments-card,
+  .nmda-import-workspace-grid .nmda-import-handoff-card { grid-column:auto; }
+  .nmda-import-ready-summary { grid-template-columns:repeat(3,minmax(90px,1fr)); }
+}
+@media (max-width:700px) {
+  .nmda-import-ready-summary { grid-template-columns:repeat(2,minmax(90px,1fr)); }
+  .nmda-import-handoff-actions { align-items:stretch; flex-direction:column; }
+  .nmda-import-handoff-actions .nmda-btn { width:100%; }
+}
