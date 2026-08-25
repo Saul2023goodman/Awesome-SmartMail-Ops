@@ -779,3 +779,43 @@
   #nmda-panel { grid-template-columns:160px minmax(0,1fr); }
   .nmda-source-action-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+
+/* v1.9 — school-aware scheduling engine */
+#nmda-panel input[type="number"] {
+  width:100%; min-height:34px; border:1px solid var(--nmda-border-strong); border-radius:8px;
+  background:#fff; color:var(--nmda-text); padding:7px 9px; outline:none; font:inherit;
+}
+.nmda-scheduler-card { margin-bottom:12px; border-color:#c7d2fe; background:linear-gradient(180deg,#fff 0%,#fbfdff 100%); }
+.nmda-scheduler-head { align-items:center; }
+.nmda-scheduler-grid { display:grid; grid-template-columns:minmax(220px,1.2fr) minmax(120px,.55fr) minmax(120px,.55fr) minmax(240px,1.05fr); gap:9px; align-items:end; }
+.nmda-input-suffix { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; border:1px solid var(--nmda-border-strong); border-radius:8px; background:#fff; overflow:hidden; }
+.nmda-input-suffix input { border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+.nmda-input-suffix span { padding:0 10px; color:#64748b; font-size:9.5px; font-weight:700; }
+.nmda-check-card { min-height:58px; display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--nmda-border); border-radius:9px; background:#f8fafc; cursor:pointer; }
+.nmda-check-card input { margin:0; }
+.nmda-check-card strong,.nmda-check-card small { display:block; }
+.nmda-check-card strong { font-size:10px; color:#334155; }
+.nmda-check-card small { margin-top:2px; color:#64748b; font-size:8.5px; line-height:1.35; }
+.nmda-scheduler-actions { display:grid; grid-template-columns:minmax(260px,1fr) auto auto; gap:8px; align-items:center; }
+.nmda-schedule-rule-preview { min-width:0; padding:8px 10px; border:1px solid #dbeafe; border-radius:9px; background:#eff6ff; color:#475569; font-size:9px; line-height:1.45; }
+.nmda-school-cell,.nmda-schedule-edit-cell { display:grid; gap:3px; min-width:0; white-space:normal; }
+.nmda-school-cell input,.nmda-schedule-edit-cell input { width:100% !important; min-height:28px !important; padding:3px 5px !important; border-radius:6px !important; font-size:8.8px !important; }
+.nmda-school-cell small,.nmda-schedule-edit-cell small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#64748b; font-size:8px; }
+.nmda-schedule-edit-cell small { color:#2563eb; }
+.nmda-batch-table { min-width:1420px; }
+.nmda-batch-table th:nth-child(1), .nmda-batch-table td:nth-child(1) { width:46px; text-align:center; }
+.nmda-batch-table th:nth-child(2), .nmda-batch-table td:nth-child(2) { width:58px; }
+.nmda-batch-table th:nth-child(3), .nmda-batch-table td:nth-child(3) { width:180px; }
+.nmda-batch-table th:nth-child(4), .nmda-batch-table td:nth-child(4) { width:205px; }
+.nmda-batch-table th:nth-child(5), .nmda-batch-table td:nth-child(5) { width:245px; }
+.nmda-batch-table th:nth-child(6), .nmda-batch-table td:nth-child(6) { width:190px; }
+.nmda-batch-table th:nth-child(7), .nmda-batch-table td:nth-child(7) { width:210px; }
+.nmda-batch-table th:nth-child(8), .nmda-batch-table td:nth-child(8) { width:64px; }
+.nmda-batch-table th:nth-child(9), .nmda-batch-table td:nth-child(9) { width:170px; }
+@media (max-width:1100px) {
+  .nmda-scheduler-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .nmda-scheduler-actions { grid-template-columns:1fr auto auto; }
+}
+@media (max-width:760px) {
+  .nmda-scheduler-grid,.nmda-scheduler-actions { grid-template-columns:1fr; }
+}

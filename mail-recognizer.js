@@ -119,6 +119,17 @@
     return null;
   }
 
+
+  function institutionFromHeading(headingText) {
+    const clean=cleanInlineMarkup(headingText||'').replace(/^\s*\d+[\.、)）:]\s*/,'').trim();
+    if(!clean)return '';
+    const parts=clean.split(/\s+[—–-]\s+/).map(x=>x.trim()).filter(Boolean);
+    if(parts.length<2)return '';
+    const candidates=parts.slice(1).filter(part=>!extractEmails(part).length && !/^(?:邮箱|email)(?:待确认|pending)?$/i.test(part));
+    const strong=candidates.find(part=>/(university|college|school|institute|academy|polytechnic|conservatoire|大学|学院|学校|研究院|科学院|理工|师范|商学院)/i.test(part));
+    return (strong||'').replace(/[（(](?:邮箱待确认|email pending)[）)]/ig,'').trim().slice(0,160);
+  }
+
   function deriveId(heading, ordinal) {
     if (!heading?.text) return String(ordinal);
     const t = heading.text.replace(/^\s*\d+[\.、)）:]\s*/, '').trim();
@@ -255,7 +266,7 @@
       const heading=headingContext(blocks,contextStart,subjectBlock);
       const recipients=recipientContext.selected?.email||'';
       const frame={
-        id:deriveId(heading,ordinal), recipients, subject, body:body.text,
+        id:deriveId(heading,ordinal), recipients, school:institutionFromHeading(heading?.text||''), subject, body:body.text,
         attachments:'', scheduleAt:'', tags:'', sourceFile,
         salutation:salutInfo?.text||'', closing:closeInfo?.text||'',
         startBlock:subjectBlock, endBlock:body.endBlock, heading:heading?.text||'',
@@ -297,7 +308,7 @@
       const prevEnd=records.filter(r=>r.endBlock<i).sort((a,b)=>b.endBlock-a.endBlock)[0]?.endBlock ?? -1;
       const rc=nearestRecipientContext(blocks,prevEnd+1,i,salut.text);
       const heading=headingContext(blocks,prevEnd+1,i);
-      const frame={id:deriveId(heading,records.length+1),recipients:rc.selected?.email||'',subject:'',body:body.text,attachments:'',scheduleAt:'',tags:'',sourceFile,
+      const frame={id:deriveId(heading,records.length+1),recipients:rc.selected?.email||'',school:institutionFromHeading(heading?.text||''),subject:'',body:body.text,attachments:'',scheduleAt:'',tags:'',sourceFile,
         salutation:salut.text,closing:close.text,startBlock:i,endBlock:body.endBlock,heading:heading?.text||'',recipientEvidence:rc.selected||null,recipientCandidates:(rc.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),
         evidence:['salutation','closing',...(body.text.length>=80?['body']:[]),...(rc.selected?['recipient-email']:[])],issues:['未找到 Subject 标记']};
       frame.confidence=scoreFrame(frame);
@@ -328,8 +339,8 @@
   }
 
   function recordsToRows(records) {
-    const headers=['编号','收件人','主题','正文','附件','定时时间','任务分类','来源文件'];
-    return [headers,...(records||[]).map(r=>[r.id||'',r.recipients||'',r.subject||'',r.body||'',r.attachments||'',r.scheduleAt||'',r.tags||'',r.sourceFile||''])];
+    const headers=['编号','收件人','学校 / 机构','主题','正文','附件','定时时间','任务分类','来源文件'];
+    return [headers,...(records||[]).map(r=>[r.id||'',r.recipients||'',r.school||'',r.subject||'',r.body||'',r.attachments||'',r.scheduleAt||'',r.tags||'',r.sourceFile||''])];
   }
 
   function rowMetaFromRecords(records) {
@@ -339,6 +350,7 @@
       evidence:[...(r.evidence||[])],
       issues:[...(r.issues||[])],
       heading:r.heading||'',
+      school:r.school||'',
       sourceFile:r.sourceFile||'',
       salutation:r.salutation||'',
       closing:r.closing||'',
@@ -352,6 +364,6 @@
 
   globalThis.NMDAMailRecognizer={
     EMAIL_RE, extractEmails, isNoiseBlock, subjectAnchor, salutationAnchor, closeAnchor,
-    recognizeMailFrames, recognizeMailText, recordsToRows, rowMetaFromRecords, cleanInlineMarkup
+    recognizeMailFrames, recognizeMailText, recordsToRows, rowMetaFromRecords, cleanInlineMarkup, institutionFromHeading
   };
 })();

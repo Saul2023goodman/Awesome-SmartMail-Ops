@@ -4,6 +4,7 @@
   const FIELD_DEFS = [
     { key: 'id', label: '编号', aliases: ['id','编号','序号','任务编号','邮件编号','rowid','taskid','no','number'] },
     { key: 'recipients', label: '收件人', aliases: ['收件人','收件邮箱','收件人邮箱','邮箱','邮箱地址','邮件地址','教授邮箱','导师邮箱','联系邮箱','email','emailaddress','recipient','recipients','to','toemail','contactemail'] },
+    { key: 'school', label: '学校 / 机构', aliases: ['学校','院校','大学','高校','机构','单位','所属学校','所属院校','导师学校','教授学校','学校名称','院校名称','机构名称','university','school','institution','organisation','organization','affiliation','universityname','institutionname'] },
     { key: 'subject', label: '主题', aliases: ['主题','邮件主题','标题','subject','title','emailsubject','邮件标题','邮件名称','邮件名','邮件题目'] },
     { key: 'body', label: '正文', aliases: ['正文','邮件正文','内容','邮件内容','正文内容','body','content','message','text','emailbody','邮件文本'] },
     { key: 'attachments', label: '附件', aliases: ['附件','附件名','附件名称','附件路径','附件文件','附件列表','材料','文件','attachment','attachments','file','files','filename','filenames','filepath','documents'] },
