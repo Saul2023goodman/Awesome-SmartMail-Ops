@@ -678,6 +678,9 @@
 .nmda-source-block.is-context { opacity:.58; background:#fafafa; }
 .nmda-source-block.is-mail-range { border-color:#e2e8f0; background:#fff; opacity:1; }
 .nmda-source-block.has-email { border-color:#bfdbfe; background:#f8fbff; }
+.nmda-source-block.is-excluded { opacity:1; border-color:#fed7aa; background:#fff7ed; }
+.nmda-source-block.is-excluded pre { color:#9a3412; text-decoration:line-through; text-decoration-color:#fdba74; }
+.nmda-source-block.is-excluded .nmda-source-block-gutter em { background:#ffedd5; color:#9a3412; }
 .nmda-source-block-gutter { display:flex; align-items:flex-start; gap:3px; flex-wrap:wrap; align-content:flex-start; }
 .nmda-source-block-gutter > span { color:#94a3b8; font-size:7px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
 .nmda-source-block-gutter em { padding:2px 4px; border-radius:5px; background:#e0f2fe; color:#0369a1; font-size:6.5px; font-style:normal; font-weight:800; }

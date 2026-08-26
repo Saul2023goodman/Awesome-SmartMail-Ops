@@ -7,6 +7,7 @@
   const STORAGE_KEY = 'nmda.form.v2';
   const DEFAULT_TIMEOUT = 10000;
   const Importer = globalThis.NMDAImporter;
+  const MailRecognizer = globalThis.NMDAMailRecognizer;
   const Contacts = globalThis.NMDAContacts;
   const Scheduler = globalThis.NMDAScheduler;
   const Roster = globalThis.NMDARoster;
@@ -2010,7 +2011,8 @@
     const issues=unresolvedImportIssues(task);
     const evidenceSet=new Set(task?.importEvidence||[]);
     const effectiveConfidence=effectiveImportConfidence(task);
-    reviewSourceMetaEl.innerHTML=`<div class="nmda-parse-steps"><span data-ok="${recipientLooksValid(task.recipients)?'1':'0'}">收件人</span><span data-ok="${String(task.subject||'').trim()?'1':'0'}">主题</span><span data-ok="${String(task.body||'').trim()?'1':'0'}">正文</span><span data-ok="${evidenceSet.has('closing')||evidenceSet.has('salutation')?'1':'0'}">边界</span></div><span><strong>${escapeHtml(task.sourceFile||collection?.source||'来源')}</strong></span><span>${escapeHtml(task.collectionName||collection?.name||'')}</span><span>识别 ${Math.round(effectiveConfidence)}%</span>${rowMeta?.heading?`<span title="${escapeHtml(rowMeta.heading)}">身份线索：${escapeHtml(rowMeta.heading)}</span>`:''}`;
+    const excludedBlocks=rowMeta?.excludedBlocks||[];
+    reviewSourceMetaEl.innerHTML=`<div class="nmda-parse-steps"><span data-ok="${recipientLooksValid(task.recipients)?'1':'0'}">收件人</span><span data-ok="${String(task.subject||'').trim()?'1':'0'}">主题</span><span data-ok="${String(task.body||'').trim()?'1':'0'}">正文</span><span data-ok="${evidenceSet.has('closing')||evidenceSet.has('salutation')||evidenceSet.has('tail-boundary')?'1':'0'}">边界</span></div><span><strong>${escapeHtml(task.sourceFile||collection?.source||'来源')}</strong></span><span>${escapeHtml(task.collectionName||collection?.name||'')}</span><span>识别 ${Math.round(effectiveConfidence)}%</span>${excludedBlocks.length?`<span>已隔离 ${excludedBlocks.length} 段非正文</span>`:''}${rowMeta?.heading?`<span title="${escapeHtml(rowMeta.heading)}">身份线索：${escapeHtml(rowMeta.heading)}</span>`:''}`;
     const candidates=reviewCandidateEmails(task);
     reviewCandidatesEl.innerHTML=candidates.length
       ? `<div class="nmda-review-candidate-title">可用邮箱候选 <small>点击后仍需确认</small></div><div class="nmda-review-candidate-list">${candidates.map(c=>`<button type="button" data-review-email="${escapeHtml(c.email)}" title="${escapeHtml(c.reason)}">${escapeHtml(c.email)}<small>${escapeHtml(c.reason)}</small></button>`).join('')}</div>`
@@ -2026,14 +2028,15 @@
     const subjectRe=/(?:^|[\s>*#\-])(?:\*{0,2})\s*(?:subject|主题|邮件主题|邮件标题)\s*[:：]/i;
     const salutationRe=/(?:\b(?:dear|hello|hi)\s+|尊敬的|敬爱的|教授.{0,10}您好|老师.{0,10}您好)/iu;
     const closeRe=/(?:yours\s+sincerely|sincerely|best\s+regards|kind\s+regards|此致\s*敬礼|祝好)/iu;
-    const html=[];
+    const html=[];const excludedByIndex=new Map(excludedBlocks.map(item=>[Number(item.index),item]));
     for(let i=start;i<=end;i++){
       const block=sourceBlocks[i]||{}; const text=String(block.text||'');
       const labels=[];
-      const absolute=i+contextOffset; if(absolute===rowMeta.startBlock)labels.push('邮件起点'); if(absolute===rowMeta.endBlock)labels.push('邮件终点');
+      const absolute=i+contextOffset;const excluded=excludedByIndex.get(absolute); if(absolute===rowMeta.startBlock)labels.push('邮件起点'); if(absolute===rowMeta.endBlock)labels.push('邮件终点');
       if(subjectRe.test(text))labels.push('Subject'); if(salutationRe.test(text))labels.push('称呼'); if(closeRe.test(text))labels.push('落款'); if(emailRe.test(text))labels.push('邮箱');
+      if(excluded)labels.push(`已排除·${excluded.label||'非正文'}`);
       const inside=absolute>=rowMeta.startBlock&&absolute<=rowMeta.endBlock;
-      html.push(`<div class="nmda-source-block ${inside?'is-mail-range':'is-context'} ${labels.includes('邮箱')?'has-email':''}"><div class="nmda-source-block-gutter"><span>${absolute+1}</span>${labels.map(x=>`<em>${escapeHtml(x)}</em>`).join('')}</div><pre>${escapeHtml(text)}</pre></div>`);
+      html.push(`<div class="nmda-source-block ${inside?'is-mail-range':'is-context'} ${labels.includes('邮箱')?'has-email':''} ${excluded?'is-excluded':''}"><div class="nmda-source-block-gutter"><span>${absolute+1}</span>${labels.map(x=>`<em>${escapeHtml(x)}</em>`).join('')}</div><pre>${escapeHtml(text)}</pre></div>`);
     }
     reviewSourceContextEl.innerHTML=html.join('');
     const firstAnchor=reviewSourceContextEl.querySelector('.is-mail-range'); firstAnchor?.scrollIntoView?.({block:'nearest'});
@@ -2605,7 +2608,10 @@
         const sourceRecipients = String(getValue(row, 'recipients') ?? '').trim();
         const sourceSchool = String(getValue(row, 'school') ?? rowMeta?.school ?? '').trim();
         const sourceSubject = String(getValue(row, 'subject') ?? '').trim();
-        const sourceBody = String(getValue(row, 'body') ?? '');
+        const sourceBodyRaw = String(getValue(row, 'body') ?? '');
+        const sourceBody = collection.meta?.mailFrames&&MailRecognizer?.sanitizeRecognizedBody
+          ? MailRecognizer.sanitizeRecognizedBody(sourceBodyRaw).text
+          : sourceBodyRaw;
         const sourceAttachmentRaw = getValue(row, 'attachments');
         const sourceScheduleRaw = getValue(row, 'scheduleAt');
         const sourceTags = getValue(row, 'tags');

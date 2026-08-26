@@ -239,13 +239,15 @@
       }
       const parsed=splitWordFieldLine(text);
       if(parsed){
-        if((parsed.field==='recipients'||parsed.field==='id')&&current[parsed.field]&&Object.keys(current).length>=2)flush();
+        if((parsed.field==='recipients'||parsed.field==='id'||parsed.field==='subject')&&current[parsed.field]&&Object.keys(current).length>=2)flush();
         recognized++;activeField=parsed.field;
         if(parsed.field==='body')current.body=parsed.value||'';
         else if(current[parsed.field])current[parsed.field]=`${current[parsed.field]};${parsed.value}`;
         else current[parsed.field]=parsed.value;
         continue;
       }
+      const boundary=Mail.classifyBoundaryBlock?.(text,{phase:'open-ended'});
+      if(activeField==='body'&&boundary?.hard){activeField=null;continue;}
       if(activeField==='body')current.body=(current.body?`${current.body}\n`:'')+text;
       else if((current.recipients||current.subject)&&!current.body){current.body=text;activeField='body';}
     }

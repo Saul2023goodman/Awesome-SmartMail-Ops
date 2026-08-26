@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "1.19.0",
-  "description": "网易邮箱网页版草稿工作台：确定性问题补齐后自动通过，最后一个待办完成后自动进入选择与安排；邮件检查以最终可编辑内容为主，解析依据按需展开。只保存草稿，不自动发送。",
+  "version": "1.20.0",
+  "description": "网易邮箱网页版草稿工作台：统一识别正文、签名、附言与来源/附件/定时等非正文边界，防止说明内容侵入草稿；只保存草稿，不自动发送。",
   "permissions": [
     "storage",
     "scripting"
