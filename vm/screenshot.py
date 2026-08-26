@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description='Capture deterministic NMDA VM UI screenshots.')
 parser.add_argument('--tab', choices=['batch','single','contacts'], default='batch')
 parser.add_argument('--sample', action='store_true', help='Import a deterministic pasted-email sample on the batch tab.')
-parser.add_argument('--view', choices=['base','review','selection','duplicate'], default='base', help='Batch UI state to capture after sample import.')
+parser.add_argument('--view', choices=['base','review','selection','duplicate','browse53'], default='base', help='Batch UI state to capture after sample import.')
 parser.add_argument('--no-max', action='store_true', help='Keep the panel in floating mode instead of maximized mode.')
 parser.add_argument('--width', type=int, default=1600)
 parser.add_argument('--height', type=int, default=1100)
@@ -57,7 +57,7 @@ with sync_playwright() as p:
     })
     for path in scripts:
         page.add_script_tag(content=path.read_text(encoding='utf-8'))
-    page.wait_for_function("document.documentElement.dataset.nmdaVmReady === 'true'", timeout=10000)
+    page.wait_for_function("document.documentElement.dataset.nmdaVmReady === 'true'", timeout=20000)
     page.wait_for_timeout(1400 if args.sample else 700)
     page.screenshot(path=str(out), full_page=True)
     print(f'captured: {out}')

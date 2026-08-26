@@ -18,7 +18,7 @@ if(!html.includes('data-tab="single"') || !html.includes('data-tab="contacts"'))
 const batchStart=html.indexOf('data-pane="batch"');
 const contactsStart=html.indexOf('data-pane="contacts"');
 const batchHtml=html.slice(batchStart,contactsStart>batchStart?contactsStart:undefined);
-if(!batchHtml.includes('id="nmda-inline-review"') || !batchHtml.includes('<div class="nmda-card-title">处理待办</div>')) throw new Error('inline guided todo review missing from batch flow');
+if(!batchHtml.includes('id="nmda-inline-review"') || !batchHtml.includes('id="nmda-review-workspace-title">处理待办</div>')) throw new Error('inline guided todo review missing from batch flow');
 if(!batchHtml.includes('data-review-filter="pending">只看待办</button>') || !batchHtml.includes('data-review-filter="all">全部邮件</button>')) throw new Error('guided review filters missing');
 if(batchHtml.includes('id="nmda-bulk-subject-panel"') || batchHtml.includes('placeholder="统一补充空白主题"')) throw new Error('subject batch fill must not remain as a separate visible control');
 if(!batchHtml.includes('id="nmda-subject-assist"') || !batchHtml.includes('id="nmda-subject-assist-apply"')) throw new Error('contextual one-click subject suggestion missing');
@@ -42,8 +42,10 @@ if(!/\.nmda-bulk-workbench > \.nmda-process-guide[\s\S]*?position:sticky/.test(c
 if(!/v1\.23[\s\S]*?\.nmda-batch-table\s*\{[^}]*min-width:820px/.test(css)) throw new Error('five-column batch table width contract missing');
 if(!/v1\.28[\s\S]*?\.nmda-run-card\s*\{[\s\S]*?position:sticky\s*!important/.test(css)) throw new Error('final create action must remain visible as a sticky action bar');
 if(!/v1\.19[\s\S]*?\.nmda-review-edit-pane[\s\S]*?grid-row:1\s*!important/.test(css)) throw new Error('editable mail must be the primary review pane');
-if(!/v1\.28[\s\S]*?\.nmda-review-core-fields textarea[\s\S]*?max-height:38vh[\s\S]*?overflow-y:auto/.test(css)) throw new Error('long review body should be capped so actions stay in view');
+if(!/v1\.29[\s\S]*?\.nmda-review-actions\s*\{[\s\S]*?position:static\s*!important/.test(css)) throw new Error('review confirmation actions must stay in layout instead of floating over mail content');
+if(!batchHtml.includes('id="nmda-review-search"') || !batchHtml.includes('id="nmda-review-prev"') || !batchHtml.includes('id="nmda-review-next"')) throw new Error('review canvas search and sequential navigation missing');
+if(!batchHtml.includes('id="nmda-review-more-menu"') || !batchHtml.includes('id="nmda-review-exclude"')) throw new Error('destructive review action should live in contextual more menu');
 if(!/grid-template-columns:148px minmax\(0,1fr\)/.test(css)) throw new Error('primary navigation width was not reduced');
 
 if(!html.includes('同步邮箱') || !html.includes('记录异常时再维护')) throw new Error('contact sync / maintenance hierarchy missing');
-console.log('ui contract OK: guided todo review, capped editor, sticky consequential actions, secondary evidence, contextual subject assist, default-open scheduling');
+console.log('ui contract OK: guided review canvas, non-overlapping actions, searchable queue, sequential navigation, secondary evidence, contextual subject assist, default-open scheduling');

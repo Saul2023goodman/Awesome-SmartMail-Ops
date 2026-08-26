@@ -636,66 +636,75 @@
 
               <div class="nmda-card nmda-inline-review" id="nmda-inline-review" hidden>
                 <div class="nmda-inline-review-top">
-                  <div><div class="nmda-card-title">处理待办</div><div class="nmda-card-desc">先解决影响创建的事项；邮件正文仍可直接编辑，识别依据按需展开。</div></div>
-                  <div class="nmda-inline-review-actions"><div id="nmda-review-page-summary" class="nmda-review-page-summary"></div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个待办</button></div>
-                </div>
-                <div class="nmda-review-viewbar">
-                  <div class="nmda-review-filter" role="group" aria-label="解析预览范围"><button class="is-active" type="button" data-review-filter="pending">只看待办</button><button type="button" data-review-filter="all">全部邮件</button></div>
-                  <div class="nmda-review-view-actions"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-select-filtered" type="button">批量确认…</button></div>
-                </div>
-                <div class="nmda-review-batchbar" id="nmda-review-batchbar" hidden>
-                  <div><strong id="nmda-review-selected-count">已选 0 封</strong><small>可一次确认内容完整的所选邮件。</small></div>
-                  <button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-confirm-selected" type="button">确认所选</button>
-                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-clear-selected" type="button">取消选择</button>
+                  <div><div class="nmda-card-title" id="nmda-review-workspace-title">处理待办</div><div class="nmda-card-desc" id="nmda-review-workspace-desc">先解决影响创建的事项；邮件正文仍可直接编辑，识别依据按需展开。</div></div>
+                  <div class="nmda-inline-review-actions"><div id="nmda-review-page-summary" class="nmda-review-page-summary"></div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个待办</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-import-editor-cancel" type="button">退出检查</button></div>
                 </div>
                 <div class="nmda-review-page-empty" id="nmda-review-page-empty">添加资料后，这里会显示解析结果。</div>
                 <div class="nmda-review-workbench" id="nmda-import-editor-overlay" hidden>
-                  <div class="nmda-review-head">
-                    <div><div class="nmda-card-title" id="nmda-import-editor-title">邮件内容</div><div class="nmda-card-desc" id="nmda-import-editor-evidence">选择一封邮件查看并编辑。</div></div>
-                    <div class="nmda-review-head-actions"><span id="nmda-review-progress" class="nmda-review-progress"></span></div>
-                  </div>
                   <div class="nmda-review-layout">
                     <aside class="nmda-review-queue-pane">
-                      <div class="nmda-review-pane-title"><strong>待办列表</strong><small id="nmda-review-queue-caption">按影响程度排序</small></div>
+                      <div class="nmda-review-pane-title nmda-review-queue-titlebar"><strong id="nmda-review-queue-title">待办列表</strong><small id="nmda-review-queue-caption">按影响程度排序</small></div>
+                      <div class="nmda-review-queue-tools">
+                        <label class="nmda-review-search"><span aria-hidden="true">⌕</span><input id="nmda-review-search" type="search" placeholder="搜索姓名 / 邮箱 / 主题" autocomplete="off"></label>
+                        <div class="nmda-review-filter" id="nmda-review-filter" role="group" aria-label="邮件范围"><button class="is-active" type="button" data-review-filter="pending">只看待办</button><button type="button" data-review-filter="all">全部邮件</button></div>
+                        <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-bulk-entry" id="nmda-review-select-filtered" type="button">批量确认…</button>
+                      </div>
+                      <div class="nmda-review-batchbar" id="nmda-review-batchbar" hidden>
+                        <div><strong id="nmda-review-selected-count">已选 0 封</strong><small>一次确认所选邮件</small></div>
+                        <div class="nmda-row"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-confirm-selected" type="button">确认所选</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-clear-selected" type="button">取消</button></div>
+                      </div>
                       <div id="nmda-review-queue" class="nmda-review-queue"></div>
                     </aside>
                     <section class="nmda-review-edit-pane">
-                      <div class="nmda-review-pane-title"><strong>邮件内容</strong><small id="nmda-review-problem-summary">需要时直接修改</small></div>
-                      <div id="nmda-review-feedback" class="nmda-review-feedback" hidden></div>
-                      <section class="nmda-duplicate-decision" id="nmda-duplicate-decision" hidden>
-                        <div class="nmda-duplicate-decision-head">
-                          <div><strong id="nmda-duplicate-decision-title">发现重复邮件</strong><small id="nmda-duplicate-decision-copy">请选择本组要保留的邮件。</small></div>
-                          <span class="nmda-duplicate-kind" id="nmda-duplicate-decision-kind">重复</span>
+                      <div class="nmda-review-pane-title nmda-review-mail-toolbar">
+                        <span class="nmda-review-mail-heading"><strong id="nmda-review-mail-title">邮件内容</strong><small id="nmda-review-problem-summary">需要时直接修改</small></span>
+                        <div class="nmda-review-mail-actions">
+                          <div class="nmda-review-pager" role="group" aria-label="切换邮件"><button type="button" id="nmda-review-prev" aria-label="上一封">‹</button><span id="nmda-review-position">1 / 1</span><button type="button" id="nmda-review-next" aria-label="下一封">›</button></div>
+                          <details class="nmda-review-more-menu" id="nmda-review-more-menu">
+                            <summary aria-label="更多邮件操作">更多</summary>
+                            <div class="nmda-review-more-popover">
+                              <button class="nmda-review-menu-danger" id="nmda-review-exclude" type="button"><strong>从本批次排除</strong><small>不会创建这封草稿；之后仍可恢复</small></button>
+                            </div>
+                          </details>
                         </div>
-                        <div class="nmda-duplicate-candidates" id="nmda-duplicate-candidates"></div>
-                        <div class="nmda-duplicate-actions">
-                          <span class="nmda-hint" id="nmda-duplicate-decision-hint">默认只勾选信息最完整的一封；也可以保留多封。</span>
-                          <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary" id="nmda-duplicate-keep-selected" type="button">保留所选（1）</button><button class="nmda-btn" id="nmda-duplicate-keep-all" type="button">全部保留</button></div>
+                      </div>
+                      <div class="nmda-review-edit-scroll">
+                        <div id="nmda-review-feedback" class="nmda-review-feedback" hidden></div>
+                        <section class="nmda-duplicate-decision" id="nmda-duplicate-decision" hidden>
+                          <div class="nmda-duplicate-decision-head">
+                            <div><strong id="nmda-duplicate-decision-title">发现重复邮件</strong><small id="nmda-duplicate-decision-copy">请选择本组要保留的邮件。</small></div>
+                            <span class="nmda-duplicate-kind" id="nmda-duplicate-decision-kind">重复</span>
+                          </div>
+                          <div class="nmda-duplicate-candidates" id="nmda-duplicate-candidates"></div>
+                          <div class="nmda-duplicate-actions">
+                            <span class="nmda-hint" id="nmda-duplicate-decision-hint">默认只勾选信息最完整的一封；也可以保留多封。</span>
+                            <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary" id="nmda-duplicate-keep-selected" type="button">保留所选（1）</button><button class="nmda-btn" id="nmda-duplicate-keep-all" type="button">全部保留</button></div>
+                          </div>
+                        </section>
+                        <div class="nmda-import-editor-grid nmda-review-core-fields">
+                          <label class="nmda-field" id="nmda-review-field-recipients"><span class="nmda-label">收件人</span><input id="nmda-import-edit-recipients" type="text" placeholder="recipient@example.edu"><span id="nmda-recipient-assist" class="nmda-field-assist" hidden></span></label>
+                          <label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-subject"><span class="nmda-label">主题</span><input id="nmda-import-edit-subject" type="text"></label>
+                          <div class="nmda-context-assist" id="nmda-subject-assist" hidden>
+                            <div><strong id="nmda-subject-assist-title">还有邮件缺少主题</strong><small id="nmda-subject-assist-copy"></small></div>
+                            <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-subject-assist-apply" type="button">一键填写</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-subject-assist-dismiss" type="button">不用</button></div>
+                          </div>
+                          <label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-body"><span class="nmda-label">正文</span><textarea id="nmda-import-edit-body"></textarea></label>
                         </div>
-                      </section>
-                      <div class="nmda-import-editor-grid nmda-review-core-fields">
-                        <label class="nmda-field" id="nmda-review-field-recipients"><span class="nmda-label">收件人</span><input id="nmda-import-edit-recipients" type="text" placeholder="recipient@example.edu"><span id="nmda-recipient-assist" class="nmda-field-assist" hidden></span></label>
-                        <label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-subject"><span class="nmda-label">主题</span><input id="nmda-import-edit-subject" type="text"></label>
-                        <div class="nmda-context-assist" id="nmda-subject-assist" hidden>
-                          <div><strong id="nmda-subject-assist-title">还有邮件缺少主题</strong><small id="nmda-subject-assist-copy"></small></div>
-                          <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-subject-assist-apply" type="button">一键填写</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-subject-assist-dismiss" type="button">不用</button></div>
-                        </div>
-                        <label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-body"><span class="nmda-label">正文</span><textarea id="nmda-import-edit-body"></textarea></label>
+                        <details class="nmda-review-evidence-pane" id="nmda-review-evidence-details">
+                          <summary class="nmda-review-pane-title"><span><strong>识别依据</strong><small>原文、识别线索和邮件边界</small></span><span class="nmda-evidence-toggle">展开</span></summary>
+                          <div id="nmda-review-source-meta" class="nmda-review-source-meta"></div>
+                          <div id="nmda-review-email-candidates" class="nmda-review-candidates"></div>
+                          <div id="nmda-review-source-context" class="nmda-review-source-context"></div>
+                        </details>
                       </div>
                       <input id="nmda-import-edit-schedule" type="hidden">
                       <input id="nmda-import-edit-attachments" type="hidden">
                       <input id="nmda-import-edit-tags" type="hidden">
-                      <div class="nmda-review-actions">
-                        <button class="nmda-btn nmda-btn-danger-quiet" id="nmda-review-exclude" type="button">排除此封</button>
-                        <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-quiet" id="nmda-import-editor-cancel" type="button">收起预览</button><button class="nmda-btn" id="nmda-import-editor-save" type="button">确认本封</button><button class="nmda-btn nmda-btn-primary" id="nmda-import-editor-next" type="button">确认并下一封</button></div>
+                      <div class="nmda-review-actions" id="nmda-review-actions" hidden>
+                        <span class="nmda-review-action-copy">这封邮件需要你的明确确认。</span>
+                        <div class="nmda-row nmda-wrap"><button class="nmda-btn" id="nmda-import-editor-save" type="button">确认本封</button><button class="nmda-btn nmda-btn-primary" id="nmda-import-editor-next" type="button">确认并下一封</button></div>
                       </div>
                     </section>
-                    <details class="nmda-review-evidence-pane" id="nmda-review-evidence-details">
-                      <summary class="nmda-review-pane-title"><span><strong>识别依据</strong><small>原文、识别线索和邮件边界</small></span><span class="nmda-evidence-toggle">展开</span></summary>
-                      <div id="nmda-review-source-meta" class="nmda-review-source-meta"></div>
-                      <div id="nmda-review-email-candidates" class="nmda-review-candidates"></div>
-                      <div id="nmda-review-source-context" class="nmda-review-source-context"></div>
-                    </details>
                   </div>
                 </div>
               </div>
@@ -1327,7 +1336,7 @@
     sessionId: 0, importBusy: false, schedulePlan: null,
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
     roster: emptyRosterState(), duplicateAudit:null,
-    handoffComplete: false, autoAdvancing: false, reviewFilter: 'pending', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false
+    handoffComplete: false, autoAdvancing: false, reviewFilter: 'pending', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false
   };
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), rosterFileEl = $('nmda-roster-file'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
@@ -1336,6 +1345,8 @@
   const importEditorOverlayEl = $('nmda-import-editor-overlay'), importEditRecipientsEl = $('nmda-import-edit-recipients'), importEditSubjectEl = $('nmda-import-edit-subject'), importEditBodyEl = $('nmda-import-edit-body'), importEditAttachmentsEl = $('nmda-import-edit-attachments'), importEditScheduleEl = $('nmda-import-edit-schedule'), importEditTagsEl = $('nmda-import-edit-tags'), importEditorEvidenceEl = $('nmda-import-editor-evidence');
   const reviewQueueEl = $('nmda-review-queue'), reviewSourceContextEl = $('nmda-review-source-context'), reviewSourceMetaEl = $('nmda-review-source-meta'), reviewCandidatesEl = $('nmda-review-email-candidates'), reviewProgressEl = $('nmda-review-progress'), reviewProblemSummaryEl = $('nmda-review-problem-summary'), reviewFeedbackEl = $('nmda-review-feedback');
   const reviewNavCountEl=$('nmda-review-nav-count'), reviewInlineEl=$('nmda-inline-review'), reviewPageSummaryEl=$('nmda-review-page-summary'), reviewPageEmptyEl=$('nmda-review-page-empty'), reviewQueueCaptionEl=$('nmda-review-queue-caption');
+  const reviewWorkspaceTitleEl=$('nmda-review-workspace-title'), reviewWorkspaceDescEl=$('nmda-review-workspace-desc'), reviewActionsEl=$('nmda-review-actions'), reviewMoreMenuEl=$('nmda-review-more-menu'), reviewExitEl=$('nmda-import-editor-cancel');
+  const reviewQueueTitleEl=$('nmda-review-queue-title'), reviewFilterEl=$('nmda-review-filter'), reviewSearchEl=$('nmda-review-search'), reviewMailTitleEl=$('nmda-review-mail-title'), reviewPositionEl=$('nmda-review-position'), reviewPrevEl=$('nmda-review-prev'), reviewNextEl=$('nmda-review-next');
   const reviewBatchbarEl=$('nmda-review-batchbar'), reviewSelectedCountEl=$('nmda-review-selected-count'), reviewEvidenceDetailsEl=$('nmda-review-evidence-details');
   const duplicateDecisionEl=$('nmda-duplicate-decision'), duplicateDecisionTitleEl=$('nmda-duplicate-decision-title'), duplicateDecisionCopyEl=$('nmda-duplicate-decision-copy'), duplicateDecisionKindEl=$('nmda-duplicate-decision-kind'), duplicateCandidatesEl=$('nmda-duplicate-candidates'), duplicateDecisionHintEl=$('nmda-duplicate-decision-hint'), duplicateKeepSelectedEl=$('nmda-duplicate-keep-selected'), duplicateKeepAllEl=$('nmda-duplicate-keep-all');
   const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files'), sharedFilesEl = $('nmda-shared-files');
@@ -1426,9 +1437,21 @@
     input.closest('.nmda-review-queue-row')?.classList.toggle('is-selected',input.checked);
     renderReviewBatchActions();
     const visible=reviewVisibleTasks().filter(taskCanBatchConfirm),allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
-    const selectButton=$('nmda-review-select-filtered');if(selectButton){selectButton.hidden=visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
+    const selectButton=$('nmda-review-select-filtered');if(selectButton){const batchMode=batch.reviewFilter==='pending'&&reviewTasks().length>0;selectButton.hidden=!batchMode||visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
   });
 
+
+  reviewSearchEl?.addEventListener('input',()=>{
+    batch.reviewSearch=String(reviewSearchEl.value||'');
+    viewPerf.reviewRenderLimit=250;
+    const currentKey=importEditorOverlayEl?.dataset.editKey||'';
+    renderReviewQueue(currentKey);
+    const visible=reviewVisibleTasks();
+    if(visible.length && !visible.some(task=>task.editKey===currentKey))openImportTaskEditor(visible[0]);
+    else{const current=(batch.tasks||[]).find(task=>task.editKey===currentKey);if(current)updateReviewMailNavigation(current);}
+  });
+  reviewPrevEl?.addEventListener('click',()=>navigateReviewMail(-1));
+  reviewNextEl?.addEventListener('click',()=>navigateReviewMail(1));
 
   function renderImportLifecycleState() {
     if (typeof renderProcessGuide === 'function') renderProcessGuide();
@@ -1784,7 +1807,10 @@
 
   function reviewVisibleTasks() {
     const tasks=(batch.tasks||[]).filter(task=>!task?.importExcluded);
-    return batch.reviewFilter==='all' ? tasks : tasks.filter(taskNeedsImportReview).sort((a,b)=>reviewTaskPriority(a)-reviewTaskPriority(b) || String(a.editKey).localeCompare(String(b.editKey)));
+    const scoped=batch.reviewFilter==='all' ? tasks : tasks.filter(taskNeedsImportReview).sort((a,b)=>reviewTaskPriority(a)-reviewTaskPriority(b) || String(a.editKey).localeCompare(String(b.editKey)));
+    const query=String(batch.reviewSearch||'').trim().toLowerCase();
+    if(!query)return scoped;
+    return scoped.filter(task=>[task.id,task.collectionName,task.recipients,task.subject,task.sourceFile].some(value=>String(value||'').toLowerCase().includes(query)));
   }
 
   function selectedReviewTasks() {
@@ -1806,7 +1832,8 @@
   function renderReviewBatchActions() {
     pruneReviewSelection();
     const selected=selectedReviewTasks().filter(taskCanBatchConfirm);
-    if(reviewBatchbarEl) reviewBatchbarEl.hidden=!selected.length;
+    const batchMode=batch.reviewFilter==='pending' && reviewTasks().length>0;
+    if(reviewBatchbarEl) reviewBatchbarEl.hidden=!batchMode||!selected.length;
     if(reviewSelectedCountEl) reviewSelectedCountEl.textContent=selected.length?`已选 ${selected.length} 封需确认邮件`:'已选 0 封';
   }
 
@@ -2076,14 +2103,26 @@
     let pendingCount=0,checked=0;
     for(const task of tasks){if(taskNeedsImportReview(task))pendingCount++;else if(task.reviewConfirmed||task.rosterConfirmed)checked++;}
     const ready=Math.max(0,tasks.length-pendingCount-checked);
+    const browseMode=pendingCount===0;
+    if(browseMode && batch.reviewFilter==='pending') batch.reviewFilter='all';
+    if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent=browseMode?'查看邮件':'处理待办';
+    if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=browseMode
+      ? (batch.handoffComplete?'抽查或修改本批次邮件；完成后返回选择与安排。':'邮件已满足创建条件；可在这里抽查或编辑。')
+      : '只处理会影响创建的事项；完成一项后自动续接下一项。';
+    if(reviewExitEl)reviewExitEl.textContent=batch.handoffComplete?'返回选择与安排':'退出检查';
     if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
     if(reviewPageSummaryEl)reviewPageSummaryEl.innerHTML=tasks.length
-      ? `<span><strong>${pendingCount}</strong> 待处理</span><span><strong>${checked}</strong> 已检查</span><span><strong>${ready}</strong> 可直接使用</span>`
+      ? (browseMode
+        ? `<span><strong>${tasks.length}</strong> 封邮件</span><span><strong>0</strong> 待办</span>`
+        : `<span><strong>${pendingCount}</strong> 待处理</span><span><strong>${checked}</strong> 已检查</span><span><strong>${ready}</strong> 可直接使用</span>`)
       : '<span>尚无批量邮件</span>';
     if(reviewPageEmptyEl)reviewPageEmptyEl.hidden=!!tasks.length;
-    const nextPendingBtn=$('nmda-review-next-pending');if(nextPendingBtn){nextPendingBtn.hidden=pendingCount<2;nextPendingBtn.textContent=pendingCount>1?`下一个待办（${pendingCount}）`:'下一个待办';}
+    const nextPendingBtn=$('nmda-review-next-pending');if(nextPendingBtn)nextPendingBtn.hidden=true;
+    if(reviewFilterEl)reviewFilterEl.hidden=browseMode;
+    if(reviewQueueTitleEl)reviewQueueTitleEl.textContent=browseMode?'邮件列表':'待办列表';
     ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter===batch.reviewFilter));
-    if(reviewQueueCaptionEl)reviewQueueCaptionEl.textContent=batch.reviewFilter==='all'?'查看本批次全部邮件':'按影响程度显示必须处理的邮件';
+    if(reviewQueueCaptionEl)reviewQueueCaptionEl.textContent=browseMode?'选择一封查看或编辑':(batch.reviewFilter==='all'?'查看本批次全部邮件':'按影响程度显示必须处理的邮件');
+    if(reviewSearchEl && reviewSearchEl.value!==String(batch.reviewSearch||''))reviewSearchEl.value=String(batch.reviewSearch||'');
     if(!tasks.length){if(importEditorOverlayEl)importEditorOverlayEl.hidden=true;renderReviewBatchActions();return;}
     renderReviewBatchActions();
     if(reviewInlineEl && !reviewInlineEl.hidden){
@@ -2095,6 +2134,8 @@
   function openReviewWorkspace() {
     setWorkbenchTab('batch');
     reviewInlineEl?.closest('.nmda-bulk-workbench')?.classList.add('is-review-focus');
+    reviewInlineEl?.closest('.nmda-page')?.classList.add('is-review-page-focus');
+    ui.querySelector('[data-page-head="batch"]')?.classList.add('nmda-review-head-hidden');
     if(reviewInlineEl) reviewInlineEl.hidden=false;
     renderReviewPageOverview();
     const first=reviewVisibleTasks()[0] || (batch.tasks||[]).find(task=>!task?.importExcluded);
@@ -2105,14 +2146,21 @@
 
   function closeReviewWorkspace() {
     reviewInlineEl?.closest('.nmda-bulk-workbench')?.classList.remove('is-review-focus');
+    reviewInlineEl?.closest('.nmda-page')?.classList.remove('is-review-page-focus');
+    ui.querySelector('[data-page-head="batch"]')?.classList.remove('nmda-review-head-hidden');
     if(reviewInlineEl) reviewInlineEl.hidden=true;
     closeImportTaskEditor();
-    requestAnimationFrame(() => $('nmda-ingest-result-card')?.scrollIntoView?.({behavior:'smooth',block:'center'}));
+    if(batch.handoffComplete){
+      scheduleBatchRender({aux:true,force:true});
+      requestAnimationFrame(() => $('nmda-stage-execute')?.scrollIntoView?.({behavior:'smooth',block:'start'}));
+    }else requestAnimationFrame(() => $('nmda-ingest-result-card')?.scrollIntoView?.({behavior:'smooth',block:'center'}));
   }
 
   function hideReviewWorkspaceWithoutStash() {
     hideSubjectAssist();
     reviewInlineEl?.closest('.nmda-bulk-workbench')?.classList.remove('is-review-focus');
+    reviewInlineEl?.closest('.nmda-page')?.classList.remove('is-review-page-focus');
+    ui.querySelector('[data-page-head="batch"]')?.classList.remove('nmda-review-head-hidden');
     if(duplicateDecisionEl){duplicateDecisionEl.hidden=true;delete duplicateDecisionEl.dataset.groupId;}
     if(reviewInlineEl)reviewInlineEl.hidden=true;
     if(importEditorOverlayEl){importEditorOverlayEl.hidden=true;delete importEditorOverlayEl.dataset.editKey;}
@@ -2275,7 +2323,8 @@
     if(allList.length>list.length)reviewQueueEl.insertAdjacentHTML('beforeend',`<button type="button" class="nmda-review-load-more" data-review-load-more>继续显示（${list.length}/${allList.length}）</button>`);
     renderReviewBatchActions();
     const visible=reviewVisibleTasks().filter(taskCanBatchConfirm);const allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
-    const selectButton=$('nmda-review-select-filtered');if(selectButton){selectButton.hidden=visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
+    const selectButton=$('nmda-review-select-filtered');if(selectButton){const batchMode=batch.reviewFilter==='pending'&&pendingCount>0;selectButton.hidden=!batchMode||visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
+    if(activeKey)requestAnimationFrame(()=>reviewQueueEl.querySelector(`[data-review-row="${CSS.escape(activeKey)}"]`)?.scrollIntoView?.({block:'nearest'}));
   }
 
   function renderReviewSource(task) {
@@ -2349,11 +2398,11 @@
   function updateReviewConfirmationControls(task) {
     const explicit=taskNeedsExplicitConfirmation(task);
     const duplicateActive=taskHasUnresolvedDuplicate(task);
+    const visible=!!explicit&&!duplicateActive;
     const save=$('nmda-import-editor-save'), next=$('nmda-import-editor-next');
-    if(save)save.hidden=!explicit||duplicateActive;
-    if(next)next.hidden=!explicit||duplicateActive;
-    const actions=save?.closest?.('.nmda-row');
-    if(actions)actions.dataset.confirmation=explicit&&!duplicateActive?'1':'0';
+    if(save)save.hidden=!visible;
+    if(next)next.hidden=!visible;
+    if(reviewActionsEl)reviewActionsEl.hidden=!visible;
   }
 
   function updateReviewFieldStates(task) {
@@ -2440,9 +2489,39 @@
     if(restoreExcluded){restoreExcluded.hidden=!excluded;restoreExcluded.textContent=excluded?`恢复已排除（${excluded}）`:'恢复已排除';}
   }
 
+  function updateReviewMailNavigation(task) {
+    let visible=reviewVisibleTasks();
+    let index=visible.findIndex(item=>item.editKey===task?.editKey);
+    if(index<0){
+      visible=(batch.tasks||[]).filter(item=>!item?.importExcluded);
+      index=visible.findIndex(item=>item.editKey===task?.editKey);
+    }
+    const total=visible.length;
+    if(reviewMailTitleEl)reviewMailTitleEl.textContent=String(task?.id||task?.collectionName||task?.recipients||'邮件内容');
+    if(reviewPositionEl)reviewPositionEl.textContent=index>=0&&total?`${index+1} / ${total}`:`${total||0} 封`;
+    if(reviewPrevEl){reviewPrevEl.disabled=index<=0;reviewPrevEl.title=index>0?'上一封邮件':'已经是第一封';}
+    if(reviewNextEl){reviewNextEl.disabled=index<0||index>=total-1;reviewNextEl.title=index>=0&&index<total-1?'下一封邮件':'已经是最后一封';}
+  }
+
+  function navigateReviewMail(delta) {
+    const current=reviewCurrentTask();
+    if(!current)return;
+    const visibleBefore=reviewVisibleTasks();
+    const beforeIndex=visibleBefore.findIndex(item=>item.editKey===current.editKey);
+    if(beforeIndex<0)return;
+    const targetBefore=visibleBefore[beforeIndex+Number(delta||0)];
+    if(!targetBefore)return;
+    stashCurrentReviewDraft();
+    rebuildTasks();
+    renderReviewPageOverview();
+    const target=(batch.tasks||[]).find(item=>item.editKey===targetBefore.editKey && !item?.importExcluded);
+    if(target)openImportTaskEditor(target);
+  }
+
   function openImportTaskEditor(task) {
     if (!task || !importEditorOverlayEl) return;
     if(subjectAssistTimer){clearTimeout(subjectAssistTimer);subjectAssistTimer=null;}
+    if(reviewMoreMenuEl)reviewMoreMenuEl.open=false;
     setWorkbenchTab('batch');
     if(reviewInlineEl) reviewInlineEl.hidden=false;
     importEditorOverlayEl.dataset.editKey=task.editKey;
@@ -2461,12 +2540,13 @@
     }
     const issueLabels=[...new Set(issues.map(reviewIssueLabel).filter(Boolean))];
     const editorTitle=$('nmda-import-editor-title');if(editorTitle)editorTitle.textContent=issues.length?`当前：${reviewIssueLabel(primaryReviewIssue(task))}`:'邮件内容';
-    importEditorEvidenceEl.textContent=`${task.id || task.collectionName || '邮件'}${issues.length ? ` · ${issueLabels.join(' · ')}` : ' · 内容完整，可直接使用'}`;
+    if(importEditorEvidenceEl)importEditorEvidenceEl.textContent=`${task.id || task.collectionName || '邮件'}${issues.length ? ` · ${issueLabels.join(' · ')}` : ' · 内容完整，可直接使用'}`;
     if(reviewFeedbackEl){reviewFeedbackEl.hidden=true;reviewFeedbackEl.textContent='';}
     updateReviewFieldStates(task);
     renderReviewSource(task);
     importEditorOverlayEl.hidden=false;
     renderReviewQueue(task.editKey);
+    updateReviewMailNavigation(task);
     autoSizeReviewBody();
     setTimeout(()=>{
       if(issues.some(x=>/收件人|邮箱/.test(x)))importEditRecipientsEl?.focus({preventScroll:true});
@@ -2525,9 +2605,12 @@
     batch.handoffComplete=false;
     const key=importEditorOverlayEl?.dataset.editKey; if(!key)return;
     const task=(batch.tasks||[]).find(t=>t.editKey===key); if(!task)return;
+    const label=String(task.subject||task.recipients||task.id||'这封邮件').trim();
+    if(reviewMoreMenuEl)reviewMoreMenuEl.open=false;
     batch.reviewSelected?.delete?.(key);
     setTaskEdit(task,{importExcluded:true});
     rebuildTasks();
+    setImportStatus(`已排除「${label}」；需要时可在待办中心恢复。`,'ok');
     const next=reviewVisibleTasks()[0]||null;
     if(next)openImportTaskEditor(next);else await continueAfterReviewResolution('待处理邮件已完成');
   }
@@ -3480,6 +3563,7 @@
     batch.reviewSelected?.clear?.();
     batch.duplicateSelections?.clear?.();
     batch.reviewFilter='pending';
+    batch.reviewSearch='';
     batch.attachmentAttentionShown=false;
     closeImportTaskEditor();
     batch.directoryFiles = []; batch.taskFiles = uniqueFiles(dataset?.embeddedFiles || []); batch.routedAttachmentFiles=[]; batch.sharedFiles = []; batch.attachmentOverrides.clear();
@@ -3550,6 +3634,7 @@
     batch.reviewSelected?.clear?.();
     batch.duplicateSelections?.clear?.();
     batch.reviewFilter='pending';
+    batch.reviewSearch='';
     batch.attachmentAttentionShown=false;
     batch.fileIndex = Importer.buildFileIndex([]);
     batch.profileSuggestion = null;

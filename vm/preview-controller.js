@@ -35,7 +35,20 @@
       pasteButton?.click();
       const textarea = document.querySelector('#nmda-paste-source');
       if (textarea) {
-        textarea.value = view === 'duplicate'
+        const browse53 = Array.from({ length: 53 }, (_, index) => {
+          const n = String(index + 1).padStart(2, '0');
+          return `Professor Candidate ${n} — candidate${n}@example.edu
+Subject: PhD Application Fall 2027 — Candidate ${n} | Consumer Behaviour & Sports Events
+
+Dear Professor Candidate ${n},
+I am writing to inquire about potential doctoral opportunities in your group. My recent work focuses on consumer behaviour, decision making, and data analytics, and I would be grateful for the opportunity to discuss research fit.
+
+Best regards,
+Junhao Jiao`;
+        }).join('\n\n');
+        textarea.value = view === 'browse53'
+          ? browse53
+          : view === 'duplicate'
           ? `Professor Alice Chen — alice.chen@example.edu
 Subject: PhD inquiry — research fit
 
@@ -84,10 +97,30 @@ Yohan`;
       }
     }
 
-    if (sample && wantedTab === 'batch' && (view === 'review' || view === 'selection' || view === 'duplicate')) {
-      await new Promise(resolve => setTimeout(resolve, 900));
+    if (sample && wantedTab === 'batch' && (view === 'review' || view === 'selection' || view === 'duplicate' || view === 'browse53')) {
+      await new Promise(resolve => setTimeout(resolve, view === 'browse53' ? 1900 : 900));
       document.querySelector('#nmda-review-import-issues')?.click();
       await new Promise(resolve => setTimeout(resolve, 250));
+      if (view === 'browse53') {
+        for (let index = 0; index < 70; index += 1) {
+          const workspace = document.querySelector('#nmda-inline-review');
+          if (!workspace || workspace.hidden) break;
+          const subject = document.querySelector('#nmda-import-edit-subject')?.value || '';
+          const match = subject.match(/Candidate\s+(\d+)/i);
+          const recipient = document.querySelector('#nmda-import-edit-recipients');
+          if (!match || !recipient) break;
+          const n = String(Number(match[1])).padStart(2, '0');
+          recipient.value = `candidate${n}@example.edu`;
+          recipient.dispatchEvent(new Event('input', { bubbles: true }));
+          recipient.dispatchEvent(new Event('change', { bubbles: true }));
+          await new Promise(resolve => setTimeout(resolve, 70));
+        }
+        await new Promise(resolve => setTimeout(resolve, 1100));
+        document.querySelector('#nmda-review-import-issues')?.click();
+        await new Promise(resolve => setTimeout(resolve, 350));
+        document.querySelector('[data-review-filter="all"]')?.click();
+        await new Promise(resolve => setTimeout(resolve, 220));
+      }
       if (view === 'duplicate') {
         const keys = [...document.querySelectorAll('[data-review-key]')].slice(0, 2).map(button => button.dataset.reviewKey).filter(Boolean);
         for (const key of keys) {

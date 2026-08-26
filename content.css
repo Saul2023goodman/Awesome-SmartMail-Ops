@@ -2186,3 +2186,540 @@
 .nmda-bulk-workbench.is-review-focus > #nmda-preview-card,
 .nmda-bulk-workbench.is-review-focus > #nmda-run-card { display:none !important; }
 .nmda-bulk-workbench.is-review-focus .nmda-inline-review { margin-top:0; }
+
+/* v1.29 · Review canvas — destructive actions stay contextual; no floating bar covers the mail. */
+.nmda-bulk-workbench.is-review-page-focus {
+  overflow:hidden !important;
+  padding-top:14px !important;
+  padding-bottom:14px !important;
+  grid-template-rows:minmax(0,1fr);
+  align-items:stretch;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-inline-review {
+  height:100%;
+  min-height:0;
+  overflow:hidden !important;
+  grid-template-rows:auto auto auto auto minmax(0,1fr);
+  align-self:stretch;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-workbench {
+  min-height:0;
+  height:100%;
+  overflow:hidden;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-layout {
+  min-height:0 !important;
+  height:100%;
+  max-height:none !important;
+  overflow:hidden !important;
+  align-items:stretch;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-queue-pane {
+  position:static !important;
+  top:auto !important;
+  max-height:none !important;
+  height:100%;
+  overflow:auto !important;
+  scrollbar-gutter:stable;
+}
+.nmda-review-edit-pane {
+  min-height:0;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden !important;
+  padding-bottom:0 !important;
+  background:#fff !important;
+}
+.nmda-review-mail-toolbar {
+  position:relative !important;
+  z-index:6;
+  display:flex !important;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:48px;
+  padding:8px 12px !important;
+  background:#fff !important;
+}
+.nmda-review-mail-heading { min-width:0; display:grid; gap:2px; }
+.nmda-review-mail-heading strong { font-size:11px; }
+.nmda-review-mail-heading small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-review-more-menu { position:relative; flex:0 0 auto; }
+.nmda-review-more-menu > summary {
+  list-style:none;
+  min-height:30px;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 9px;
+  border:1px solid #d0d7de;
+  border-radius:7px;
+  background:#fff;
+  color:#57606a;
+  font-size:10px;
+  font-weight:700;
+  cursor:pointer;
+  user-select:none;
+}
+.nmda-review-more-menu > summary::-webkit-details-marker { display:none; }
+.nmda-review-more-menu > summary::after { content:'▾'; color:#8c959f; font-size:8px; }
+.nmda-review-more-menu[open] > summary { background:#f6f8fa; border-color:#afb8c1; color:#24292f; }
+.nmda-review-more-popover {
+  position:absolute;
+  top:calc(100% + 6px);
+  right:0;
+  z-index:30;
+  width:230px;
+  padding:6px;
+  border:1px solid #d0d7de;
+  border-radius:9px;
+  background:#fff;
+  box-shadow:0 10px 28px rgba(31,35,40,.14),0 2px 6px rgba(31,35,40,.08);
+}
+.nmda-review-menu-danger {
+  width:100%;
+  display:grid;
+  gap:2px;
+  padding:8px 9px;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:#cf222e;
+  text-align:left;
+  cursor:pointer;
+}
+.nmda-review-menu-danger:hover { background:#fff1f1; }
+.nmda-review-menu-danger strong { font-size:10.5px; font-weight:720; }
+.nmda-review-menu-danger small { color:#6e7781; font-size:8.5px; line-height:1.4; }
+.nmda-review-edit-scroll {
+  min-height:0;
+  overflow:auto;
+  padding:0 0 10px;
+  scrollbar-gutter:stable;
+  overscroll-behavior:contain;
+}
+.nmda-review-edit-scroll > .nmda-import-editor-grid,
+.nmda-review-edit-scroll > .nmda-review-feedback { margin-left:12px; margin-right:12px; }
+.nmda-review-edit-scroll > .nmda-review-core-fields { margin-top:12px; }
+.nmda-review-edit-scroll > .nmda-review-evidence-pane {
+  display:block;
+  margin:12px 12px 2px;
+  overflow:hidden !important;
+  border:1px solid #d8dee4 !important;
+  border-radius:9px !important;
+  background:#f6f8fa !important;
+}
+.nmda-review-edit-scroll > .nmda-review-evidence-pane > summary {
+  padding:9px 10px !important;
+  background:#f6f8fa !important;
+}
+.nmda-review-edit-scroll .nmda-review-source-context { max-height:360px; }
+.nmda-review-actions {
+  position:static !important;
+  bottom:auto !important;
+  z-index:auto !important;
+  min-height:54px;
+  margin:0 !important;
+  padding:9px 12px !important;
+  border-top:1px solid #d8dee4 !important;
+  border-radius:0 !important;
+  background:#f6f8fa !important;
+  box-shadow:none !important;
+  justify-content:space-between;
+}
+.nmda-review-actions[hidden] { display:none !important; }
+.nmda-review-action-copy { color:#6e7781; font-size:9px; line-height:1.4; }
+.nmda-review-workbench.has-duplicate-decision .nmda-review-actions { display:none !important; }
+.nmda-review-workbench.has-duplicate-decision .nmda-review-edit-scroll { overflow:auto; }
+.nmda-review-workbench.has-duplicate-decision .nmda-duplicate-actions {
+  position:static !important;
+  bottom:auto !important;
+  box-shadow:none !important;
+}
+.nmda-review-core-fields textarea {
+  min-height:260px !important;
+  max-height:56vh !important;
+}
+.nmda-inline-review-actions { flex-wrap:wrap; }
+#nmda-import-editor-cancel { white-space:nowrap; }
+
+@media (max-width:900px) {
+  .nmda-bulk-workbench.is-review-page-focus { overflow:auto !important; }
+  .nmda-bulk-workbench.is-review-page-focus .nmda-inline-review,
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-workbench,
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-layout { height:auto; overflow:visible !important; }
+  .nmda-review-edit-pane { overflow:visible !important; }
+  .nmda-review-edit-scroll { overflow:visible; }
+  .nmda-review-more-popover { width:min(230px,70vw); }
+}
+
+/* v1.29 · Review canvas refinement — the email is the viewport, actions stay in context. */
+.nmda-page-head.nmda-review-head-hidden { display:none !important; }
+.nmda-bulk-workbench.is-review-page-focus {
+  padding:10px 14px 12px !important;
+  grid-template-rows:minmax(0,1fr) !important;
+  align-items:stretch !important;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-inline-review {
+  min-height:0;
+  height:100%;
+  display:grid;
+  grid-template-rows:auto auto minmax(0,1fr) !important;
+  gap:0 !important;
+  overflow:hidden !important;
+  border:1px solid #c9d3df !important;
+  border-radius:11px !important;
+  background:#fff;
+  box-shadow:0 5px 18px rgba(31,35,40,.055);
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-inline-review-top {
+  position:static !important;
+  min-height:50px;
+  padding:9px 11px !important;
+  border-bottom:1px solid #e6ebf0;
+  box-shadow:none !important;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-inline-review-top .nmda-card-title {
+  font-size:12.5px;
+  line-height:1.25;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-inline-review-top .nmda-card-desc {
+  margin-top:2px;
+  font-size:9px;
+  line-height:1.35;
+  color:#6e7781;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-page-summary {
+  gap:4px;
+  flex-wrap:nowrap;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-page-summary span {
+  min-height:28px;
+  padding:4px 8px;
+  border:1px solid #d8dee4;
+  border-radius:7px;
+  background:#fff;
+  white-space:nowrap;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-page-summary strong { font-size:10px; }
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-page-summary span { font-size:8.5px; }
+.nmda-bulk-workbench.is-review-page-focus #nmda-review-next-pending { display:none !important; }
+.nmda-bulk-workbench.is-review-page-focus #nmda-import-editor-cancel {
+  min-height:30px;
+  padding:5px 9px;
+}
+
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-workbench {
+  min-height:0;
+  height:100%;
+  display:grid;
+  grid-template-rows:minmax(0,1fr) !important;
+  overflow:hidden;
+  border:0 !important;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-layout {
+  min-height:0 !important;
+  height:100%;
+  display:grid;
+  grid-template-columns:220px minmax(0,1fr) !important;
+  overflow:hidden !important;
+  border:0 !important;
+}
+
+/* The queue is a navigation rail: search/filter stay fixed, only rows scroll. */
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-queue-pane {
+  min-height:0;
+  height:100%;
+  display:grid;
+  grid-template-rows:auto auto auto minmax(0,1fr);
+  overflow:hidden !important;
+  border-right:1px solid #dfe5eb;
+  background:#f8fafc;
+}
+.nmda-review-queue-titlebar {
+  position:static !important;
+  min-height:45px !important;
+  padding:8px 10px !important;
+  background:#f8fafc !important;
+  border-bottom:0 !important;
+}
+.nmda-review-queue-titlebar strong { font-size:10.5px !important; }
+.nmda-review-queue-titlebar small { font-size:8.5px !important; color:#7d8590 !important; }
+.nmda-review-queue-tools {
+  display:grid;
+  gap:6px;
+  padding:0 8px 8px;
+  border-bottom:1px solid #e6ebf0;
+}
+.nmda-review-search {
+  min-height:32px;
+  display:grid;
+  grid-template-columns:20px minmax(0,1fr);
+  align-items:center;
+  gap:2px;
+  padding:0 7px;
+  border:1px solid #d0d7de;
+  border-radius:7px;
+  background:#fff;
+  color:#8c959f;
+}
+.nmda-review-search:focus-within {
+  border-color:#54aeff;
+  box-shadow:0 0 0 2px rgba(9,105,218,.12);
+}
+.nmda-review-search span { font-size:13px; line-height:1; text-align:center; }
+.nmda-review-search input {
+  width:100%;
+  min-width:0;
+  height:30px;
+  padding:0;
+  border:0 !important;
+  outline:0;
+  background:transparent;
+  color:#24292f;
+  font:500 9.5px/1.2 system-ui,sans-serif;
+}
+.nmda-review-search input::placeholder { color:#9aa3ad; }
+.nmda-review-filter {
+  min-height:28px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:3px;
+  padding:2px;
+  border:1px solid #d8dee4;
+  border-radius:7px;
+  background:#eef2f6;
+}
+.nmda-review-filter[hidden] { display:none !important; }
+.nmda-review-filter button {
+  min-height:24px;
+  padding:3px 5px;
+  border:0;
+  border-radius:5px;
+  background:transparent;
+  color:#57606a;
+  font:700 8.5px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+.nmda-review-filter button.is-active { background:#fff; color:#0969da; box-shadow:0 1px 2px rgba(31,35,40,.08); }
+.nmda-review-bulk-entry { width:100%; justify-content:center; }
+.nmda-review-batchbar {
+  margin:0 !important;
+  padding:7px 8px !important;
+  border:0 !important;
+  border-bottom:1px solid #dbe4ee !important;
+  border-radius:0 !important;
+  background:#eef6ff !important;
+  box-shadow:none !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  gap:6px !important;
+}
+.nmda-review-batchbar[hidden] { display:none !important; }
+.nmda-review-batchbar > div:first-child { display:grid; gap:1px; }
+.nmda-review-batchbar .nmda-row { justify-content:flex-start; }
+.nmda-review-queue {
+  min-height:0;
+  overflow:auto;
+  padding:8px;
+  gap:6px;
+  scrollbar-gutter:stable;
+  overscroll-behavior:contain;
+}
+.nmda-review-queue-row {
+  min-height:54px;
+  border-color:#dfe5eb;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:none;
+}
+.nmda-review-queue-row:hover { border-color:#a8c7fa; background:#fbfdff; }
+.nmda-review-queue-row.is-active {
+  border-color:#54aeff;
+  background:#eef6ff;
+  box-shadow:inset 3px 0 0 #0969da;
+}
+.nmda-review-queue-item { padding:7px 8px !important; gap:7px !important; }
+.nmda-review-queue-index {
+  width:22px;
+  height:22px;
+  border-radius:6px;
+  background:#eef2ff;
+  color:#4f46e5;
+  font-size:8.5px;
+}
+.nmda-review-queue-main { gap:2px; }
+.nmda-review-queue-main strong { font-size:9.5px !important; line-height:1.25; }
+.nmda-review-queue-main small { font-size:8px !important; line-height:1.25; }
+.nmda-review-queue-main em { font-size:8px !important; line-height:1.2; }
+
+/* The editor is a stable canvas. No action overlays the body. */
+.nmda-review-edit-pane {
+  min-height:0;
+  height:100%;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto !important;
+  overflow:hidden !important;
+  background:#fff !important;
+}
+.nmda-review-mail-toolbar {
+  position:static !important;
+  min-height:46px !important;
+  display:flex !important;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:7px 10px !important;
+  border-bottom:1px solid #e6ebf0 !important;
+  background:#fff !important;
+  box-shadow:none !important;
+}
+.nmda-review-mail-heading { min-width:0; display:grid; gap:1px; }
+.nmda-review-mail-heading strong {
+  max-width:420px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11px !important;
+  line-height:1.25;
+  color:#24292f;
+}
+.nmda-review-mail-heading small {
+  max-width:520px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:8.5px !important;
+  line-height:1.3;
+  color:#6e7781;
+}
+.nmda-review-mail-actions { flex:0 0 auto; display:flex; align-items:center; gap:6px; }
+.nmda-review-pager {
+  height:31px;
+  display:grid;
+  grid-template-columns:30px minmax(48px,auto) 30px;
+  align-items:center;
+  overflow:hidden;
+  border:1px solid #d0d7de;
+  border-radius:7px;
+  background:#fff;
+}
+.nmda-review-pager button {
+  width:30px;
+  height:30px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  background:#fff;
+  color:#57606a;
+  font:700 18px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+.nmda-review-pager button:hover:not(:disabled) { background:#f6f8fa; color:#0969da; }
+.nmda-review-pager button:disabled { color:#c7cdd4; cursor:default; }
+.nmda-review-pager span {
+  min-width:50px;
+  padding:0 6px;
+  border-left:1px solid #eaeef2;
+  border-right:1px solid #eaeef2;
+  color:#57606a;
+  text-align:center;
+  font:700 8.5px/30px system-ui,sans-serif;
+  white-space:nowrap;
+}
+.nmda-review-more-menu > summary {
+  min-height:31px !important;
+  padding:5px 9px !important;
+  border-radius:7px !important;
+  font-size:9px !important;
+}
+.nmda-review-more-popover { width:218px !important; }
+.nmda-review-menu-danger strong { font-size:10px !important; }
+.nmda-review-menu-danger small { font-size:8.5px !important; }
+.nmda-review-edit-scroll {
+  min-height:0;
+  overflow:auto;
+  padding:0 0 10px;
+  scrollbar-gutter:stable;
+  overscroll-behavior:contain;
+  background:#fff;
+}
+.nmda-review-edit-scroll > .nmda-import-editor-grid,
+.nmda-review-edit-scroll > .nmda-review-feedback { margin-left:12px; margin-right:12px; }
+.nmda-review-edit-scroll > .nmda-review-core-fields { margin-top:10px; }
+.nmda-review-core-fields input { min-height:36px !important; font-size:11px !important; }
+.nmda-review-core-fields textarea {
+  min-height:210px !important;
+  max-height:52vh !important;
+  font-size:11px !important;
+  line-height:1.65 !important;
+}
+.nmda-review-edit-scroll > .nmda-review-evidence-pane {
+  margin:10px 12px 2px !important;
+}
+
+/* Explicit confirmation is a real footer row, not a floating layer. */
+.nmda-review-actions {
+  position:static !important;
+  inset:auto !important;
+  z-index:auto !important;
+  min-height:52px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:0 !important;
+  padding:8px 10px !important;
+  border:0 !important;
+  border-top:1px solid #dfe5eb !important;
+  border-radius:0 !important;
+  background:#f8fafc !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+}
+.nmda-review-actions[hidden] { display:none !important; }
+.nmda-review-action-copy { max-width:48%; color:#6e7781; font-size:8.5px; line-height:1.4; }
+.nmda-review-actions .nmda-row { flex:0 0 auto; }
+
+/* Duplicate decisions remain inside the document flow as the current task. */
+.nmda-review-workbench.has-duplicate-decision .nmda-duplicate-actions {
+  position:static !important;
+  inset:auto !important;
+  box-shadow:none !important;
+}
+
+@media (max-width:1180px) {
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-layout { grid-template-columns:198px minmax(0,1fr) !important; }
+  .nmda-review-mail-heading strong { max-width:300px; }
+  .nmda-review-mail-heading small { max-width:360px; }
+}
+@media (max-width:900px) {
+  .nmda-page-head.nmda-review-head-hidden { display:none !important; }
+  .nmda-bulk-workbench.is-review-page-focus { overflow:auto !important; padding:8px !important; }
+  .nmda-bulk-workbench.is-review-page-focus .nmda-inline-review,
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-workbench,
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-layout { height:auto; overflow:visible !important; }
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-layout { grid-template-columns:1fr !important; }
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-queue-pane { max-height:330px; border-right:0; border-bottom:1px solid #dfe5eb; }
+  .nmda-review-edit-pane,.nmda-review-edit-scroll { overflow:visible !important; }
+  .nmda-review-mail-heading strong,.nmda-review-mail-heading small { max-width:48vw; }
+}
+
+/* v1.29 · cancel legacy two-row review placement now that evidence lives inside the editor. */
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-layout {
+  grid-template-rows:minmax(0,1fr) !important;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-queue-pane {
+  grid-column:1 !important;
+  grid-row:1 !important;
+  align-self:stretch !important;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-edit-pane {
+  grid-column:2 !important;
+  grid-row:1 !important;
+  align-self:stretch !important;
+  padding-bottom:0 !important;
+  border-bottom:0 !important;
+}
