@@ -603,7 +603,7 @@
                 <details class="nmda-compact-options">
                   <summary>更多资料（可选）</summary>
                   <div class="nmda-roster-source-strip">
-                    <div><strong>总套磁名单</strong><small>用于补全学校和核对联系人。</small></div>
+                    <div><strong>参考总名单（可选）</strong><small>用于跨名单核对和补全院校；不导入也会检查本批次重复。</small></div>
                     <div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small" for="nmda-roster-file">选择总名单</label><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-remove" type="button" hidden>移除</button></div>
                   </div>
                   <div id="nmda-roster-source-status" class="nmda-hint">未添加总名单。</div>
@@ -693,13 +693,13 @@
               </div>
 
               <div class="nmda-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
-                <div class="nmda-card-head"><div><div class="nmda-card-title">名单差异</div></div></div>
+                <div class="nmda-card-head"><div><div class="nmda-card-title">联系人核验</div><div class="nmda-card-desc">本批次自动查重；总名单和邮箱历史只作为增强参考。</div></div></div>
                 <input id="nmda-roster-enabled" type="checkbox" checked hidden>
                 <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
                 <input id="nmda-roster-strict" type="checkbox" hidden>
                 <div id="nmda-roster-audit-summary" class="nmda-ingest-health"></div>
                 <div id="nmda-roster-audit-note" class="nmda-review-guidance"></div>
-                <details class="nmda-roster-details"><summary>查看差异</summary><div id="nmda-roster-audit-details" class="nmda-roster-audit-details"></div></details>
+                <details class="nmda-roster-details"><summary>查看核验详情</summary><div id="nmda-roster-audit-details" class="nmda-roster-audit-details"></div></details>
               </div>
 
               <details class="nmda-card nmda-ingest-diagnostics" id="nmda-ingest-diagnostics" hidden>
@@ -1107,7 +1107,7 @@
       scheduleContactsRender();
       await renderMailboxReadMeta();
       setContactStatusMessage(`当前邮箱：${contactBook.account}。联系人记录已就绪。`,'ok');
-      if(typeof renderPreview==='function')scheduleBatchRender({aux:false});
+      if(typeof renderPreview==='function')scheduleBatchRender({aux:true});
     }catch(error){setContactStatusMessage(`联系人初始化失败：${error.message}`,'error');}
   }
 
@@ -1307,7 +1307,7 @@
     importMeta: null, profileSuggestion: null,
     sessionId: 0, importBusy: false, schedulePlan: null,
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
-    roster: emptyRosterState(),
+    roster: emptyRosterState(), duplicateAudit:null,
     handoffComplete: false, autoAdvancing: false, reviewFilter: 'pending', reviewSelected: new Set(), attachmentAttentionShown: false
   };
 
@@ -1675,6 +1675,11 @@
       }
     }
     if (task?.reviewDraftPending && !out.includes('修改待确认')) out.push('修改待确认');
+    const duplicateConfirmed=new Set(task?.duplicateConfirmedGroups||[]);
+    for(const item of task?.duplicateIssues||[]){
+      const id=String(item?.id||''),message=String(item?.message||item||'');
+      if(message && (!id || !duplicateConfirmed.has(id)) && !out.includes(message))out.push(message);
+    }
     if (!task?.rosterConfirmed) for (const issue of task?.rosterIssues || []) if (!out.includes(issue)) out.push(issue);
     return out;
   }
@@ -1843,7 +1848,7 @@
       const coreValid=taskCoreValid(task);
       if(!coreValid){blocked++;continue;}
       const prev=batch.taskEdits.get(task.editKey)||{};
-      batch.taskEdits.set(task.editKey,{...prev,reviewConfirmed:true,reviewDraftPending:false,rosterConfirmed:(task.rosterIssues||[]).length?true:!!prev.rosterConfirmed});
+      batch.taskEdits.set(task.editKey,{...prev,reviewConfirmed:true,reviewDraftPending:false,rosterConfirmed:(task.rosterIssues||[]).length?true:!!prev.rosterConfirmed,duplicateConfirmedGroups:[...new Set([...(prev.duplicateConfirmedGroups||[]),...(task.duplicateGroupIds||[])])]});
       confirmed++;
     }
     batch.reviewSelected.clear();
@@ -2167,7 +2172,7 @@
     importEditScheduleEl.value=task.scheduleAt||'';
     importEditTagsEl.value=(task.tags||[]).join('; ');
     const issues=unresolvedImportIssues(task);
-    if(reviewEvidenceDetailsEl)reviewEvidenceDetailsEl.open=issues.some(issue=>/请检查|边界|称呼|落款|收件人|邮箱|总名单/.test(issue));
+    if(reviewEvidenceDetailsEl)reviewEvidenceDetailsEl.open=issues.some(issue=>/请检查|边界|称呼|落款|收件人|邮箱|总名单|重复/.test(issue));
     importEditorEvidenceEl.textContent=`${task.id || task.collectionName || '邮件'}${issues.length ? ` · ${issues.join('、')}` : ' · 内容完整，可直接使用'}`;
     if(reviewFeedbackEl){reviewFeedbackEl.hidden=true;reviewFeedbackEl.textContent='';}
     updateReviewFieldStates(task);
@@ -2198,8 +2203,11 @@
     const recipients=importEditRecipientsEl.value.trim(), subject=importEditSubjectEl.value.trim(), body=importEditBodyEl.value;
     const coreValid=recipientLooksValid(recipients)&&!!subject&&!!String(body||'').trim();
     stashCurrentReviewDraft();
+    const previousEdit=batch.taskEdits.get(key)||{};
     setTaskEdit(task,{
-      reviewConfirmed:coreValid, rosterConfirmed: coreValid && !!(task.rosterIssues||[]).length ? true : (batch.taskEdits.get(key)?.rosterConfirmed||false)
+      reviewConfirmed:coreValid,
+      rosterConfirmed: coreValid && !!(task.rosterIssues||[]).length ? true : (previousEdit.rosterConfirmed||false),
+      duplicateConfirmedGroups: coreValid ? [...new Set([...(previousEdit.duplicateConfirmedGroups||[]),...(task.duplicateGroupIds||[])])] : [...(previousEdit.duplicateConfirmedGroups||[])]
     });
     rebuildTasks();
     const current=(batch.tasks||[]).find(t=>t.editKey===key);
@@ -2352,6 +2360,9 @@
       || (patch.subject!=null && String(patch.subject||'').trim()!==String(task.subject||'').trim())
       || (patch.body!=null && String(patch.body||'')!==String(task.body||''));
     const next = { ...prev, ...patch };
+    const duplicateIdentityChanged=(patch.recipients!=null && String(patch.recipients||'').trim()!==String(task.recipients||'').trim())
+      || (patch.school!=null && String(patch.school||'').trim()!==String(task.school||'').trim());
+    if(duplicateIdentityChanged && patch.duplicateConfirmedGroups==null)next.duplicateConfirmedGroups=[];
     let deterministicRepairClearsAll=false;
     if(coreChanged && patch.reviewConfirmed==null && beforeReviewIssues.length){
       const hadDeterministicGap=beforeReviewIssues.some(isAutoResolvableReviewIssue)
@@ -2375,6 +2386,8 @@
     if (patch.enabled != null) task.enabled = !!patch.enabled;
     if(coreChanged && patch.reviewConfirmed==null){task.reviewConfirmed=false;task.reviewDraftPending=!deterministicRepairClearsAll;}
     if(patch.reviewConfirmed===true){task.reviewConfirmed=true;task.reviewDraftPending=false;}
+    if(patch.duplicateConfirmedGroups!=null)task.duplicateConfirmedGroups=[...(patch.duplicateConfirmedGroups||[])];
+    else if(duplicateIdentityChanged)task.duplicateConfirmedGroups=[];
     if (patch.recipients != null) task.recipients = String(patch.recipients || '').trim();
     if (patch.subject != null) task.subject = String(patch.subject || '').trim();
     if (patch.body != null) task.body = String(patch.body || '');
@@ -2559,6 +2572,24 @@
     batch.routedAttachmentFiles=uniqueFiles((batch.dataset?.sourceFiles||[]).filter(file=>attachmentSources.has(sourceFileName(file))||attachmentSources.has(String(file?.name||''))));
   }
 
+  function applyBatchDuplicateAudit(tasks){
+    for(const task of tasks||[]){task.duplicateIssues=[];task.duplicateGroupIds=[];task.batchDuplicate=false;}
+    const audit=Roster?.auditTaskDuplicates?.(tasks||[])||{groups:[],summary:{tasks:(tasks||[]).length,groups:0,exact:0,probable:0,affectedTasks:0}};
+    for(const group of audit.groups||[]){
+      const count=group.tasks?.length||0;
+      const message=group.type==='exact-email'
+        ? `当前批次重复：${group.email||group.label||'同一收件人'} 出现 ${count} 封邮件`
+        : `当前批次疑似重复：${group.label||'同一联系人'} 出现 ${count} 封邮件`;
+      for(const task of group.tasks||[]){
+        if(!task)continue;task.batchDuplicate=true;
+        if(!task.duplicateGroupIds.includes(group.id))task.duplicateGroupIds.push(group.id);
+        if(!task.duplicateIssues.some(item=>item.id===group.id))task.duplicateIssues.push({id:group.id,message,type:group.type});
+      }
+    }
+    batch.duplicateAudit=audit;
+    return audit;
+  }
+
   function applyRosterCrossCheck(tasks) {
     const state=rosterState();
     if(!Roster || !state.enabled || !state.entries.length){state.audit=null;return null;}
@@ -2593,7 +2624,7 @@
         const task=byKey.get(m.task?.editKey);if(!task)continue;
         const edit=batch.taskEdits.get(task.editKey)||{};
         task.rosterDuplicate=true;
-        if(!edit.rosterConfirmed && !task.rosterIssues.includes('总名单核验：同一导师对应多封当前邮件'))task.rosterIssues.push('总名单核验：同一导师对应多封当前邮件');
+        if(!task.batchDuplicate && !edit.rosterConfirmed && !task.rosterIssues.includes('总名单核验：同一导师对应多封当前邮件'))task.rosterIssues.push('总名单核验：同一导师对应多封当前邮件');
       }
     }
     for(const task of tasks||[]){
@@ -2609,36 +2640,94 @@
     return [entry.name,entry.school,entry.email].filter(Boolean).join(' · ')||`第 ${entry.sourceRow||'?'} 行`;
   }
 
+  function contactHistoryAudit(tasks){
+    if(!Contacts||!contactBook.loaded)return {loaded:false,rows:[],affectedTasks:0,sentTasks:0,draftTasks:0};
+    const rows=[];const affected=new Set(),sentTasks=new Set(),draftTasks=new Set();
+    for(const task of tasks||[]){
+      const taskKey=String(task?.editKey||task?.id||'');
+      for(const recipient of Contacts.parseRecipients(task?.recipients||'')){
+        const contact=contactBook.contacts?.[recipient.email];if(!contact)continue;
+        const sentCount=Number(contact.sentCount||0),draftCount=Number(contact.draftCount||0);
+        if(!sentCount&&!draftCount)continue;
+        affected.add(taskKey);if(sentCount)sentTasks.add(taskKey);if(draftCount)draftTasks.add(taskKey);
+        rows.push({task,email:recipient.email,sentCount,draftCount,lastSentAt:contact.lastSentAt||'',lastDraftAt:contact.lastDraftAt||'',lastSubject:contact.lastSubject||'',lastDraftSubject:contact.lastDraftSubject||''});
+      }
+    }
+    return {loaded:true,rows,affectedTasks:affected.size,sentTasks:sentTasks.size,draftTasks:draftTasks.size};
+  }
+
   function renderRosterAudit(){
     const state=rosterState(),card=$('nmda-roster-audit-card'),summary=$('nmda-roster-audit-summary'),note=$('nmda-roster-audit-note'),details=$('nmda-roster-audit-details');
     const enabledEl=$('nmda-roster-enabled'),schoolEl=$('nmda-roster-auto-school'),strictEl=$('nmda-roster-strict');
     if(enabledEl)enabledEl.checked=state.enabled!==false;if(schoolEl)schoolEl.checked=state.autoSchool!==false;if(strictEl)strictEl.checked=!!state.strict;
     if(!card)return;
-    card.hidden=!state.entries.length;
-    if(!state.entries.length)return;
-    const audit=state.audit || (Roster&&batch.tasks?.length?Roster.crossCheck(batch.tasks,state.entries):null);
-    if(!audit){
-      if(summary)summary.innerHTML=`<div class="nmda-import-metric"><strong>${state.entries.length}</strong><span>总名单人数</span></div>`;
-      if(note)note.textContent='总名单已添加。导入邮件后会自动补充学校并标出需要检查的差异。';
-      if(details)details.innerHTML='';
-      return;
+    const tasks=batch.tasks||[];
+    card.hidden=!tasks.length&&!state.entries.length;
+    if(card.hidden)return;
+
+    const duplicateAudit=batch.duplicateAudit || Roster?.auditTaskDuplicates?.(tasks) || {groups:[],summary:{tasks:tasks.length,groups:0,exact:0,probable:0,affectedTasks:0}};
+    const history=contactHistoryAudit(tasks);
+    const rosterAudit=state.entries.length ? (state.audit || (Roster&&tasks.length?Roster.crossCheck(tasks,state.entries):null)) : null;
+    const dx=duplicateAudit.summary||{};
+    const metrics=[];
+    if(tasks.length)metrics.push(`<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>当前邮件</span></div>`);
+    metrics.push(`<div class="nmda-import-metric ${dx.groups?'is-warn':''}"><strong>${dx.groups||0}</strong><span>批次重复</span></div>`);
+    if(history.loaded&&history.affectedTasks)metrics.push(`<div class="nmda-import-metric"><strong>${history.affectedTasks}</strong><span>已有记录</span></div>`);
+    if(state.entries.length)metrics.push(`<div class="nmda-import-metric"><strong>${state.entries.length}</strong><span>参考名单</span></div>`);
+    if(rosterAudit){
+      const x=rosterAudit.summary||{};
+      metrics.push(`<div class="nmda-import-metric"><strong>${x.matched||0}</strong><span>名单匹配</span></div>`);
+      if(x.unwritten)metrics.push(`<div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>尚未加入</span></div>`);
+      if(x.ambiguous||x.duplicates)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${(x.ambiguous||0)+(x.duplicates||0)}</strong><span>名单待核对</span></div>`);
     }
-    const x=audit.summary;
-    if(summary)summary.innerHTML=`<div class="nmda-import-metric"><strong>${x.roster}</strong><span>总名单</span></div><div class="nmda-import-metric"><strong>${x.tasks}</strong><span>当前邮件</span></div><div class="nmda-import-metric"><strong>${x.matched}</strong><span>已匹配</span></div><div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>尚未撰写</span></div><div class="nmda-import-metric ${x.offRoster?'is-warn':''}"><strong>${x.offRoster}</strong><span>名单外</span></div><div class="nmda-import-metric ${(x.ambiguous+x.duplicates)?'is-warn':''}"><strong>${x.ambiguous+x.duplicates}</strong><span>待核对</span></div>`;
-    if(note)note.innerHTML=`已为排程补充 <strong>${x.schoolSupplements}</strong> 条院校信息${x.conflicts?`，${x.conflicts} 条院校差异已使用总名单`:''}${x.emailCandidates?`，并为 <strong>${x.emailCandidates}</strong> 封缺邮箱邮件找到候选地址`:''}。院校只影响自动错峰，不影响邮件内容或草稿创建。`;
+    if(summary)summary.innerHTML=metrics.join('');
+
+    if(note){
+      const parts=[];
+      if(dx.groups)parts.push(`发现 <strong>${dx.groups}</strong> 组当前批次重复，已进入“检查邮件”，确认后才能继续`);
+      else if(tasks.length)parts.push('当前批次未发现重复联系人；无需总名单也会自动完成这一步');
+      if(history.loaded&&history.affectedTasks)parts.push(`<strong>${history.affectedTasks}</strong> 封对应联系人已有邮箱发送或草稿记录，仅作提醒`);
+      if(rosterAudit){
+        const x=rosterAudit.summary||{};
+        const rosterParts=[];
+        if(x.schoolSupplements)rosterParts.push(`补充 ${x.schoolSupplements} 条院校信息`);
+        if(x.emailCandidates)rosterParts.push(`找到 ${x.emailCandidates} 个缺失邮箱候选`);
+        if(x.unwritten)rosterParts.push(`${x.unwritten} 位名单联系人尚未加入本批次`);
+        parts.push(`参考总名单${rosterParts.length?`额外${rosterParts.join('、')}`:'已完成交叉核对'}`);
+      }else if(state.entries.length&&!tasks.length)parts.push('参考总名单已就绪；加入邮件后会自动进行交叉核对');
+      note.innerHTML=parts.length?`${parts.join('；')}。`:'核验将在加入邮件后自动开始。';
+    }
+
     if(details){
-      const off=(audit.matches||[]).filter(m=>m.status==='off-roster').slice(0,12);
-      const ambiguities=(audit.matches||[]).filter(m=>m.status==='ambiguous').slice(0,12);
-      const scheduleDiffs=(audit.matches||[]).filter(m=>m.status==='conflict').slice(0,12);
-      const unwritten=(audit.unwritten||[]).slice(0,12);
-      const dups=(audit.duplicateMatches||[]).slice(0,8);
       const section=(title,items,render,more=0)=>`<div class="nmda-roster-diff-section"><strong>${escapeHtml(title)}</strong>${items.length?`<div>${items.map(render).join('')}</div>`:'<small>无</small>'}${more>items.length?`<small>另有 ${more-items.length} 条未展开</small>`:''}</div>`;
-      details.innerHTML=
-        section('尚未加入本批次',unwritten,e=>`<span>${escapeHtml(rosterEntryLabel(e))}${e.batch?` · ${escapeHtml(e.batch)}`:''}</span>`,audit.unwritten?.length||0)+
-        section('不在总名单',off,m=>`<span>${escapeHtml(m.task?.id||m.task?.recipients||'邮件')} · ${escapeHtml(m.task?.recipients||'')}</span>`,(audit.matches||[]).filter(m=>m.status==='off-roster').length)+
-        section('需要核对',ambiguities,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → 多个总名单候选</span>`,(audit.matches||[]).filter(m=>m.status==='ambiguous').length)+
-        section('排程参考（不影响邮件）',scheduleDiffs,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → ${escapeHtml(rosterEntryLabel(m.entry))}</span>`,(audit.matches||[]).filter(m=>m.status==='conflict').length)+
-        section('可能重复',dups,d=>`<span>${escapeHtml(rosterEntryLabel(d.entry))} · ${d.matches?.length||0} 封邮件</span>`,audit.duplicateMatches?.length||0);
+      let html='';
+      const duplicateGroups=(duplicateAudit.groups||[]).slice(0,12);
+      html+=section('当前批次查重',duplicateGroups,g=>{
+        const ids=(g.tasks||[]).map(task=>task.id||task.recipients||'邮件').slice(0,4).join('、');
+        const kind=g.type==='exact-email'?'同一邮箱':'同名同院校';
+        return `<span>${escapeHtml(g.label||g.email||'联系人')} · ${escapeHtml(kind)} · ${g.tasks?.length||0} 封${ids?` · ${escapeHtml(ids)}`:''}</span>`;
+      },duplicateAudit.groups?.length||0);
+      if(history.loaded){
+        const historyRows=history.rows.slice(0,12);
+        html+=section('邮箱历史（提示）',historyRows,row=>{
+          const fact=[row.sentCount?`已发送 ${row.sentCount}`:'',row.draftCount?`已有草稿 ${row.draftCount}`:''].filter(Boolean).join(' · ');
+          const subject=row.lastDraftSubject||row.lastSubject||'';
+          return `<span>${escapeHtml(row.email)} · ${escapeHtml(fact)}${subject?` · ${escapeHtml(subject)}`:''}</span>`;
+        },history.rows.length);
+      }
+      if(rosterAudit){
+        const off=(rosterAudit.matches||[]).filter(m=>m.status==='off-roster').slice(0,12);
+        const ambiguities=(rosterAudit.matches||[]).filter(m=>m.status==='ambiguous').slice(0,12);
+        const scheduleDiffs=(rosterAudit.matches||[]).filter(m=>m.status==='conflict').slice(0,12);
+        const unwritten=(rosterAudit.unwritten||[]).slice(0,12);
+        const rosterDups=(rosterAudit.duplicateMatches||[]).slice(0,8);
+        html+=section('尚未加入本批次',unwritten,e=>`<span>${escapeHtml(rosterEntryLabel(e))}${e.batch?` · ${escapeHtml(e.batch)}`:''}</span>`,rosterAudit.unwritten?.length||0);
+        html+=section('不在参考名单',off,m=>`<span>${escapeHtml(m.task?.id||m.task?.recipients||'邮件')} · ${escapeHtml(m.task?.recipients||'')}</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='off-roster').length);
+        html+=section('名单匹配待核对',ambiguities,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → 多个参考名单候选</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='ambiguous').length);
+        html+=section('排程参考（不影响邮件）',scheduleDiffs,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → ${escapeHtml(rosterEntryLabel(m.entry))}</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='conflict').length);
+        html+=section('名单映射重复',rosterDups,d=>`<span>${escapeHtml(rosterEntryLabel(d.entry))} · ${d.matches?.length||0} 封邮件</span>`,rosterAudit.duplicateMatches?.length||0);
+      }
+      details.innerHTML=html;
     }
   }
 
@@ -2768,11 +2857,13 @@
           files: mergedFiles, tableFiles: resolved.files, attachmentDetails: resolved.details,
           scheduleAt, scheduleSource, scheduleReason:String(edit.scheduleReason||''), errors:[...new Set(errors)], warnings:[...new Set(warnings)], status: errors.length ? 'error' : 'ready', runtimeError: '', note: '',
           importConfidence, importEvidence:[...(rowMeta?.evidence || [])], importIssues, importHeading:rowMeta?.heading || '', importRecipientEvidence:rowMeta?.recipientEvidence || null,
-          reviewConfirmed: !!edit.reviewConfirmed, reviewDraftPending: !!edit.reviewDraftPending, rosterConfirmed: !!edit.rosterConfirmed, importExcluded:false,
+          reviewConfirmed: !!edit.reviewConfirmed, reviewDraftPending: !!edit.reviewDraftPending, rosterConfirmed: !!edit.rosterConfirmed,
+          duplicateConfirmedGroups:Array.isArray(edit.duplicateConfirmedGroups)?[...edit.duplicateConfirmedGroups]:[], duplicateIssues:[], duplicateGroupIds:[], importExcluded:false,
           manuallyEdited: ['recipients','school','subject','body','attachments','scheduleAt','tags'].some(key=>edit[key]!=null), _searchStatic: staticSearch
         });
       }
     }
+    applyBatchDuplicateAudit(tasks);
     applyRosterCrossCheck(tasks);
     batch.tasks = tasks;
     scheduleBatchRender({aux:true});
@@ -3104,6 +3195,7 @@
   async function applyImportedDataset(dataset, label = '数据', sessionToken = batch.sessionId) {
     if (!isCurrentBatchSession(sessionToken)) return false;
     batch.dataset = dataset;
+    batch.duplicateAudit = null;
     batch.handoffComplete = false;
     batch.importMeta = dataset?.meta || null;
     batch.collectionConfigs.clear();
@@ -3170,6 +3262,7 @@
     batch.detection = null;
     batch.mapping = {};
     batch.tasks = [];
+    batch.duplicateAudit = null;
     batch.directoryFiles = [];
     batch.taskFiles = [];
     batch.routedAttachmentFiles = [];
@@ -3590,7 +3683,7 @@
         const previous = await Contacts.loadSyncMeta(contactBook.account);
         await Contacts.saveSyncMeta(contactBook.account, { ...previous, ...meta });
         await renderMailboxReadMeta({ ...previous, ...meta });
-        scheduleContactsRender(); scheduleBatchRender({aux:false});
+        scheduleContactsRender(); scheduleBatchRender({aux:true});
         setContactStatusMessage(`联系人记录重建完成：已发送 ${sentMessages.length} 封 · 草稿 ${draftMessages.length} 封 · 更新 ${rebuilt.contactFacts} 个联系人。${rebuilt.draftsWithoutRecipient ? ` ${rebuilt.draftsWithoutRecipient} 封草稿没有收件人，未关联联系人。` : ''}`, 'ok');
       } else {
         // Quick refresh works on a clone, so a storage failure never leaves a half-applied live state.
@@ -3608,7 +3701,7 @@
         };
         await Contacts.saveSyncMeta(contactBook.account, meta);
         await renderMailboxReadMeta(meta);
-        scheduleContactsRender(); scheduleBatchRender({aux:false});
+        scheduleContactsRender(); scheduleBatchRender({aux:true});
         setContactStatusMessage(`邮箱同步完成：已发送 ${sentMessages.length} 封 · 草稿 ${draftMessages.length} 封。`, 'ok');
       }
     } catch (error) {
@@ -3713,5 +3806,5 @@
   restoreFormState();
   invalidateBatchView(true);
   initContacts();
-  console.info(`[${APP}] v1.17.0 loaded`);
+  console.info(`[${APP}] v1.25.0 loaded`);
 })();

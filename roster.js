@@ -15,6 +15,14 @@
   function norm(v){return String(v??'').normalize('NFKC').trim().toLowerCase().replace(/[\s\u00a0\u200b_\-—–:：()（）\[\]【】<>《》\/\\.,，;；]+/g,'');}
   function clean(v){return String(v??'').normalize('NFKC').replace(/[\u00a0\u200b\u200c\u200d\ufeff]/g,' ').replace(/\s+/g,' ').trim();}
   function emailOf(v){const m=String(v??'').match(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i);return m?m[0].toLowerCase():'';}
+  function emailsOf(v){
+    const out=[],seen=new Set();
+    for(const match of String(v??'').matchAll(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/ig)){
+      const email=String(match[0]||'').toLowerCase();
+      if(email&&!seen.has(email)){seen.add(email);out.push(email);}
+    }
+    return out;
+  }
   function splitTags(v){return String(v??'').split(/[;；|,，\n]+/).map(clean).filter(Boolean);}
   function normalizeName(v){
     return clean(v).toLowerCase()
@@ -137,6 +145,56 @@
       emailCandidate:!email&&!!entry.email&&top.score>=82?entry.email:''};
   }
 
+  function auditTaskDuplicates(tasks){
+    const list=Array.isArray(tasks)?tasks.filter(Boolean):[];
+    const taskKey=(task,index)=>String(task?.editKey||task?.id||`task-${index}`);
+    const byEmail=new Map(),byNameSchool=new Map();
+    list.forEach((task,index)=>{
+      for(const email of emailsOf(task?.recipients||'')){
+        if(!byEmail.has(email))byEmail.set(email,[]);
+        byEmail.get(email).push(task);
+      }
+      const nameKey=normalizeName(taskName(task));
+      const institutionKey=schoolKey(task?.school||'');
+      if(nameKey&&institutionKey){
+        const key=`${nameKey}|${institutionKey}`;
+        if(!byNameSchool.has(key))byNameSchool.set(key,{name:taskName(task),school:clean(task?.school||''),tasks:[]});
+        byNameSchool.get(key).tasks.push(task);
+      }
+    });
+
+    const groups=[],coveredPairs=new Set();
+    const addPairs=groupTasks=>{
+      for(let i=0;i<groupTasks.length;i++)for(let j=i+1;j<groupTasks.length;j++){
+        const a=taskKey(groupTasks[i],i),b=taskKey(groupTasks[j],j);coveredPairs.add([a,b].sort().join('::'));
+      }
+    };
+    for(const [email,groupTasks] of byEmail){
+      const unique=[...new Map(groupTasks.map((task,index)=>[taskKey(task,index),task])).values()];
+      if(unique.length<2)continue;
+      groups.push({id:`email:${email}`,type:'exact-email',confidence:100,email,label:email,tasks:unique});
+      addPairs(unique);
+    }
+    for(const [key,group] of byNameSchool){
+      const unique=[...new Map(group.tasks.map((task,index)=>[taskKey(task,index),task])).values()];
+      if(unique.length<2)continue;
+      let hasUncoveredPair=false;
+      for(let i=0;i<unique.length&&!hasUncoveredPair;i++)for(let j=i+1;j<unique.length;j++){
+        const pair=[taskKey(unique[i],i),taskKey(unique[j],j)].sort().join('::');
+        if(!coveredPairs.has(pair)){hasUncoveredPair=true;break;}
+      }
+      if(!hasUncoveredPair)continue;
+      groups.push({id:`name-school:${key}`,type:'name-school',confidence:90,name:group.name,school:group.school,label:[group.name,group.school].filter(Boolean).join(' · '),tasks:unique});
+    }
+    const affected=new Set();for(const group of groups)for(const task of group.tasks)affected.add(taskKey(task,0));
+    return {
+      groups,
+      exactGroups:groups.filter(group=>group.type==='exact-email'),
+      probableGroups:groups.filter(group=>group.type==='name-school'),
+      summary:{tasks:list.length,groups:groups.length,exact:groups.filter(group=>group.type==='exact-email').length,probable:groups.filter(group=>group.type==='name-school').length,affectedTasks:affected.size}
+    };
+  }
+
   function crossCheck(tasks,entries){
     const list=entries||[],index=buildMatchIndex(list);
     const matches=(tasks||[]).map(task=>matchOne(task,index));
@@ -161,5 +219,5 @@
     };
   }
 
-  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,taskName,schoolKey,parseDataset,crossCheck,matchOne,buildMatchIndex};
+  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,taskName,schoolKey,parseDataset,auditTaskDuplicates,crossCheck,matchOne,buildMatchIndex};
 })();
