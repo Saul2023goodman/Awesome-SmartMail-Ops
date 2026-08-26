@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NMDA VM UI Preview</title>
+  <link rel="stylesheet" href="content.css">
+  <style>
+    html, body { margin: 0; min-height: 100%; font-family: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: #eef2f6; color: #25313c; }
+    .vm-mail-shell { min-height: 100vh; display: grid; grid-template-columns: 210px 1fr; background: #f3f6f9; }
+    .vm-mail-side { background: #fff; border-right: 1px solid #e2e7ec; padding: 20px 16px; }
+    .vm-mail-logo { font-size: 20px; font-weight: 800; margin: 4px 8px 24px; }
+    .vm-mail-logo small { display: block; margin-top: 4px; font-size: 11px; font-weight: 500; color: #94a0aa; }
+    .vm-mail-nav { padding: 11px 12px; margin: 4px 0; border-radius: 8px; color: #687580; }
+    .vm-mail-nav.is-active { background: #f1f4f7; color: #222d36; font-weight: 700; }
+    .vm-mail-main { display: grid; grid-template-rows: 64px 1fr; min-width: 0; }
+    .vm-mail-top { display: flex; justify-content: space-between; align-items: center; padding: 0 24px; background: #fff; border-bottom: 1px solid #e2e7ec; }
+    .vm-mail-top span { color: #8a96a0; font-size: 12px; }
+    .vm-mail-content { padding: 24px; }
+    .vm-mail-card { max-width: 900px; min-height: 180px; padding: 22px; border: 1px solid #e1e7ed; border-radius: 12px; background: #fff; box-shadow: 0 2px 10px rgba(30,45,60,.04); }
+    .vm-mail-card h2 { margin: 0 0 12px; font-size: 20px; }
+    .vm-mail-card p { margin: 0; color: #7c8994; line-height: 1.7; }
+    .vm-preview-watermark { position: fixed; left: 224px; bottom: 16px; z-index: 1; color: #9aa5af; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="vm-mail-shell" aria-hidden="true">
+    <aside class="vm-mail-side">
+      <div class="vm-mail-logo">网易邮箱 <small>VM · deterministic preview</small></div>
+      <div class="vm-mail-nav is-active">收件箱</div>
+      <div class="vm-mail-nav">写信</div>
+      <div class="vm-mail-nav">草稿箱</div>
+      <div class="vm-mail-nav">已发送</div>
+      <div class="vm-mail-nav">通讯录</div>
+    </aside>
+    <main class="vm-mail-main">
+      <header class="vm-mail-top"><strong>虚拟机界面测试页</strong><span>不连接真实邮箱 · 不执行真实草稿动作</span></header>
+      <section class="vm-mail-content">
+        <div class="vm-mail-card">
+          <h2>NetEase Mail Draft Assistant UI Sandbox</h2>
+          <p>此页面仅提供稳定的网易邮箱背景环境。工作台 UI、解析器、排程器、联系人模块均加载正式源码；浏览器存储与邮箱动作由 VM shim 隔离。</p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div class="vm-preview-watermark">VM screenshot harness · production manifest untouched</div>
+
+  <script src="vm/chrome-shim.js"></script>
+  <script src="import-core.js"></script>
+  <script src="mail-recognizer.js"></script>
+  <script src="import-adapters.js"></script>
+  <script src="importer.js"></script>
+  <script src="contacts.js"></script>
+  <script src="scheduler.js"></script>
+  <script src="roster.js"></script>
+  <script src="content.js"></script>
+  <script src="vm/preview-controller.js"></script>
+</body>
+</html>
