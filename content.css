@@ -1,4 +1,4 @@
-/* NetEase Mail Draft Assistant v1.14 — independent review gate + persistent workflow rail */
+/* NetEase Mail Draft Assistant v1.15 — operation-first batch drafting workspace */
 #nmda-root,
 #nmda-root * { box-sizing: border-box; }
 
@@ -1208,3 +1208,253 @@
   .nmda-review-layout { grid-template-columns:190px minmax(320px,1fr); max-height:none; }
   .nmda-review-edit-pane { grid-column:1 / -1; border-top:1px solid #e2e8f0; }
 }
+
+/* v1.15 — operation-first batch flow: parsing preview is inline, scheduling is part of selection */
+#nmda-panel {
+  width:min(1320px,96vw);
+  height:min(900px,92vh);
+  grid-template-columns:148px minmax(0,1fr);
+  grid-template-rows:58px minmax(0,1fr);
+}
+.nmda-head { padding:0 13px 0 15px; }
+.nmda-brand-mark { width:31px; height:31px; border-radius:9px; font-size:14px; }
+.nmda-title { font-size:14px; }
+.nmda-subtitle { font-size:9.5px; }
+.nmda-safe-badge { padding:4px 8px; font-size:9px; }
+.nmda-tabs { padding:12px 8px 10px; gap:5px; }
+.nmda-nav-label { padding:0 7px 4px; font-size:8px; }
+.nmda-tab { min-height:49px; grid-template-columns:26px minmax(0,1fr); gap:7px; padding:7px; border-radius:10px; }
+.nmda-tab-icon { width:26px; height:26px; border-radius:7px; font-size:12px; }
+.nmda-tab strong { font-size:11px; }
+.nmda-tab small { font-size:8.5px; }
+.nmda-page-head { min-height:56px; padding:9px 16px 8px; }
+.nmda-page-head h2 { font-size:16px; }
+.nmda-page-head p { font-size:9.5px; }
+.nmda-page { padding:12px 14px 24px; }
+
+/* One batch surface + one compact right rail. */
+.nmda-bulk-workbench {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 152px;
+  column-gap:12px;
+  align-items:start;
+}
+.nmda-bulk-workbench > :not(.nmda-process-guide) { grid-column:1; min-width:0; }
+.nmda-bulk-workbench > .nmda-process-guide {
+  grid-column:2;
+  grid-row:1 / span 20;
+  position:sticky;
+  top:8px;
+  align-self:start;
+  z-index:8;
+}
+.nmda-process-guide {
+  padding:8px;
+  border-radius:12px;
+  box-shadow:0 5px 18px rgba(15,23,42,.055);
+}
+.nmda-process-guide-title { padding:2px 3px 7px; margin-bottom:4px; }
+.nmda-process-guide-title strong { font-size:9px; }
+.nmda-process-guide button { grid-template-columns:27px minmax(0,1fr); column-gap:7px; padding:7px 5px; border-radius:8px; }
+.nmda-process-guide button > span { width:27px; height:27px; border-radius:8px; font-size:8px; }
+.nmda-process-guide button strong { font-size:9.2px; }
+.nmda-process-guide button small { font-size:7.3px; line-height:1.25; }
+.nmda-process-guide > i { height:9px; margin-left:13px; }
+
+.nmda-workflow-stage-head { margin:1px 0 8px; gap:8px; }
+.nmda-stage-number { width:29px; height:29px; font-size:8px; border-radius:8px; }
+.nmda-workflow-stage-head strong { font-size:12px; }
+.nmda-workflow-stage-head small { font-size:8.5px; }
+.nmda-workflow-stage-separator { margin:14px 2px 11px; }
+
+/* Preparation is compact; optional sources live inside the same card. */
+.nmda-ingest-workspace-v2 { gap:8px; }
+.nmda-ingest-workspace-v2 > .nmda-card { padding:11px; }
+.nmda-source-action-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+.nmda-source-action { min-height:58px; padding:7px 8px; grid-template-columns:25px minmax(0,1fr); }
+.nmda-source-action-icon { width:25px; height:25px; }
+.nmda-source-action strong { font-size:9.5px; }
+.nmda-source-action small { font-size:7.4px; }
+.nmda-ingest-source-tools { margin-top:0; }
+.nmda-compact-options,
+.nmda-optional-source-details,
+.nmda-inline-scheduler {
+  border:1px solid #e2e8f0;
+  border-radius:10px;
+  background:#fbfcfe;
+  overflow:hidden;
+}
+.nmda-compact-options > summary,
+.nmda-optional-source-details > summary,
+.nmda-inline-scheduler > summary {
+  min-height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:7px 9px;
+  color:#475569;
+  cursor:pointer;
+  list-style:none;
+}
+.nmda-compact-options > summary::-webkit-details-marker,
+.nmda-optional-source-details > summary::-webkit-details-marker,
+.nmda-inline-scheduler > summary::-webkit-details-marker { display:none; }
+.nmda-compact-options > summary { font-size:9px; font-weight:750; }
+.nmda-optional-source-details > summary span:first-child,
+.nmda-inline-scheduler > summary span:first-child { display:grid; gap:1px; }
+.nmda-optional-source-details > summary strong,
+.nmda-inline-scheduler > summary strong { font-size:9.5px; color:#334155; }
+.nmda-optional-source-details > summary small,
+.nmda-inline-scheduler > summary small { font-size:7.7px; color:#94a3b8; }
+.nmda-compact-options[open],.nmda-optional-source-details[open],.nmda-inline-scheduler[open] { background:#fff; }
+.nmda-compact-options[open] > :not(summary),
+.nmda-optional-source-details[open] > :not(summary),
+.nmda-inline-scheduler[open] > :not(summary) { margin-left:9px; margin-right:9px; }
+.nmda-compact-options[open] > :last-child,
+.nmda-optional-source-details[open] > :last-child,
+.nmda-inline-scheduler[open] > :last-child { margin-bottom:9px; }
+.nmda-roster-source-strip { margin-top:0; padding:8px 0; border:0; border-radius:0; background:transparent; }
+.nmda-roster-source-strip strong { font-size:9.5px; color:#334155; }
+.nmda-roster-source-strip small { font-size:8px; }
+.nmda-import-handoff-card {
+  position:static !important;
+  display:grid;
+  gap:7px;
+  margin-top:8px;
+  padding-top:8px;
+  border:0 !important;
+  border-top:1px solid #edf2f7 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+}
+.nmda-import-ready-summary { padding:0; border:0; background:transparent; }
+.nmda-import-handoff-actions { padding:0; }
+.nmda-ingest-health { grid-template-columns:repeat(4,minmax(90px,1fr)); gap:6px; }
+.nmda-health-metric { padding:7px 8px; }
+.nmda-health-metric strong { font-size:15px; }
+.nmda-health-metric span { font-size:7.6px; }
+.nmda-review-guidance { margin-top:5px; padding:6px 8px; font-size:8.5px; }
+
+/* Parsing preview is a collapsible inline activity, not a top-level workspace. */
+.nmda-inline-review { gap:8px !important; padding:0 !important; overflow:hidden; border-color:#cbd9ea; }
+.nmda-inline-review[hidden] { display:none !important; }
+.nmda-inline-review-top { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 11px 0; }
+.nmda-review-page-summary { gap:5px; }
+.nmda-review-page-summary span { min-height:25px; padding:4px 7px; font-size:7.7px; }
+.nmda-review-page-summary strong { font-size:10.5px; }
+.nmda-review-viewbar { min-height:36px; margin:0 10px; padding:5px 7px; border-radius:9px; }
+.nmda-review-filter button { min-height:25px; padding:0 8px; font-size:8.2px; }
+.nmda-review-batchbar {
+  min-height:42px;
+  display:grid;
+  grid-template-columns:minmax(100px,.6fr) minmax(250px,1.4fr) auto auto;
+  gap:7px;
+  margin:0 10px;
+  padding:7px 8px;
+  border-radius:9px;
+}
+.nmda-review-batchbar > div:first-child { min-width:90px; }
+.nmda-review-batchbar strong { font-size:9px; }
+.nmda-review-batchbar small { font-size:7.5px; }
+.nmda-review-inline-bulk { min-width:0; display:grid; grid-template-columns:minmax(150px,1fr) auto; gap:6px; align-items:center; }
+.nmda-review-inline-bulk[hidden] { display:none !important; }
+.nmda-review-inline-bulk input { width:100%; min-width:0; height:29px; border:1px solid #cbd5e1; border-radius:7px; padding:0 8px; font-size:8.7px; background:#fff; }
+.nmda-review-page-empty { margin:0 10px 10px; padding:20px 14px; font-size:8.7px; }
+.nmda-review-workbench { margin:0; border:0; border-top:1px solid #e2e8f0; border-radius:0; background:#fff; }
+.nmda-review-head { min-height:44px; padding:8px 10px; }
+.nmda-review-layout {
+  grid-template-columns:188px minmax(340px,1.1fr) minmax(290px,.86fr);
+  min-height:410px;
+  max-height:56vh;
+}
+.nmda-review-pane-title { min-height:38px; padding:7px 9px; }
+.nmda-review-pane-title strong { font-size:9.5px; }
+.nmda-review-pane-title small { font-size:7.5px; }
+.nmda-review-queue-item { padding:7px; }
+.nmda-review-queue-main strong { font-size:8.8px; }
+.nmda-review-queue-main small,.nmda-review-queue-main em { font-size:7.4px; }
+.nmda-review-source-meta,.nmda-review-candidates,.nmda-review-source-context { margin-left:9px; margin-right:9px; }
+.nmda-review-edit-pane > .nmda-import-editor-grid,.nmda-review-feedback { margin-left:9px; margin-right:9px; }
+.nmda-review-core-fields textarea { min-height:145px; }
+.nmda-review-actions { padding:8px 9px; }
+
+/* Selection and scheduling are one task area. */
+.nmda-task-toolbar { display:grid; grid-template-columns:minmax(220px,1fr) 150px auto auto; gap:7px; align-items:end; }
+.nmda-search-field { min-width:0; }
+.nmda-search-field input { width:100%; min-height:32px; border:1px solid var(--nmda-border-strong); border-radius:8px; padding:6px 9px; font-size:9px; background:#fff; }
+.nmda-compact-select { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:6px; min-height:32px; padding:4px 6px; border:1px solid var(--nmda-border); border-radius:8px; background:#fff; color:#64748b; font-size:8px; }
+.nmda-compact-select select { min-width:0; border:0; outline:0; background:transparent; color:#334155; font-size:8.5px; }
+.nmda-inline-scheduler { margin-top:0; }
+.nmda-inline-scheduler[hidden] { display:none !important; }
+.nmda-inline-scheduler .nmda-scheduler-grid { grid-template-columns:minmax(180px,1.2fr) minmax(100px,.6fr) minmax(90px,.5fr) minmax(150px,.8fr); padding-top:8px; gap:7px; }
+.nmda-inline-scheduler .nmda-check-card { min-height:44px; }
+.nmda-inline-scheduler .nmda-scheduler-actions { grid-template-columns:minmax(220px,1fr) auto auto; }
+.nmda-inline-scheduler .nmda-schedule-rule-preview { padding:6px 8px; font-size:8px; }
+.nmda-batch-table-wrap { max-height:370px; }
+.nmda-batch-table { min-width:930px; table-layout:fixed; }
+.nmda-batch-table th:nth-child(1),.nmda-batch-table td:nth-child(1) { width:46px; text-align:center; }
+.nmda-batch-table th:nth-child(2),.nmda-batch-table td:nth-child(2) { width:190px; }
+.nmda-batch-table th:nth-child(3),.nmda-batch-table td:nth-child(3) { width:155px; }
+.nmda-batch-table th:nth-child(4),.nmda-batch-table td:nth-child(4) { width:245px; }
+.nmda-batch-table th:nth-child(5),.nmda-batch-table td:nth-child(5) { width:185px; }
+.nmda-batch-table th:nth-child(6),.nmda-batch-table td:nth-child(6) { width:110px; }
+.nmda-table-school-input { width:100% !important; min-height:28px !important; padding:4px 6px !important; font-size:8.5px !important; border-radius:6px !important; }
+.nmda-recipient-cell,.nmda-subject-cell,.nmda-task-state-cell { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-recipient-cell strong,.nmda-recipient-cell small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-recipient-cell strong { font-size:8.8px; font-weight:700; }
+.nmda-recipient-cell small { margin-top:2px; color:#94a3b8; font-size:7.4px; }
+.nmda-subject-cell { font-size:8.7px; }
+.nmda-task-state-cell { color:#64748b; font-size:8px; }
+.nmda-schedule-edit-cell input { min-height:28px !important; padding:3px 5px !important; font-size:8.2px !important; }
+.nmda-schedule-edit-cell small { font-size:7.2px; }
+.nmda-run-card { margin-top:9px; min-height:58px; padding:10px 11px; }
+.nmda-run-controls-simple { gap:7px; }
+
+/* Hide legacy UI concepts that are now folded into the actual task flow. */
+.nmda-nav-count,.nmda-bulk-editor,.nmda-batch-filter-bar,.nmda-search-help { display:none !important; }
+
+@media (max-width:1100px) {
+  #nmda-panel { grid-template-columns:138px minmax(0,1fr); }
+  .nmda-bulk-workbench { grid-template-columns:minmax(0,1fr) 56px; column-gap:8px; }
+  .nmda-process-guide { padding:6px 5px; }
+  .nmda-process-guide-title { text-align:center; }
+  .nmda-process-guide-title strong { font-size:7.5px; }
+  .nmda-process-guide button { grid-template-columns:1fr; justify-items:center; padding:6px 2px; }
+  .nmda-process-guide button > span { grid-row:auto; width:28px; height:28px; }
+  .nmda-process-guide button strong,.nmda-process-guide button small { display:none; }
+  .nmda-process-guide > i { margin-left:auto; margin-right:auto; }
+  .nmda-review-layout { grid-template-columns:180px minmax(320px,1fr); max-height:none; }
+  .nmda-review-edit-pane { grid-column:1 / -1; border-top:1px solid #e2e8f0; }
+  .nmda-task-toolbar { grid-template-columns:minmax(180px,1fr) 130px auto; }
+  .nmda-task-toolbar #nmda-clear-selection { grid-column:3; }
+  .nmda-inline-scheduler .nmda-scheduler-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:780px) {
+  #nmda-panel { inset:8px; width:auto; height:auto; grid-template-columns:112px minmax(0,1fr); border-radius:14px; }
+  .nmda-tab { grid-template-columns:24px minmax(0,1fr); }
+  .nmda-tab small { display:none; }
+  .nmda-bulk-workbench { grid-template-columns:1fr; }
+  .nmda-bulk-workbench > .nmda-process-guide { grid-column:1; grid-row:auto; position:sticky; top:0; flex-direction:row; gap:4px; z-index:12; }
+  .nmda-process-guide-title,.nmda-process-guide > i { display:none; }
+  .nmda-process-guide button { flex:1; }
+  .nmda-source-action-grid { grid-template-columns:1fr; }
+  .nmda-ingest-health { grid-template-columns:repeat(2,minmax(90px,1fr)); }
+  .nmda-review-batchbar { grid-template-columns:1fr; align-items:stretch; }
+  .nmda-review-layout { grid-template-columns:1fr; max-height:none; }
+  .nmda-review-queue-pane,.nmda-review-evidence-pane { max-height:280px; border-right:0; border-bottom:1px solid #e2e8f0; }
+  .nmda-task-toolbar { grid-template-columns:1fr 1fr; }
+  .nmda-task-toolbar #nmda-bulk-enable,.nmda-task-toolbar #nmda-clear-selection { grid-column:auto; }
+  .nmda-inline-scheduler .nmda-scheduler-grid,.nmda-inline-scheduler .nmda-scheduler-actions { grid-template-columns:1fr; }
+}
+/* v1.15 overlap fix: the final action belongs in document flow, not as a second sticky layer. */
+.nmda-run-card {
+  position:static !important;
+  bottom:auto !important;
+  z-index:auto !important;
+  box-shadow:0 1px 2px rgba(15,23,42,.03) !important;
+}
+/* The result metrics already summarize readiness; avoid a second duplicate summary row. */
+.nmda-import-ready-summary { display:none !important; }

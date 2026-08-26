@@ -5,37 +5,39 @@ const m=js.match(/root\.innerHTML = `([\s\S]*?)`;\n\s*document\.documentElement\
 if(!m) throw new Error('buildUI template not found');
 const html=m[1];
 
-for(const label of ['添加资料','逐条确认','选择任务','安排时间','创建草稿']) {
-  if(!html.includes(`<strong>${label}</strong>`)) throw new Error(`missing flow step: ${label}`);
+for(const label of ['添加资料','检查邮件','选择与安排','创建草稿']) {
+  if(!html.includes(`<strong>${label}</strong>`)) throw new Error(`missing user flow step: ${label}`);
 }
-for(const tech of ['EXCEPTION REVIEW','MAILBOX STATE','CONTACT BOOK','MESSAGE</div>','ATTACHMENTS</div>','SCHEDULE</div>','识别诊断与高级映射','证据分']) {
-  if(html.includes(tech)) throw new Error(`technical UI text leaked: ${tech}`);
-}
+if(html.includes('data-flow-step="5"')) throw new Error('batch flow should be four user actions, not five internal stages');
+if((html.match(/class="nmda-process-guide"/g)||[]).length!==1) throw new Error('workflow rail should exist once in the batch workspace');
 
-if(!html.includes('data-tab="batch"') || html.includes('data-tab="import"')) throw new Error('batch workbench IA missing');
-if(!html.includes('data-tab="review"') || !html.includes('<strong>逐条确认</strong><small>核验 · 修正 · 放行</small>')) throw new Error('review must be an independent primary workspace');
-if(!html.includes('id="nmda-review-nav-count"')) throw new Error('review pending count missing from primary navigation');
-
-const guides=(html.match(/class="nmda-process-guide"/g)||[]).length;
-if(guides!==2) throw new Error(`process guide should be present in batch and review workspaces; got ${guides}`);
-if(!/\.nmda-bulk-workbench > \.nmda-process-guide,[\s\S]*?\.nmda-review-page > \.nmda-process-guide[\s\S]*?position:sticky/.test(css)) throw new Error('right sticky workflow rail missing');
-if(!/\.nmda-process-guide\s*\{[\s\S]*?flex-direction:column/.test(css)) throw new Error('workflow rail is not vertical');
-
-const reviewStart=html.indexOf('data-pane="review"');
-const contactsStart=html.indexOf('data-pane="contacts"');
-const reviewHtml=html.slice(reviewStart,contactsStart>reviewStart?contactsStart:undefined);
-if(!reviewHtml.includes('id="nmda-bulk-subject-open"')) throw new Error('bulk subject must live inside review workspace');
-if(!reviewHtml.includes('id="nmda-review-confirm-selected"')) throw new Error('batch save/confirm action missing in review workspace');
-if(!reviewHtml.includes('保存并确认所选')) throw new Error('batch confirm label missing');
-if(!reviewHtml.includes('data-review-filter="pending"') || !reviewHtml.includes('data-review-filter="all"')) throw new Error('review pending/all modes missing');
-if(!reviewHtml.includes('id="nmda-review-select-filtered"')) throw new Error('review selection control missing');
+if(!html.includes('data-tab="batch"') || !html.includes('<strong>批量草稿</strong>')) throw new Error('batch drafting primary workspace missing');
+if(html.includes('data-tab="review"') || html.includes('data-pane="review"')) throw new Error('parsing preview must not be a primary workspace');
+if(!html.includes('data-tab="single"') || !html.includes('data-tab="contacts"')) throw new Error('single draft / contacts primary workspaces missing');
 
 const batchStart=html.indexOf('data-pane="batch"');
-const reviewPaneStart=html.indexOf('data-pane="review"');
-const batchHtml=html.slice(batchStart,reviewPaneStart);
-if(batchHtml.includes('id="nmda-bulk-subject-open"')) throw new Error('bulk subject leaked back into batch workspace');
-if(html.includes('id="nmda-import-preview-card"') || html.includes('抽查邮件')) throw new Error('duplicate import sampling table should be removed, not merely hidden');
-if(!html.includes('进入任务选择')) throw new Error('handoff should be phrased as entering task selection, not duplicate confirmation');
+const contactsStart=html.indexOf('data-pane="contacts"');
+const batchHtml=html.slice(batchStart,contactsStart>batchStart?contactsStart:undefined);
+if(!batchHtml.includes('id="nmda-inline-review"') || !batchHtml.includes('<div class="nmda-card-title">解析预览</div>')) throw new Error('inline parsing preview missing from batch flow');
+if(!batchHtml.includes('data-review-filter="pending">需修改</button>') || !batchHtml.includes('data-review-filter="all">全部邮件</button>')) throw new Error('parsing preview filters missing');
+if(!batchHtml.includes('id="nmda-bulk-subject-panel"') || !batchHtml.includes('placeholder="统一补充空白主题"')) throw new Error('bulk subject fill should be an inline selected-item control');
+if(batchHtml.includes('批量补充所选邮件的缺失主题')) throw new Error('bulk subject must not be a standalone panel');
+if(!batchHtml.includes('id="nmda-review-confirm-selected"') || !batchHtml.includes('>保存所选</button>')) throw new Error('selected parsing edits need one save action');
+
+const previewCardStart=batchHtml.indexOf('id="nmda-preview-card"');
+const schedulerStart=batchHtml.indexOf('id="nmda-scheduler-card"');
+const previewCardEnd=batchHtml.indexOf('id="nmda-run-card"');
+if(!(previewCardStart>=0 && schedulerStart>previewCardStart && schedulerStart<previewCardEnd)) throw new Error('automatic scheduling must be folded into selection card');
+if(!batchHtml.includes('<th>选择</th><th>收件人</th><th>学校</th><th>主题</th><th>时间</th><th>状态</th>')) throw new Error('batch table should use the compact six-column decision layout');
+
+for(const tech of ['质量门','自动复核','机器先','人工确认','EXCEPTION REVIEW','MAILBOX STATE','CONTACT BOOK','识别诊断与高级映射']) {
+  if(html.includes(tech)) throw new Error(`technical / internal copy leaked into primary UI: ${tech}`);
+}
+
+if(!/\.nmda-bulk-workbench > \.nmda-process-guide[\s\S]*?position:sticky/.test(css)) throw new Error('right sticky workflow rail missing');
+if(!/\.nmda-batch-table\s*\{[^}]*min-width:930px/.test(css)) throw new Error('compact batch table width contract missing');
+if(!/\.nmda-run-card\s*\{[\s\S]*?position:static\s*!important/.test(css)) throw new Error('final action card must not overlap content as a sticky layer');
+if(!/grid-template-columns:148px minmax\(0,1fr\)/.test(css)) throw new Error('primary navigation width was not reduced');
 
 if(!html.includes('同步邮箱') || !html.includes('维护选项')) throw new Error('contact sync / maintenance hierarchy missing');
-console.log('ui contract OK: independent review gate, selected-only batch actions, right sticky vertical flow rail');
+console.log('ui contract OK: inline parsing preview, combined selection+scheduling, compact sizing, no duplicate sticky action layer');

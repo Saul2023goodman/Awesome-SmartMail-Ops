@@ -1,4 +1,5 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NetEase Mail Draft Assistant v1.14.0 — 逐条确认预览</title><style>/* NetEase Mail Draft Assistant v1.14 — independent review gate + persistent workflow rail */
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><title>NetEase Mail Draft Assistant v1.15.0 — 批量草稿预览</title><style>/* NetEase Mail Draft Assistant v1.15 — operation-first batch drafting workspace */
 #nmda-root,
 #nmda-root * { box-sizing: border-box; }
 
@@ -1209,17 +1210,266 @@
   .nmda-review-edit-pane { grid-column:1 / -1; border-top:1px solid #e2e8f0; }
 }
 
-html,body{margin:0;min-height:100%;background:#dfe6ef;overflow:hidden} body{font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif} #nmda-root #nmda-panel.is-maximized{inset:14px;}</style></head><body><div id="nmda-root">
-<button aria-label="打开网易邮箱外联工作台" id="nmda-launcher" style="display:none" title="网易邮箱外联工作台" type="button">
+/* v1.15 — operation-first batch flow: parsing preview is inline, scheduling is part of selection */
+#nmda-panel {
+  width:min(1320px,96vw);
+  height:min(900px,92vh);
+  grid-template-columns:148px minmax(0,1fr);
+  grid-template-rows:58px minmax(0,1fr);
+}
+.nmda-head { padding:0 13px 0 15px; }
+.nmda-brand-mark { width:31px; height:31px; border-radius:9px; font-size:14px; }
+.nmda-title { font-size:14px; }
+.nmda-subtitle { font-size:9.5px; }
+.nmda-safe-badge { padding:4px 8px; font-size:9px; }
+.nmda-tabs { padding:12px 8px 10px; gap:5px; }
+.nmda-nav-label { padding:0 7px 4px; font-size:8px; }
+.nmda-tab { min-height:49px; grid-template-columns:26px minmax(0,1fr); gap:7px; padding:7px; border-radius:10px; }
+.nmda-tab-icon { width:26px; height:26px; border-radius:7px; font-size:12px; }
+.nmda-tab strong { font-size:11px; }
+.nmda-tab small { font-size:8.5px; }
+.nmda-page-head { min-height:56px; padding:9px 16px 8px; }
+.nmda-page-head h2 { font-size:16px; }
+.nmda-page-head p { font-size:9.5px; }
+.nmda-page { padding:12px 14px 24px; }
+
+/* One batch surface + one compact right rail. */
+.nmda-bulk-workbench {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 152px;
+  column-gap:12px;
+  align-items:start;
+}
+.nmda-bulk-workbench > :not(.nmda-process-guide) { grid-column:1; min-width:0; }
+.nmda-bulk-workbench > .nmda-process-guide {
+  grid-column:2;
+  grid-row:1 / span 20;
+  position:sticky;
+  top:8px;
+  align-self:start;
+  z-index:8;
+}
+.nmda-process-guide {
+  padding:8px;
+  border-radius:12px;
+  box-shadow:0 5px 18px rgba(15,23,42,.055);
+}
+.nmda-process-guide-title { padding:2px 3px 7px; margin-bottom:4px; }
+.nmda-process-guide-title strong { font-size:9px; }
+.nmda-process-guide button { grid-template-columns:27px minmax(0,1fr); column-gap:7px; padding:7px 5px; border-radius:8px; }
+.nmda-process-guide button > span { width:27px; height:27px; border-radius:8px; font-size:8px; }
+.nmda-process-guide button strong { font-size:9.2px; }
+.nmda-process-guide button small { font-size:7.3px; line-height:1.25; }
+.nmda-process-guide > i { height:9px; margin-left:13px; }
+
+.nmda-workflow-stage-head { margin:1px 0 8px; gap:8px; }
+.nmda-stage-number { width:29px; height:29px; font-size:8px; border-radius:8px; }
+.nmda-workflow-stage-head strong { font-size:12px; }
+.nmda-workflow-stage-head small { font-size:8.5px; }
+.nmda-workflow-stage-separator { margin:14px 2px 11px; }
+
+/* Preparation is compact; optional sources live inside the same card. */
+.nmda-ingest-workspace-v2 { gap:8px; }
+.nmda-ingest-workspace-v2 > .nmda-card { padding:11px; }
+.nmda-source-action-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+.nmda-source-action { min-height:58px; padding:7px 8px; grid-template-columns:25px minmax(0,1fr); }
+.nmda-source-action-icon { width:25px; height:25px; }
+.nmda-source-action strong { font-size:9.5px; }
+.nmda-source-action small { font-size:7.4px; }
+.nmda-ingest-source-tools { margin-top:0; }
+.nmda-compact-options,
+.nmda-optional-source-details,
+.nmda-inline-scheduler {
+  border:1px solid #e2e8f0;
+  border-radius:10px;
+  background:#fbfcfe;
+  overflow:hidden;
+}
+.nmda-compact-options > summary,
+.nmda-optional-source-details > summary,
+.nmda-inline-scheduler > summary {
+  min-height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:7px 9px;
+  color:#475569;
+  cursor:pointer;
+  list-style:none;
+}
+.nmda-compact-options > summary::-webkit-details-marker,
+.nmda-optional-source-details > summary::-webkit-details-marker,
+.nmda-inline-scheduler > summary::-webkit-details-marker { display:none; }
+.nmda-compact-options > summary { font-size:9px; font-weight:750; }
+.nmda-optional-source-details > summary span:first-child,
+.nmda-inline-scheduler > summary span:first-child { display:grid; gap:1px; }
+.nmda-optional-source-details > summary strong,
+.nmda-inline-scheduler > summary strong { font-size:9.5px; color:#334155; }
+.nmda-optional-source-details > summary small,
+.nmda-inline-scheduler > summary small { font-size:7.7px; color:#94a3b8; }
+.nmda-compact-options[open],.nmda-optional-source-details[open],.nmda-inline-scheduler[open] { background:#fff; }
+.nmda-compact-options[open] > :not(summary),
+.nmda-optional-source-details[open] > :not(summary),
+.nmda-inline-scheduler[open] > :not(summary) { margin-left:9px; margin-right:9px; }
+.nmda-compact-options[open] > :last-child,
+.nmda-optional-source-details[open] > :last-child,
+.nmda-inline-scheduler[open] > :last-child { margin-bottom:9px; }
+.nmda-roster-source-strip { margin-top:0; padding:8px 0; border:0; border-radius:0; background:transparent; }
+.nmda-roster-source-strip strong { font-size:9.5px; color:#334155; }
+.nmda-roster-source-strip small { font-size:8px; }
+.nmda-import-handoff-card {
+  position:static !important;
+  display:grid;
+  gap:7px;
+  margin-top:8px;
+  padding-top:8px;
+  border:0 !important;
+  border-top:1px solid #edf2f7 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+}
+.nmda-import-ready-summary { padding:0; border:0; background:transparent; }
+.nmda-import-handoff-actions { padding:0; }
+.nmda-ingest-health { grid-template-columns:repeat(4,minmax(90px,1fr)); gap:6px; }
+.nmda-health-metric { padding:7px 8px; }
+.nmda-health-metric strong { font-size:15px; }
+.nmda-health-metric span { font-size:7.6px; }
+.nmda-review-guidance { margin-top:5px; padding:6px 8px; font-size:8.5px; }
+
+/* Parsing preview is a collapsible inline activity, not a top-level workspace. */
+.nmda-inline-review { gap:8px !important; padding:0 !important; overflow:hidden; border-color:#cbd9ea; }
+.nmda-inline-review[hidden] { display:none !important; }
+.nmda-inline-review-top { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 11px 0; }
+.nmda-review-page-summary { gap:5px; }
+.nmda-review-page-summary span { min-height:25px; padding:4px 7px; font-size:7.7px; }
+.nmda-review-page-summary strong { font-size:10.5px; }
+.nmda-review-viewbar { min-height:36px; margin:0 10px; padding:5px 7px; border-radius:9px; }
+.nmda-review-filter button { min-height:25px; padding:0 8px; font-size:8.2px; }
+.nmda-review-batchbar {
+  min-height:42px;
+  display:grid;
+  grid-template-columns:minmax(100px,.6fr) minmax(250px,1.4fr) auto auto;
+  gap:7px;
+  margin:0 10px;
+  padding:7px 8px;
+  border-radius:9px;
+}
+.nmda-review-batchbar > div:first-child { min-width:90px; }
+.nmda-review-batchbar strong { font-size:9px; }
+.nmda-review-batchbar small { font-size:7.5px; }
+.nmda-review-inline-bulk { min-width:0; display:grid; grid-template-columns:minmax(150px,1fr) auto; gap:6px; align-items:center; }
+.nmda-review-inline-bulk[hidden] { display:none !important; }
+.nmda-review-inline-bulk input { width:100%; min-width:0; height:29px; border:1px solid #cbd5e1; border-radius:7px; padding:0 8px; font-size:8.7px; background:#fff; }
+.nmda-review-page-empty { margin:0 10px 10px; padding:20px 14px; font-size:8.7px; }
+.nmda-review-workbench { margin:0; border:0; border-top:1px solid #e2e8f0; border-radius:0; background:#fff; }
+.nmda-review-head { min-height:44px; padding:8px 10px; }
+.nmda-review-layout {
+  grid-template-columns:188px minmax(340px,1.1fr) minmax(290px,.86fr);
+  min-height:410px;
+  max-height:56vh;
+}
+.nmda-review-pane-title { min-height:38px; padding:7px 9px; }
+.nmda-review-pane-title strong { font-size:9.5px; }
+.nmda-review-pane-title small { font-size:7.5px; }
+.nmda-review-queue-item { padding:7px; }
+.nmda-review-queue-main strong { font-size:8.8px; }
+.nmda-review-queue-main small,.nmda-review-queue-main em { font-size:7.4px; }
+.nmda-review-source-meta,.nmda-review-candidates,.nmda-review-source-context { margin-left:9px; margin-right:9px; }
+.nmda-review-edit-pane > .nmda-import-editor-grid,.nmda-review-feedback { margin-left:9px; margin-right:9px; }
+.nmda-review-core-fields textarea { min-height:145px; }
+.nmda-review-actions { padding:8px 9px; }
+
+/* Selection and scheduling are one task area. */
+.nmda-task-toolbar { display:grid; grid-template-columns:minmax(220px,1fr) 150px auto auto; gap:7px; align-items:end; }
+.nmda-search-field { min-width:0; }
+.nmda-search-field input { width:100%; min-height:32px; border:1px solid var(--nmda-border-strong); border-radius:8px; padding:6px 9px; font-size:9px; background:#fff; }
+.nmda-compact-select { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:6px; min-height:32px; padding:4px 6px; border:1px solid var(--nmda-border); border-radius:8px; background:#fff; color:#64748b; font-size:8px; }
+.nmda-compact-select select { min-width:0; border:0; outline:0; background:transparent; color:#334155; font-size:8.5px; }
+.nmda-inline-scheduler { margin-top:0; }
+.nmda-inline-scheduler[hidden] { display:none !important; }
+.nmda-inline-scheduler .nmda-scheduler-grid { grid-template-columns:minmax(180px,1.2fr) minmax(100px,.6fr) minmax(90px,.5fr) minmax(150px,.8fr); padding-top:8px; gap:7px; }
+.nmda-inline-scheduler .nmda-check-card { min-height:44px; }
+.nmda-inline-scheduler .nmda-scheduler-actions { grid-template-columns:minmax(220px,1fr) auto auto; }
+.nmda-inline-scheduler .nmda-schedule-rule-preview { padding:6px 8px; font-size:8px; }
+.nmda-batch-table-wrap { max-height:370px; }
+.nmda-batch-table { min-width:930px; table-layout:fixed; }
+.nmda-batch-table th:nth-child(1),.nmda-batch-table td:nth-child(1) { width:46px; text-align:center; }
+.nmda-batch-table th:nth-child(2),.nmda-batch-table td:nth-child(2) { width:190px; }
+.nmda-batch-table th:nth-child(3),.nmda-batch-table td:nth-child(3) { width:155px; }
+.nmda-batch-table th:nth-child(4),.nmda-batch-table td:nth-child(4) { width:245px; }
+.nmda-batch-table th:nth-child(5),.nmda-batch-table td:nth-child(5) { width:185px; }
+.nmda-batch-table th:nth-child(6),.nmda-batch-table td:nth-child(6) { width:110px; }
+.nmda-table-school-input { width:100% !important; min-height:28px !important; padding:4px 6px !important; font-size:8.5px !important; border-radius:6px !important; }
+.nmda-recipient-cell,.nmda-subject-cell,.nmda-task-state-cell { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-recipient-cell strong,.nmda-recipient-cell small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-recipient-cell strong { font-size:8.8px; font-weight:700; }
+.nmda-recipient-cell small { margin-top:2px; color:#94a3b8; font-size:7.4px; }
+.nmda-subject-cell { font-size:8.7px; }
+.nmda-task-state-cell { color:#64748b; font-size:8px; }
+.nmda-schedule-edit-cell input { min-height:28px !important; padding:3px 5px !important; font-size:8.2px !important; }
+.nmda-schedule-edit-cell small { font-size:7.2px; }
+.nmda-run-card { margin-top:9px; min-height:58px; padding:10px 11px; }
+.nmda-run-controls-simple { gap:7px; }
+
+/* Hide legacy UI concepts that are now folded into the actual task flow. */
+.nmda-nav-count,.nmda-bulk-editor,.nmda-batch-filter-bar,.nmda-search-help { display:none !important; }
+
+@media (max-width:1100px) {
+  #nmda-panel { grid-template-columns:138px minmax(0,1fr); }
+  .nmda-bulk-workbench { grid-template-columns:minmax(0,1fr) 56px; column-gap:8px; }
+  .nmda-process-guide { padding:6px 5px; }
+  .nmda-process-guide-title { text-align:center; }
+  .nmda-process-guide-title strong { font-size:7.5px; }
+  .nmda-process-guide button { grid-template-columns:1fr; justify-items:center; padding:6px 2px; }
+  .nmda-process-guide button > span { grid-row:auto; width:28px; height:28px; }
+  .nmda-process-guide button strong,.nmda-process-guide button small { display:none; }
+  .nmda-process-guide > i { margin-left:auto; margin-right:auto; }
+  .nmda-review-layout { grid-template-columns:180px minmax(320px,1fr); max-height:none; }
+  .nmda-review-edit-pane { grid-column:1 / -1; border-top:1px solid #e2e8f0; }
+  .nmda-task-toolbar { grid-template-columns:minmax(180px,1fr) 130px auto; }
+  .nmda-task-toolbar #nmda-clear-selection { grid-column:3; }
+  .nmda-inline-scheduler .nmda-scheduler-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:780px) {
+  #nmda-panel { inset:8px; width:auto; height:auto; grid-template-columns:112px minmax(0,1fr); border-radius:14px; }
+  .nmda-tab { grid-template-columns:24px minmax(0,1fr); }
+  .nmda-tab small { display:none; }
+  .nmda-bulk-workbench { grid-template-columns:1fr; }
+  .nmda-bulk-workbench > .nmda-process-guide { grid-column:1; grid-row:auto; position:sticky; top:0; flex-direction:row; gap:4px; z-index:12; }
+  .nmda-process-guide-title,.nmda-process-guide > i { display:none; }
+  .nmda-process-guide button { flex:1; }
+  .nmda-source-action-grid { grid-template-columns:1fr; }
+  .nmda-ingest-health { grid-template-columns:repeat(2,minmax(90px,1fr)); }
+  .nmda-review-batchbar { grid-template-columns:1fr; align-items:stretch; }
+  .nmda-review-layout { grid-template-columns:1fr; max-height:none; }
+  .nmda-review-queue-pane,.nmda-review-evidence-pane { max-height:280px; border-right:0; border-bottom:1px solid #e2e8f0; }
+  .nmda-task-toolbar { grid-template-columns:1fr 1fr; }
+  .nmda-task-toolbar #nmda-bulk-enable,.nmda-task-toolbar #nmda-clear-selection { grid-column:auto; }
+  .nmda-inline-scheduler .nmda-scheduler-grid,.nmda-inline-scheduler .nmda-scheduler-actions { grid-template-columns:1fr; }
+}
+/* v1.15 overlap fix: the final action belongs in document flow, not as a second sticky layer. */
+.nmda-run-card {
+  position:static !important;
+  bottom:auto !important;
+  z-index:auto !important;
+  box-shadow:0 1px 2px rgba(15,23,42,.03) !important;
+}
+/* The result metrics already summarize readiness; avoid a second duplicate summary row. */
+.nmda-import-ready-summary { display:none !important; }
+</style><style>body{margin:0;background:#dde4ee;min-height:100vh}#nmda-launcher{display:none!important}#nmda-panel{inset:14px;width:calc(100vw - 28px);height:calc(100vh - 28px)}</style></head><body>
+<button aria-label="打开网易邮箱外联工作台" id="nmda-launcher" title="网易邮箱外联工作台" type="button">
 <span class="nmda-launcher-mark">N</span><span class="nmda-launcher-dot"></span>
 </button>
-<section aria-label="网易邮箱外联工作台" class="is-maximized" id="nmda-panel">
+<section aria-label="网易邮箱外联工作台" id="nmda-panel">
 <header class="nmda-head">
 <div class="nmda-brand">
 <div class="nmda-brand-mark">N</div>
 <div>
 <div class="nmda-title">网易邮箱外联工作台</div>
-<div class="nmda-subtitle">准备资料 → 逐条确认 → 选择任务 → 安排时间 → 创建草稿</div>
+<div class="nmda-subtitle">整理邮件并创建网易草稿</div>
 </div>
 </div>
 <div class="nmda-head-actions">
@@ -1230,10 +1480,9 @@ html,body{margin:0;min-height:100%;background:#dfe6ef;overflow:hidden} body{font
 </header>
 <nav aria-label="工作台模块" class="nmda-tabs">
 <div class="nmda-nav-label">工作区</div>
-<button class="nmda-tab" data-tab="batch" type="button"><span class="nmda-tab-icon">▦</span><span><strong>批量工作台</strong><small>准备 · 选择 · 创建</small></span></button>
-<button class="nmda-tab is-active" data-tab="review" type="button"><span class="nmda-tab-icon">✓</span><span><strong>逐条确认</strong><small>核验 · 修正 · 放行</small></span><span class="nmda-nav-count" id="nmda-review-nav-count">3</span></button>
+<button class="nmda-tab is-active" data-tab="batch" type="button"><span class="nmda-tab-icon">▦</span><span><strong>批量草稿</strong><small>导入 · 检查 · 创建</small></span></button>
 <button class="nmda-tab" data-tab="single" type="button"><span class="nmda-tab-icon">✎</span><span><strong>单封草稿</strong><small>临时创建一封</small></span></button>
-<button class="nmda-tab" data-tab="contacts" type="button"><span class="nmda-tab-icon">◎</span><span><strong>联系人</strong><small>状态 · 跟进 · 记录</small></span></button>
+<button class="nmda-tab" data-tab="contacts" type="button"><span class="nmda-tab-icon">◎</span><span><strong>联系人</strong><small>联系记录与跟进</small></span></button>
 </nav>
 <main class="nmda-main">
 <div class="nmda-page-head" data-page-head="single" hidden="">
@@ -1264,243 +1513,203 @@ html,body{margin:0;min-height:100%;background:#dfe6ef;overflow:hidden} body{font
 </aside>
 </div>
 </section>
-<div class="nmda-page-head" data-page-head="batch" hidden="">
-<div><h2>批量工作台</h2><p>资料准备、任务选择、排程和草稿创建留在同一批次；质量核验集中到独立的“逐条确认”。</p></div>
-<div class="nmda-page-head-meta"><span class="nmda-safe-inline">只建草稿</span><span>机器先复核 · 人工处理不确定项</span></div>
+<div class="nmda-page-head" data-page-head="batch">
+<div><h2>批量草稿</h2><p>添加资料，检查解析结果，选择邮件并安排时间。</p></div>
+<div class="nmda-page-head-meta"><span class="nmda-safe-inline">只保存草稿</span></div>
 </div>
-<section class="nmda-tabpane nmda-page nmda-ingest-page nmda-bulk-workbench" data-pane="batch" hidden="">
+<section class="nmda-tabpane nmda-page nmda-ingest-page nmda-bulk-workbench" data-pane="batch">
 <aside aria-label="批量流程" class="nmda-process-guide">
-<div class="nmda-process-guide-title"><strong>本批次流程</strong><small>随页面固定 · 可返回已完成步骤</small></div>
-<button data-flow-step="1" data-state="done" type="button"><span>1</span><strong>添加资料</strong><small>导入邮件、名单与附件</small></button>
+<div class="nmda-process-guide-title"><strong>当前批次</strong></div>
+<button data-flow-step="1" data-state="done" type="button"><span>1</span><strong>添加资料</strong><small>邮件与附件</small></button>
 <i></i>
-<button data-flow-step="2" data-state="active" type="button"><span>2</span><strong>逐条确认</strong><small>机器先复核，人工只处理剩余项</small></button>
+<button data-flow-step="2" data-state="active" type="button"><span>2</span><strong>检查邮件</strong><small>查看解析结果</small></button>
 <i></i>
-<button data-flow-step="3" data-state="locked" disabled="" type="button"><span>3</span><strong>选择任务</strong><small>决定本批次要创建哪些邮件</small></button>
+<button data-flow-step="3" data-state="locked" type="button"><span>3</span><strong>选择与安排</strong><small>勾选并设置时间</small></button>
 <i></i>
-<button data-flow-step="4" data-state="locked" disabled="" type="button"><span>4</span><strong>安排时间</strong><small>可选 · 按学校规则自动排程</small></button>
-<i></i>
-<button data-flow-step="5" data-state="locked" disabled="" type="button"><span>5</span><strong>创建草稿</strong><small>保存到网易草稿箱</small></button>
+<button data-flow-step="4" data-state="locked" type="button"><span>4</span><strong>创建草稿</strong><small>保存到草稿箱</small></button>
 </aside>
 <div class="nmda-workflow-stage-head" id="nmda-stage-prepare">
-<span class="nmda-stage-number">01</span><div><strong>准备邮件</strong><small>添加来源，系统自动整理；只处理真正阻塞创建的问题。</small></div>
+<span class="nmda-stage-number">01</span><div><strong>准备邮件</strong><small>把邮件资料加入本批次。</small></div>
 </div>
 <div class="nmda-ingest-workspace nmda-ingest-workspace-v2">
 <div class="nmda-card nmda-ingest-source-card" id="nmda-import-card">
-<div class="nmda-card-head"><div><div class="nmda-card-title">添加资料</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" hidden="" id="nmda-import-busy-badge">正在处理…</span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" hidden="" id="nmda-reset-import" title="清除当前来源、识别结果、人工修正、附件匹配和任务；不会删除联系人历史" type="button">重新开始</button></div></div>
+<div class="nmda-card-head"><div><div class="nmda-card-title">添加资料</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" hidden="" id="nmda-import-busy-badge">正在处理…</span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" hidden="" id="nmda-reset-import" type="button">清空本批次</button></div></div>
 <input accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip" hidden="" id="nmda-import-file" multiple="" type="file"/>
 <input hidden="" id="nmda-import-dir" multiple="" type="file" webkitdirectory=""/>
 <input accept=".zip" hidden="" id="nmda-import-package" type="file"/>
 <input accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip" hidden="" id="nmda-roster-file" multiple="" type="file"/>
 <div class="nmda-source-action-grid">
-<label class="nmda-source-action" for="nmda-import-file"><span class="nmda-source-action-icon">＋</span><strong>选择文件</strong><small>Word、Excel、CSV 等</small></label>
+<label class="nmda-source-action" for="nmda-import-file"><span class="nmda-source-action-icon">＋</span><strong>选择文件</strong><small>Word、Excel、CSV、ZIP</small></label>
 <label class="nmda-source-action" for="nmda-import-dir"><span class="nmda-source-action-icon">▤</span><strong>选择文件夹</strong><small>一次加入整个文件夹</small></label>
-<label class="nmda-source-action nmda-source-action-legacy" for="nmda-import-package" hidden=""><span class="nmda-source-action-icon">▣</span><strong>打开 ZIP</strong><small>资料和附件一起加入</small></label>
-<button class="nmda-source-action nmda-source-action-button" id="nmda-show-paste" type="button"><span class="nmda-source-action-icon">⌘</span><strong>粘贴内容</strong><small>直接粘贴邮件或名单</small></button>
+<label class="nmda-source-action nmda-source-action-legacy" for="nmda-import-package" hidden=""><span class="nmda-source-action-icon">▣</span><strong>打开 ZIP</strong></label>
+<button class="nmda-source-action nmda-source-action-button" id="nmda-show-paste" type="button"><span class="nmda-source-action-icon">⌘</span><strong>粘贴内容</strong><small>直接粘贴文本或表格</small></button>
 </div>
 <div class="nmda-paste-panel" hidden="" id="nmda-paste-panel">
-<textarea id="nmda-paste-source" placeholder="直接粘贴邮件、名单或表格内容"></textarea>
-<div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-paste-import" type="button">加入粘贴内容</button></div>
+<textarea id="nmda-paste-source" placeholder="粘贴邮件、名单或表格内容"></textarea>
+<div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-paste-import" type="button">加入本批次</button></div>
 </div>
-<div class="nmda-ingest-source-tools"><span class="nmda-hint" id="nmda-import-format-info">可直接加入常见文档、表格和文本。</span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-template" type="button">下载模板</button></div>
+<div class="nmda-ingest-source-tools"><span class="nmda-hint" id="nmda-import-format-info">支持常见文档、表格和文本。</span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-template" type="button">下载模板</button></div>
+<details class="nmda-compact-options">
+<summary>更多资料（可选）</summary>
 <div class="nmda-roster-source-strip">
-<div><strong>总套磁名单 <span>可选</span></strong><small>用于核对导师身份并补全学校；不会增加待创建邮件。</small></div>
-<div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small" for="nmda-roster-file">导入总名单</label><button class="nmda-btn nmda-btn-small nmda-btn-quiet" hidden="" id="nmda-roster-remove" type="button">移除</button></div>
+<div><strong>总套磁名单</strong><small>用于补全学校和核对联系人。</small></div>
+<div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small" for="nmda-roster-file">选择总名单</label><button class="nmda-btn nmda-btn-small nmda-btn-quiet" hidden="" id="nmda-roster-remove" type="button">移除</button></div>
 </div>
-<div class="nmda-hint" id="nmda-roster-source-status">尚未添加总套磁名单。</div>
-<div class="nmda-summary nmda-import-status" id="nmda-import-status">还没有添加资料。</div>
+<div class="nmda-hint" id="nmda-roster-source-status">未添加总名单。</div>
+</details>
+<div class="nmda-summary nmda-import-status" id="nmda-import-status">已加入 6 份邮件文档和 2 个附件。</div>
 <div class="nmda-source-inventory" hidden="" id="nmda-source-inventory"></div>
+<details class="nmda-optional-source-details" hidden="" id="nmda-attachments-card">
+<summary><span><strong>添加附件</strong><small>仅在邮件需要附件时使用</small></span><span>展开</span></summary>
+<div class="nmda-summary" id="nmda-attachment-summary">生成邮件后会显示附件匹配情况。</div>
+<div class="nmda-attachment-grid nmda-attachment-grid-simple">
+<div class="nmda-file-source"><span class="nmda-label">任务附件</span><div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">选择文件<input hidden="" id="nmda-attachment-files" multiple="" type="file"/></label><label class="nmda-btn nmda-btn-small nmda-file-button">选择目录<input hidden="" id="nmda-attachment-dir" multiple="" type="file" webkitdirectory=""/></label></div></div>
+<div class="nmda-file-source nmda-file-source-shared"><span class="nmda-label">每封都附加</span><label class="nmda-btn nmda-btn-small nmda-file-button">选择公共附件<input hidden="" id="nmda-shared-files" multiple="" type="file"/></label></div>
 </div>
-<div class="nmda-card nmda-ingest-result-card" hidden="" id="nmda-ingest-result-card">
-<div class="nmda-card-head nmda-ingest-result-head">
-<div><div><div class="nmda-card-title">识别结果</div></div></div>
-<div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" hidden="" id="nmda-restore-excluded" type="button">恢复已排除</button><button class="nmda-btn nmda-btn-primary nmda-btn-small" hidden="" id="nmda-review-import-issues" type="button">进入逐条确认</button></div>
-</div>
-<div class="nmda-ingest-health" id="nmda-import-preview-summary"></div>
-<div class="nmda-review-guidance" id="nmda-review-guidance">系统会先自动复核可用性；真正需要判断的邮件会集中到独立的“逐条确认”工作区。</div>
-</div>
-<div class="nmda-card nmda-roster-audit-card" hidden="" id="nmda-roster-audit-card">
-<div class="nmda-card-head">
-<div><div class="nmda-card-title">总名单核对</div></div>
-<div class="nmda-row nmda-wrap"><label class="nmda-toggle-inline"><input checked="" id="nmda-roster-enabled" type="checkbox"/>启用核验</label><label class="nmda-toggle-inline"><input checked="" id="nmda-roster-auto-school" type="checkbox"/>自动补空缺学校</label></div>
-</div>
-<div class="nmda-ingest-health" id="nmda-roster-audit-summary"></div>
-<div class="nmda-review-guidance" id="nmda-roster-audit-note"></div>
-<details class="nmda-roster-details">
-<summary>查看差异</summary>
-<div class="nmda-row nmda-wrap nmda-roster-policy"><label class="nmda-toggle-inline"><input id="nmda-roster-strict" type="checkbox"/>严格模式：名单外需人工确认</label><span class="nmda-hint">开启后，名单外也需要确认。</span></div>
-<div class="nmda-roster-audit-details" id="nmda-roster-audit-details"></div>
+<div class="nmda-attachment-drop" id="nmda-attachment-drop">也可以把附件拖到这里</div>
+<div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-clear-attachments" type="button">清空附件</button><span class="nmda-hint" id="nmda-file-index-info">尚未选择本地附件。</span></div>
+<div class="nmda-attachment-resolution" hidden="" id="nmda-attachment-resolution"><div class="nmda-card-subtitle">需要补充的附件</div><div id="nmda-attachment-resolution-list"></div></div>
 </details>
 </div>
+<div class="nmda-card nmda-ingest-result-card" id="nmda-ingest-result-card">
+<div class="nmda-card-head nmda-ingest-result-head">
+<div><div class="nmda-card-title">解析结果</div></div>
+<div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" hidden="" id="nmda-restore-excluded" type="button">恢复已排除</button><button class="nmda-btn nmda-btn-small" hidden="" id="nmda-review-import-issues" type="button">查看解析预览（2 需修改）</button></div>
+</div>
+<div class="nmda-ingest-health" id="nmda-import-preview-summary"><div class="nmda-health-metric is-total"><strong>18</strong><span>已识别</span></div><div class="nmda-health-metric is-ok"><strong>16</strong><span>可直接使用</span></div><div class="nmda-health-metric is-warn"><strong>2</strong><span>需修改</span></div><div class="nmda-health-metric"><strong>0</strong><span>其他问题</span></div></div>
+<div class="nmda-review-guidance" id="nmda-review-guidance">有 <strong>2</strong> 封邮件需要补充或修正。</div>
+<div class="nmda-import-handoff-card" id="nmda-import-handoff-card">
+<div class="nmda-import-ready-summary" id="nmda-import-ready-summary">18 封邮件已整理。</div>
+<div class="nmda-row nmda-import-handoff-actions"><span class="nmda-hint" id="nmda-handoff-hint">先处理 2 封需要修改的邮件。</span><button class="nmda-btn nmda-btn-primary" id="nmda-go-batch" type="button">继续选择邮件</button></div>
+</div>
+</div>
+<div class="nmda-card nmda-inline-review" id="nmda-inline-review">
+<div class="nmda-inline-review-top">
+<div><div class="nmda-card-title">解析预览</div><div class="nmda-card-desc">检查系统整理出的收件人、主题和正文；有问题时直接修改。</div></div>
+<div class="nmda-review-page-summary" id="nmda-review-page-summary"><span><strong>2</strong> 需修改</span><span><strong>16</strong> 可直接使用</span></div>
+</div>
+<div class="nmda-review-viewbar">
+<div aria-label="解析预览范围" class="nmda-review-filter" role="group"><button class="is-active" data-review-filter="pending" type="button">需修改</button><button data-review-filter="all" type="button">全部邮件</button></div>
+<div class="nmda-review-view-actions"><button class="nmda-btn nmda-btn-small" id="nmda-review-select-filtered" type="button">选择当前列表</button></div>
+</div>
+<div class="nmda-review-batchbar" id="nmda-review-batchbar">
+<div><strong id="nmda-review-selected-count">已选 2 封</strong><small id="nmda-bulk-subject-summary">2 封主题为空，可一次补上。</small></div>
+<div class="nmda-review-inline-bulk" id="nmda-bulk-subject-panel">
+<input id="nmda-bulk-subject-value" placeholder="统一补充空白主题" type="text"/>
+<button class="nmda-btn nmda-btn-small" id="nmda-bulk-subject-apply" type="button">补到空白主题</button>
+</div>
+<button class="nmda-btn nmda-btn-small" hidden="" id="nmda-bulk-subject-open" type="button">补主题</button>
+<button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-confirm-selected" type="button">保存所选</button>
+<button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-clear-selected" type="button">取消选择</button>
+<button class="nmda-btn nmda-btn-small nmda-btn-quiet" hidden="" id="nmda-bulk-subject-cancel" type="button">取消</button>
+</div>
+<div class="nmda-review-page-empty" hidden="" id="nmda-review-page-empty">添加资料后，这里会显示解析结果。</div>
+<div class="nmda-review-workbench" id="nmda-import-editor-overlay">
+<div class="nmda-review-head">
+<div><div class="nmda-card-title" id="nmda-import-editor-title">Oxford · Yee Whye Teh</div><div class="nmda-card-desc" id="nmda-import-editor-evidence">缺少主题</div></div>
+<div class="nmda-review-head-actions"><span class="nmda-review-progress" id="nmda-review-progress">2 封需修改</span></div>
+</div>
+<div class="nmda-review-layout">
+<aside class="nmda-review-queue-pane">
+<div class="nmda-review-pane-title"><strong>邮件列表</strong><small id="nmda-review-queue-caption">优先显示需要修改的邮件</small></div>
+<div class="nmda-review-queue" id="nmda-review-queue"><div class="nmda-review-queue-row is-active is-selected"><label class="nmda-review-select"><input checked="" type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">1</span><span class="nmda-review-queue-main"><strong>Oxford · Yee Whye Teh</strong><small>yee.whye.teh@stats.ox.ac.uk</small><em data-tone="warn">缺少主题</em></span></button></div><div class="nmda-review-queue-row is-selected"><label class="nmda-review-select"><input checked="" type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">2</span><span class="nmda-review-queue-main"><strong>UCL · David Barber</strong><small>d.barber@ucl.ac.uk</small><em data-tone="warn">缺少主题</em></span></button></div><div class="nmda-review-queue-row"><label class="nmda-review-select"><input type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">3</span><span class="nmda-review-queue-main"><strong>Imperial · Wenjia Bai</strong><small>wenjia.bai@imperial.ac.uk</small><em data-tone="ok">可直接使用</em></span></button></div></div>
+</aside>
+<section class="nmda-review-evidence-pane">
+<div class="nmda-review-pane-title"><strong>原文</strong><small>用于对照</small></div>
+<div class="nmda-review-source-meta" id="nmda-review-source-meta"><span><strong>Oxford_Yee Whye Teh.docx</strong></span></div>
+<div class="nmda-review-candidates" id="nmda-review-email-candidates"></div>
+<div class="nmda-review-source-context" id="nmda-review-source-context"><div class="nmda-source-context-block is-mail-range"><span>21</span><p>Dear Professor Teh,</p></div><div class="nmda-source-context-block is-mail-range"><span>22</span><p>I am writing to enquire about potential PhD opportunities...</p></div><div class="nmda-source-context-block is-mail-range"><span>23</span><p>My recent work focuses on reliable clinical AI...</p></div><div class="nmda-source-context-block is-mail-range"><span>24</span><p>Yours sincerely,<br/>Junhao Jiao</p></div></div>
+</section>
+<section class="nmda-review-edit-pane">
+<div class="nmda-review-pane-title"><strong>邮件内容</strong><small id="nmda-review-problem-summary">需要时直接修改</small></div>
+<div class="nmda-review-feedback" hidden="" id="nmda-review-feedback"></div>
+<div class="nmda-import-editor-grid nmda-review-core-fields">
+<label class="nmda-field" id="nmda-review-field-recipients"><span class="nmda-label">收件人</span><input id="nmda-import-edit-recipients" placeholder="recipient@example.edu" type="text" value="yee.whye.teh@stats.ox.ac.uk"/></label>
+<label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-subject"><span class="nmda-label">主题</span><input id="nmda-import-edit-subject" type="text" value=""/></label>
+<label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-body"><span class="nmda-label">正文</span><textarea id="nmda-import-edit-body">Dear Professor Teh,
+
+I am writing to enquire about potential PhD opportunities...
+
+Yours sincerely,
+Junhao Jiao</textarea></label>
+</div>
+<input id="nmda-import-edit-schedule" type="hidden"/>
+<input id="nmda-import-edit-attachments" type="hidden"/>
+<input id="nmda-import-edit-tags" type="hidden"/>
+<div class="nmda-review-actions">
+<button class="nmda-btn nmda-btn-danger-quiet" id="nmda-review-exclude" type="button">排除此封</button>
+<div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-quiet" id="nmda-import-editor-cancel" type="button">收起预览</button><button class="nmda-btn" id="nmda-import-editor-save" type="button">保存</button><button class="nmda-btn nmda-btn-primary" id="nmda-import-editor-next" type="button">保存并下一封</button></div>
+</div>
+</section>
+</div>
+</div>
+</div>
+<div class="nmda-card nmda-roster-audit-card" hidden="" id="nmda-roster-audit-card">
+<div class="nmda-card-head"><div><div class="nmda-card-title">名单差异</div></div></div>
+<input checked="" hidden="" id="nmda-roster-enabled" type="checkbox"/>
+<input checked="" hidden="" id="nmda-roster-auto-school" type="checkbox"/>
+<input hidden="" id="nmda-roster-strict" type="checkbox"/>
+<div class="nmda-ingest-health" id="nmda-roster-audit-summary"></div>
+<div class="nmda-review-guidance" id="nmda-roster-audit-note"></div>
+<details class="nmda-roster-details"><summary>查看差异</summary><div class="nmda-roster-audit-details" id="nmda-roster-audit-details"></div></details>
+</div>
 <details class="nmda-card nmda-ingest-diagnostics" hidden="" id="nmda-ingest-diagnostics">
-<summary><span><strong>导入设置</strong><small>只有识别结果明显不对时再调整</small></span><span>展开</span></summary>
+<summary><span><strong>读取结果不对？</strong><small>需要时再调整</small></span><span>展开</span></summary>
 <div class="nmda-diagnostics-grid">
 <div class="nmda-ingest-structure-card" hidden="" id="nmda-structure-card">
 <div class="nmda-card-subtitle">来源内容</div>
-<div class="nmda-field"><span class="nmda-label">本批次使用的内容</span><div class="nmda-collection-list" id="nmda-collection-list"></div></div>
+<div class="nmda-field"><span class="nmda-label">本批次内容</span><div class="nmda-collection-list" id="nmda-collection-list"></div></div>
 <label class="nmda-field" id="nmda-collection-field"><span class="nmda-label">当前内容</span><select id="nmda-collection-select"></select></label>
 <div class="nmda-structure-summary" id="nmda-structure-summary"></div>
-<div class="nmda-raw-preview-wrap"><div class="nmda-card-subtitle">内容预览</div><div class="nmda-structure-preview" id="nmda-structure-preview"></div></div>
+<div class="nmda-raw-preview-wrap"><div class="nmda-structure-preview" id="nmda-structure-preview"></div></div>
 </div>
 <div class="nmda-ingest-mapping-card" hidden="" id="nmda-mapping-card">
-<div class="nmda-card-subtitle">字段对应</div>
+<div class="nmda-card-subtitle">内容对应</div>
 <div class="nmda-hint nmda-semantic-detection" id="nmda-header-info"></div>
 <div class="nmda-semantic-summary" id="nmda-semantic-summary"></div>
-<div class="nmda-row nmda-wrap nmda-mapping-actions"><button class="nmda-btn nmda-btn-small" hidden="" id="nmda-apply-profile" type="button">使用已有设置</button><button class="nmda-btn nmda-btn-small" id="nmda-save-profile" type="button">保存当前设置</button><button class="nmda-btn nmda-btn-small" id="nmda-toggle-mapping" type="button">调整字段</button></div>
+<div class="nmda-row nmda-wrap nmda-mapping-actions"><button class="nmda-btn nmda-btn-small" hidden="" id="nmda-apply-profile" type="button">使用已有设置</button><button class="nmda-btn nmda-btn-small" hidden="" id="nmda-save-profile" type="button">保存当前设置</button><button class="nmda-btn nmda-btn-small" id="nmda-toggle-mapping" type="button">调整对应内容</button></div>
 <div class="nmda-hint" id="nmda-profile-info"></div>
 <div class="nmda-mapping nmda-semantic-mapping" hidden="" id="nmda-mapping"></div>
 </div>
 </div>
 </details>
-<div class="nmda-card nmda-import-attachments-card" hidden="" id="nmda-attachments-card">
-<div class="nmda-card-head"><div><div><div class="nmda-card-title">附件</div></div></div></div>
-<div class="nmda-summary" id="nmda-attachment-summary">生成邮件后会显示附件匹配情况。</div>
-<div class="nmda-attachment-grid nmda-attachment-grid-simple">
-<div class="nmda-file-source"><span class="nmda-label">任务附件</span><span class="nmda-hint">选择邮件中引用的附件文件。</span><div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">选择文件<input hidden="" id="nmda-attachment-files" multiple="" type="file"/></label><label class="nmda-btn nmda-btn-small nmda-file-button">选择目录<input hidden="" id="nmda-attachment-dir" multiple="" type="file" webkitdirectory=""/></label></div></div>
-<div class="nmda-file-source nmda-file-source-shared"><span class="nmda-label">公共附件</span><span class="nmda-hint">会加入本批次每一封邮件。</span><label class="nmda-btn nmda-btn-small nmda-file-button">选择公共附件<input hidden="" id="nmda-shared-files" multiple="" type="file"/></label></div>
-</div>
-<div class="nmda-attachment-drop" id="nmda-attachment-drop">也可以把任务相关附件直接拖到这里</div>
-<div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-clear-attachments" type="button">清空本批附件</button><span class="nmda-hint" id="nmda-file-index-info">尚未选择本地附件。</span></div>
-<div class="nmda-attachment-resolution" hidden="" id="nmda-attachment-resolution"><div class="nmda-card-subtitle">需要确认的附件</div><div class="nmda-hint">为没有匹配成功的附件选择正确文件。</div><div id="nmda-attachment-resolution-list"></div></div>
-</div>
-<div class="nmda-card nmda-import-handoff-card" hidden="" id="nmda-import-handoff-card">
-<div class="nmda-card-head"><div><div><div class="nmda-card-title">准备状态</div></div></div></div>
-<div class="nmda-import-ready-summary" id="nmda-import-ready-summary">尚未生成任务。</div>
-<div class="nmda-row nmda-import-handoff-actions"><span class="nmda-hint" id="nmda-handoff-hint">自动复核与必要人工确认完成后即可进入任务选择。</span><button class="nmda-btn nmda-btn-primary" id="nmda-go-batch" type="button">进入任务选择</button></div>
-</div>
 </div>
 <div aria-hidden="true" class="nmda-workflow-stage-separator"></div>
 <div class="nmda-workflow-stage-head" id="nmda-stage-execute">
-<span class="nmda-stage-number">02</span><div><strong>执行批次</strong><small>选择本次任务，按需要安排时间，然后统一创建草稿。</small></div>
+<span class="nmda-stage-number">02</span><div><strong>选择与安排</strong><small>勾选本次要创建的邮件；需要时自动安排时间。</small></div>
 </div>
-<div class="nmda-card nmda-batch-empty" id="nmda-batch-empty">
-<div><div class="nmda-card-title">还没有可执行的任务</div><div class="nmda-card-desc">先在上方添加资料并完成必要核对。</div></div>
-<button class="nmda-btn nmda-btn-primary" id="nmda-go-import" type="button">回到准备区</button>
+<div class="nmda-batch-empty" hidden="" id="nmda-batch-empty"><button hidden="" id="nmda-go-import" type="button">回到准备区</button></div>
+<div class="nmda-card nmda-list-card" id="nmda-preview-card">
+<div class="nmda-card-head nmda-list-head"><div><div><div class="nmda-card-title">选择邮件</div><div class="nmda-card-desc">勾选本次要创建的邮件；时间可在表格中直接修改。</div></div></div><div class="nmda-summary nmda-summary-inline" id="nmda-batch-summary">共 <strong>18</strong> 封 · 已选 <strong>16</strong> · 可创建 <strong>16</strong></div></div>
+<div class="nmda-task-toolbar">
+<label class="nmda-search-field"><input id="nmda-batch-search" placeholder="搜索收件人、学校或主题" type="search"/></label>
+<label class="nmda-compact-select"><span>联系状态</span><select id="nmda-batch-stage-filter"><option value="">全部</option><option value="未联系">未联系</option><option value="已发送">已发送</option><option value="已回复">已回复</option></select></label>
+<button class="nmda-btn nmda-btn-small" id="nmda-bulk-enable" type="button">选择当前结果</button>
+<button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-clear-selection" type="button">清空选择</button>
 </div>
-<div class="nmda-card nmda-list-card" hidden="" id="nmda-preview-card">
-<div class="nmda-card-head nmda-list-head"><div><div class="nmda-step-index">03</div><div><div class="nmda-card-title">选择任务</div><div class="nmda-card-desc">勾选本次要创建的邮件。</div></div></div><div class="nmda-summary nmda-summary-inline" id="nmda-batch-summary"></div></div>
-<div class="nmda-search-bar">
-<label class="nmda-field nmda-search-field"><span class="nmda-label">检索任务</span><input id="nmda-batch-search" placeholder="编号 / 收件人 / 学校 / 主题 / 正文 / 状态 / 标记 / 附件 / 定时时间" type="search"/></label>
-<div class="nmda-search-help">搜索不会取消已经勾选的任务。</div>
-</div>
-<div class="nmda-filter-bar nmda-batch-filter-bar">
-<label class="nmda-field"><span class="nmda-label">联系状态</span><select id="nmda-batch-stage-filter"><option value="">全部状态</option><option value="未联系">未联系</option><option value="已发送">已发送</option><option value="已回复">已回复</option></select></label>
-<label class="nmda-field"><span class="nmda-label">业务标记</span><input id="nmda-batch-tag-include" placeholder="如 第一批;重点" type="text"/><span class="nmda-hint">多个标记需同时满足</span></label>
-<button class="nmda-btn nmda-btn-small" id="nmda-clear-tag-filter" type="button">清除筛选</button>
-</div>
-<div class="nmda-tag-chips" id="nmda-batch-tag-chips"></div>
-<div class="nmda-bulk-editor">
-<input id="nmda-bulk-tag-value" placeholder="批量任务标记，如 第一批;重点" type="text"/>
-<button class="nmda-btn nmda-btn-small" id="nmda-bulk-add-tag" type="button">添加标记</button>
-<button class="nmda-btn nmda-btn-small" id="nmda-bulk-remove-tag" type="button">移除标记</button>
-<button class="nmda-btn nmda-btn-small" id="nmda-bulk-enable" type="button">选择筛选结果</button>
-<button class="nmda-btn nmda-btn-small" hidden="" id="nmda-bulk-disable" type="button">取消当前结果</button>
-<button class="nmda-btn nmda-btn-small" id="nmda-clear-selection" type="button">取消全部选择</button>
-</div>
-<div class="nmda-table-wrap nmda-batch-table-wrap"><table class="nmda-table nmda-batch-table"><thead><tr><th>选择</th><th>#</th><th>收件人</th><th>学校 / 分组</th><th>联系 / 标记</th><th>定时时间</th><th>主题</th><th>附件</th><th>任务状态</th></tr></thead><tbody id="nmda-preview-body"></tbody></table></div>
-</div>
-<div class="nmda-card nmda-scheduler-card" hidden="" id="nmda-scheduler-card">
-<div class="nmda-card-head nmda-scheduler-head">
-<div><div class="nmda-step-index">04</div><div><div class="nmda-card-title">安排时间</div><div class="nmda-card-desc">默认同校每 7 天安排 1 位，可按需要调整。</div></div></div>
-<div class="nmda-summary nmda-summary-inline" id="nmda-schedule-summary"></div>
-</div>
+<input id="nmda-batch-tag-include" type="hidden"/><button hidden="" id="nmda-clear-tag-filter" type="button"></button><div hidden="" id="nmda-batch-tag-chips"></div>
+<input id="nmda-bulk-tag-value" type="hidden"/><button hidden="" id="nmda-bulk-add-tag" type="button"></button><button hidden="" id="nmda-bulk-remove-tag" type="button"></button><button hidden="" id="nmda-bulk-disable" type="button"></button>
+<details class="nmda-inline-scheduler" id="nmda-scheduler-card">
+<summary><span><strong>自动安排时间</strong><small id="nmda-schedule-summary"></small></span><span>展开</span></summary>
 <div class="nmda-scheduler-grid">
-<label class="nmda-field"><span class="nmda-label">首轮开始时间</span><input id="nmda-rule-start-at" type="datetime-local"/><span class="nmda-hint">不同学校可以安排在同一天。</span></label>
-<label class="nmda-field"><span class="nmda-label">同校每轮最多</span><input id="nmda-rule-max-school" max="20" min="1" step="1" type="number" value="1"/><span class="nmda-hint">默认 1 位</span></label>
-<label class="nmda-field"><span class="nmda-label">轮次间隔</span><div class="nmda-input-suffix"><input id="nmda-rule-interval-days" max="365" min="1" step="1" type="number" value="7"/><span>天</span></div><span class="nmda-hint">默认 7 天</span></label>
-<label class="nmda-check-card"><input checked="" id="nmda-rule-preserve-existing" type="checkbox"/><span><strong>保留已有时间</strong><small>不覆盖导入或手工修改的时间。</small></span></label>
+<label class="nmda-field"><span class="nmda-label">开始时间</span><input id="nmda-rule-start-at" type="datetime-local"/></label>
+<label class="nmda-field"><span class="nmda-label">同校每轮最多</span><input id="nmda-rule-max-school" max="20" min="1" step="1" type="number" value="1"/></label>
+<label class="nmda-field"><span class="nmda-label">间隔</span><div class="nmda-input-suffix"><input id="nmda-rule-interval-days" max="365" min="1" step="1" type="number" value="7"/><span>天</span></div></label>
+<label class="nmda-check-card"><input checked="" id="nmda-rule-preserve-existing" type="checkbox"/><span><strong>保留已有时间</strong></span></label>
 </div>
 <div class="nmda-scheduler-actions">
-<div class="nmda-schedule-rule-preview" id="nmda-schedule-rule-preview">当前规则：同校每 7 天最多 1 位。</div>
-<button class="nmda-btn" id="nmda-clear-auto-schedule" type="button">清除自动时间</button>
-<button class="nmda-btn nmda-btn-primary" id="nmda-apply-schedule" type="button">安排时间</button>
-</div>
-</div>
-<div class="nmda-card nmda-run-card" hidden="" id="nmda-run-card">
-<div class="nmda-run-left"><div class="nmda-step-index">05</div><div><div class="nmda-card-title">创建草稿</div><div class="nmda-run-status" id="nmda-batch-status">请先导入并选择要创建的任务。</div></div></div>
-<div class="nmda-run-controls nmda-run-controls-simple">
-<div class="nmda-run-rule">只创建已勾选且可用的任务；发生错误会立即停止。</div>
-<button class="nmda-btn nmda-btn-primary" id="nmda-batch-start" type="button">创建所选草稿</button>
-<button class="nmda-btn" disabled="" id="nmda-batch-stop" type="button">当前封后停止</button>
-</div>
-</div>
-</section>
-<div class="nmda-page-head" data-page-head="review">
-<div><h2>逐条确认</h2><p>把质量判断集中在这里：系统先自动复核，人工只处理无法可靠判断的邮件，也可随时逐封检查全部内容。</p></div>
-<div class="nmda-page-head-meta"><span class="nmda-safe-inline">质量门</span><span>自动复核不覆盖人工结论</span></div>
-</div>
-<section class="nmda-tabpane nmda-page nmda-review-page" data-pane="review">
-<aside aria-label="批量流程" class="nmda-process-guide">
-<div class="nmda-process-guide-title"><strong>本批次流程</strong><small>固定在右侧 · 随时切换步骤</small></div>
-<button data-flow-step="1" data-state="done" type="button"><span>1</span><strong>添加资料</strong><small>导入邮件、名单与附件</small></button>
-<i></i>
-<button data-flow-step="2" data-state="active" type="button"><span>2</span><strong>逐条确认</strong><small>机器先复核，人工只处理剩余项</small></button>
-<i></i>
-<button data-flow-step="3" data-state="locked" disabled="" type="button"><span>3</span><strong>选择任务</strong><small>决定本批次要创建哪些邮件</small></button>
-<i></i>
-<button data-flow-step="4" data-state="locked" disabled="" type="button"><span>4</span><strong>安排时间</strong><small>可选 · 按学校规则自动排程</small></button>
-<i></i>
-<button data-flow-step="5" data-state="locked" disabled="" type="button"><span>5</span><strong>创建草稿</strong><small>保存到网易草稿箱</small></button>
-</aside>
-<div class="nmda-review-command-card">
-<div class="nmda-review-command-copy"><span class="nmda-card-kicker">质量核验</span><strong>逐条确认是独立质量门</strong><small>机器先完成可确定项；人工集中处理缺失、冲突和歧义，也可以主动切到“全部邮件”逐封抽查。</small></div>
-<div class="nmda-review-page-summary" id="nmda-review-page-summary"><span><strong>3</strong> 待确认</span><span><strong>5</strong> 人工确认</span><span><strong>18</strong> 自动通过</span></div>
-</div>
-<div class="nmda-review-viewbar">
-<div aria-label="确认队列范围" class="nmda-review-filter" role="group"><button class="is-active" data-review-filter="pending" type="button">待确认</button><button data-review-filter="all" type="button">全部邮件</button></div>
-<div class="nmda-review-view-actions"><button class="nmda-btn nmda-btn-small" id="nmda-review-select-filtered" type="button">选择当前列表</button><span class="nmda-hint">批量动作只针对你选中的邮件出现。</span></div>
-</div>
-<div class="nmda-review-batchbar" id="nmda-review-batchbar">
-<div><strong id="nmda-review-selected-count">已选 2 封</strong><small>可批量补主题；“保存并确认”只放行核心字段完整的所选邮件。</small></div>
-<div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-bulk-subject-open" type="button">批量补主题（2）</button><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-confirm-selected" type="button">保存并确认所选</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-clear-selected" type="button">清除选择</button></div>
-</div>
-<div class="nmda-bulk-subject-panel" id="nmda-bulk-subject-panel">
-<div class="nmda-bulk-subject-copy"><strong>批量补充所选邮件的缺失主题</strong><small id="nmda-bulk-subject-summary">已选 2 封，其中 2 封缺少主题。只填空白主题，不覆盖已有主题。</small></div>
-<div class="nmda-bulk-subject-form"><input id="nmda-bulk-subject-value" placeholder="输入统一邮件主题" type="text" value="Prospective PhD Application — Junhao Jiao"/><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-bulk-subject-apply" type="button">填入所选</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-bulk-subject-cancel" type="button">取消</button></div>
-</div>
-<div class="nmda-review-page-empty" hidden="" id="nmda-review-page-empty">尚未添加批量资料。先到“批量工作台”准备邮件，系统会自动把需要确认的项目带到这里。</div>
-<div class="nmda-card nmda-review-workbench" id="nmda-import-editor-overlay">
-<div class="nmda-review-head">
-<div><div class="nmda-card-title" id="nmda-import-editor-title">Oxford_Yee Whye Teh</div><div class="nmda-card-desc" id="nmda-import-editor-evidence">来源：Oxford_Yee Whye Teh.docx · 当前问题：缺少主题</div></div>
-<div class="nmda-review-head-actions"><span class="nmda-review-progress" id="nmda-review-progress">3 条待确认</span></div>
-</div>
-<div class="nmda-review-layout">
-<aside class="nmda-review-queue-pane">
-<div class="nmda-review-pane-title"><strong>确认队列</strong><small id="nmda-review-queue-caption">优先显示需要人工判断的邮件</small></div>
-<div class="nmda-review-queue" id="nmda-review-queue">
-<div class="nmda-review-queue-row is-active is-selected"><label class="nmda-review-select"><input checked="" type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">1</span><span class="nmda-review-queue-main"><strong>Oxford_Yee Whye Teh</strong><small>yee.whye.teh@stats.ox.ac.uk</small><em data-tone="warn">缺少主题</em></span></button></div>
-<div class="nmda-review-queue-row is-selected"><label class="nmda-review-select"><input checked="" type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">2</span><span class="nmda-review-queue-main"><strong>UCL_David Barber</strong><small>d.barber@ucl.ac.uk</small><em data-tone="warn">缺少主题</em></span></button></div>
-<div class="nmda-review-queue-row"><label class="nmda-review-select"><input type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">3</span><span class="nmda-review-queue-main"><strong>Imperial_Wenjia Bai</strong><small>wenjia.bai@imperial.ac.uk</small><em data-tone="warn">收件人需核对</em></span></button></div>
-<div class="nmda-review-queue-row"><label class="nmda-review-select"><input type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">4</span><span class="nmda-review-queue-main"><strong>Cambridge_Hong Ge</strong><small>已自动复核</small><em data-tone="ok">自动通过</em></span></button></div></div>
-</aside>
-<section class="nmda-review-evidence-pane">
-<div class="nmda-review-pane-title"><strong>原文</strong><small>查看邮件前后内容，帮助判断</small></div>
-<div class="nmda-review-source-meta" id="nmda-review-source-meta"><div class="nmda-review-guidance"><strong>来源定位</strong><span>邮件正文附近 · 置信度高</span></div></div>
-<div class="nmda-review-candidates" id="nmda-review-email-candidates"><button class="nmda-review-candidate is-best"><strong>yee.whye.teh@stats.ox.ac.uk</strong><small>来源附近邮箱 · 建议保留</small></button></div>
-<div class="nmda-review-source-context" id="nmda-review-source-context"><div class="nmda-source-block is-context"><div class="nmda-source-block-gutter"><span>21</span></div><pre>Dear Professor Teh,</pre></div><div class="nmda-source-block is-mail-range"><div class="nmda-source-block-gutter"><span>22</span><em>邮件起点</em></div><pre>I am writing to enquire about potential PhD opportunities...</pre></div><div class="nmda-source-block is-mail-range"><div class="nmda-source-block-gutter"><span>23</span></div><pre>My recent work focuses on reliable clinical AI...</pre></div></div>
-</section>
-<section class="nmda-review-edit-pane">
-<div class="nmda-review-pane-title"><strong>修改邮件</strong><small id="nmda-review-problem-summary">主题为空 · 可使用上方批量补主题处理同类邮件</small></div>
-<div class="nmda-review-feedback" hidden="" id="nmda-review-feedback"></div>
-<div class="nmda-import-editor-grid nmda-review-core-fields">
-<label class="nmda-field" id="nmda-review-field-recipients"><span class="nmda-label">收件人 <em>必需</em></span><input id="nmda-import-edit-recipients" placeholder="recipient@example.edu" type="text" value="yee.whye.teh@stats.ox.ac.uk"/></label>
-<label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-subject"><span class="nmda-label">主题 <em>必需</em></span><input id="nmda-import-edit-subject" type="text" value=""/></label>
-<label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-body"><span class="nmda-label">正文 <em>必需</em></span><textarea id="nmda-import-edit-body">Dear Professor Teh,
-
-I am writing to enquire about potential PhD opportunities...</textarea></label>
-</div>
-<details class="nmda-review-optional">
-<summary>附件、时间与标记</summary>
-<div class="nmda-import-editor-grid">
-<label class="nmda-field"><span class="nmda-label">定时时间</span><input id="nmda-import-edit-schedule" type="datetime-local"/></label>
-<label class="nmda-field"><span class="nmda-label">附件引用</span><input id="nmda-import-edit-attachments" placeholder="CV.pdf; Proposal.pdf" type="text"/></label>
-<label class="nmda-field nmda-import-editor-wide"><span class="nmda-label">任务标记</span><input id="nmda-import-edit-tags" placeholder="第一批;重点" type="text"/></label>
+<div class="nmda-schedule-rule-preview" id="nmda-schedule-rule-preview">同校每 7 天最多 1 位。</div>
+<button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-clear-auto-schedule" type="button">清除自动时间</button>
+<button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-apply-schedule" type="button">应用</button>
 </div>
 </details>
-<div class="nmda-review-actions">
-<button class="nmda-btn nmda-btn-danger-quiet" id="nmda-review-exclude" type="button">排除这封邮件</button>
-<div class="nmda-row nmda-wrap"><button class="nmda-btn" id="nmda-import-editor-cancel" type="button">返回批量工作台</button><button class="nmda-btn" id="nmda-import-editor-save" type="button">保存本封</button><button class="nmda-btn nmda-btn-primary" id="nmda-import-editor-next" type="button">保存并处理下一封</button></div>
+<div class="nmda-table-wrap nmda-batch-table-wrap"><table class="nmda-table nmda-batch-table"><thead><tr><th>选择</th><th>收件人</th><th>学校</th><th>主题</th><th>时间</th><th>状态</th></tr></thead><tbody id="nmda-preview-body"><tr><td><input checked="" type="checkbox"/></td><td class="nmda-recipient-cell"><strong>yee.whye.teh@stats.ox.ac.uk</strong><small>未联系</small></td><td><input class="nmda-table-school-input" value="Oxford"/></td><td class="nmda-subject-cell">Prospective PhD Application — Junhao Jiao</td><td><div class="nmda-schedule-edit-cell"><input type="datetime-local" value="2026-08-27T07:30"/><small>自动安排</small></div></td><td class="nmda-task-state-cell">可创建 · 附件 1</td></tr><tr><td><input checked="" type="checkbox"/></td><td class="nmda-recipient-cell"><strong>d.barber@ucl.ac.uk</strong><small>未联系</small></td><td><input class="nmda-table-school-input" value="UCL"/></td><td class="nmda-subject-cell">Prospective PhD Application — Junhao Jiao</td><td><div class="nmda-schedule-edit-cell"><input type="datetime-local" value="2026-08-27T07:30"/><small>自动安排</small></div></td><td class="nmda-task-state-cell">可创建 · 附件 1</td></tr></tbody></table></div>
 </div>
-</section>
+<div class="nmda-card nmda-run-card" id="nmda-run-card">
+<div class="nmda-run-left"><div><div class="nmda-card-title">创建草稿</div><div class="nmda-run-status" id="nmda-batch-status">先选择要创建的邮件。</div></div></div>
+<div class="nmda-run-controls nmda-run-controls-simple">
+<button class="nmda-btn nmda-btn-primary" id="nmda-batch-start" type="button">创建所选草稿</button>
+<button class="nmda-btn" disabled="" id="nmda-batch-stop" type="button">当前封后停止</button>
 </div>
 </div>
 </section>
@@ -1535,4 +1744,4 @@ I am writing to enquire about potential PhD opportunities...</textarea></label>
 </div>
 </section>
 </main>
-</section></div><script>document.querySelectorAll('button').forEach(b=>b.addEventListener('click',e=>e.preventDefault()));</script></body></html>
+</section></body></html>
