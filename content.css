@@ -3496,3 +3496,238 @@
   .nmda-batch-prep-label { grid-column:1 / -1; }
   .nmda-batch-prep-strip > .nmda-btn { grid-column:1 / -1; justify-self:start; }
 }
+
+/* v1.34 · Attachment Library — one visible, editable batch asset source across the workflow. */
+.nmda-btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  vertical-align:middle;
+  line-height:1.2;
+}
+
+.nmda-batch-prep-attachment {
+  grid-template-columns:minmax(0,1fr) auto !important;
+  align-items:center;
+  gap:8px !important;
+}
+.nmda-batch-prep-attachment > div { min-width:0; display:grid; gap:2px; }
+.nmda-text-action {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:24px;
+  padding:2px 5px;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:#0969da;
+  font:700 8.5px/1.2 system-ui,sans-serif;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.nmda-text-action:hover { background:#eef5ff; color:#0550ae; }
+
+/* Keep the dialog's elevation outside the scrolling surface so the shadow is complete. */
+.nmda-supplement-preflight {
+  padding:34px 40px 42px;
+}
+.nmda-supplement-dialog {
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+  max-height:min(630px,calc(100vh - 76px));
+  box-shadow:0 30px 80px rgba(15,23,42,.30),0 10px 28px rgba(15,23,42,.16),0 0 0 1px rgba(15,23,42,.035);
+}
+.nmda-supplement-grid {
+  min-height:0;
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.nmda-supplement-foot {
+  position:relative;
+  z-index:2;
+  min-height:62px;
+  box-shadow:0 -1px 0 #eaeef2,0 -10px 22px rgba(255,255,255,.82);
+}
+.nmda-supplement-actions {
+  min-height:34px;
+  align-items:center;
+}
+.nmda-supplement-actions .nmda-btn-small,
+.nmda-supplement-actions label.nmda-btn-small {
+  height:32px;
+  min-height:32px;
+  padding:0 10px;
+}
+
+/* Attachment file list shown directly inside import preflight. */
+.nmda-attachment-assets {
+  min-width:0;
+  border:1px solid #e1e7ee;
+  border-radius:9px;
+  background:#fff;
+}
+.nmda-attachment-assets[hidden] { display:none !important; }
+.nmda-attachment-assets-inline { margin-top:5px; overflow:hidden; }
+.nmda-attachment-assets-head {
+  min-height:29px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:6px 8px;
+  border-bottom:1px solid #edf1f5;
+  background:#fafbfc;
+}
+.nmda-attachment-assets-head strong { color:#3d444d; font-size:8.5px; }
+.nmda-attachment-assets-head span { color:#6e7781; font-size:8px; }
+.nmda-attachment-assets-list { display:grid; }
+.nmda-attachment-asset-row {
+  min-width:0;
+  display:grid;
+  grid-template-columns:28px minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  min-height:48px;
+  padding:7px 9px;
+  border-bottom:1px solid #edf1f5;
+}
+.nmda-attachment-asset-row:last-child { border-bottom:0; }
+.nmda-attachment-asset-row.is-compact { min-height:42px; padding:6px 8px; }
+.nmda-attachment-file-icon {
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:7px;
+  background:#fff7df;
+  color:#8a5b00;
+  font-size:11px;
+  font-weight:800;
+}
+.nmda-attachment-file-main { min-width:0; display:grid; gap:2px; }
+.nmda-attachment-file-main strong {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#24292f;
+  font-size:9px;
+  font-weight:720;
+}
+.nmda-attachment-file-main small {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#8c959f;
+  font-size:7.7px;
+}
+.nmda-attachment-remove { color:#cf222e; }
+.nmda-attachment-remove:hover { background:#fff1f2; color:#a40e26; }
+.nmda-attachment-assets-more {
+  width:100%;
+  min-height:30px;
+  border:0;
+  border-top:1px solid #edf1f5;
+  background:#fafbfc;
+  color:#0969da;
+  font:700 8px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+.nmda-attachment-assets-more:hover { background:#f1f6fd; }
+
+/* Reusable attachment manager. It can be opened from import, todos, or create preflight. */
+.nmda-attachment-manager-overlay {
+  position:fixed;
+  inset:0;
+  z-index:1000012;
+  display:grid;
+  place-items:center;
+  padding:42px;
+  background:rgba(17,24,39,.38);
+}
+.nmda-attachment-manager-overlay[hidden] { display:none !important; }
+.nmda-attachment-manager {
+  width:min(690px,calc(100vw - 84px));
+  max-height:min(650px,calc(100vh - 84px));
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+  border:1px solid #d0d7de;
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 30px 84px rgba(15,23,42,.32),0 12px 32px rgba(15,23,42,.16),0 0 0 1px rgba(15,23,42,.035);
+}
+.nmda-attachment-manager-head {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  padding:18px 20px 15px;
+  border-bottom:1px solid #eaeef2;
+}
+.nmda-attachment-manager-head > div:first-child { min-width:0; }
+.nmda-attachment-manager-head h3 { margin:0; color:#1f2328; font-size:16px; line-height:1.3; }
+.nmda-attachment-manager-head p { margin:4px 0 0; color:#667085; font-size:9px; line-height:1.55; }
+.nmda-attachment-manager-body {
+  min-height:0;
+  overflow:auto;
+  padding:14px 20px 18px;
+  background:#fbfcfe;
+}
+.nmda-attachment-manager-summary {
+  margin-bottom:9px;
+  color:#57606a;
+  font-size:9px;
+}
+.nmda-attachment-manager-summary strong { color:#24292f; }
+.nmda-attachment-manager-summary em { color:#9a6700; font-style:normal; font-weight:700; }
+.nmda-attachment-manager-assets { overflow:hidden; }
+.nmda-attachment-assets-empty {
+  padding:28px 18px;
+  color:#8c959f;
+  font-size:9px;
+  line-height:1.6;
+  text-align:center;
+}
+.nmda-attachment-manager-foot {
+  min-height:66px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:13px 20px;
+  border-top:1px solid #eaeef2;
+  background:#fff;
+  box-shadow:0 -8px 20px rgba(255,255,255,.82);
+}
+.nmda-create-preflight .nmda-text-action { min-height:20px; padding:1px 4px; }
+
+@media (max-width:900px) {
+  .nmda-supplement-preflight { padding:22px 24px 28px; }
+  .nmda-supplement-dialog { width:min(700px,calc(100vw - 48px)); max-height:calc(100vh - 50px); }
+  .nmda-attachment-manager-overlay { padding:24px; }
+  .nmda-attachment-manager { width:calc(100vw - 48px); max-height:calc(100vh - 48px); }
+}
+.nmda-supplement-grid { align-items:start; }
+.nmda-supplement-box { align-self:start; }
+.nmda-attachment-library-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:48px;
+  margin-bottom:8px;
+  padding:8px 10px;
+  border:1px solid #dce6f2;
+  border-radius:9px;
+  background:#fbfdff;
+}
+.nmda-attachment-library-bar[hidden] { display:none !important; }
+.nmda-attachment-library-bar-main { min-width:0; display:flex; align-items:center; gap:8px; }
+.nmda-attachment-library-bar-icon { flex:0 0 auto; width:28px; height:28px; display:grid; place-items:center; border-radius:7px; background:#fff4d8; color:#8a5b00; font-weight:800; }
+.nmda-attachment-library-bar-main > div { min-width:0; display:grid; gap:1px; }
+.nmda-attachment-library-bar-main strong { color:#24292f; font-size:9.5px; }
+.nmda-attachment-library-bar-main small { color:#667085; font-size:8px; line-height:1.45; }

@@ -600,7 +600,7 @@
                 <div class="nmda-batch-prep-strip" id="nmda-batch-prep-strip" hidden>
                   <div class="nmda-batch-prep-label"><span>批次准备</span><small>导入后集中补充，不与邮件来源混在一起</small></div>
                   <div class="nmda-batch-prep-item" id="nmda-prep-roster-state" data-state="pending"><span>参考总名单</span><strong>未决定</strong></div>
-                  <div class="nmda-batch-prep-item" id="nmda-prep-attachment-state" data-state="pending"><span>附件</span><strong>未准备</strong></div>
+                  <div class="nmda-batch-prep-item nmda-batch-prep-attachment" id="nmda-prep-attachment-state" data-state="pending"><div><span>附件</span><strong>未准备</strong></div><button class="nmda-text-action" id="nmda-manage-attachments-strip" type="button">查看 / 修改</button></div>
                   <button class="nmda-btn nmda-btn-small" id="nmda-edit-batch-prep" type="button">补充资料</button>
                 </div>
                 <div class="nmda-context-cue nmda-roster-context-cue" id="nmda-roster-context-cue" data-state="prepare">
@@ -651,6 +651,10 @@
                         <small id="nmda-preflight-attachment-copy">CV、成绩单等可以现在一次加入；系统会按邮件要求自动匹配，未匹配项会保留到待办。</small>
                         <div class="nmda-attachment-requirements" id="nmda-preflight-attachment-requirements"></div>
                         <div class="nmda-supplement-status" id="nmda-preflight-attachment-status">尚未添加</div>
+                        <div class="nmda-attachment-assets nmda-attachment-assets-inline" id="nmda-preflight-attachment-assets" hidden>
+                          <div class="nmda-attachment-assets-head"><strong>已加入附件</strong><span id="nmda-preflight-attachment-assets-count"></span></div>
+                          <div class="nmda-attachment-assets-list" id="nmda-preflight-attachment-assets-list"></div>
+                        </div>
                       </div>
                       <div class="nmda-supplement-actions">
                         <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-attachment-dir">选择附件文件夹</label>
@@ -666,6 +670,26 @@
                 </section>
               </div>
 
+              <div class="nmda-attachment-manager-overlay" id="nmda-attachment-manager-overlay" hidden aria-hidden="true">
+                <section class="nmda-attachment-manager" role="dialog" aria-modal="true" aria-labelledby="nmda-attachment-manager-title">
+                  <div class="nmda-attachment-manager-head">
+                    <div><span class="nmda-supplement-kicker">本批次共享资产</span><h3 id="nmda-attachment-manager-title">附件资料</h3><p>这里展示本批次已经加入的附件。增删后会立即重新匹配邮件，不需要重新导入。</p></div>
+                    <button class="nmda-icon-btn" id="nmda-close-attachment-manager" type="button" aria-label="关闭附件管理">×</button>
+                  </div>
+                  <div class="nmda-attachment-manager-body">
+                    <div class="nmda-attachment-manager-summary" id="nmda-attachment-manager-summary">尚未加入附件。</div>
+                    <div class="nmda-attachment-assets" id="nmda-attachment-manager-assets">
+                      <div class="nmda-attachment-assets-list" id="nmda-attachment-manager-list"></div>
+                      <div class="nmda-attachment-assets-empty" id="nmda-attachment-manager-empty">还没有附件。可以加入附件文件夹，或直接选择一个或多个文件。</div>
+                    </div>
+                  </div>
+                  <div class="nmda-attachment-manager-foot">
+                    <div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-primary" for="nmda-attachment-dir">添加附件文件夹</label><label class="nmda-btn" for="nmda-attachment-files">添加文件</label><button class="nmda-btn nmda-btn-danger-quiet" id="nmda-manager-clear-attachments" type="button">清空附件</button></div>
+                    <button class="nmda-btn" id="nmda-attachment-manager-done" type="button">完成</button>
+                  </div>
+                </section>
+              </div>
+
               <div class="nmda-card nmda-ingest-result-card" id="nmda-ingest-result-card" hidden>
                 <div class="nmda-card-head nmda-ingest-result-head">
                   <div><div class="nmda-card-title">当前待办</div><div class="nmda-card-desc">处理本批次仍需确认或补充的内容。</div></div>
@@ -674,8 +698,9 @@
                 <div class="nmda-context-cue nmda-context-cue-compact nmda-attachment-context-cue" id="nmda-attachment-context-cue" hidden>
                   <div class="nmda-context-cue-icon" aria-hidden="true">⇧</div>
                   <div class="nmda-context-cue-main"><span class="nmda-context-eyebrow">待办 · 创建前必须补齐</span><strong id="nmda-attachment-context-title">附件待补</strong><small id="nmda-attachment-context-copy">选择附件文件夹后会自动匹配到对应邮件。</small></div>
-                  <div class="nmda-context-cue-actions"><label class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-attachment-dir-action" for="nmda-attachment-dir">添加附件文件夹</label><label class="nmda-btn nmda-btn-small" for="nmda-attachment-files">选择文件</label><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-later" type="button">稍后处理</button></div>
+                  <div class="nmda-context-cue-actions"><label class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-attachment-dir-action" for="nmda-attachment-dir">添加附件文件夹</label><label class="nmda-btn nmda-btn-small" for="nmda-attachment-files">选择文件</label><button class="nmda-btn nmda-btn-small" id="nmda-manage-attachments-todo" type="button">管理附件</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-later" type="button">稍后处理</button></div>
                 </div>
+                <div class="nmda-attachment-library-bar" id="nmda-attachment-library-bar" hidden><div class="nmda-attachment-library-bar-main"><span class="nmda-attachment-library-bar-icon">↗</span><div><strong id="nmda-attachment-library-bar-title">附件资料</strong><small id="nmda-attachment-library-bar-copy">已加入的附件会在这里持续可管理。</small></div></div><button class="nmda-btn nmda-btn-small" id="nmda-manage-attachments-workflow" type="button">查看 / 修改</button></div>
                 <div id="nmda-import-preview-summary" class="nmda-ingest-health"></div>
                 <div id="nmda-review-guidance" class="nmda-review-guidance">解析完成后可查看每封邮件的结果。</div>
                 <details class="nmda-optional-source-details" id="nmda-attachments-card" hidden>
@@ -1389,7 +1414,7 @@
     sessionId: 0, importBusy: false, schedulePlan: null,
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
     roster: emptyRosterState(), duplicateAudit:null,
-    handoffComplete: false, autoAdvancing: false, reviewFilter: 'pending', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false
+    handoffComplete: false, autoAdvancing: false, reviewFilter: 'pending', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, attachmentManagerOpen:false, ignoredAttachmentIdentities:new Set()
   };
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), rosterFileEl = $('nmda-roster-file'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
@@ -1543,13 +1568,86 @@
     return refs;
   }
 
+  function formatAttachmentSize(file) {
+    const size=Number(file?.size||0);if(!size)return '大小未知';
+    if(size<1024)return `${size} B`;
+    if(size<1024*1024)return `${Math.max(1,Math.round(size/1024))} KB`;
+    return `${(size/1024/1024).toFixed(size>=10*1024*1024?0:1)} MB`;
+  }
+
+  function attachmentAssetEntries() {
+    const groups=[
+      ['directory',batch.directoryFiles||[],'附件文件夹'],
+      ['task',batch.taskFiles||[],'手动添加'],
+      ['routed',batch.routedAttachmentFiles||[],'导入资料'],
+      ['shared',batch.sharedFiles||[],'每封都附加']
+    ];
+    const out=[],seen=new Set();
+    for(const [kind,files,source] of groups) for(const file of files){
+      const identity=Importer.fileIdentity(file);if(!identity||seen.has(identity))continue;seen.add(identity);
+      const used=(batch.tasks||[]).filter(task=>(task.files||[]).some(item=>Importer.fileIdentity(item)===identity)).length;
+      out.push({file,identity,kind,source,used});
+    }
+    return out;
+  }
+
+  function attachmentAssetRowsHtml(entries,{compact=false}={}) {
+    return (entries||[]).map(entry=>{
+      const usage=entry.kind==='shared'?'每封草稿':entry.used?`已匹配 ${entry.used} 封`:'待匹配';
+      return `<div class="nmda-attachment-asset-row${compact?' is-compact':''}"><span class="nmda-attachment-file-icon" aria-hidden="true">↗</span><div class="nmda-attachment-file-main"><strong title="${escapeHtml(entry.file.name||'附件')}">${escapeHtml(entry.file.name||'附件')}</strong><small>${escapeHtml(formatAttachmentSize(entry.file))} · ${escapeHtml(entry.source)} · ${escapeHtml(usage)}</small></div><button class="nmda-text-action nmda-attachment-remove" type="button" data-attachment-remove="${escapeHtml(encodeURIComponent(entry.identity))}" aria-label="移除 ${escapeHtml(entry.file.name||'附件')}">移除</button></div>`;
+    }).join('');
+  }
+
+  function renderAttachmentAssetViews() {
+    const entries=attachmentAssetEntries(),count=entries.length;
+    const inline=$('nmda-preflight-attachment-assets'),inlineList=$('nmda-preflight-attachment-assets-list'),inlineCount=$('nmda-preflight-attachment-assets-count');
+    if(inline){inline.hidden=!count;if(inlineList)inlineList.innerHTML=attachmentAssetRowsHtml(entries.slice(0,5),{compact:true})+(count>5?`<button class="nmda-attachment-assets-more" type="button" data-open-attachment-manager>查看全部 ${count} 个附件</button>`:'');if(inlineCount)inlineCount.textContent=`${count} 个`;}
+    const manager=$('nmda-attachment-manager-overlay'),list=$('nmda-attachment-manager-list'),empty=$('nmda-attachment-manager-empty'),summary=$('nmda-attachment-manager-summary');
+    if(manager){manager.hidden=!batch.attachmentManagerOpen;manager.setAttribute('aria-hidden',batch.attachmentManagerOpen?'false':'true');}
+    if(list)list.innerHTML=attachmentAssetRowsHtml(entries);
+    if(empty)empty.hidden=!!count;
+    if(summary){
+      const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{total:0,issues:0};
+      summary.innerHTML=count?`已加入 <strong>${count}</strong> 个附件${stats.total?` · ${stats.total} 项邮件需求`:''}${stats.issues?` · <em>${stats.issues} 项仍待匹配</em>`:' · 当前需求已覆盖'}`:'尚未加入附件。';
+    }
+  }
+
+  function openAttachmentManager() {
+    batch.attachmentManagerOpen=true;renderAttachmentAssetViews();
+  }
+
+  function closeAttachmentManager() {
+    batch.attachmentManagerOpen=false;renderAttachmentAssetViews();
+  }
+
+  function removeAttachmentAsset(identity) {
+    if(!identity)return;
+    const keep=file=>Importer.fileIdentity(file)!==identity;
+    batch.ignoredAttachmentIdentities.add(identity);
+    batch.directoryFiles=(batch.directoryFiles||[]).filter(keep);
+    batch.taskFiles=(batch.taskFiles||[]).filter(keep);
+    batch.routedAttachmentFiles=(batch.routedAttachmentFiles||[]).filter(keep);
+    batch.sharedFiles=(batch.sharedFiles||[]).filter(keep);
+    batch.attachmentPrepChoice=attachmentPreparedFileCount()?'added':(batch.supplementPreflightDone?'skipped':'pending');
+    refreshFileIndex(false);renderSupplementPreflight();renderAttachmentAssetViews();
+  }
+
+  function clearAttachmentAssets() {
+    for(const file of batch.routedAttachmentFiles||[])batch.ignoredAttachmentIdentities.add(Importer.fileIdentity(file));
+    dirEl.value='';taskFilesEl.value='';sharedFilesEl.value='';
+    batch.directoryFiles=[];batch.taskFiles=[];batch.routedAttachmentFiles=[];batch.sharedFiles=[];batch.attachmentOverrides.clear();
+    batch.attachmentPrepChoice=batch.supplementPreflightDone?'skipped':'pending';
+    refreshFileIndex(true);renderSupplementPreflight();renderAttachmentAssetViews();
+  }
+
   function renderBatchPrepStrip() {
     const strip=$('nmda-batch-prep-strip');if(!strip)return;
     const hasBatch=!!batch.dataset&&!!(batch.tasks||[]).length;strip.hidden=!hasBatch;if(!hasBatch)return;
     const roster=$('nmda-prep-roster-state'),attachment=$('nmda-prep-attachment-state');
     const rState=rosterContextState(),aState=attachmentPreflightState(),rCount=referenceRosterCount(),aCount=attachmentPreparedFileCount(),stats=typeof importAttachmentStats==='function'?importAttachmentStats():{total:0,issues:0};
     if(roster){roster.dataset.state=rState;const strong=roster.querySelector('strong');if(strong)strong.textContent=rState==='added'?`${rCount} 条已加入`:rState==='skipped'?'未添加':'待确认';}
-    if(attachment){attachment.dataset.state=aState;const strong=attachment.querySelector('strong');if(strong)strong.textContent=aCount?`${aCount} 个文件`:stats.issues?`${stats.issues} 项待补`:aState==='skipped'?'暂未添加':'待确认';}
+    if(attachment){attachment.dataset.state=aState;const strong=attachment.querySelector('strong');if(strong)strong.textContent=aCount?`${aCount} 个附件${stats.issues?` · ${stats.issues} 待匹配`:''}`:stats.issues?`${stats.issues} 项待补`:aState==='skipped'?'暂未添加':'待确认';}
+    const manage=$('nmda-manage-attachments-strip');if(manage){manage.hidden=!aCount&&!stats.issues;manage.textContent=aCount?'查看 / 修改':'准备附件';}
     const button=$('nmda-edit-batch-prep');if(button)button.textContent=supplementPreflightNeedsDecision()?'继续准备':'补充资料';
   }
 
@@ -1578,6 +1676,7 @@
     if(aReq){aReq.innerHTML=refs.length?refs.slice(0,4).map(ref=>`<span>${escapeHtml(ref)}</span>`).join('')+(refs.length>4?`<span>+${refs.length-4}</span>`:''):'';aReq.hidden=!refs.length;}
     if(aStatus)aStatus.textContent=aCount?`已准备 ${aCount} 个附件文件${stats.issues?` · ${stats.issues} 项仍待匹配`:stats.total?' · 已覆盖当前需求':''}`:aState==='skipped'?'本批次暂未添加附件':stats.issues?`${stats.issues} 项附件等待文件`:'尚未添加';
     if(aSkip){aSkip.hidden=!!aCount;aSkip.textContent=aState==='skipped'?'已跳过':'暂不添加';}
+    renderAttachmentAssetViews();
     const batchSummary=$('nmda-preflight-batch-summary');if(batchSummary)batchSummary.textContent=`已导入 ${(batch.tasks||[]).length} 封邮件 · 批次资料可现在一次准备`;
   }
 
@@ -1638,7 +1737,12 @@
     const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{total:0,matched:0,issues:0};
     const contextPending=typeof supplementPreflightNeedsDecision==='function'&&supplementPreflightNeedsDecision();
     const shouldShow=!!batch.dataset && stats.total>0 && stats.issues>0 && !batch.attachmentPromptDeferred && !contextPending;
-    cue.hidden=!shouldShow;if(!shouldShow)return;
+    cue.hidden=!shouldShow;
+    const bar=$('nmda-attachment-library-bar'),barTitle=$('nmda-attachment-library-bar-title'),barCopy=$('nmda-attachment-library-bar-copy'),prepared=attachmentPreparedFileCount();
+    const showBar=!!batch.dataset&&!contextPending&&!shouldShow&&(prepared>0||stats.total>0);
+    if(bar)bar.hidden=!showBar;
+    if(showBar){if(barTitle)barTitle.textContent=`附件资料 · ${prepared} 个文件`;if(barCopy)barCopy.textContent=stats.total?`邮件需求已匹配 ${Math.max(0,stats.total-stats.issues)}/${stats.total}；可随时增删，系统会重新匹配。`:'本批次附件已保留，可随时增删或替换。';}
+    if(!shouldShow)return;
     const title=$('nmda-attachment-context-title'),copy=$('nmda-attachment-context-copy'),later=$('nmda-attachment-later'),dirAction=$('nmda-attachment-dir-action');
     const mailPending=typeof reviewTasks==='function'&&reviewTasks().length>0;
     if(dirAction){dirAction.classList.toggle('nmda-btn-primary',!mailPending);dirAction.classList.toggle('nmda-btn-quiet',mailPending);}
@@ -1680,6 +1784,7 @@
     renderAttachmentContextCue();
     renderBatchPrepStrip();
     renderSupplementPreflight();
+    renderAttachmentAssetViews();
   }
 
   function beginImportSession(message) {
@@ -3085,6 +3190,7 @@
       ? `已选择 ${files.length} 个文件（任务附件 ${taskCount}，公共附件 ${sharedCount}，共 ${sizeText}）。`
       : '尚未选择本地附件。';
     rebuildTasks();
+    renderAttachmentAssetViews();
     if(batch.tasks.length){
       if(batch.dataset&&!batch.importBusy)void enterSelectionAndSchedule('资料已补齐');
     }
@@ -3165,7 +3271,7 @@
       state.routedEntries=parsed.entries||[];state.routedWarnings=parsed.warnings||[];state.routedSourceNames=[...new Set(rosterSets.map(set=>String(set.source||set.name||'')).filter(Boolean))];
     }else{state.routedEntries=[];state.routedWarnings=[];state.routedSourceNames=[];}
     syncRosterParts();
-    batch.routedAttachmentFiles=uniqueFiles((batch.dataset?.sourceFiles||[]).filter(file=>attachmentSources.has(sourceFileName(file))||attachmentSources.has(String(file?.name||''))));
+    batch.routedAttachmentFiles=uniqueFiles((batch.dataset?.sourceFiles||[]).filter(file=>(attachmentSources.has(sourceFileName(file))||attachmentSources.has(String(file?.name||'')))&&!batch.ignoredAttachmentIdentities.has(Importer.fileIdentity(file))));
   }
 
   function applyBatchDuplicateAudit(tasks){
@@ -3659,7 +3765,7 @@
       const fileCount=selected.reduce((sum,task)=>sum+(task.files?.length||0),0);
       const excluded=typeof excludedImportCount==='function'?excludedImportCount():0;
       const facts=[`已选 ${snapshot.selectedReady} 封`,snapshot.selectedScheduled?`定时 ${snapshot.selectedScheduled} 封`:'普通草稿',fileCount?`附件 ${fileCount} 份`:'无附件',excluded?`已排除 ${excluded} 封`:''].filter(Boolean);
-      preflight.innerHTML=`<span>${facts.map(item=>`<em>${escapeHtml(item)}</em>`).join('')}</span><strong>只创建 / 保存草稿，不自动发送</strong>`;
+      preflight.innerHTML=`<span>${facts.map(item=>`<em>${escapeHtml(item)}</em>`).join('')}</span>${fileCount?'<button class="nmda-text-action" type="button" data-open-attachment-manager>查看附件</button>':''}<strong>只创建 / 保存草稿，不自动发送</strong>`;
     }
     return snapshot;
   }
@@ -3813,7 +3919,7 @@
     batch.attachmentAttentionShown=false;
     batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.attachmentPrepChoice='pending';
     closeImportTaskEditor();
-    batch.directoryFiles = []; batch.taskFiles = uniqueFiles(dataset?.embeddedFiles || []); batch.routedAttachmentFiles=[]; batch.sharedFiles = []; batch.attachmentOverrides.clear();
+    batch.directoryFiles = []; batch.taskFiles = uniqueFiles(dataset?.embeddedFiles || []); batch.routedAttachmentFiles=[]; batch.sharedFiles = []; batch.attachmentOverrides.clear(); batch.ignoredAttachmentIdentities=new Set(); batch.attachmentManagerOpen=false;
     batch.fileIndex = Importer.buildFileIndex(batch.taskFiles);
     dirEl.value = ''; taskFilesEl.value = ''; sharedFilesEl.value = '';
     if (batchSearchEl) batchSearchEl.value = '';
@@ -3880,6 +3986,8 @@
     batch.taskFiles = [];
     batch.routedAttachmentFiles = [];
     batch.sharedFiles = [];
+    batch.ignoredAttachmentIdentities = new Set();
+    batch.attachmentManagerOpen = false;
     batch.attachmentOverrides.clear();
     batch.taskEdits.clear();
     batch.reviewSelected?.clear?.();
@@ -4209,16 +4317,19 @@
   });
   collectionSelectEl.addEventListener('change', () => { configureCollection(collectionSelectEl.value, false); renderCollectionList(); });
   dirEl.addEventListener('change', () => {
+    for(const file of dirEl.files||[])batch.ignoredAttachmentIdentities.delete(Importer.fileIdentity(file));
     batch.directoryFiles = uniqueFiles([...batch.directoryFiles, ...dirEl.files]);
     batch.attachmentPrepChoice='added';
     dirEl.value = ''; refreshFileIndex(true);renderSupplementPreflight();
   });
   taskFilesEl.addEventListener('change', () => {
+    for(const file of taskFilesEl.files||[])batch.ignoredAttachmentIdentities.delete(Importer.fileIdentity(file));
     batch.taskFiles = uniqueFiles([...batch.taskFiles, ...taskFilesEl.files]);
     batch.attachmentPrepChoice='added';
     taskFilesEl.value = ''; refreshFileIndex(true);renderSupplementPreflight();
   });
   sharedFilesEl.addEventListener('change', () => {
+    for(const file of sharedFilesEl.files||[])batch.ignoredAttachmentIdentities.delete(Importer.fileIdentity(file));
     batch.sharedFiles = uniqueFiles([...batch.sharedFiles, ...sharedFilesEl.files]);
     batch.attachmentPrepChoice='added';
     sharedFilesEl.value = ''; refreshFileIndex(false);renderSupplementPreflight();
@@ -4229,17 +4340,26 @@
   attachmentDropEl.addEventListener('drop', event => {
     const dropped = [...(event.dataTransfer?.files || [])].filter(file => file && file.name);
     if (!dropped.length) return;
+    for(const file of dropped)batch.ignoredAttachmentIdentities.delete(Importer.fileIdentity(file));
     batch.taskFiles = uniqueFiles([...batch.taskFiles, ...dropped]);
     batch.attachmentPrepChoice='added';
     refreshFileIndex(true);renderSupplementPreflight();
   });
   $('nmda-clear-attachments').addEventListener('click', () => {
-    dirEl.value = ''; taskFilesEl.value = ''; sharedFilesEl.value = '';
-    batch.directoryFiles = []; batch.taskFiles = []; batch.routedAttachmentFiles=[]; batch.sharedFiles = []; batch.attachmentOverrides.clear();
-    batch.attachmentPrepChoice=batch.supplementPreflightDone?'skipped':'pending';
     for(const config of batch.collectionConfigs.values())if(config.purpose==='attachment'){config.purpose='ignored';config.enabled=false;}
-    renderSourceInventory();renderCollectionList();
-    refreshFileIndex(true);
+    renderSourceInventory();renderCollectionList();clearAttachmentAssets();
+  });
+  $('nmda-manager-clear-attachments')?.addEventListener('click',clearAttachmentAssets);
+  $('nmda-close-attachment-manager')?.addEventListener('click',closeAttachmentManager);
+  $('nmda-attachment-manager-done')?.addEventListener('click',closeAttachmentManager);
+  $('nmda-manage-attachments-strip')?.addEventListener('click',openAttachmentManager);
+  $('nmda-manage-attachments-todo')?.addEventListener('click',openAttachmentManager);
+  $('nmda-manage-attachments-workflow')?.addEventListener('click',openAttachmentManager);
+  $('nmda-attachment-manager-overlay')?.addEventListener('click',event=>{if(event.target===$('nmda-attachment-manager-overlay'))closeAttachmentManager();});
+  ui.addEventListener('click',event=>{
+    const remove=event.target.closest?.('[data-attachment-remove]');
+    if(remove){removeAttachmentAsset(decodeURIComponent(remove.dataset.attachmentRemove||''));return;}
+    if(event.target.closest?.('[data-open-attachment-manager]'))openAttachmentManager();
   });
 
   $('nmda-template').addEventListener('click', () => {

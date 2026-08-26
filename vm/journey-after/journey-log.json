@@ -2,7 +2,7 @@
   {
     "label": "01-imported",
     "scrollTop": 0,
-    "scrollHeight": 778,
+    "scrollHeight": 786,
     "clientHeight": 628,
     "activeStep": "1 添加资料 补总名单 / 附件",
     "readySteps": [],
@@ -38,8 +38,8 @@
   },
   {
     "label": "04-mail-todos-resolved",
-    "scrollTop": 508,
-    "scrollHeight": 1315,
+    "scrollTop": 500,
+    "scrollHeight": 1323,
     "clientHeight": 628,
     "activeStep": "2 处理待办 2 项待办",
     "readySteps": [],
@@ -59,8 +59,8 @@
   },
   {
     "label": "05-attachments-resolved-selection",
-    "scrollTop": 984,
-    "scrollHeight": 1904,
+    "scrollTop": 1059,
+    "scrollHeight": 1984,
     "clientHeight": 628,
     "activeStep": "3 选择与安排 已选 5 封",
     "readySteps": [
@@ -90,8 +90,8 @@
   },
   {
     "label": "06-selection-scheduled",
-    "scrollTop": 984,
-    "scrollHeight": 1919,
+    "scrollTop": 1059,
+    "scrollHeight": 1999,
     "clientHeight": 628,
     "activeStep": "3 选择与安排 已选 5 封 · 定时 5",
     "readySteps": [
@@ -121,8 +121,8 @@
   },
   {
     "label": "07-selection-table-bottom",
-    "scrollTop": 984,
-    "scrollHeight": 1919,
+    "scrollTop": 1059,
+    "scrollHeight": 1999,
     "clientHeight": 628,
     "activeStep": "3 选择与安排 已选 5 封 · 定时 5",
     "readySteps": [
