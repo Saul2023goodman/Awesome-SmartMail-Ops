@@ -1,4 +1,4 @@
-/* NetEase Mail Draft Assistant v1.13 — business-flow workbench UI */
+/* NetEase Mail Draft Assistant v1.14 — independent review gate + persistent workflow rail */
 #nmda-root,
 #nmda-root * { box-sizing: border-box; }
 
@@ -1041,4 +1041,170 @@
   .nmda-source-action-grid { grid-template-columns:1fr; }
   .nmda-page-head-meta { display:none; }
   .nmda-maintenance-row { align-items:flex-start; flex-direction:column; }
+}
+
+/* v1.14 — independent review gate + persistent right workflow rail */
+.nmda-tab { position:relative; }
+.nmda-nav-count {
+  position:absolute; top:6px; right:7px; min-width:18px; height:18px; padding:0 5px;
+  display:grid; place-items:center; border-radius:999px; background:#fef3c7; color:#92400e;
+  font:800 8px/1 system-ui,sans-serif; box-shadow:0 0 0 1px #fde68a inset;
+}
+.nmda-nav-count[hidden] { display:none !important; }
+
+.nmda-bulk-workbench,
+.nmda-review-page {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 196px;
+  column-gap:14px;
+  align-items:start;
+}
+.nmda-bulk-workbench > :not(.nmda-process-guide),
+.nmda-review-page > :not(.nmda-process-guide) { grid-column:1; min-width:0; }
+.nmda-bulk-workbench > .nmda-process-guide,
+.nmda-review-page > .nmda-process-guide {
+  grid-column:2;
+  grid-row:1;
+  position:sticky;
+  top:12px;
+  align-self:start;
+  z-index:8;
+}
+
+/* Replace the old horizontal strip with a compact vertical task rail. */
+.nmda-process-guide {
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:0;
+  margin:0;
+  padding:10px;
+  border:1px solid #dbe3ee;
+  border-radius:14px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 8px 24px rgba(15,23,42,.07);
+  backdrop-filter:blur(12px);
+}
+.nmda-process-guide-title { display:grid; gap:2px; padding:2px 4px 9px; border-bottom:1px solid #edf2f7; margin-bottom:5px; }
+.nmda-process-guide-title strong { color:#1e293b; font-size:10px; font-weight:820; }
+.nmda-process-guide-title small { color:#94a3b8; font-size:7.8px; line-height:1.35; }
+.nmda-process-guide > i {
+  position:relative;
+  width:2px;
+  height:12px;
+  margin:0 0 0 15px;
+  background:#dbe3ee;
+}
+.nmda-process-guide > i::after { display:none; }
+.nmda-process-guide button {
+  width:100%;
+  min-width:0;
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr);
+  grid-template-rows:auto auto;
+  column-gap:8px;
+  align-items:center;
+  padding:8px 7px;
+  border:1px solid transparent;
+  border-radius:9px;
+  background:transparent;
+  text-align:left;
+}
+.nmda-process-guide button > span {
+  grid-row:1 / 3;
+  width:30px;
+  height:30px;
+  border-radius:9px;
+  background:#eef2f7;
+  color:#64748b;
+  font-size:8.5px;
+}
+.nmda-process-guide button strong { font-size:9.5px; line-height:1.2; white-space:normal; overflow:visible; }
+.nmda-process-guide button small { margin-top:2px; font-size:7.6px; line-height:1.3; white-space:normal; overflow:visible; color:#94a3b8; }
+.nmda-process-guide button[data-state="active"] { border-color:#bfdbfe; background:#eff6ff; }
+.nmda-process-guide button[data-state="active"] > span { border-radius:9px; }
+.nmda-process-guide button[data-state="done"] > span { border-radius:9px; }
+.nmda-process-guide button[data-state="ready"] { background:#fbfdff; }
+.nmda-process-guide button[data-state="locked"] { opacity:.42; }
+
+/* Review is a first-class workspace rather than a nested exception card. */
+.nmda-review-page { padding-top:12px; padding-bottom:24px; }
+.nmda-review-command-card {
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:12px 14px; margin-bottom:10px; border:1px solid #cfe0f8; border-radius:14px;
+  background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);
+}
+.nmda-review-command-copy { min-width:0; display:grid; gap:3px; }
+.nmda-review-command-copy > strong { color:#172033; font-size:12.5px; font-weight:820; }
+.nmda-review-command-copy > small { max-width:680px; color:#64748b; font-size:8.8px; line-height:1.45; }
+.nmda-review-page-summary { flex:0 0 auto; display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.nmda-review-page-summary span { min-height:28px; display:inline-flex; align-items:baseline; gap:4px; padding:5px 8px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; color:#64748b; font-size:8.2px; white-space:nowrap; }
+.nmda-review-page-summary strong { color:#1e293b; font-size:12px; }
+.nmda-review-viewbar {
+  min-height:40px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:7px 9px; margin-bottom:8px; border:1px solid #e2e8f0; border-radius:11px; background:#fff;
+}
+.nmda-review-filter { display:inline-flex; align-items:center; padding:2px; border:1px solid #dbe3ee; border-radius:8px; background:#f8fafc; }
+.nmda-review-filter button { min-height:27px; padding:0 10px; border:0; border-radius:6px; background:transparent; color:#64748b; font:750 8.8px/1 system-ui,sans-serif; cursor:pointer; }
+.nmda-review-filter button.is-active { background:#fff; color:#1d4ed8; box-shadow:0 1px 3px rgba(15,23,42,.08); }
+.nmda-review-view-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0; }
+
+.nmda-review-batchbar {
+  min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:14px;
+  padding:9px 11px; margin-bottom:8px; border:1px solid #bfdbfe; border-radius:11px; background:#eff6ff;
+}
+.nmda-review-batchbar[hidden] { display:none !important; }
+.nmda-review-batchbar > div:first-child { min-width:0; display:grid; gap:2px; }
+.nmda-review-batchbar strong { color:#1e3a8a; font-size:10px; }
+.nmda-review-batchbar small { color:#64748b; font-size:8px; line-height:1.35; }
+.nmda-review-page-empty { padding:36px 18px; border:1px dashed #cbd5e1; border-radius:12px; background:#fbfcfe; color:#64748b; text-align:center; font-size:9.5px; }
+.nmda-review-page-empty[hidden] { display:none !important; }
+
+/* Queue selection and row navigation are separate controls; batch actions only appear after selection. */
+.nmda-review-queue { gap:6px; }
+.nmda-review-queue-row {
+  display:grid; grid-template-columns:26px minmax(0,1fr); align-items:stretch;
+  border:1px solid #e2e8f0; border-radius:9px; background:#fff; overflow:hidden;
+}
+.nmda-review-queue-row:hover { border-color:#bfdbfe; }
+.nmda-review-queue-row.is-active { border-color:#60a5fa; background:#eff6ff; box-shadow:0 0 0 2px rgba(37,99,235,.06); }
+.nmda-review-queue-row.is-selected { border-color:#93c5fd; }
+.nmda-review-select { display:grid; place-items:center; border-right:1px solid #edf2f7; background:rgba(248,250,252,.75); cursor:pointer; }
+.nmda-review-select input { margin:0; }
+.nmda-review-queue-item {
+  width:100%; display:grid; grid-template-columns:22px minmax(0,1fr); align-items:start; gap:6px;
+  padding:8px; border:0; border-radius:0; background:transparent; box-shadow:none; text-align:left; cursor:pointer;
+}
+.nmda-review-queue-item:hover,.nmda-review-queue-item.is-active { border:0; background:transparent; box-shadow:none; }
+.nmda-review-queue-main em[data-tone="ok"] { color:#15803d; }
+.nmda-review-queue-main em[data-tone="warn"] { color:#b45309; }
+
+.nmda-review-workbench { margin-top:0; }
+.nmda-review-layout { grid-template-columns:230px minmax(330px,1.1fr) minmax(320px,.9fr); min-height:520px; max-height:66vh; }
+.nmda-review-actions { position:sticky; bottom:0; background:rgba(251,253,255,.96); backdrop-filter:blur(8px); }
+
+/* Bulk subject is scoped to selected review items. */
+.nmda-review-page .nmda-bulk-subject-panel { margin:0 0 8px; }
+
+@media (max-width:1120px) {
+  .nmda-bulk-workbench,.nmda-review-page { grid-template-columns:minmax(0,1fr) 168px; column-gap:10px; }
+  .nmda-process-guide button { grid-template-columns:26px minmax(0,1fr); column-gap:6px; padding:7px 5px; }
+  .nmda-process-guide button > span { width:26px; height:26px; }
+  .nmda-process-guide > i { margin-left:13px; }
+  .nmda-process-guide button small { display:none; }
+  .nmda-review-layout { grid-template-columns:205px minmax(300px,1fr) minmax(285px,.9fr); }
+}
+@media (max-width:900px) {
+  .nmda-bulk-workbench,.nmda-review-page { grid-template-columns:minmax(0,1fr) 58px; column-gap:8px; }
+  .nmda-process-guide { padding:7px 6px; }
+  .nmda-process-guide-title { padding:1px 0 6px; text-align:center; }
+  .nmda-process-guide-title strong { font-size:7.5px; }
+  .nmda-process-guide-title small,.nmda-process-guide button strong,.nmda-process-guide button small { display:none; }
+  .nmda-process-guide button { grid-template-columns:1fr; justify-items:center; padding:6px 2px; }
+  .nmda-process-guide button > span { grid-row:auto; width:30px; height:30px; }
+  .nmda-process-guide > i { margin-left:auto; margin-right:auto; }
+  .nmda-review-command-card,.nmda-review-viewbar,.nmda-review-batchbar { align-items:flex-start; flex-direction:column; }
+  .nmda-review-page-summary,.nmda-review-view-actions { justify-content:flex-start; }
+  .nmda-review-layout { grid-template-columns:190px minmax(320px,1fr); max-height:none; }
+  .nmda-review-edit-pane { grid-column:1 / -1; border-top:1px solid #e2e8f0; }
 }
