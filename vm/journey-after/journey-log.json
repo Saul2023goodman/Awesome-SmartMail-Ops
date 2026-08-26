@@ -2,18 +2,26 @@
   {
     "label": "01-imported",
     "scrollTop": 0,
-    "scrollHeight": 839,
+    "scrollHeight": 778,
     "clientHeight": 628,
-    "activeStep": "1 添加资料 参考名单可补充 / 跳过",
+    "activeStep": "1 添加资料 补总名单 / 附件",
     "readySteps": [],
     "primary": [
       {
         "text": "上传总名单",
         "visible": true
+      },
+      {
+        "text": "选择附件文件夹",
+        "visible": true
+      },
+      {
+        "text": "完成准备，继续",
+        "visible": true
       }
     ],
     "reviewSummary": "5 待处理0 已检查1 可直接使用",
-    "attachmentSummary": "",
+    "attachmentSummary": "资料中要求 3 个附件；已找到 0 个，还有 3 个尚未提供。选择文件或文件夹后会自动匹配。",
     "batchSummary": "共 6 封 · 已选 6 · 可创建 1 · 异常 5"
   },
   {
@@ -30,8 +38,8 @@
   },
   {
     "label": "04-mail-todos-resolved",
-    "scrollTop": 493,
-    "scrollHeight": 1314,
+    "scrollTop": 508,
+    "scrollHeight": 1315,
     "clientHeight": 628,
     "activeStep": "2 处理待办 2 项待办",
     "readySteps": [],
@@ -51,8 +59,8 @@
   },
   {
     "label": "05-attachments-resolved-selection",
-    "scrollTop": 982,
-    "scrollHeight": 1902,
+    "scrollTop": 984,
+    "scrollHeight": 1904,
     "clientHeight": 628,
     "activeStep": "3 选择与安排 已选 5 封",
     "readySteps": [
@@ -82,8 +90,8 @@
   },
   {
     "label": "06-selection-scheduled",
-    "scrollTop": 982,
-    "scrollHeight": 1917,
+    "scrollTop": 984,
+    "scrollHeight": 1919,
     "clientHeight": 628,
     "activeStep": "3 选择与安排 已选 5 封 · 定时 5",
     "readySteps": [
@@ -113,8 +121,8 @@
   },
   {
     "label": "07-selection-table-bottom",
-    "scrollTop": 982,
-    "scrollHeight": 1917,
+    "scrollTop": 984,
+    "scrollHeight": 1919,
     "clientHeight": 628,
     "activeStep": "3 选择与安排 已选 5 封 · 定时 5",
     "readySteps": [

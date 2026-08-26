@@ -3,7 +3,7 @@ const js=fs.readFileSync(__dirname+'/content.js','utf8');
 const css=fs.readFileSync(__dirname+'/content.css','utf8');
 
 const required=[
-  ['step 2 is business todo stage',`<strong>处理待办</strong><small>补内容 · 去重 · 附件</small>`],
+  ['step 2 is business todo stage',`<strong>处理待办</strong><small>内容 · 去重 · 附件</small>`],
   ['single next-action router exists','function openNextBlockingIssue'],
   ['review queue is priority sorted','function reviewTaskPriority'],
   ['human issue labels are action-oriented','return \'补收件人\''],

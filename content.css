@@ -3239,3 +3239,260 @@
 }
 #nmda-attachments-card[data-issue="1"] > summary strong { color:#57606a !important; }
 #nmda-attachments-card[data-issue="1"] > summary small { color:#8c959f !important; }
+
+/* v1.33 · Import preflight — mail first, then one explicit batch-preparation dialog. */
+#nmda-roster-context-cue { display:none !important; }
+
+/* The import surface owns one job: get mail content into the batch. */
+#nmda-import-card:not([data-loaded="1"]) {
+  padding:18px 18px 15px !important;
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-card-title {
+  font-size:15px !important;
+  letter-spacing:-.01em;
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-card-desc {
+  max-width:620px;
+  margin-top:3px;
+  color:#667085;
+  font-size:10.5px !important;
+  line-height:1.55;
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-source-action-grid {
+  margin-top:14px;
+  gap:9px;
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-source-action {
+  min-height:72px;
+  padding:12px 13px;
+  border-color:#d8dee7;
+  border-radius:11px;
+  background:#fff;
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-source-action:hover {
+  border-color:#9bbcf7;
+  background:#f8fbff;
+  box-shadow:0 3px 10px rgba(9,105,218,.06);
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-source-action strong { font-size:11px; }
+#nmda-import-card:not([data-loaded="1"]) .nmda-source-action small { margin-top:2px; color:#7a8492; font-size:8.8px; }
+#nmda-import-card:not([data-loaded="1"]) .nmda-ingest-source-tools {
+  margin-top:8px;
+  padding-top:8px;
+  border-top:1px solid #eef1f4;
+}
+
+/* Once mail exists, import becomes a maintenance toolbar. */
+#nmda-import-card[data-loaded="1"] {
+  padding:11px 12px 10px !important;
+  border-color:#d8dee7;
+  background:#fff;
+}
+#nmda-import-card[data-loaded="1"] .nmda-card-head { margin-bottom:6px; }
+#nmda-import-card[data-loaded="1"] .nmda-card-title { font-size:11.2px !important; }
+#nmda-import-card[data-loaded="1"] .nmda-card-desc { color:#7a8492; font-size:8.6px !important; }
+#nmda-open-supplement-preflight { border-color:#c7d7f2; color:#0969da; background:#f6f9ff; }
+
+/* Persistent preparation summary: attachment never disappears from the workflow. */
+.nmda-batch-prep-strip {
+  display:grid;
+  grid-template-columns:minmax(150px,1.25fr) minmax(132px,.8fr) minmax(132px,.8fr) auto;
+  align-items:center;
+  gap:8px;
+  margin-top:7px;
+  padding:8px 9px;
+  border:1px solid #dbe3ed;
+  border-radius:9px;
+  background:#f8fafc;
+}
+.nmda-batch-prep-strip[hidden] { display:none !important; }
+.nmda-batch-prep-label { min-width:0; display:grid; gap:1px; }
+.nmda-batch-prep-label span { color:#24292f; font-size:9.6px; font-weight:760; }
+.nmda-batch-prep-label small { color:#8c959f; font-size:7.8px; line-height:1.35; }
+.nmda-batch-prep-item {
+  min-width:0;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:6px;
+  min-height:30px;
+  padding:5px 8px;
+  border:1px solid #e1e6eb;
+  border-radius:7px;
+  background:#fff;
+}
+.nmda-batch-prep-item span { color:#6e7781; font-size:7.8px; }
+.nmda-batch-prep-item strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#3d444d; font-size:8.8px; }
+.nmda-batch-prep-item[data-state="added"] { border-color:#cfe5d5; background:#f5fbf7; }
+.nmda-batch-prep-item[data-state="added"] strong { color:#1a7f37; }
+.nmda-batch-prep-item[data-state="pending"] { border-color:#f0d08b; background:#fffaf0; }
+.nmda-batch-prep-item[data-state="pending"] strong { color:#8a5b00; }
+.nmda-batch-prep-item[data-state="skipped"] { background:#fafbfc; }
+
+/* Import-complete preparation dialog. */
+.nmda-supplement-preflight {
+  position:fixed;
+  inset:0;
+  z-index:1000008;
+  display:grid;
+  place-items:center;
+  padding:28px;
+  background:rgba(17,24,39,.34);
+}
+.nmda-supplement-preflight[hidden] { display:none !important; }
+.nmda-supplement-dialog {
+  width:min(820px,calc(100vw - 56px));
+  max-height:min(620px,calc(100vh - 56px));
+  overflow:auto;
+  border:1px solid #d0d7de;
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 24px 64px rgba(31,35,40,.22),0 4px 12px rgba(31,35,40,.1);
+}
+.nmda-supplement-head {
+  display:grid;
+  grid-template-columns:38px minmax(0,1fr);
+  gap:12px;
+  align-items:start;
+  padding:18px 20px 14px;
+  border-bottom:1px solid #eaeef2;
+}
+.nmda-supplement-head-icon {
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+  background:#dafbe1;
+  color:#1a7f37;
+  font-size:15px;
+  font-weight:800;
+}
+.nmda-supplement-kicker {
+  display:block;
+  margin-bottom:2px;
+  color:#1a7f37;
+  font-size:8px;
+  font-weight:760;
+  letter-spacing:.04em;
+}
+.nmda-supplement-head h3 {
+  margin:0;
+  color:#1f2328;
+  font-size:16px;
+  line-height:1.35;
+  letter-spacing:-.015em;
+}
+.nmda-supplement-head p {
+  margin:4px 0 0;
+  max-width:650px;
+  color:#667085;
+  font-size:9.5px;
+  line-height:1.55;
+}
+.nmda-supplement-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  padding:16px 20px;
+  background:#fbfcfe;
+}
+.nmda-supplement-box {
+  min-width:0;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  grid-template-rows:auto auto;
+  gap:9px 10px;
+  align-content:start;
+  padding:14px;
+  border:1px solid #dbe3ed;
+  border-radius:12px;
+  background:#fff;
+}
+.nmda-supplement-box[data-state="added"] { border-color:#bfddc8; background:#fbfefc; }
+.nmda-supplement-box[data-state="skipped"] { border-color:#e1e6eb; background:#fbfcfd; }
+.nmda-supplement-box-icon {
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  background:#eaf2ff;
+  color:#0969da;
+  font-size:13px;
+  font-weight:800;
+}
+.nmda-supplement-box-attachment .nmda-supplement-box-icon { background:#fff1c2; color:#8a5b00; }
+.nmda-supplement-box[data-state="added"] .nmda-supplement-box-icon { background:#dafbe1; color:#1a7f37; }
+.nmda-supplement-box-main { min-width:0; display:grid; gap:3px; }
+.nmda-supplement-box-kicker { color:#6e7781; font-size:7.5px; font-weight:730; }
+.nmda-supplement-box-main > strong { color:#24292f; font-size:11.2px; line-height:1.4; }
+.nmda-supplement-box-main > small { min-height:38px; color:#667085; font-size:8.7px; line-height:1.5; }
+.nmda-supplement-status {
+  width:max-content;
+  max-width:100%;
+  margin-top:3px;
+  padding:4px 7px;
+  border-radius:6px;
+  background:#f6f8fa;
+  color:#57606a;
+  font-size:8px;
+  font-weight:650;
+}
+.nmda-supplement-box[data-state="added"] .nmda-supplement-status { background:#eaf8ee; color:#1a7f37; }
+.nmda-supplement-box[data-state="skipped"] .nmda-supplement-status { background:#f0f2f4; color:#6e7781; }
+.nmda-attachment-requirements {
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  margin-top:3px;
+}
+.nmda-attachment-requirements[hidden] { display:none !important; }
+.nmda-attachment-requirements span {
+  max-width:160px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  padding:3px 6px;
+  border:1px solid #f1d28d;
+  border-radius:999px;
+  background:#fffaf0;
+  color:#7d4e00;
+  font-size:7.4px;
+}
+.nmda-supplement-actions {
+  grid-column:1 / -1;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+  padding-top:3px;
+}
+.nmda-supplement-actions .nmda-btn-small { min-height:31px; }
+.nmda-supplement-foot {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:13px 20px 15px;
+  border-top:1px solid #eaeef2;
+  background:#fff;
+}
+.nmda-supplement-foot > div { min-width:0; display:grid; gap:2px; }
+.nmda-supplement-foot strong { color:#3d444d; font-size:9px; }
+.nmda-supplement-foot small { color:#8c959f; font-size:7.8px; line-height:1.4; }
+#nmda-complete-supplement-preflight { min-height:36px; white-space:nowrap; }
+
+/* Avoid showing step-2 attachment UI underneath an unfinished import preflight. */
+.nmda-bulk-workbench:has(#nmda-supplement-preflight:not([hidden])) #nmda-ingest-result-card {
+  filter:none;
+}
+
+@media (max-width:900px) {
+  .nmda-supplement-preflight { padding:16px; }
+  .nmda-supplement-dialog { width:min(700px,calc(100vw - 32px)); max-height:calc(100vh - 32px); }
+  .nmda-supplement-grid { grid-template-columns:1fr; }
+  .nmda-batch-prep-strip { grid-template-columns:1fr 1fr; }
+  .nmda-batch-prep-label { grid-column:1 / -1; }
+  .nmda-batch-prep-strip > .nmda-btn { grid-column:1 / -1; justify-self:start; }
+}

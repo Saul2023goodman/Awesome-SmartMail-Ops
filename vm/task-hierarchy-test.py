@@ -18,12 +18,13 @@ with sync_playwright() as p:
     for path in scripts: page.add_script_tag(content=path.read_text())
     page.click('#nmda-launcher'); page.click('#nmda-expand')
     page.click('#nmda-show-paste'); page.fill('#nmda-paste-source',TEXT); page.click('#nmda-paste-import'); page.wait_for_timeout(900)
-    # Step 1: optional roster preflight should be lightweight.
-    page.screenshot(path=str(OUT/'task-hierarchy-roster-v1.32.png'),full_page=True)
-    if page.locator('#nmda-roster-skip').is_visible():
-        page.click('#nmda-roster-skip'); page.wait_for_timeout(500)
+    # Step 1: batch preflight keeps roster and attachments visible together.
+    page.screenshot(path=str(OUT/'task-hierarchy-preflight-v1.33.png'),full_page=True)
+    assert page.locator('#nmda-supplement-preflight').is_visible()
+    assert '3 项需求' in page.locator('#nmda-preflight-attachment-title').inner_text()
+    page.click('#nmda-complete-supplement-preflight'); page.wait_for_timeout(600)
     # Step 2: actual blockers should become the visual priority.
-    page.screenshot(path=str(OUT/'task-hierarchy-todos-v1.32.png'),full_page=True)
+    page.screenshot(path=str(OUT/'task-hierarchy-todos-v1.33.png'),full_page=True)
     metrics=page.evaluate('''()=>({
       active:document.querySelector('.nmda-process-guide [data-state="active"]')?.innerText.replace(/\s+/g,' ').trim(),
       sourceOpen:document.querySelector('.nmda-source-inventory-details')?.open||false,

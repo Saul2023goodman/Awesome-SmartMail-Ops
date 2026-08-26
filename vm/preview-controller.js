@@ -99,10 +99,10 @@ Yohan`;
 
     if (sample && wantedTab === 'batch' && (view === 'review' || view === 'selection' || view === 'duplicate' || view === 'browse53')) {
       await new Promise(resolve => setTimeout(resolve, view === 'browse53' ? 1900 : 900));
-      // v1.31 pauses after import for the optional reference-roster decision.
-      // Downstream VM views explicitly choose to continue without one; base view intentionally captures the prompt.
-      document.querySelector('#nmda-roster-skip')?.click();
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // v1.33 pauses after import for one batch-preparation dialog (roster + attachments).
+      // Downstream views accept the defaults and continue; base view intentionally captures the dialog.
+      document.querySelector('#nmda-complete-supplement-preflight')?.click();
+      await new Promise(resolve => setTimeout(resolve, 550));
       document.querySelector('#nmda-review-import-issues')?.click();
       await new Promise(resolve => setTimeout(resolve, 250));
       if (view === 'browse53') {

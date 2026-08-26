@@ -25,8 +25,8 @@ with sync_playwright() as p:
     page.click('#nmda-launcher'); page.click('#nmda-expand');
     page.click('#nmda-show-paste'); page.fill('#nmda-paste-source',TEXT); page.click('#nmda-paste-import'); page.wait_for_timeout(1000)
     snap(page,'01-imported')
-    if page.locator('#nmda-roster-skip').is_visible():
-        page.click('#nmda-roster-skip'); page.wait_for_timeout(450)
+    if page.locator('#nmda-supplement-preflight').is_visible():
+        page.click('#nmda-complete-supplement-preflight'); page.wait_for_timeout(550)
     page.click('#nmda-review-import-issues'); page.wait_for_timeout(300); snap(page,'02-todos-start')
 
     # Resolve the mail todo queue like a normal user: fix required fields, then make explicit judgments.

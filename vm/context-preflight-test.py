@@ -18,15 +18,15 @@ with sync_playwright() as p:
     page.click('#nmda-launcher'); page.click('#nmda-expand')
     page.locator('#nmda-import-file').set_input_files(str(ROOT/'vm'/'fixtures'/'clean-batch.csv'))
     page.wait_for_timeout(1100)
-    state=page.locator('#nmda-roster-context-cue').get_attribute('data-state')
     active=page.locator('.nmda-process-guide [data-state="active"]').inner_text()
-    assert state=='pending',state
     assert '添加资料' in active,active
-    assert page.locator('#nmda-roster-skip').is_visible()
+    assert page.locator('#nmda-supplement-preflight').is_visible()
+    assert page.locator('#nmda-preflight-roster-box').is_visible()
+    assert page.locator('#nmda-preflight-attachment-box').is_visible()
     assert not page.locator('#nmda-review-import-issues').is_visible()
-    page.screenshot(path=str(OUT/'context-import-clean-v1.31.png'),full_page=True)
+    page.screenshot(path=str(OUT/'context-import-clean-v1.33.png'),full_page=True)
 
-    page.click('#nmda-roster-skip'); page.wait_for_timeout(1200)
+    page.click('#nmda-complete-supplement-preflight'); page.wait_for_timeout(1200)
     assert page.locator('#nmda-preview-card').is_visible(), 'selection did not open after explicit skip'
     active=page.locator('.nmda-process-guide [data-state="active"]').inner_text()
     assert '选择与安排' in active,active
@@ -35,20 +35,22 @@ with sync_playwright() as p:
     assert '3 封' in schedule_copy,schedule_copy
     assert '已选 3 封' in create_copy,create_copy
     assert '不自动发送' in create_copy,create_copy
-    page.screenshot(path=str(OUT/'context-selection-clean-v1.31.png'),full_page=True)
+    page.screenshot(path=str(OUT/'context-selection-clean-v1.33.png'),full_page=True)
 
     page.fill('#nmda-rule-start-at','2026-09-03T07:30'); page.click('#nmda-apply-schedule'); page.wait_for_timeout(450)
     assert '定时 3 封' in page.locator('#nmda-create-preflight').inner_text()
-    page.screenshot(path=str(OUT/'context-selection-scheduled-v1.31.png'),full_page=True)
+    page.screenshot(path=str(OUT/'context-selection-scheduled-v1.33.png'),full_page=True)
 
     # New batch: verify uploading the recommended roster resolves the decision without making it mandatory.
     page.click('#nmda-reset-import'); page.wait_for_timeout(250)
     page.locator('#nmda-import-file').set_input_files(str(ROOT/'vm'/'fixtures'/'clean-batch.csv'))
     page.wait_for_timeout(950)
+    assert page.locator('#nmda-supplement-preflight').is_visible()
     page.locator('#nmda-roster-file').set_input_files(str(ROOT/'vm'/'fixtures'/'reference-roster.csv'))
     page.wait_for_timeout(1300)
-    assert page.locator('#nmda-roster-context-cue').get_attribute('data-state')=='added'
-    assert '4 条' in page.locator('#nmda-roster-context-title').inner_text()
-    print(json.dumps({'rosterPrompt':'pending->skipped/added','scheduleCopy':schedule_copy,'createPreflight':create_copy,'pageErrors':errors},ensure_ascii=False))
+    assert page.locator('#nmda-preflight-roster-box').get_attribute('data-state')=='added'
+    assert '4 条' in page.locator('#nmda-preflight-roster-title').inner_text()
+    page.click('#nmda-complete-supplement-preflight'); page.wait_for_timeout(700)
+    print(json.dumps({'rosterPrompt':'dialog pending->skipped/added','scheduleCopy':schedule_copy,'createPreflight':create_copy,'pageErrors':errors},ensure_ascii=False))
     if errors: raise SystemExit(2)
     browser.close()

@@ -6,7 +6,7 @@ for(const token of [
   'async function enterSelectionAndSchedule',
   'async function continueAfterReviewResolution',
   "已自动进入选择与安排",
-  "if(!(batch.tasks||[]).some(taskHasBlockingIssue))setTimeout(()=>void enterSelectionAndSchedule('解析完成'),0)",
+  "if(batch.supplementPreflightDone&&!(batch.tasks||[]).some(taskHasBlockingIssue))setTimeout(()=>void enterSelectionAndSchedule('解析完成'),0)",
   "if(batch.dataset&&!batch.importBusy)void enterSelectionAndSchedule('资料已补齐')",
   "if(!reviewTasks().length){await continueAfterReviewResolution('邮件检查完成');return;}"
 ]) if(!js.includes(token)) throw new Error(`auto-flow contract missing: ${token}`);
