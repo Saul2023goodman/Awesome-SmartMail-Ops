@@ -107,15 +107,26 @@
     return {entries,warnings,stats:{total:entries.length,withEmail:entries.filter(e=>e.email).length,withSchool:entries.filter(e=>e.school).length,duplicates:duplicates.length}};
   }
 
-  function matchOne(task,entries){
+  function buildMatchIndex(entries){
+    const list=Array.isArray(entries)?entries:[];
+    const byEmail=new Map(),byName=new Map(),byKey=new Map();
+    for(const entry of list){
+      if(entry?.key)byKey.set(entry.key,entry);
+      if(entry?.email){if(!byEmail.has(entry.email))byEmail.set(entry.email,[]);byEmail.get(entry.email).push(entry);}
+      if(entry?.nameKey){if(!byName.has(entry.nameKey))byName.set(entry.nameKey,[]);byName.get(entry.nameKey).push(entry);}
+    }
+    return {entries:list,byEmail,byName,byKey};
+  }
+
+  function matchOne(task,entriesOrIndex){
+    const index=Array.isArray(entriesOrIndex)?buildMatchIndex(entriesOrIndex):(entriesOrIndex?.byEmail?entriesOrIndex:buildMatchIndex([]));
     const email=emailOf(task?.recipients||''),name=taskName(task),nameKey=normalizeName(name),school=clean(task?.school||'');
     let candidates=[];
-    if(email){candidates=entries.filter(e=>e.email===email).map(e=>({entry:e,score:100,by:'email'}));}
-    if(!candidates.length&&nameKey&&school){candidates=entries.filter(e=>e.nameKey===nameKey&&e.school&&sameSchool(e.school,school)).map(e=>({entry:e,score:94,by:'name+school'}));}
+    if(email){candidates=(index.byEmail.get(email)||[]).map(e=>({entry:e,score:100,by:'email'}));}
+    if(!candidates.length&&nameKey&&school){candidates=(index.byName.get(nameKey)||[]).filter(e=>e.school&&sameSchool(e.school,school)).map(e=>({entry:e,score:94,by:'name+school'}));}
     if(!candidates.length&&nameKey){
-      const same=entries.filter(e=>e.nameKey===nameKey);if(same.length===1)candidates=[{entry:same[0],score:82,by:'unique-name'}];else if(same.length>1)candidates=same.map(e=>({entry:e,score:68,by:'ambiguous-name'}));
+      const same=index.byName.get(nameKey)||[];if(same.length===1)candidates=[{entry:same[0],score:82,by:'unique-name'}];else if(same.length>1)candidates=same.map(e=>({entry:e,score:68,by:'ambiguous-name'}));
     }
-    candidates.sort((a,b)=>b.score-a.score);
     if(!candidates.length)return {status:'off-roster',task,email,name,candidates:[]};
     const top=candidates[0],ties=candidates.filter(c=>c.score===top.score);
     if(ties.length>1)return {status:'ambiguous',task,email,name,candidates:ties,score:top.score,by:top.by};
@@ -127,13 +138,14 @@
   }
 
   function crossCheck(tasks,entries){
-    const matches=(tasks||[]).map(task=>matchOne(task,entries||[]));
+    const list=entries||[],index=buildMatchIndex(list);
+    const matches=(tasks||[]).map(task=>matchOne(task,index));
     const byRoster=new Map();
     for(const m of matches){if(m.entry){if(!byRoster.has(m.entry.key))byRoster.set(m.entry.key,[]);byRoster.get(m.entry.key).push(m);}}
     const duplicateMatches=[];
-    for(const [key,list] of byRoster){if(list.length>1)duplicateMatches.push({entry:(entries||[]).find(e=>e.key===key),matches:list});}
+    for(const [key,listOfMatches] of byRoster){if(listOfMatches.length>1)duplicateMatches.push({entry:index.byKey.get(key),matches:listOfMatches});}
     const matchedKeys=new Set([...byRoster.keys()]);
-    const unwritten=(entries||[]).filter(e=>!matchedKeys.has(e.key));
+    const unwritten=list.filter(e=>!matchedKeys.has(e.key));
     return {
       matches,unwritten,duplicateMatches,
       summary:{
@@ -149,5 +161,5 @@
     };
   }
 
-  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,taskName,schoolKey,parseDataset,crossCheck,matchOne};
+  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,taskName,schoolKey,parseDataset,crossCheck,matchOne,buildMatchIndex};
 })();

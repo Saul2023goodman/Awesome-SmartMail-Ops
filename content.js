@@ -227,23 +227,30 @@
     return [...map.values()];
   }
 
-  function attachmentNameVisible(root, fileName) {
-    const wanted = compactText(fileName).toLowerCase();
-    if (!wanted) return false;
+  function attachmentEvidenceText(root) {
+    const parts = [];
     const nodes = root.querySelectorAll('a,span,div,li,p,[title],[aria-label]');
     for (const el of nodes) {
       if (el.matches?.('input[type="file"], [id$="_attachBrowser"]')) continue;
-      const text = compactText(`${textOf(el)} ${el.getAttribute?.('title') || ''} ${el.getAttribute?.('aria-label') || ''}`).toLowerCase();
-      if (text.includes(wanted)) return true;
+      const value = compactText(`${textOf(el)} ${el.getAttribute?.('title') || ''} ${el.getAttribute?.('aria-label') || ''}`).toLowerCase();
+      if (value) parts.push(value);
     }
-    return false;
+    return parts.join('\n');
+  }
+
+  function attachmentNameVisible(root, fileName, evidenceText = '') {
+    const wanted = compactText(fileName).toLowerCase();
+    if (!wanted) return false;
+    const evidence = evidenceText || attachmentEvidenceText(root);
+    return evidence.includes(wanted);
   }
 
   async function waitAttachmentEvidence(root, files, timeout = 9000) {
     const start = Date.now();
     let missing = [...files];
     while (Date.now() - start < timeout) {
-      missing = files.filter(file => !attachmentNameVisible(root, file.name));
+      const evidence = attachmentEvidenceText(root);
+      missing = files.filter(file => !attachmentNameVisible(root, file.name, evidence));
       if (!missing.length) return { verified: true, missing: [] };
       await sleep(250);
     }
@@ -430,13 +437,13 @@
     };
   }
 
-  function isTimedDraftSuccessVisible() {
-    // Scheduled drafts use a different NetEase state machine: clicking “存草稿”
-    // commits the schedule and replaces the editor body with a success result page.
-    // The business evidence is the result text, not a particular generated id/URL.
-    const candidates = [
-      ...document.querySelectorAll('h1,h2,h3,section,div,[role="main"],[role="status"]')
-    ].filter(visible);
+  function isTimedDraftSuccessVisible(deep = false) {
+    // Prefer semantic/result-like nodes. A broad div scan is retained only as a
+    // throttled compatibility fallback while waiting for NetEase's result page.
+    const selector = deep
+      ? 'h1,h2,h3,section,div,[role="main"],[role="status"]'
+      : 'h1,h2,h3,[role="main"],[role="status"],.nui-tips-suc,[class*="success"],[class*="result"]';
+    const candidates = [...document.querySelectorAll(selector)].filter(visible);
     return candidates.some(el => compactText(el).includes('定时发信设置成功'));
   }
 
@@ -446,28 +453,30 @@
   }
 
   async function waitForDraftSaveOutcome({ scheduled, baseline }) {
-    const timeout = scheduled ? 9000 : 7000;
-    return waitFor(() => {
-      if (scheduled) {
-        if (!baseline?.timedSuccessVisible && isTimedDraftSuccessVisible()) {
+    if (scheduled) {
+      const start = Date.now();
+      let poll = 0;
+      while (Date.now() - start < 9000) {
+        // Deep compatibility scans are much more expensive on NetEase's large DOM;
+        // run them roughly once per 800 ms instead of every 100 ms.
+        const deep = poll % 8 === 7;
+        if (!baseline?.timedSuccessVisible && isTimedDraftSuccessVisible(deep)) {
           return { kind: 'scheduled-result', evidence: '定时发信设置成功' };
         }
-        return null;
+        poll++;
+        await sleep(100);
       }
+      throw new Error('已点击“存草稿”，但未检测到“定时发信设置成功”，已停止，避免继续写下一封。');
+    }
 
+    return waitFor(() => {
       const tip = findFreshRegularDraftSuccess(baseline);
       if (tip) return { kind: 'regular-tip', evidence: textOf(tip) };
-
-      // Compatibility fallback: some NetEase variants may still transition from a
-      // fresh compose route to type:draft. It is accepted only as a NEW transition,
-      // never merely because the current page was already editing a draft.
       if (!baseline?.routeWasDraft && isDraftRoute()) {
         return { kind: 'draft-route', evidence: 'Compose 路由进入 draft' };
       }
       return null;
-    }, timeout, 100, scheduled
-      ? '已点击“存草稿”，但未检测到“定时发信设置成功”，已停止，避免继续写下一封。'
-      : '已点击“存草稿”，但未检测到网易“成功保存到草稿箱”的新提示，已停止，避免继续写下一封。');
+    }, 7000, 100, '已点击“存草稿”，但未检测到网易“成功保存到草稿箱”的新提示，已停止，避免继续写下一封。');
   }
 
   async function saveDraft(root, options = {}) {
@@ -806,6 +815,74 @@
 
   const contactBook = { account: '', contacts: {}, loaded: false };
 
+  // UI performance state: navigation must stay a cheap visibility change.
+  // Expensive lists are rendered only after their underlying data becomes dirty,
+  // and input-driven refreshes are coalesced into a single animation frame.
+  const viewPerf = {
+    batchDirty: true,
+    batchAuxDirty: true,
+    contactsDirty: true,
+    batchFrame: 0,
+    contactsFrame: 0,
+    contactVersion: 0,
+    contactCacheVersion: -1,
+    contactCache: null,
+    contactRenderLimit: 250,
+    reviewRenderLimit: 250,
+    formSaveTimer: 0,
+    contactPersistTimer: 0,
+    contactPersistPromise: null
+  };
+
+  function debounce(fn, delay = 120) {
+    let timer = 0;
+    return (...args) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { timer = 0; fn(...args); }, delay);
+    };
+  }
+
+  function markContactsChanged() {
+    viewPerf.contactVersion++;
+    viewPerf.contactsDirty = true;
+    viewPerf.contactCache = null;
+  }
+
+  function invalidateBatchView(aux = true) {
+    viewPerf.batchDirty = true;
+    if (aux) viewPerf.batchAuxDirty = true;
+  }
+
+  function batchPaneVisible() {
+    return !panel.hidden && currentWorkbenchTab() === 'batch';
+  }
+
+  function contactsPaneVisible() {
+    return !panel.hidden && currentWorkbenchTab() === 'contacts';
+  }
+
+  function scheduleBatchRender({ aux = false, force = false } = {}) {
+    invalidateBatchView(aux);
+    if (!force && !batchPaneVisible()) return;
+    if (viewPerf.batchFrame) cancelAnimationFrame(viewPerf.batchFrame);
+    viewPerf.batchFrame = requestAnimationFrame(() => {
+      viewPerf.batchFrame = 0;
+      if (!force && !batchPaneVisible()) return;
+      renderPreview({ aux: viewPerf.batchAuxDirty });
+    });
+  }
+
+  function scheduleContactsRender({ force = false } = {}) {
+    viewPerf.contactsDirty = true;
+    if (!force && !contactsPaneVisible()) return;
+    if (viewPerf.contactsFrame) cancelAnimationFrame(viewPerf.contactsFrame);
+    viewPerf.contactsFrame = requestAnimationFrame(() => {
+      viewPerf.contactsFrame = 0;
+      if (!force && !contactsPaneVisible()) return;
+      renderContacts();
+    });
+  }
+
   async function detectAccount() {
     try {
       const result = await chrome.runtime.sendMessage({ type: 'NMDA_ACCOUNT_INFO' });
@@ -822,13 +899,26 @@
       contactBook.account = account;
       contactBook.contacts = await Contacts.load(account);
       contactBook.loaded = true;
+      markContactsChanged();
     }
     return contactBook;
   }
 
   async function persistContacts() {
     if (!Contacts || !contactBook.loaded) return;
-    await Contacts.save(contactBook.account, contactBook.contacts);
+    if (viewPerf.contactPersistTimer) { clearTimeout(viewPerf.contactPersistTimer); viewPerf.contactPersistTimer = 0; }
+    const pending = Contacts.save(contactBook.account, contactBook.contacts);
+    viewPerf.contactPersistPromise = pending;
+    try { await pending; } finally { if (viewPerf.contactPersistPromise === pending) viewPerf.contactPersistPromise = null; }
+  }
+
+  function queueContactsPersist(delay = 350) {
+    if (!Contacts || !contactBook.loaded) return;
+    if (viewPerf.contactPersistTimer) clearTimeout(viewPerf.contactPersistTimer);
+    viewPerf.contactPersistTimer = setTimeout(() => {
+      viewPerf.contactPersistTimer = 0;
+      persistContacts().catch(error => console.warn(`[${APP}] contact persistence failed`, error));
+    }, delay);
   }
 
   function contactClassificationsForRecipients(raw) {
@@ -861,7 +951,7 @@
   }
 
   function taskBusinessTags(task) {
-    const contactTags=contactTagsForRecipients(task?.recipients || '');
+    const contactTags=task ? taskContactSnapshot(task).tags : [];
     const taskTags=parseTaskClassifications(task?.tags || []);
     return Contacts ? Contacts.mergeTags(contactTags, taskTags) : [...new Set([...contactTags,...taskTags])];
   }
@@ -945,109 +1035,122 @@
     } catch (_) { el.textContent = '暂时无法读取邮箱记录状态。'; }
   }
 
+  function contactViewCache() {
+    if(viewPerf.contactCache && viewPerf.contactCacheVersion===viewPerf.contactVersion)return viewPerf.contactCache;
+    const rows=[];
+    const stageCounts=Object.fromEntries(Contacts.STAGE_OPTIONS.map(stage=>[stage,0]));
+    let followCount=0,pausedCount=0,noContactCount=0,withDraftCount=0;
+    const classCounts=new Map();
+    for(const raw of Object.values(contactBook.contacts||{})){
+      const contact=Contacts.normalizeContactShape(raw);
+      const labels=contactOperationalLabels(contact);
+      stageCounts[contact.stage]=(stageCounts[contact.stage]||0)+1;
+      if(contact.followUp)followCount++;
+      if(contact.policy==='暂停')pausedCount++;
+      if(contact.policy==='不再联系')noContactCount++;
+      if(Number(contact.draftCount||0)>0)withDraftCount++;
+      for(const value of (Contacts.parseContactTags?.(contact.tags||[])||[]))classCounts.set(value,(classCounts.get(value)||0)+1);
+      const search=(`${contact.email} ${contact.name||''} ${contact.lastSubject||''} ${contact.lastDraftSubject||''} ${labels.join(' ')}`).toLowerCase();
+      rows.push({contact,labelsLower:new Set(labels.map(value=>value.toLocaleLowerCase('zh-CN'))),search});
+    }
+    rows.sort((a,b)=>{
+      const ta=Math.max(Date.parse(a.contact.lastSentAt||'')||0,Date.parse(a.contact.lastDraftAt||'')||0);
+      const tb=Math.max(Date.parse(b.contact.lastSentAt||'')||0,Date.parse(b.contact.lastDraftAt||'')||0);
+      return tb-ta||String(a.contact.email).localeCompare(String(b.contact.email));
+    });
+    const topClasses=[...classCounts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'zh-CN')).slice(0,40);
+    viewPerf.contactCache={rows,stageCounts,followCount,pausedCount,noContactCount,withDraftCount,topClasses};
+    viewPerf.contactCacheVersion=viewPerf.contactVersion;
+    return viewPerf.contactCache;
+  }
+
   function renderContacts() {
-    if (!Contacts) return;
-    const body = $('nmda-contact-body');
-    const summary = $('nmda-contact-summary');
-    const chipBar = $('nmda-contact-class-chips');
-    if (!body || !summary) return;
-    const query = String($('nmda-contact-search')?.value || '').trim().toLowerCase();
-    const classFilter = Contacts.parseTags($('nmda-contact-class-filter')?.value || '').map(value => value.toLocaleLowerCase('zh-CN'));
-    let list = Object.values(contactBook.contacts || {}).map(contact => Contacts.normalizeContactShape(contact));
-    if (classFilter.length) list = list.filter(contact => {
-      const own = new Set(contactOperationalLabels(contact).map(value => value.toLocaleLowerCase('zh-CN')));
-      return classFilter.every(value => own.has(value));
-    });
-    if (query) list = list.filter(contact => `${contact.email} ${contact.name || ''} ${contact.lastSubject || ''} ${contact.lastDraftSubject || ''} ${contactOperationalLabels(contact).join(' ')}`.toLowerCase().includes(query));
-    list.sort((a, b) => {
-      const ta = Math.max(Date.parse(a.lastSentAt || '') || 0, Date.parse(a.lastDraftAt || '') || 0);
-      const tb = Math.max(Date.parse(b.lastSentAt || '') || 0, Date.parse(b.lastDraftAt || '') || 0);
-      return tb - ta || String(a.email).localeCompare(String(b.email));
-    });
+    if(!Contacts)return;
+    const body=$('nmda-contact-body'),summary=$('nmda-contact-summary'),chipBar=$('nmda-contact-class-chips');
+    if(!body||!summary)return;
+    const query=String($('nmda-contact-search')?.value||'').trim().toLowerCase();
+    const classFilter=Contacts.parseTags($('nmda-contact-class-filter')?.value||'').map(value=>value.toLocaleLowerCase('zh-CN'));
+    const cache=contactViewCache();
+    let rows=cache.rows;
+    if(classFilter.length)rows=rows.filter(item=>classFilter.every(value=>item.labelsLower.has(value)));
+    if(query)rows=rows.filter(item=>item.search.includes(query));
+    const allCount=cache.rows.length;
+    summary.textContent=`${allCount} 个联系人 · ${Contacts.STAGE_OPTIONS.map(stage=>`${stage} ${cache.stageCounts[stage]||0}`).join(' · ')} · 有草稿 ${cache.withDraftCount} · 待跟进 ${cache.followCount} · 暂停 ${cache.pausedCount} · 不再联系 ${cache.noContactCount}`;
 
-    const all = Object.values(contactBook.contacts || {}).map(contact => Contacts.normalizeContactShape(contact));
-    const stageCounts = Object.fromEntries(Contacts.STAGE_OPTIONS.map(stage => [stage, 0]));
-    let followCount = 0, pausedCount = 0, noContactCount = 0, withDraftCount = 0;
-    const classCounts = new Map();
-    for (const contact of all) {
-      stageCounts[contact.stage] = (stageCounts[contact.stage] || 0) + 1;
-      if (contact.followUp) followCount++;
-      if (contact.policy === '暂停') pausedCount++;
-      if (contact.policy === '不再联系') noContactCount++;
-      if (Number(contact.draftCount || 0) > 0) withDraftCount++;
-      for (const value of (Contacts.parseContactTags?.(contact.tags||[])||[])) classCounts.set(value, (classCounts.get(value) || 0) + 1);
-    }
-    summary.textContent = `${all.length} 个联系人 · ${Contacts.STAGE_OPTIONS.map(stage => `${stage} ${stageCounts[stage] || 0}`).join(' · ')} · 有草稿 ${withDraftCount} · 待跟进 ${followCount} · 暂停 ${pausedCount} · 不再联系 ${noContactCount}`;
-
-    if (chipBar) {
-      const top = [...classCounts.entries()].sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0], 'zh-CN')).slice(0, 40);
-      chipBar.innerHTML = top.length ? top.map(([value,count]) => `<button type="button" class="nmda-tag-chip" data-contact-class-chip="${escapeHtml(value)}">${escapeHtml(value)} <small>${count}</small></button>`).join('') : '<span class="nmda-hint">暂无长期标记。状态统计已在右侧汇总。</span>';
-      chipBar.querySelectorAll('[data-contact-class-chip]').forEach(button => button.addEventListener('click', () => {
-        const input = $('nmda-contact-class-filter');
-        const now = Contacts.parseTags(input.value);
-        const clicked = button.dataset.contactClassChip;
-        const key = clicked.toLocaleLowerCase('zh-CN');
-        const exists = now.some(value => value.toLocaleLowerCase('zh-CN') === key);
-        input.value = exists ? now.filter(value => value.toLocaleLowerCase('zh-CN') !== key).join(';') : Contacts.mergeTags(now, [clicked]).join(';');
-        renderContacts();
-      }));
+    if(chipBar){
+      chipBar.innerHTML=cache.topClasses.length?cache.topClasses.map(([value,count])=>`<button type="button" class="nmda-tag-chip" data-contact-class-chip="${escapeHtml(value)}">${escapeHtml(value)} <small>${count}</small></button>`).join(''):'<span class="nmda-hint">暂无长期标记。状态统计已在右侧汇总。</span>';
     }
 
-    body.innerHTML = list.slice(0, 1000).map(contact => `
-      <tr>
-        <td><strong>${escapeHtml(contact.name || contact.email)}</strong><small>${escapeHtml(contact.name ? contact.email : '')}</small></td>
-        <td class="nmda-contact-class-cell">
-          <div class="nmda-class-preview">${contactClassificationChips(contact)}</div>
-          <div class="nmda-class-editor">
-            <label><span>阶段</span><select class="nmda-class-select" data-contact-stage="${escapeHtml(contact.email)}">${Contacts.STAGE_OPTIONS.map(stage => `<option value="${escapeHtml(stage)}" ${contact.stage === stage ? 'selected' : ''}>${escapeHtml(stage)}</option>`).join('')}</select></label>
-            <label class="nmda-followup-toggle"><input type="checkbox" data-contact-followup="${escapeHtml(contact.email)}" ${contact.followUp ? 'checked' : ''}> 待跟进</label>
-            <label><span>策略</span><select class="nmda-class-select" data-contact-policy="${escapeHtml(contact.email)}">${Contacts.POLICY_OPTIONS.map(policy => `<option value="${escapeHtml(policy)}" ${contact.policy === policy ? 'selected' : ''}>${escapeHtml(policy)}</option>`).join('')}</select></label>
-            <label class="nmda-class-tags"><span>长期标记</span><input class="nmda-contact-tags-input" data-contact-tags-email="${escapeHtml(contact.email)}" value="${escapeHtml(tagsText(contact.tags))}" placeholder="重点;第一批"></label>
-          </div>
-        </td>
-        <td>${Number(contact.sentCount || 0)}</td>
-        <td><strong>${Number(contact.draftCount || 0)}</strong>${Number(contact.draftCount || 0) > 0 ? '<small>当前已识别</small>' : ''}</td>
-        <td title="${escapeHtml(contact.lastSentAt || '')}">${escapeHtml(Contacts.formatDisplayTime(contact.lastSentAt))}</td>
-        <td title="${escapeHtml(contact.lastDraftAt || '')}">${escapeHtml(Contacts.formatDisplayTime(contact.lastDraftAt))}${contact.lastDraftSubject ? `<small title="${escapeHtml(contact.lastDraftSubject)}">${escapeHtml(contact.lastDraftSubject)}</small>` : ''}</td>
-        <td title="${escapeHtml(contact.lastSubject || '')}">${escapeHtml(contact.lastSubject || '—')}</td>
-      </tr>`).join('');
-    if (!list.length) body.innerHTML = '<tr><td colspan="7">暂无匹配联系人。可同步邮箱状态，或导入批量任务。</td></tr>';
-    else if (list.length > 1000) body.insertAdjacentHTML('beforeend', `<tr><td colspan="7">当前显示前 1000 个匹配联系人，共 ${list.length} 个。可用搜索或状态/标记缩小范围。</td></tr>`);
-
-    body.querySelectorAll('select[data-contact-stage]').forEach(select => select.addEventListener('change', async () => {
-      Contacts.setStage(contactBook.contacts, select.dataset.contactStage, select.value);
-      await persistContacts(); renderContacts(); if (typeof renderPreview === 'function') rebuildTasks();
-      setContactStatusMessage(`已更新 ${select.dataset.contactStage} 的互动阶段：${select.value}。`, 'ok');
-    }));
-    body.querySelectorAll('select[data-contact-policy]').forEach(select => select.addEventListener('change', async () => {
-      Contacts.setPolicy(contactBook.contacts, select.dataset.contactPolicy, select.value);
-      await persistContacts(); renderContacts(); if (typeof renderPreview === 'function') rebuildTasks();
-      setContactStatusMessage(`已更新 ${select.dataset.contactPolicy} 的联系策略：${select.value}。`, select.value === '正常' ? 'ok' : 'warn');
-    }));
-    body.querySelectorAll('input[data-contact-followup]').forEach(input => input.addEventListener('change', async () => {
-      Contacts.setFollowUp(contactBook.contacts, input.dataset.contactFollowup, input.checked);
-      await persistContacts(); renderContacts(); if (typeof renderPreview === 'function') renderPreview();
-      setContactStatusMessage(`${input.dataset.contactFollowup}${input.checked ? ' 已标记' : ' 已取消'}待跟进。`, 'ok');
-    }));
-    body.querySelectorAll('input[data-contact-tags-email]').forEach(input => input.addEventListener('change', async () => {
-      const contact = Contacts.setTags(contactBook.contacts, input.dataset.contactTagsEmail, input.value);
-      await persistContacts(); renderContacts(); if (typeof renderPreview === 'function') renderPreview();
-      setContactStatusMessage(`已更新 ${input.dataset.contactTagsEmail} 的长期标记：${tagsText(contact?.tags) || '无'}。`, 'ok');
-    }));
+    const limit=Math.max(50,viewPerf.contactRenderLimit||250),visibleRows=rows.slice(0,limit);
+    body.innerHTML=visibleRows.map(({contact})=>`<tr data-contact-row="${escapeHtml(contact.email)}">
+      <td><strong>${escapeHtml(contact.name||contact.email)}</strong><small>${escapeHtml(contact.name?contact.email:'')}</small></td>
+      <td class="nmda-contact-class-cell"><div class="nmda-class-preview">${contactClassificationChips(contact)}</div><div class="nmda-class-editor">
+        <label><span>阶段</span><select class="nmda-class-select" data-contact-stage="${escapeHtml(contact.email)}">${Contacts.STAGE_OPTIONS.map(stage=>`<option value="${escapeHtml(stage)}" ${contact.stage===stage?'selected':''}>${escapeHtml(stage)}</option>`).join('')}</select></label>
+        <label class="nmda-followup-toggle"><input type="checkbox" data-contact-followup="${escapeHtml(contact.email)}" ${contact.followUp?'checked':''}> 待跟进</label>
+        <label><span>策略</span><select class="nmda-class-select" data-contact-policy="${escapeHtml(contact.email)}">${Contacts.POLICY_OPTIONS.map(policy=>`<option value="${escapeHtml(policy)}" ${contact.policy===policy?'selected':''}>${escapeHtml(policy)}</option>`).join('')}</select></label>
+        <label class="nmda-class-tags"><span>长期标记</span><input class="nmda-contact-tags-input" data-contact-tags-email="${escapeHtml(contact.email)}" value="${escapeHtml(tagsText(contact.tags))}" placeholder="重点;第一批"></label>
+      </div></td>
+      <td>${Number(contact.sentCount||0)}</td><td><strong>${Number(contact.draftCount||0)}</strong>${Number(contact.draftCount||0)>0?'<small>当前已识别</small>':''}</td>
+      <td title="${escapeHtml(contact.lastSentAt||'')}">${escapeHtml(Contacts.formatDisplayTime(contact.lastSentAt))}</td>
+      <td title="${escapeHtml(contact.lastDraftAt||'')}">${escapeHtml(Contacts.formatDisplayTime(contact.lastDraftAt))}${contact.lastDraftSubject?`<small title="${escapeHtml(contact.lastDraftSubject)}">${escapeHtml(contact.lastDraftSubject)}</small>`:''}</td>
+      <td title="${escapeHtml(contact.lastSubject||'')}">${escapeHtml(contact.lastSubject||'—')}</td></tr>`).join('');
+    if(!rows.length)body.innerHTML='<tr><td colspan="7">暂无匹配联系人。可同步邮箱状态，或导入批量任务。</td></tr>';
+    else if(rows.length>visibleRows.length)body.insertAdjacentHTML('beforeend',`<tr class="nmda-load-more-row"><td colspan="7"><button type="button" class="nmda-btn nmda-btn-small nmda-btn-quiet" data-contact-load-more>继续显示（${visibleRows.length}/${rows.length}）</button></td></tr>`);
+    viewPerf.contactsDirty=false;
   }
 
   async function initContacts() {
-    if (!Contacts) { setContactStatusMessage('联系人模块未加载。', 'error'); return; }
-    try {
+    if(!Contacts){setContactStatusMessage('联系人模块未加载。','error');return;}
+    try{
       await ensureContactBook(true);
-      renderContacts();
+      // Keep startup cheap: contacts stay data-only until the user opens that tab.
+      scheduleContactsRender();
       await renderMailboxReadMeta();
-      setContactStatusMessage(`当前邮箱：${contactBook.account}。联系人记录已就绪。`, 'ok');
-      if (typeof renderPreview === 'function') renderPreview();
-    } catch (error) {
-      setContactStatusMessage(`联系人初始化失败：${error.message}`, 'error');
-    }
+      setContactStatusMessage(`当前邮箱：${contactBook.account}。联系人记录已就绪。`,'ok');
+      if(typeof renderPreview==='function')scheduleBatchRender({aux:false});
+    }catch(error){setContactStatusMessage(`联系人初始化失败：${error.message}`,'error');}
   }
+
+
+  $('nmda-contact-class-chips')?.addEventListener('click',event=>{
+    const button=event.target.closest?.('[data-contact-class-chip]');if(!button)return;
+    const input=$('nmda-contact-class-filter');if(!input)return;
+    const now=Contacts.parseTags(input.value),clicked=button.dataset.contactClassChip,key=clicked.toLocaleLowerCase('zh-CN');
+    const exists=now.some(value=>value.toLocaleLowerCase('zh-CN')===key);
+    input.value=exists?now.filter(value=>value.toLocaleLowerCase('zh-CN')!==key).join(';'):Contacts.mergeTags(now,[clicked]).join(';');
+    viewPerf.contactRenderLimit=250;scheduleContactsRender({force:contactsPaneVisible()});
+  });
+
+  $('nmda-contact-body')?.addEventListener('click',event=>{
+    if(!event.target.closest?.('[data-contact-load-more]'))return;
+    viewPerf.contactRenderLimit=(viewPerf.contactRenderLimit||250)+250;
+    scheduleContactsRender({force:true});
+  });
+
+  $('nmda-contact-body')?.addEventListener('change',async event=>{
+    const el=event.target;
+    if(!(el instanceof HTMLInputElement||el instanceof HTMLSelectElement))return;
+    let message='',kind='ok',affectsPolicy=false,affectsBatchView=false;
+    if(el.dataset.contactStage){
+      Contacts.setStage(contactBook.contacts,el.dataset.contactStage,el.value);
+      message=`已更新 ${el.dataset.contactStage} 的互动阶段：${el.value}。`;affectsBatchView=true;
+    }else if(el.dataset.contactPolicy){
+      Contacts.setPolicy(contactBook.contacts,el.dataset.contactPolicy,el.value);
+      message=`已更新 ${el.dataset.contactPolicy} 的联系策略：${el.value}。`;kind=el.value==='正常'?'ok':'warn';affectsPolicy=true;
+    }else if(el.dataset.contactFollowup){
+      Contacts.setFollowUp(contactBook.contacts,el.dataset.contactFollowup,el.checked);
+      message=`${el.dataset.contactFollowup}${el.checked?' 已标记':' 已取消'}待跟进。`;affectsBatchView=true;
+    }else if(el.dataset.contactTagsEmail){
+      const contact=Contacts.setTags(contactBook.contacts,el.dataset.contactTagsEmail,el.value);
+      message=`已更新 ${el.dataset.contactTagsEmail} 的长期标记：${tagsText(contact?.tags)||'无'}。`;affectsBatchView=true;
+    }else return;
+    markContactsChanged();
+    queueContactsPersist();
+    scheduleContactsRender();
+    if(affectsPolicy&&batch.dataset)rebuildTasks();
+    else if(affectsBatchView)scheduleBatchRender({aux:false});
+    setContactStatusMessage(message,kind);
+  });
 
   function setStatus(message, kind = '') {
     statusEl.textContent = message;
@@ -1059,7 +1162,16 @@
   }
 
   async function saveFormState() {
+    if (viewPerf.formSaveTimer) { clearTimeout(viewPerf.formSaveTimer); viewPerf.formSaveTimer = 0; }
     try { await chrome.storage.local.set({ [STORAGE_KEY]: formState() }); } catch (_) {}
+  }
+
+  function queueFormStateSave() {
+    if (viewPerf.formSaveTimer) clearTimeout(viewPerf.formSaveTimer);
+    viewPerf.formSaveTimer = setTimeout(() => {
+      viewPerf.formSaveTimer = 0;
+      saveFormState();
+    }, 500);
   }
 
   async function restoreFormState() {
@@ -1079,11 +1191,12 @@
     const guides = ui.querySelectorAll('.nmda-process-guide');
     if (!guides.length || typeof batch === 'undefined') return;
     const hasSource = !!batch.dataset;
-    const review = hasSource && typeof taskNeedsImportReview === 'function' ? (batch.tasks || []).filter(taskNeedsImportReview).length : 0;
     const handed = !!batch.handoffComplete;
-    const selectedTasks = handed ? (batch.tasks || []).filter(t => t.enabled && t.status === 'ready') : [];
-    const selected = selectedTasks.length;
-    const scheduled = selectedTasks.filter(t => !!t.scheduleAt).length;
+    let review = 0, selected = 0, scheduled = 0;
+    for (const task of (batch.tasks || [])) {
+      if (hasSource && typeof taskNeedsImportReview === 'function' && taskNeedsImportReview(task)) review++;
+      if (handed && task.enabled && task.status === 'ready') { selected++; if (task.scheduleAt) scheduled++; }
+    }
     guides.forEach(guide => {
       guide.querySelectorAll('[data-flow-step]').forEach(button => {
         const step = Number(button.dataset.flowStep || 0);
@@ -1128,15 +1241,26 @@
   }
 
   function setWorkbenchTab(name) {
-    ui.querySelectorAll('.nmda-tab').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
-    ui.querySelectorAll('.nmda-tabpane').forEach(p => { p.hidden = p.dataset.pane !== name; });
-    ui.querySelectorAll('[data-page-head]').forEach(head => { head.hidden = head.dataset.pageHead !== name; });
-    if(name==='batch' && typeof renderPreview==='function') renderPreview();
-    if(name==='contacts' && typeof renderContacts==='function') renderContacts();
-    if(typeof renderProcessGuide==='function') renderProcessGuide();
+    const current = currentWorkbenchTab();
+    if (current !== name) {
+      ui.querySelectorAll('.nmda-tab').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
+      ui.querySelectorAll('.nmda-tabpane').forEach(p => { p.hidden = p.dataset.pane !== name; });
+      ui.querySelectorAll('[data-page-head]').forEach(head => { head.hidden = head.dataset.pageHead !== name; });
+    }
+    // Switching workspace is intentionally cheap. Re-render only when data changed,
+    // and defer that work until the browser can paint the tab transition first.
+    if (name === 'batch' && viewPerf.batchDirty) scheduleBatchRender();
+    if (name === 'contacts' && viewPerf.contactsDirty) scheduleContactsRender();
   }
 
-  launcher.addEventListener('click', () => { panel.hidden = !panel.hidden; });
+  launcher.addEventListener('click', () => {
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) {
+      const name = currentWorkbenchTab();
+      if (name === 'batch' && viewPerf.batchDirty) scheduleBatchRender();
+      if (name === 'contacts' && viewPerf.contactsDirty) scheduleContactsRender();
+    }
+  });
   $('nmda-close').addEventListener('click', () => { panel.hidden = true; });
   $('nmda-expand').addEventListener('click', () => {
     panel.classList.toggle('is-maximized');
@@ -1148,7 +1272,8 @@
   $('nmda-go-import')?.addEventListener('click', () => { setWorkbenchTab('batch'); requestAnimationFrame(() => $('nmda-stage-prepare')?.scrollIntoView?.({behavior:'smooth', block:'start'})); });
 
   [recipientsEl, subjectEl, bodyEl, scheduleAtEl].forEach(el => {
-    el.addEventListener('change', saveFormState); el.addEventListener('input', saveFormState);
+    el.addEventListener('input', queueFormStateSave);
+    el.addEventListener('change', saveFormState);
   });
 
   fillButton.addEventListener('click', async () => {
@@ -1236,6 +1361,58 @@
     batch.scheduleRules=rules; saveScheduleRulePrefs(rules); return rules;
   }
   batch.scheduleRules = freshScheduleRules();
+
+  // One delegated handler replaces hundreds of row listeners that used to be
+  // destroyed and rebound after every table refresh.
+  previewBodyEl?.addEventListener('change', event => {
+    const input=event.target;
+    if(!(input instanceof HTMLInputElement))return;
+    if(input.dataset.taskEnabled){
+      const task=batch.tasks.find(item=>item.editKey===input.dataset.taskEnabled);if(!task)return;
+      setTaskEdit(task,{enabled:input.checked});
+      const row=input.closest('tr');if(row)row.dataset.enabled=input.checked?'1':'0';
+      const stateCell=row?.querySelector('.nmda-task-state-cell');
+      if(stateCell){const text=statusLabel(task),fileText=task.files?.length?` · 附件 ${task.files.length}`:'';stateCell.textContent=`${text}${fileText}`;stateCell.title=text;}
+      renderBatchSummaryControls();
+      renderScheduleCenter();
+      // Only rebuild visible rows if an active search could depend on "未选择/可执行".
+      if(String(batchSearchEl?.value||'').trim())scheduleBatchRender({aux:false});
+      return;
+    }
+    if(input.dataset.taskSchool){
+      const task=batch.tasks.find(item=>item.editKey===input.dataset.taskSchool);if(!task)return;
+      setTaskEdit(task,{school:input.value});
+      // School affects roster matching and auto-schedule grouping, so this is a
+      // real structural change rather than a cosmetic table edit.
+      rebuildTasks();
+      return;
+    }
+    if(input.dataset.taskSchedule){
+      const task=batch.tasks.find(item=>item.editKey===input.dataset.taskSchedule);if(!task)return;
+      const value=input.value||'';
+      setTaskEdit(task,{scheduleAt:value,scheduleSource:value?'manual':'manual-clear',scheduleReason:value?'手工调整':''});
+      const small=input.parentElement?.querySelector('small');if(small)small.textContent=scheduleSourceLabel(task);
+      renderBatchSummaryControls();
+      renderScheduleCenter();
+      if(String(batchSearchEl?.value||'').trim())scheduleBatchRender({aux:false});
+    }
+  });
+
+  reviewQueueEl?.addEventListener('click',event=>{
+    if(event.target.closest?.('[data-review-load-more]')){viewPerf.reviewRenderLimit=(viewPerf.reviewRenderLimit||250)+250;renderReviewQueue(importEditorOverlayEl?.dataset.editKey||'');return;}
+    const button=event.target.closest?.('[data-review-key]');if(!button)return;
+    const task=(batch.tasks||[]).find(t=>t.editKey===button.dataset.reviewKey);if(task)openImportTaskEditor(task);
+  });
+  reviewQueueEl?.addEventListener('change',event=>{
+    const input=event.target.closest?.('[data-review-select]');if(!input)return;
+    const key=input.dataset.reviewSelect;if(!key)return;
+    if(input.checked)batch.reviewSelected.add(key);else batch.reviewSelected.delete(key);
+    input.closest('.nmda-review-queue-row')?.classList.toggle('is-selected',input.checked);
+    renderReviewBatchActions();
+    const visible=reviewVisibleTasks(),allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
+    const selectButton=$('nmda-review-select-filtered');if(selectButton)selectButton.textContent=allSelected?'取消当前选择':'选择当前列表';
+  });
+
 
   function renderImportLifecycleState() {
     if (typeof renderProcessGuide === 'function') renderProcessGuide();
@@ -1576,20 +1753,22 @@
 
   function renderReviewPageOverview() {
     const tasks=(batch.tasks||[]).filter(task=>!task?.importExcluded);
-    const pending=tasks.filter(taskNeedsImportReview);
-    const checked=tasks.filter(task=>task.reviewConfirmed||task.rosterConfirmed).length;
-    const ready=Math.max(0,tasks.length-pending.length-checked);
-    if(reviewNavCountEl){reviewNavCountEl.hidden=!pending.length;reviewNavCountEl.textContent=String(pending.length);}
+    let pendingCount=0,checked=0;
+    for(const task of tasks){if(taskNeedsImportReview(task))pendingCount++;else if(task.reviewConfirmed||task.rosterConfirmed)checked++;}
+    const ready=Math.max(0,tasks.length-pendingCount-checked);
+    if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
     if(reviewPageSummaryEl)reviewPageSummaryEl.innerHTML=tasks.length
-      ? `<span><strong>${pending.length}</strong> 需修改</span><span><strong>${checked}</strong> 已检查</span><span><strong>${ready}</strong> 可直接使用</span>`
+      ? `<span><strong>${pendingCount}</strong> 需修改</span><span><strong>${checked}</strong> 已检查</span><span><strong>${ready}</strong> 可直接使用</span>`
       : '<span>尚无批量邮件</span>';
     if(reviewPageEmptyEl)reviewPageEmptyEl.hidden=!!tasks.length;
     ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter===batch.reviewFilter));
     if(reviewQueueCaptionEl)reviewQueueCaptionEl.textContent=batch.reviewFilter==='all'?'显示全部邮件':'只显示需要补充或修正的邮件';
     if(!tasks.length){if(importEditorOverlayEl)importEditorOverlayEl.hidden=true;renderReviewBatchActions();return;}
     renderReviewBatchActions();
-    renderReviewQueue(importEditorOverlayEl?.dataset.editKey||'');
-    if(reviewInlineEl && !reviewInlineEl.hidden && importEditorOverlayEl?.hidden){const first=reviewVisibleTasks()[0]||tasks[0];if(first)openImportTaskEditor(first);}
+    if(reviewInlineEl && !reviewInlineEl.hidden){
+      renderReviewQueue(importEditorOverlayEl?.dataset.editKey||'');
+      if(importEditorOverlayEl?.hidden){const first=reviewVisibleTasks()[0]||tasks[0];if(first)openImportTaskEditor(first);}
+    }
   }
 
   function openReviewWorkspace() {
@@ -1645,7 +1824,8 @@
   function renderReviewQueue(activeKey='') {
     if(!reviewQueueEl)return;
     pruneReviewSelection();
-    const list=reviewVisibleTasks();
+    const allList=reviewVisibleTasks();
+    const list=allList.slice(0,Math.max(50,viewPerf.reviewRenderLimit||250));
     const pendingCount=reviewTasks().length;
     if(reviewProgressEl) reviewProgressEl.textContent=pendingCount?`${pendingCount} 封需修改`:'无需修改';
     reviewQueueEl.innerHTML=list.length?list.map((task,index)=>{
@@ -1655,17 +1835,7 @@
       const checked=batch.reviewSelected?.has(task.editKey)?'checked':'';
       return `<div class="nmda-review-queue-row ${task.editKey===activeKey?'is-active':''} ${checked?'is-selected':''}" data-review-row="${escapeHtml(task.editKey)}"><label class="nmda-review-select"><input type="checkbox" data-review-select="${escapeHtml(task.editKey)}" ${checked} aria-label="选择 ${escapeHtml(task.id||`邮件 ${index+1}`)}"></label><button type="button" class="nmda-review-queue-item" data-review-key="${escapeHtml(task.editKey)}"><span class="nmda-review-queue-index">${index+1}</span><span class="nmda-review-queue-main"><strong>${escapeHtml(task.id||`邮件 ${index+1}`)}</strong><small>${escapeHtml(task.subject||task.recipients||'未识别主题')}</small><em data-tone="${pending?'warn':'ok'}">${escapeHtml(status)}${pending&&issues.length>1?` · +${issues.length-1}`:''}</em></span></button></div>`;
     }).join(''):`<div class="nmda-review-empty">${batch.reviewFilter==='pending'?'当前没有需要修改的邮件。':'当前没有可查看的邮件。'}</div>`;
-    reviewQueueEl.querySelectorAll('[data-review-key]').forEach(button=>button.addEventListener('click',()=>{
-      const task=(batch.tasks||[]).find(t=>t.editKey===button.dataset.reviewKey);if(task)openImportTaskEditor(task);
-    }));
-    reviewQueueEl.querySelectorAll('[data-review-select]').forEach(input=>input.addEventListener('change',event=>{
-      const key=input.dataset.reviewSelect;if(!key)return;
-      if(event.target.checked)batch.reviewSelected.add(key);else batch.reviewSelected.delete(key);
-      input.closest('.nmda-review-queue-row')?.classList.toggle('is-selected',event.target.checked);
-      renderReviewBatchActions();
-      const visible=reviewVisibleTasks();const allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
-      const selectButton=$('nmda-review-select-filtered');if(selectButton)selectButton.textContent=allSelected?'取消当前选择':'选择当前列表';
-    }));
+    if(allList.length>list.length)reviewQueueEl.insertAdjacentHTML('beforeend',`<button type="button" class="nmda-review-load-more" data-review-load-more>继续显示（${list.length}/${allList.length}）</button>`);
     renderReviewBatchActions();
     const visible=reviewVisibleTasks();const allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
     const selectButton=$('nmda-review-select-filtered');if(selectButton)selectButton.textContent=allSelected?'取消当前选择':'选择当前列表';
@@ -1732,18 +1902,20 @@
     const tasks=batch.tasks||[];
     if(!batch.dataset){if(resultCard)resultCard.hidden=true;return;}
     if(resultCard)resultCard.hidden=false;
-    const review=tasks.filter(taskNeedsImportReview).length;
+    let review=0,extraErrors=0,autoPassed=0;
+    for(const task of tasks){
+      const needsReview=taskNeedsImportReview(task);
+      if(needsReview){review++;continue;}
+      if((task.errors||[]).some(error=>!/联系策略/.test(error)))extraErrors++;else autoPassed++;
+    }
     const excluded=excludedImportCount();
     const totalDetected=tasks.length+excluded;
-    const extraErrors=tasks.filter(t=>!taskNeedsImportReview(t)&&(t.errors||[]).some(error=>!/联系策略/.test(error))).length;
-    const autoPassed=tasks.filter(t=>!taskNeedsImportReview(t)&&!(t.errors||[]).some(error=>!/联系策略/.test(error))).length;
     if(importPreviewSummaryEl) importPreviewSummaryEl.innerHTML=`<div class="nmda-health-metric is-total"><strong>${totalDetected}</strong><span>已识别</span></div><div class="nmda-health-metric is-ok"><strong>${autoPassed}</strong><span>可直接使用</span></div><div class="nmda-health-metric ${review?'is-warn':'is-ok'}"><strong>${review}</strong><span>需修改</span></div><div class="nmda-health-metric ${extraErrors?'is-error':''}"><strong>${extraErrors}</strong><span>其他问题</span></div>${excluded?`<div class="nmda-health-metric"><strong>${excluded}</strong><span>已排除</span></div>`:''}`;
     const guide=$('nmda-review-guidance');
     if(guide) guide.innerHTML=review?`有 <strong>${review}</strong> 封邮件需要补充或修正。`:`解析结果已可用，可继续选择邮件。`;
     if(importReviewBtnEl){importReviewBtnEl.hidden=!tasks.length;importReviewBtnEl.textContent=review?`查看解析预览（${review} 需修改）`:'查看解析预览';}
     const restoreExcluded=$('nmda-restore-excluded');
     if(restoreExcluded){restoreExcluded.hidden=!excluded;restoreExcluded.textContent=excluded?`恢复已排除（${excluded}）`:'恢复已排除';}
-    renderReviewQueue(importEditorOverlayEl?.dataset.editKey||'');
   }
 
   function openImportTaskEditor(task) {
@@ -1831,10 +2003,11 @@
       if (!isCurrentBatchSession(sessionToken)) return 0;
       const added = Contacts.mergeRecipientList(contactBook.contacts, recipients, '未联系');
       if (!isCurrentBatchSession(sessionToken)) return 0;
+      if (added) markContactsChanged();
       await persistContacts();
       if (!isCurrentBatchSession(sessionToken)) return added;
-      renderContacts();
-      if (batch.dataset) rebuildTasks();
+      if (added) scheduleContactsRender();
+      if (batch.dataset && added) scheduleBatchRender({aux:false});
       return added;
     } catch (error) {
       console.warn(`[${APP}] contact registration failed`, error);
@@ -1848,8 +2021,24 @@
     return items.filter(item => !reserved.has(item.toLocaleLowerCase('zh-CN')));
   }
 
+  function taskContactSnapshot(task) {
+    if (!task) return { state:{stage:'未联系',stages:['未联系'],followUp:false,policies:[],blocked:false}, tags:[], classifications:[] };
+    const recipients = task.recipients || '';
+    if (task._contactSnapshotVersion === viewPerf.contactVersion && task._contactSnapshotRecipients === recipients && task._contactSnapshot) return task._contactSnapshot;
+    const snapshot = {
+      state: contactStateForRecipients(recipients),
+      tags: contactTagsForRecipients(recipients),
+      classifications: contactClassificationsForRecipients(recipients)
+    };
+    task._contactSnapshotVersion = viewPerf.contactVersion;
+    task._contactSnapshotRecipients = recipients;
+    task._contactSnapshot = snapshot;
+    return snapshot;
+  }
+
   function taskEffectiveClassifications(task) {
-    return Contacts ? Contacts.mergeTags(contactClassificationsForRecipients(task.recipients), parseTaskClassifications(task.tags || [])) : parseTaskClassifications(task.tags || []);
+    const own = parseTaskClassifications(task.tags || []);
+    return Contacts ? Contacts.mergeTags(taskContactSnapshot(task).classifications, own) : own;
   }
 
   // Backward-compatible internal alias: v0.7 stored task custom classifications in `tags`.
@@ -1862,20 +2051,14 @@
   function taskMatchesSearch(task) {
     const query = normalizedSearchText(batchSearchEl?.value || '');
     if (!query) return true;
-    const haystack = normalizedSearchText([
-      task.id,
-      task.sourceRow,
-      task.recipients,
-      task.school,
-      task.subject,
-      task.body,
-      task.files?.map(file => file.name).join(' '),
-      task.scheduleAt ? task.scheduleAt.replace('T', ' ') : '',
-      contactStateForRecipients(task.recipients).stages.join(' '),
-      contactStateForRecipients(task.recipients).followUp ? '待跟进' : '',
+    const state = taskContactSnapshot(task).state;
+    const dynamic = normalizedSearchText([
+      state.stages.join(' '),
+      state.followUp ? '待跟进' : '',
       taskBusinessTags(task).join(' '),
       statusLabel(task)
     ].join(' '));
+    const haystack = `${task._searchStatic || ''} ${dynamic}`;
     return query.split(/\s+/).filter(Boolean).every(token => haystack.includes(token));
   }
 
@@ -1886,12 +2069,14 @@
   function taskMatchesTagFilter(task) {
     if (!taskMatchesSearch(task)) return false;
     const stageFilter=String(batchStageFilterEl?.value || '').trim();
-    const state=contactStateForRecipients(task.recipients);
-    if(stageFilter && !state.stages.includes(stageFilter)) return false;
-    const own = normalizedTagSet(taskBusinessTags(task));
+    if(stageFilter){
+      const state=taskContactSnapshot(task).state;
+      if(!state.stages.includes(stageFilter)) return false;
+    }
     const include = Contacts?.parseTags?.(batchTagIncludeEl?.value || '') || [];
+    if (!include.length) return true;
+    const own = normalizedTagSet(taskBusinessTags(task));
     const includeKeys = include.map(tag => tag.toLocaleLowerCase('zh-CN'));
-    if (!includeKeys.length) return true;
     return includeKeys.every(tag => own.has(tag));
   }
 
@@ -1907,6 +2092,11 @@
     if (patch.enabled != null || patch.school != null || patch.scheduleAt != null) batch.schedulePlan = null;
     if (patch.enabled != null) task.enabled = !!patch.enabled;
     if (patch.tags != null) task.tags = parseTaskClassifications(patch.tags);
+    if (patch.school != null) task.school = String(patch.school || '').trim();
+    if (patch.scheduleAt != null) task.scheduleAt = String(patch.scheduleAt || '');
+    if (patch.scheduleSource != null) task.scheduleSource = String(patch.scheduleSource || '');
+    if (patch.scheduleReason != null) task.scheduleReason = String(patch.scheduleReason || '');
+    if (patch.school != null || patch.scheduleAt != null || patch.tags != null) refreshTaskSearchStatic(task);
   }
 
   function mappingSelectHtml(field, headers) {
@@ -2137,7 +2327,7 @@
   }
 
   function rebuildTasks() {
-    if (!batch.dataset) { batch.tasks = []; renderPreview(); return; }
+    if (!batch.dataset) { batch.tasks = []; scheduleBatchRender({aux:true}); return; }
     const tasks = [];
     const sets = recordSets();
     for (let collectionIndex = 0; collectionIndex < sets.length; collectionIndex++) {
@@ -2213,23 +2403,30 @@
         else if (gate.policies.includes('暂停')) warnings.push(`联系策略：暂停（${gate.reasons.join('、')}）`);
 
         const policyBlocked = gate.blocked;
+        const mergedFiles = mergeTaskFiles(resolved.files);
+        const staticSearch = normalizedSearchText([
+          id, rowIndex + 1, recipients, school, subject, body,
+          mergedFiles.map(file => file.name).join(' '),
+          scheduleAt ? scheduleAt.replace('T', ' ') : '',
+          importedTags.join(' ')
+        ].join(' '));
         tasks.push({
           id, rowIndex, collectionIndex, collectionName: collection.name || `内容 ${collectionIndex + 1}`, sourceFile: rowMeta?.sourceFile || collection.source || '',
           editKey, sourceRow: rowIndex + 1, recipients, school, schoolSource: edit.school != null ? 'manual' : (sourceSchool ? (collection.meta?.mailFrames ? 'recognized' : 'imported') : ''), subject, body, attachmentRefs,
           tags: importedTags,
           enabled: policyBlocked ? false : edit.enabled !== false,
           policyBlocked, policyReasons: gate.reasons,
-          files: mergeTaskFiles(resolved.files), tableFiles: resolved.files, attachmentDetails: resolved.details,
+          files: mergedFiles, tableFiles: resolved.files, attachmentDetails: resolved.details,
           scheduleAt, scheduleSource, scheduleReason:String(edit.scheduleReason||''), errors:[...new Set(errors)], warnings:[...new Set(warnings)], status: errors.length ? 'error' : 'ready', runtimeError: '', note: '',
           importConfidence, importEvidence:[...(rowMeta?.evidence || [])], importIssues, importHeading:rowMeta?.heading || '', importRecipientEvidence:rowMeta?.recipientEvidence || null,
           reviewConfirmed: !!edit.reviewConfirmed, rosterConfirmed: !!edit.rosterConfirmed, importExcluded:false,
-          manuallyEdited: ['recipients','school','subject','body','attachments','scheduleAt','tags'].some(key=>edit[key]!=null)
+          manuallyEdited: ['recipients','school','subject','body','attachments','scheduleAt','tags'].some(key=>edit[key]!=null), _searchStatic: staticSearch
         });
       }
     }
     applyRosterCrossCheck(tasks);
     batch.tasks = tasks;
-    renderPreview();
+    scheduleBatchRender({aux:true});
   }
 
   function statusLabel(task) {
@@ -2257,22 +2454,24 @@
       const key = clicked.toLocaleLowerCase('zh-CN');
       const exists = tagsNow.some(tag => tag.toLocaleLowerCase('zh-CN') === key);
       batchTagIncludeEl.value = exists ? tagsNow.filter(tag => tag.toLocaleLowerCase('zh-CN') !== key).join(';') : Contacts.mergeTags(tagsNow, [clicked]).join(';');
-      renderPreview();
+      scheduleBatchRender({aux:false});
     }));
   }
 
   function importAttachmentStats() {
-    const refs = [];
-    for (const task of batch.tasks || []) refs.push(...(task.attachmentRefs || []));
-    const uniqueRefs = [...new Map(refs.map(ref => [Importer.normalizeFileKey(ref), ref])).values()];
-    let matched = 0, issues = 0;
-    for (const ref of uniqueRefs) {
-      const key = Importer.normalizeFileKey(ref);
-      if (batch.attachmentOverrides.get(key)) { matched++; continue; }
-      const detail = Importer.resolveOneFile(ref, batch.fileIndex || Importer.buildFileIndex([]));
-      if (detail.status === 'matched') matched++; else issues++;
+    const byRef=new Map();
+    for(const task of batch.tasks||[]){
+      for(const detail of (task.attachmentDetails||[])){
+        const key=Importer.normalizeFileKey(detail.ref);
+        if(!byRef.has(key))byRef.set(key,detail);
+        else if(detail.status==='matched')byRef.set(key,detail);
+      }
     }
-    return { total: uniqueRefs.length, matched, issues, shared: uniqueFiles(batch.sharedFiles).length };
+    let matched=0,issues=0;
+    for(const [key,detail] of byRef){
+      if(batch.attachmentOverrides.get(key)||detail.status==='matched')matched++;else issues++;
+    }
+    return {total:byRef.size,matched,issues,shared:uniqueFiles(batch.sharedFiles).length};
   }
 
   function renderImportHandoff() {
@@ -2369,88 +2568,97 @@
     setBatchStatus(cleared?`已清除 ${cleared} 封任务的自动排程；导入或手工时间保持不变。`:'当前没有自动排程需要清除。',cleared?'ok':'warn');
   }
 
-  function renderPreview() {
-    const tasks = batch.tasks || [];
-    const matched = filteredBatchTasks();
-    const errors = tasks.filter(t => t.status === 'error').length;
-    const done = tasks.filter(t => t.status === 'done').length;
-    const selectedReadyTasks = tasks.filter(t => t.enabled && t.status === 'ready');
-    const selectedReady = selectedReadyTasks.length;
-    const selectedScheduled = selectedReadyTasks.filter(t=>!!t.scheduleAt).length;
-    const selectedTotal = tasks.filter(t => t.enabled && t.status !== 'done').length;
-    const unselected = tasks.filter(t => !t.enabled).length;
-    const matchedSelected = matched.filter(t => t.enabled).length;
-    const summaryParts=[`共 <strong>${tasks.length}</strong> 封`,`已选 <strong>${selectedTotal}</strong>`,`可创建 <strong>${selectedReady}</strong>`];
-    if(selectedScheduled)summaryParts.push(`定时 ${selectedScheduled}`);
-    if(errors)summaryParts.push(`<span class="nmda-danger">异常 ${errors}</span>`);
-    if(done)summaryParts.push(`已完成 ${done}`);
+  function batchSummarySnapshot(tasks = batch.tasks || []) {
+    const snapshot={errors:0,done:0,selectedReady:0,selectedScheduled:0,selectedTotal:0,unselected:0};
+    for(const task of tasks){
+      if(task.status==='error')snapshot.errors++;
+      if(task.status==='done')snapshot.done++;
+      if(task.enabled && task.status!=='done')snapshot.selectedTotal++;
+      if(!task.enabled)snapshot.unselected++;
+      if(task.enabled && task.status==='ready'){
+        snapshot.selectedReady++;
+        if(task.scheduleAt)snapshot.selectedScheduled++;
+      }
+    }
+    return snapshot;
+  }
+
+  function renderBatchSummaryControls(tasks = batch.tasks || [], snapshot = batchSummarySnapshot(tasks)) {
+    const summaryParts=[`共 <strong>${tasks.length}</strong> 封`,`已选 <strong>${snapshot.selectedTotal}</strong>`,`可创建 <strong>${snapshot.selectedReady}</strong>`];
+    if(snapshot.selectedScheduled)summaryParts.push(`定时 ${snapshot.selectedScheduled}`);
+    if(snapshot.errors)summaryParts.push(`<span class="nmda-danger">异常 ${snapshot.errors}</span>`);
+    if(snapshot.done)summaryParts.push(`已完成 ${snapshot.done}`);
     batchSummaryEl.innerHTML=summaryParts.join(' · ');
-    if (batchStartEl) batchStartEl.textContent = selectedReady ? `创建 ${selectedReady} 封草稿` : '创建所选草稿';
-    previewBodyEl.innerHTML = matched.slice(0, 150).map(task => {
-      const contactState=contactStateForRecipients(task.recipients);
-      const schoolHtml = `<input class="nmda-table-school-input" data-task-school="${escapeHtml(task.editKey)}" value="${escapeHtml(task.school||'')}" placeholder="学校 / 机构" ${batch.running?'disabled':''}>`;
+    if(batchStartEl)batchStartEl.textContent=snapshot.selectedReady?`创建 ${snapshot.selectedReady} 封草稿`:'创建所选草稿';
+    batchStartEl.disabled=batch.running||!batch.handoffComplete||!snapshot.selectedReady;
+    return snapshot;
+  }
+
+  function refreshTaskSearchStatic(task){
+    if(!task)return;
+    task._searchStatic=normalizedSearchText([
+      task.id,task.sourceRow,task.recipients,task.school,task.subject,task.body,
+      task.files?.map(file=>file.name).join(' ')||'',
+      task.scheduleAt?task.scheduleAt.replace('T',' '):'',
+      parseTaskClassifications(task.tags||[]).join(' ')
+    ].join(' '));
+  }
+
+  function renderPreview({ aux = true } = {}) {
+    const tasks=batch.tasks||[];
+    const matched=filteredBatchTasks();
+    const snapshot=renderBatchSummaryControls(tasks);
+    previewBodyEl.innerHTML=matched.slice(0,150).map(task=>{
+      const contactState=taskContactSnapshot(task).state;
+      const schoolHtml=`<input class="nmda-table-school-input" data-task-school="${escapeHtml(task.editKey)}" value="${escapeHtml(task.school||'')}" placeholder="学校 / 机构" ${batch.running?'disabled':''}>`;
       const sourceLabel=scheduleSourceLabel(task);
-      const scheduleHtml = `<div class="nmda-schedule-edit-cell"><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}" ${batch.running?'disabled':''}><small>${escapeHtml(sourceLabel)}</small></div>`;
+      const scheduleHtml=`<div class="nmda-schedule-edit-cell"><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}" ${batch.running?'disabled':''}><small>${escapeHtml(sourceLabel)}</small></div>`;
       const statusText=statusLabel(task);
       const fileText=task.files?.length?` · 附件 ${task.files.length}`:'';
-      return `
-      <tr data-status="${task.status}" data-enabled="${task.enabled ? '1' : '0'}">
-        <td><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled ? 'checked' : ''} ${batch.running || task.policyBlocked || task.status === 'running' || task.status === 'done' ? 'disabled' : ''} title="${escapeHtml(task.policyBlocked ? statusLabel(task) : '')}"></td>
-        <td class="nmda-recipient-cell" title="${escapeHtml(task.recipients)}"><strong>${escapeHtml(task.recipients || '—')}</strong><small>${escapeHtml(contactState.stage || '')}</small></td>
+      return `<tr data-task-row="${escapeHtml(task.editKey)}" data-status="${task.status}" data-enabled="${task.enabled?'1':'0'}">
+        <td><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''} ${batch.running||task.policyBlocked||task.status==='running'||task.status==='done'?'disabled':''} title="${escapeHtml(task.policyBlocked?statusLabel(task):'')}"></td>
+        <td class="nmda-recipient-cell" title="${escapeHtml(task.recipients)}"><strong>${escapeHtml(task.recipients||'—')}</strong><small>${escapeHtml(contactState.stage||'')}</small></td>
         <td>${schoolHtml}</td>
-        <td class="nmda-subject-cell" title="${escapeHtml(task.subject)}">${escapeHtml(task.subject || '—')}</td>
+        <td class="nmda-subject-cell" title="${escapeHtml(task.subject)}">${escapeHtml(task.subject||'—')}</td>
         <td>${scheduleHtml}</td>
         <td class="nmda-task-state-cell" title="${escapeHtml(statusText)}">${escapeHtml(statusText)}${fileText}</td>
       </tr>`;
     }).join('');
-    if (!matched.length) previewBodyEl.innerHTML = '<tr><td colspan="6">没有匹配的邮件。调整搜索条件后再试。</td></tr>';
-    else if (matched.length > 150) previewBodyEl.insertAdjacentHTML('beforeend', `<tr><td colspan="6">当前只显示前 150 封，共 ${matched.length} 封。</td></tr>`);
-    previewBodyEl.querySelectorAll('[data-task-enabled]').forEach(input => input.addEventListener('change', () => {
-      const task = batch.tasks.find(item => item.editKey === input.dataset.taskEnabled);
-      if (!task) return;
-      setTaskEdit(task, { enabled: input.checked });
-      renderPreview();
-    }));
-    previewBodyEl.querySelectorAll('[data-task-tags]').forEach(input => input.addEventListener('change', () => {
-      const task = batch.tasks.find(item => item.editKey === input.dataset.taskTags);
-      if (!task) return;
-      setTaskEdit(task, { tags: input.value });
-      renderPreview();
-    }));
-    previewBodyEl.querySelectorAll('[data-task-school]').forEach(input => input.addEventListener('change', () => {
-      const task=batch.tasks.find(item=>item.editKey===input.dataset.taskSchool); if(!task)return;
-      setTaskEdit(task,{school:input.value}); batch.schedulePlan=null; rebuildTasks();
-    }));
-    previewBodyEl.querySelectorAll('[data-task-schedule]').forEach(input => input.addEventListener('change', () => {
-      const task=batch.tasks.find(item=>item.editKey===input.dataset.taskSchedule); if(!task)return;
-      const value=input.value||'';
-      setTaskEdit(task,{scheduleAt:value,scheduleSource:value?'manual':'manual-clear',scheduleReason:value?'手工调整':''}); batch.schedulePlan=null; rebuildTasks();
-    }));
-    const hasTasks = batch.handoffComplete && tasks.length > 0;
+    if(!matched.length)previewBodyEl.innerHTML='<tr><td colspan="6">没有匹配的邮件。调整搜索条件后再试。</td></tr>';
+    else if(matched.length>150)previewBodyEl.insertAdjacentHTML('beforeend',`<tr><td colspan="6">当前只显示前 150 封，共 ${matched.length} 封。</td></tr>`);
+
+    const hasTasks=batch.handoffComplete&&tasks.length>0;
     const emptyCard=$('nmda-batch-empty');
     if(emptyCard){
-      const kicker=emptyCard.querySelector('.nmda-card-kicker'), title=emptyCard.querySelector('.nmda-card-title'), desc=emptyCard.querySelector('.nmda-card-desc'), action=$('nmda-go-import');
-      if(tasks.length && !batch.handoffComplete){
-        if(kicker)kicker.textContent='待交接'; if(title)title.textContent=`已准备 ${tasks.length} 封邮件，尚未进入排程`;
-        if(desc)desc.textContent='回到上方准备区，处理必要问题后继续。'; if(action)action.textContent='回到准备区';
+      const kicker=emptyCard.querySelector('.nmda-card-kicker'),title=emptyCard.querySelector('.nmda-card-title'),desc=emptyCard.querySelector('.nmda-card-desc'),action=$('nmda-go-import');
+      if(tasks.length&&!batch.handoffComplete){
+        if(kicker)kicker.textContent='待交接';if(title)title.textContent=`已准备 ${tasks.length} 封邮件，尚未进入排程`;
+        if(desc)desc.textContent='回到上方准备区，处理必要问题后继续。';if(action)action.textContent='回到准备区';
       }else{
-        if(kicker)kicker.textContent='批量任务'; if(title)title.textContent='还没有准备好的批量任务';
-        if(desc)desc.textContent='先在上方添加资料。'; if(action)action.textContent='回到准备区';
+        if(kicker)kicker.textContent='批量任务';if(title)title.textContent='还没有准备好的批量任务';
+        if(desc)desc.textContent='先在上方添加资料。';if(action)action.textContent='回到准备区';
       }
     }
-    $('nmda-preview-card').hidden = !hasTasks;
-    $('nmda-scheduler-card').hidden = !hasTasks;
-    $('nmda-run-card').hidden = !hasTasks;
-    $('nmda-batch-empty').hidden = true;
-    const executeStage=$('nmda-stage-execute'); if(executeStage) executeStage.hidden=!hasTasks;
-    batchStartEl.disabled = batch.running || !batch.handoffComplete || !tasks.some(t => t.enabled && t.status === 'ready');
-    renderTagChips();
+    $('nmda-preview-card').hidden=!hasTasks;
+    $('nmda-scheduler-card').hidden=!hasTasks;
+    $('nmda-run-card').hidden=!hasTasks;
+    $('nmda-batch-empty').hidden=true;
+    const executeStage=$('nmda-stage-execute');if(executeStage)executeStage.hidden=!hasTasks;
+
+    // Selection and filtering need only the table, summary, schedule and step rail.
+    // Attachment resolution / roster / parsing work is recomputed only after structural changes.
     renderScheduleCenter();
-    renderAttachmentCenter();
-    renderImportTaskPreview();
-    renderRosterAudit();
-    renderImportHandoff();
-    renderReviewPageOverview();
+    if(aux){
+      renderTagChips();
+      renderAttachmentCenter();
+      renderImportTaskPreview();
+      renderRosterAudit();
+      renderImportHandoff();
+      renderReviewPageOverview();
+      viewPerf.batchAuxDirty=false;
+    }
+    viewPerf.batchDirty=false;
+    return {matched:matched.length,...snapshot};
   }
 
   function renderAttachmentCenter() {
@@ -2636,7 +2844,7 @@
     setBatchStatus('请先添加资料并检查解析结果。');
     renderImportLifecycleState();
     if (!keepStatus) setImportStatus(message || '还没有添加资料。');
-    renderPreview();
+    scheduleBatchRender({aux:true});
   }
 
   function clearImportOnError(error, sessionToken = batch.sessionId) {
@@ -2752,6 +2960,7 @@
   importReviewBtnEl?.addEventListener('click', openReviewWorkspace);
   ui.querySelectorAll('[data-review-filter]').forEach(button=>button.addEventListener('click',()=>{
     batch.reviewFilter=button.dataset.reviewFilter==='all'?'all':'pending';
+    viewPerf.reviewRenderLimit=250;
     setBulkSubjectPanel(false);
     renderReviewPageOverview();
     const currentKey=importEditorOverlayEl?.dataset.editKey;
@@ -2868,8 +3077,9 @@
   [scheduleStartEl,scheduleMaxSchoolEl,scheduleIntervalDaysEl,schedulePreserveEl].forEach(el=>el?.addEventListener('change',()=>{readScheduleRuleControls();batch.schedulePlan=null;renderScheduleCenter();}));
   syncScheduleRuleControls();
 
-  [batchSearchEl, batchTagIncludeEl].forEach(el => el?.addEventListener('input', renderPreview));
-  batchStageFilterEl?.addEventListener('change', renderPreview);
+  const renderBatchFilterDebounced=debounce(()=>scheduleBatchRender({aux:false}),100);
+  [batchSearchEl,batchTagIncludeEl].forEach(el=>el?.addEventListener('input',renderBatchFilterDebounced));
+  batchStageFilterEl?.addEventListener('change',()=>scheduleBatchRender({aux:false}));
 
   function bulkEditFiltered(kind) {
     const targets = filteredBatchTasks().filter(task => task.status !== 'running' && task.status !== 'done');
@@ -2895,7 +3105,7 @@
     const actionText = { enable: '选择当前结果', disable: '取消当前结果', addTag: `添加标记“${tagsText(parsed)}”`, removeTag: `移除标记“${tagsText(parsed)}”` }[kind];
     const skippedText = blockedSkipped ? `；另有 ${blockedSkipped} 封受联系策略拦截，无法选择` : '';
     setBatchStatus(`已对 ${affected} 封任务执行：${actionText}${skippedText}。`, blockedSkipped ? 'warn' : 'ok');
-    renderPreview();
+    scheduleBatchRender({aux:false});
   }
 
   $('nmda-bulk-add-tag').addEventListener('click', () => bulkEditFiltered('addTag'));
@@ -2909,17 +3119,19 @@
       setTaskEdit(task, { enabled: false }); affected++;
     }
     setBatchStatus(`已清空选择：取消 ${affected} 封任务。`, 'ok');
-    renderPreview();
+    scheduleBatchRender({aux:false});
   });
   $('nmda-clear-tag-filter').addEventListener('click', () => {
     if (batchSearchEl) batchSearchEl.value = '';
     if(batchTagIncludeEl)batchTagIncludeEl.value = '';
     if(batchStageFilterEl)batchStageFilterEl.value = '';
-    renderPreview();
+    scheduleBatchRender({aux:false});
   });
 
-  $('nmda-contact-search').addEventListener('input', renderContacts);
-  $('nmda-contact-class-filter').addEventListener('input', renderContacts);
+  const renderContactFilterDebounced=debounce(()=>{viewPerf.contactRenderLimit=250;scheduleContactsRender();},100);
+  $('nmda-contact-search').addEventListener('input',renderContactFilterDebounced);
+  $('nmda-contact-class-filter').addEventListener('input',renderContactFilterDebounced);
+
 
   async function runMailboxRead(mode = 'quick') {
     const full = mode === 'full';
@@ -2948,6 +3160,7 @@
         // Persist the replacement before switching the live in-memory book: atomic at app level.
         await Contacts.save(contactBook.account, rebuilt.contacts);
         contactBook.contacts = rebuilt.contacts;
+        markContactsChanged();
         const meta = {
           lastMode: 'full', complete: true, lastFullAt: new Date().toISOString(),
           sent: result.coverage?.sent || { read: sentMessages.length, total: sent.total || sentMessages.length, complete: true, pages: sent.pages || 0 },
@@ -2956,7 +3169,7 @@
         const previous = await Contacts.loadSyncMeta(contactBook.account);
         await Contacts.saveSyncMeta(contactBook.account, { ...previous, ...meta });
         await renderMailboxReadMeta({ ...previous, ...meta });
-        renderContacts(); renderPreview();
+        scheduleContactsRender(); scheduleBatchRender({aux:false});
         setContactStatusMessage(`联系人记录重建完成：已发送 ${sentMessages.length} 封 · 草稿 ${draftMessages.length} 封 · 更新 ${rebuilt.contactFacts} 个联系人。${rebuilt.draftsWithoutRecipient ? ` ${rebuilt.draftsWithoutRecipient} 封草稿没有收件人，未关联联系人。` : ''}`, 'ok');
       } else {
         // Quick refresh works on a clone, so a storage failure never leaves a half-applied live state.
@@ -2965,6 +3178,7 @@
         const draftApplied = Contacts.applyDraftMessages(nextContacts, draftMessages, { replaceActive: false });
         await Contacts.save(contactBook.account, nextContacts);
         contactBook.contacts = nextContacts;
+        markContactsChanged();
         const previous = await Contacts.loadSyncMeta(contactBook.account);
         const meta = {
           ...previous, lastMode: 'quick', complete: false, lastQuickAt: new Date().toISOString(),
@@ -2973,7 +3187,7 @@
         };
         await Contacts.saveSyncMeta(contactBook.account, meta);
         await renderMailboxReadMeta(meta);
-        renderContacts(); renderPreview();
+        scheduleContactsRender(); scheduleBatchRender({aux:false});
         setContactStatusMessage(`邮箱同步完成：已发送 ${sentMessages.length} 封 · 草稿 ${draftMessages.length} 封。`, 'ok');
       }
     } catch (error) {
@@ -3031,7 +3245,7 @@
         const task = batch.tasks[i];
         if (!executableKeys.has(task.editKey) || task.status !== 'ready') continue;
         if (batch.stopRequested) break;
-        task.status = 'running'; renderPreview();
+        task.status = 'running'; scheduleBatchRender({aux:false});
         setBatchStatus(`正在处理 ${succeeded + failed + 1}/${executable.length} · ${task.id} · ${task.subject || '(无主题)'}${task.scheduleAt ? ` · 定时 ${task.scheduleAt.replace('T', ' ')}` : ' · 未定时'}`);
         try {
           const root = await openFreshCompose();
@@ -3054,11 +3268,11 @@
           const saveOutcome = await saveDraft(root, { scheduled: !!task.scheduleAt });
           task.note = [task.note, `草稿已确认保存（${saveOutcome.kind}）`].filter(Boolean).join('；');
           task.status = 'done'; succeeded++;
-          renderPreview();
+          scheduleBatchRender({aux:false});
           await sleep(600);
         } catch (error) {
           console.error(`[${APP}] batch source record ${task.sourceRow}`, error);
-          task.status = 'error'; task.runtimeError = error.message || String(error); failed++; renderPreview();
+          task.status = 'error'; task.runtimeError = error.message || String(error); failed++; scheduleBatchRender({aux:false});
           setBatchStatus(`任务 ${task.id} 失败，已自动停止：${task.runtimeError}。为避免页面状态异常导致串稿，不继续执行后续任务。`, 'error');
           break;
         }
@@ -3071,12 +3285,12 @@
       batch.running = false; batchStopEl.disabled = true;
       importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (importPackageEl) importPackageEl.disabled = false; if (rosterFileEl) rosterFileEl.disabled = false; collectionSelectEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; sharedFilesEl.disabled = false; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=false; });
       setBatchPlanningLocked(false);
-      renderPreview();
+      scheduleBatchRender({aux:false});
     }
   });
 
   restoreFormState();
-  renderPreview();
+  invalidateBatchView(true);
   initContacts();
-  console.info(`[${APP}] v1.14.0 loaded`);
+  console.info(`[${APP}] v1.16.0 loaded`);
 })();
