@@ -20,14 +20,15 @@ const contactsStart=html.indexOf('data-pane="contacts"');
 const batchHtml=html.slice(batchStart,contactsStart>batchStart?contactsStart:undefined);
 if(!batchHtml.includes('id="nmda-inline-review"') || !batchHtml.includes('<div class="nmda-card-title">解析预览</div>')) throw new Error('inline parsing preview missing from batch flow');
 if(!batchHtml.includes('data-review-filter="pending">需修改</button>') || !batchHtml.includes('data-review-filter="all">全部邮件</button>')) throw new Error('parsing preview filters missing');
-if(!batchHtml.includes('id="nmda-bulk-subject-panel"') || !batchHtml.includes('placeholder="统一补充空白主题"')) throw new Error('bulk subject fill should be an inline selected-item control');
-if(batchHtml.includes('批量补充所选邮件的缺失主题')) throw new Error('bulk subject must not be a standalone panel');
-if(!batchHtml.includes('id="nmda-review-confirm-selected"') || !batchHtml.includes('>保存所选</button>')) throw new Error('selected parsing edits need one save action');
+if(batchHtml.includes('id="nmda-bulk-subject-panel"') || batchHtml.includes('placeholder="统一补充空白主题"')) throw new Error('subject batch fill must not remain as a separate visible control');
+if(!batchHtml.includes('id="nmda-subject-assist"') || !batchHtml.includes('id="nmda-subject-assist-apply"')) throw new Error('contextual one-click subject suggestion missing');
+if(!batchHtml.includes('id="nmda-review-confirm-selected"') || !batchHtml.includes('>确认所选</button>')) throw new Error('selected parsing edits need one confirmation action');
 
 const previewCardStart=batchHtml.indexOf('id="nmda-preview-card"');
 const schedulerStart=batchHtml.indexOf('id="nmda-scheduler-card"');
 const previewCardEnd=batchHtml.indexOf('id="nmda-run-card"');
 if(!(previewCardStart>=0 && schedulerStart>previewCardStart && schedulerStart<previewCardEnd)) throw new Error('automatic scheduling must be folded into selection card');
+if(!batchHtml.includes('id="nmda-scheduler-card" hidden open')) throw new Error('automatic scheduling should default open when selection stage becomes available');
 if(!batchHtml.includes('<th>选择</th><th>收件人</th><th>学校</th><th>主题</th><th>时间</th><th>状态</th>')) throw new Error('batch table should use the compact six-column decision layout');
 
 for(const tech of ['质量门','自动复核','机器先','人工确认','EXCEPTION REVIEW','MAILBOX STATE','CONTACT BOOK','识别诊断与高级映射']) {
@@ -37,7 +38,9 @@ for(const tech of ['质量门','自动复核','机器先','人工确认','EXCEPT
 if(!/\.nmda-bulk-workbench > \.nmda-process-guide[\s\S]*?position:sticky/.test(css)) throw new Error('right sticky workflow rail missing');
 if(!/\.nmda-batch-table\s*\{[^}]*min-width:930px/.test(css)) throw new Error('compact batch table width contract missing');
 if(!/\.nmda-run-card\s*\{[\s\S]*?position:static\s*!important/.test(css)) throw new Error('final action card must not overlap content as a sticky layer');
+if(!/v1\.17[\s\S]*?\.nmda-review-layout[\s\S]*?max-height:none\s*!important/.test(css)) throw new Error('review content must not be viewport-clipped');
+if(!/\.nmda-review-core-fields textarea[\s\S]*?overflow:hidden/.test(css)) throw new Error('review body should auto-grow instead of adding nested scrolling');
 if(!/grid-template-columns:148px minmax\(0,1fr\)/.test(css)) throw new Error('primary navigation width was not reduced');
 
 if(!html.includes('同步邮箱') || !html.includes('维护选项')) throw new Error('contact sync / maintenance hierarchy missing');
-console.log('ui contract OK: inline parsing preview, combined selection+scheduling, compact sizing, no duplicate sticky action layer');
+console.log('ui contract OK: full-content parsing preview, contextual subject assist, default-open scheduling, compact non-overlapping flow');

@@ -860,30 +860,6 @@
 .nmda-batch-table th:nth-child(8), .nmda-batch-table td:nth-child(8) { width:55px; }
 .nmda-batch-table th:nth-child(9), .nmda-batch-table td:nth-child(9) { width:140px; }
 
-/* v1.11.1 — bulk repair for missing subjects */
-.nmda-bulk-subject-panel {
-  margin-top:9px;
-  padding:10px 11px;
-  border:1px solid #dbeafe;
-  border-radius:10px;
-  background:#f8fbff;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-}
-.nmda-bulk-subject-copy { min-width:180px; display:flex; flex-direction:column; gap:2px; }
-.nmda-bulk-subject-copy strong { font-size:10px; color:#0f172a; }
-.nmda-bulk-subject-copy small { font-size:9px; color:#64748b; line-height:1.45; }
-.nmda-bulk-subject-form { flex:1; display:flex; align-items:center; justify-content:flex-end; gap:7px; }
-.nmda-bulk-subject-form input { min-width:260px; max-width:560px; flex:1; height:32px; border:1px solid #cbd5e1; border-radius:8px; padding:0 10px; font-size:10px; background:#fff; }
-.nmda-bulk-subject-form input:focus { outline:2px solid #bfdbfe; border-color:#60a5fa; }
-@media (max-width:900px) {
-  .nmda-bulk-subject-panel { align-items:stretch; flex-direction:column; }
-  .nmda-bulk-subject-form { justify-content:flex-start; flex-wrap:wrap; }
-  .nmda-bulk-subject-form input { min-width:220px; width:100%; }
-}
-
 /* v1.12 product UI — flow first, implementation details second */
 #nmda-panel {
   width: min(1240px, 95vw);
@@ -1184,7 +1160,6 @@
 .nmda-review-actions { position:sticky; bottom:0; background:rgba(251,253,255,.96); backdrop-filter:blur(8px); }
 
 /* Bulk subject is scoped to selected review items. */
-.nmda-review-page .nmda-bulk-subject-panel { margin:0 0 8px; }
 
 @media (max-width:1120px) {
   .nmda-bulk-workbench,.nmda-review-page { grid-template-columns:minmax(0,1fr) 168px; column-gap:10px; }
@@ -1359,9 +1334,6 @@
 .nmda-review-batchbar > div:first-child { min-width:90px; }
 .nmda-review-batchbar strong { font-size:9px; }
 .nmda-review-batchbar small { font-size:7.5px; }
-.nmda-review-inline-bulk { min-width:0; display:grid; grid-template-columns:minmax(150px,1fr) auto; gap:6px; align-items:center; }
-.nmda-review-inline-bulk[hidden] { display:none !important; }
-.nmda-review-inline-bulk input { width:100%; min-width:0; height:29px; border:1px solid #cbd5e1; border-radius:7px; padding:0 8px; font-size:8.7px; background:#fff; }
 .nmda-review-page-empty { margin:0 10px 10px; padding:20px 14px; font-size:8.7px; }
 .nmda-review-workbench { margin:0; border:0; border-top:1px solid #e2e8f0; border-radius:0; background:#fff; }
 .nmda-review-head { min-height:44px; padding:8px 10px; }
@@ -1502,3 +1474,96 @@
 .nmda-load-more-row td { text-align:center; padding:10px !important; background:#fbfdff; }
 .nmda-review-load-more { width:calc(100% - 16px); margin:8px; min-height:30px; border:1px solid #dbe4f0; border-radius:8px; background:#f8fafc; color:#64748b; font:700 8.5px/1 system-ui,sans-serif; cursor:pointer; }
 .nmda-review-load-more:hover { background:#f1f5f9; color:#334155; }
+
+
+/* v1.17 — full-content review + context-aware assistance */
+/* The mail itself is the content: avoid nested viewport-sized scrolling inside review. */
+.nmda-inline-review { overflow:visible !important; }
+.nmda-review-layout {
+  grid-template-columns:188px minmax(0,1fr) !important;
+  grid-template-rows:auto auto;
+  min-height:0 !important;
+  max-height:none !important;
+  align-items:start;
+  overflow:visible;
+}
+.nmda-review-queue-pane {
+  grid-column:1;
+  grid-row:1 / span 2;
+  position:sticky;
+  top:8px;
+  align-self:start;
+  max-height:calc(92vh - 118px);
+  overflow:auto;
+  border-right:1px solid #e2e8f0;
+  background:#f8fafc;
+}
+.nmda-review-evidence-pane {
+  grid-column:2;
+  grid-row:1;
+  overflow:visible !important;
+  border-right:0 !important;
+  border-bottom:1px solid #e2e8f0;
+  background:#fff;
+}
+.nmda-review-edit-pane {
+  grid-column:2 !important;
+  grid-row:2;
+  overflow:visible !important;
+  border-top:0 !important;
+  background:#fbfdff;
+}
+.nmda-review-evidence-pane .nmda-review-pane-title,
+.nmda-review-edit-pane .nmda-review-pane-title { position:static; }
+.nmda-review-source-context { padding-bottom:18px; }
+.nmda-review-core-fields textarea {
+  min-height:240px !important;
+  height:auto;
+  overflow:hidden;
+  resize:vertical;
+  line-height:1.6;
+}
+.nmda-review-actions {
+  position:static !important;
+  margin-top:12px;
+  border-radius:0 0 12px 0;
+}
+
+/* Bulk confirmation stays selection-scoped; subject propagation is offered where the subject is entered. */
+.nmda-review-batchbar {
+  grid-template-columns:minmax(130px,1fr) auto auto !important;
+  align-items:center;
+}
+.nmda-context-assist {
+  grid-column:1 / -1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  margin:-1px 0 2px;
+  padding:9px 10px;
+  border:1px solid #bfdbfe;
+  border-radius:9px;
+  background:#eff6ff;
+}
+.nmda-context-assist[hidden] { display:none !important; }
+.nmda-context-assist > div:first-child { min-width:0; display:grid; gap:2px; }
+.nmda-context-assist strong { color:#1e3a8a; font-size:9.3px; }
+.nmda-context-assist small { color:#53657d; font-size:8px; line-height:1.4; overflow-wrap:anywhere; }
+
+/* Scheduling is a normal planning step, so it opens by default instead of hiding the primary controls. */
+.nmda-inline-scheduler[open] { border-color:#bfdbfe; background:#fff; }
+.nmda-inline-scheduler > summary > span:last-child { min-width:26px; text-align:right; color:#64748b; font-size:7.8px; font-weight:750; }
+
+@media (max-width:1100px) {
+  .nmda-review-layout { grid-template-columns:168px minmax(0,1fr) !important; }
+}
+@media (max-width:780px) {
+  .nmda-review-layout { grid-template-columns:1fr !important; grid-template-rows:auto; }
+  .nmda-review-queue-pane {
+    grid-column:1; grid-row:auto; position:static; max-height:260px; overflow:auto;
+    border-right:0; border-bottom:1px solid #e2e8f0;
+  }
+  .nmda-review-evidence-pane,.nmda-review-edit-pane { grid-column:1 !important; grid-row:auto; }
+  .nmda-context-assist,.nmda-review-batchbar { grid-template-columns:1fr !important; align-items:stretch; }
+}

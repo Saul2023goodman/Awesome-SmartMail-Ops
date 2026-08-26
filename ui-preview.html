@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><title>NetEase Mail Draft Assistant v1.16.0 — 批量草稿预览</title><style>/* NetEase Mail Draft Assistant v1.16 — operation-first batch drafting workspace */
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><title>NetEase Mail Draft Assistant v1.17.0 — 批量草稿预览</title><style>/* NetEase Mail Draft Assistant v1.15 — operation-first batch drafting workspace */
 #nmda-root,
 #nmda-root * { box-sizing: border-box; }
 
@@ -861,30 +861,6 @@
 .nmda-batch-table th:nth-child(8), .nmda-batch-table td:nth-child(8) { width:55px; }
 .nmda-batch-table th:nth-child(9), .nmda-batch-table td:nth-child(9) { width:140px; }
 
-/* v1.11.1 — bulk repair for missing subjects */
-.nmda-bulk-subject-panel {
-  margin-top:9px;
-  padding:10px 11px;
-  border:1px solid #dbeafe;
-  border-radius:10px;
-  background:#f8fbff;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-}
-.nmda-bulk-subject-copy { min-width:180px; display:flex; flex-direction:column; gap:2px; }
-.nmda-bulk-subject-copy strong { font-size:10px; color:#0f172a; }
-.nmda-bulk-subject-copy small { font-size:9px; color:#64748b; line-height:1.45; }
-.nmda-bulk-subject-form { flex:1; display:flex; align-items:center; justify-content:flex-end; gap:7px; }
-.nmda-bulk-subject-form input { min-width:260px; max-width:560px; flex:1; height:32px; border:1px solid #cbd5e1; border-radius:8px; padding:0 10px; font-size:10px; background:#fff; }
-.nmda-bulk-subject-form input:focus { outline:2px solid #bfdbfe; border-color:#60a5fa; }
-@media (max-width:900px) {
-  .nmda-bulk-subject-panel { align-items:stretch; flex-direction:column; }
-  .nmda-bulk-subject-form { justify-content:flex-start; flex-wrap:wrap; }
-  .nmda-bulk-subject-form input { min-width:220px; width:100%; }
-}
-
 /* v1.12 product UI — flow first, implementation details second */
 #nmda-panel {
   width: min(1240px, 95vw);
@@ -1185,7 +1161,6 @@
 .nmda-review-actions { position:sticky; bottom:0; background:rgba(251,253,255,.96); backdrop-filter:blur(8px); }
 
 /* Bulk subject is scoped to selected review items. */
-.nmda-review-page .nmda-bulk-subject-panel { margin:0 0 8px; }
 
 @media (max-width:1120px) {
   .nmda-bulk-workbench,.nmda-review-page { grid-template-columns:minmax(0,1fr) 168px; column-gap:10px; }
@@ -1210,7 +1185,7 @@
   .nmda-review-edit-pane { grid-column:1 / -1; border-top:1px solid #e2e8f0; }
 }
 
-/* v1.16 — operation-first batch flow: parsing preview is inline, scheduling is part of selection */
+/* v1.15 — operation-first batch flow: parsing preview is inline, scheduling is part of selection */
 #nmda-panel {
   width:min(1320px,96vw);
   height:min(900px,92vh);
@@ -1360,9 +1335,6 @@
 .nmda-review-batchbar > div:first-child { min-width:90px; }
 .nmda-review-batchbar strong { font-size:9px; }
 .nmda-review-batchbar small { font-size:7.5px; }
-.nmda-review-inline-bulk { min-width:0; display:grid; grid-template-columns:minmax(150px,1fr) auto; gap:6px; align-items:center; }
-.nmda-review-inline-bulk[hidden] { display:none !important; }
-.nmda-review-inline-bulk input { width:100%; min-width:0; height:29px; border:1px solid #cbd5e1; border-radius:7px; padding:0 8px; font-size:8.7px; background:#fff; }
 .nmda-review-page-empty { margin:0 10px 10px; padding:20px 14px; font-size:8.7px; }
 .nmda-review-workbench { margin:0; border:0; border-top:1px solid #e2e8f0; border-radius:0; background:#fff; }
 .nmda-review-head { min-height:44px; padding:8px 10px; }
@@ -1450,7 +1422,7 @@
   .nmda-task-toolbar #nmda-bulk-enable,.nmda-task-toolbar #nmda-clear-selection { grid-column:auto; }
   .nmda-inline-scheduler .nmda-scheduler-grid,.nmda-inline-scheduler .nmda-scheduler-actions { grid-template-columns:1fr; }
 }
-/* v1.16 overlap fix: the final action belongs in document flow, not as a second sticky layer. */
+/* v1.15 overlap fix: the final action belongs in document flow, not as a second sticky layer. */
 .nmda-run-card {
   position:static !important;
   bottom:auto !important;
@@ -1459,6 +1431,143 @@
 }
 /* The result metrics already summarize readiness; avoid a second duplicate summary row. */
 .nmda-import-ready-summary { display:none !important; }
+
+/* v1.16 — performance: isolate the extension from the host page and avoid live blur layers. */
+#nmda-panel {
+  contain: layout style;
+}
+.nmda-main,
+.nmda-tabpane {
+  contain: layout style;
+}
+.nmda-tabpane[hidden],
+.nmda-page-head[hidden] {
+  display: none !important;
+}
+
+/* Off-screen workflow cards do not need style/layout/paint work until they approach the viewport. */
+.nmda-bulk-workbench > .nmda-card,
+.nmda-bulk-workbench > details,
+.nmda-contact-list-card,
+.nmda-crm-top-grid > .nmda-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 280px;
+}
+.nmda-batch-table-wrap,
+.nmda-contact-table-wrap,
+.nmda-review-layout {
+  contain: layout paint;
+}
+
+/* Sticky blur layers were visually subtle but expensive during scroll/compositing. */
+.nmda-head,
+.nmda-process-guide,
+.nmda-review-pane-title,
+.nmda-review-actions {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.nmda-head { background: rgba(255,255,255,.99); }
+.nmda-process-guide { background: #fff; }
+.nmda-review-pane-title,
+.nmda-review-actions { background: #fff; }
+
+.nmda-load-more-row td { text-align:center; padding:10px !important; background:#fbfdff; }
+.nmda-review-load-more { width:calc(100% - 16px); margin:8px; min-height:30px; border:1px solid #dbe4f0; border-radius:8px; background:#f8fafc; color:#64748b; font:700 8.5px/1 system-ui,sans-serif; cursor:pointer; }
+.nmda-review-load-more:hover { background:#f1f5f9; color:#334155; }
+
+
+/* v1.17 — full-content review + context-aware assistance */
+/* The mail itself is the content: avoid nested viewport-sized scrolling inside review. */
+.nmda-inline-review { overflow:visible !important; }
+.nmda-review-layout {
+  grid-template-columns:188px minmax(0,1fr) !important;
+  grid-template-rows:auto auto;
+  min-height:0 !important;
+  max-height:none !important;
+  align-items:start;
+  overflow:visible;
+}
+.nmda-review-queue-pane {
+  grid-column:1;
+  grid-row:1 / span 2;
+  position:sticky;
+  top:8px;
+  align-self:start;
+  max-height:calc(92vh - 118px);
+  overflow:auto;
+  border-right:1px solid #e2e8f0;
+  background:#f8fafc;
+}
+.nmda-review-evidence-pane {
+  grid-column:2;
+  grid-row:1;
+  overflow:visible !important;
+  border-right:0 !important;
+  border-bottom:1px solid #e2e8f0;
+  background:#fff;
+}
+.nmda-review-edit-pane {
+  grid-column:2 !important;
+  grid-row:2;
+  overflow:visible !important;
+  border-top:0 !important;
+  background:#fbfdff;
+}
+.nmda-review-evidence-pane .nmda-review-pane-title,
+.nmda-review-edit-pane .nmda-review-pane-title { position:static; }
+.nmda-review-source-context { padding-bottom:18px; }
+.nmda-review-core-fields textarea {
+  min-height:240px !important;
+  height:auto;
+  overflow:hidden;
+  resize:vertical;
+  line-height:1.6;
+}
+.nmda-review-actions {
+  position:static !important;
+  margin-top:12px;
+  border-radius:0 0 12px 0;
+}
+
+/* Bulk confirmation stays selection-scoped; subject propagation is offered where the subject is entered. */
+.nmda-review-batchbar {
+  grid-template-columns:minmax(130px,1fr) auto auto !important;
+  align-items:center;
+}
+.nmda-context-assist {
+  grid-column:1 / -1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  margin:-1px 0 2px;
+  padding:9px 10px;
+  border:1px solid #bfdbfe;
+  border-radius:9px;
+  background:#eff6ff;
+}
+.nmda-context-assist[hidden] { display:none !important; }
+.nmda-context-assist > div:first-child { min-width:0; display:grid; gap:2px; }
+.nmda-context-assist strong { color:#1e3a8a; font-size:9.3px; }
+.nmda-context-assist small { color:#53657d; font-size:8px; line-height:1.4; overflow-wrap:anywhere; }
+
+/* Scheduling is a normal planning step, so it opens by default instead of hiding the primary controls. */
+.nmda-inline-scheduler[open] { border-color:#bfdbfe; background:#fff; }
+.nmda-inline-scheduler > summary > span:last-child { min-width:26px; text-align:right; color:#64748b; font-size:7.8px; font-weight:750; }
+
+@media (max-width:1100px) {
+  .nmda-review-layout { grid-template-columns:168px minmax(0,1fr) !important; }
+}
+@media (max-width:780px) {
+  .nmda-review-layout { grid-template-columns:1fr !important; grid-template-rows:auto; }
+  .nmda-review-queue-pane {
+    grid-column:1; grid-row:auto; position:static; max-height:260px; overflow:auto;
+    border-right:0; border-bottom:1px solid #e2e8f0;
+  }
+  .nmda-review-evidence-pane,.nmda-review-edit-pane { grid-column:1 !important; grid-row:auto; }
+  .nmda-context-assist,.nmda-review-batchbar { grid-template-columns:1fr !important; align-items:stretch; }
+}
 </style><style>body{margin:0;background:#dde4ee;min-height:100vh}#nmda-launcher{display:none!important}#nmda-panel{inset:14px;width:calc(100vw - 28px);height:calc(100vh - 28px)}</style></head><body>
 <button aria-label="打开网易邮箱外联工作台" id="nmda-launcher" title="网易邮箱外联工作台" type="button">
 <span class="nmda-launcher-mark">N</span><span class="nmda-launcher-dot"></span>
@@ -1586,33 +1695,27 @@
 <div class="nmda-card nmda-inline-review" id="nmda-inline-review">
 <div class="nmda-inline-review-top">
 <div><div class="nmda-card-title">解析预览</div><div class="nmda-card-desc">检查系统整理出的收件人、主题和正文；有问题时直接修改。</div></div>
-<div class="nmda-review-page-summary" id="nmda-review-page-summary"><span><strong>2</strong> 需修改</span><span><strong>16</strong> 可直接使用</span></div>
+<div class="nmda-review-page-summary" id="nmda-review-page-summary"><span><strong>1</strong> 需修改</span><span><strong>17</strong> 可直接使用</span></div>
 </div>
 <div class="nmda-review-viewbar">
 <div aria-label="解析预览范围" class="nmda-review-filter" role="group"><button class="is-active" data-review-filter="pending" type="button">需修改</button><button data-review-filter="all" type="button">全部邮件</button></div>
 <div class="nmda-review-view-actions"><button class="nmda-btn nmda-btn-small" id="nmda-review-select-filtered" type="button">选择当前列表</button></div>
 </div>
 <div class="nmda-review-batchbar" id="nmda-review-batchbar">
-<div><strong id="nmda-review-selected-count">已选 2 封</strong><small id="nmda-bulk-subject-summary">2 封主题为空，可一次补上。</small></div>
-<div class="nmda-review-inline-bulk" id="nmda-bulk-subject-panel">
-<input id="nmda-bulk-subject-value" placeholder="统一补充空白主题" type="text"/>
-<button class="nmda-btn nmda-btn-small" id="nmda-bulk-subject-apply" type="button">补到空白主题</button>
-</div>
-<button class="nmda-btn nmda-btn-small" hidden="" id="nmda-bulk-subject-open" type="button">补主题</button>
-<button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-confirm-selected" type="button">保存所选</button>
+<div><strong id="nmda-review-selected-count">已选 2 封</strong><small>可一次确认内容完整的所选邮件。</small></div>
+<button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-confirm-selected" type="button">确认所选</button>
 <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-clear-selected" type="button">取消选择</button>
-<button class="nmda-btn nmda-btn-small nmda-btn-quiet" hidden="" id="nmda-bulk-subject-cancel" type="button">取消</button>
 </div>
 <div class="nmda-review-page-empty" hidden="" id="nmda-review-page-empty">添加资料后，这里会显示解析结果。</div>
 <div class="nmda-review-workbench" id="nmda-import-editor-overlay">
 <div class="nmda-review-head">
-<div><div class="nmda-card-title" id="nmda-import-editor-title">Oxford · Yee Whye Teh</div><div class="nmda-card-desc" id="nmda-import-editor-evidence">缺少主题</div></div>
-<div class="nmda-review-head-actions"><span class="nmda-review-progress" id="nmda-review-progress">2 封需修改</span></div>
+<div><div class="nmda-card-title" id="nmda-import-editor-title">Oxford · Yee Whye Teh</div><div class="nmda-card-desc" id="nmda-import-editor-evidence">主题已填写 · 待确认</div></div>
+<div class="nmda-review-head-actions"><span class="nmda-review-progress" id="nmda-review-progress">1 封仍缺主题</span></div>
 </div>
 <div class="nmda-review-layout">
 <aside class="nmda-review-queue-pane">
 <div class="nmda-review-pane-title"><strong>邮件列表</strong><small id="nmda-review-queue-caption">优先显示需要修改的邮件</small></div>
-<div class="nmda-review-queue" id="nmda-review-queue"><div class="nmda-review-queue-row is-active is-selected"><label class="nmda-review-select"><input checked="" type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">1</span><span class="nmda-review-queue-main"><strong>Oxford · Yee Whye Teh</strong><small>yee.whye.teh@stats.ox.ac.uk</small><em data-tone="warn">缺少主题</em></span></button></div><div class="nmda-review-queue-row is-selected"><label class="nmda-review-select"><input checked="" type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">2</span><span class="nmda-review-queue-main"><strong>UCL · David Barber</strong><small>d.barber@ucl.ac.uk</small><em data-tone="warn">缺少主题</em></span></button></div><div class="nmda-review-queue-row"><label class="nmda-review-select"><input type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">3</span><span class="nmda-review-queue-main"><strong>Imperial · Wenjia Bai</strong><small>wenjia.bai@imperial.ac.uk</small><em data-tone="ok">可直接使用</em></span></button></div></div>
+<div class="nmda-review-queue" id="nmda-review-queue"><div class="nmda-review-queue-row is-active is-selected"><label class="nmda-review-select"><input checked="" type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">1</span><span class="nmda-review-queue-main"><strong>Oxford · Yee Whye Teh</strong><small>yee.whye.teh@stats.ox.ac.uk</small><em data-tone="ok">待确认</em></span></button></div><div class="nmda-review-queue-row is-selected"><label class="nmda-review-select"><input checked="" type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">2</span><span class="nmda-review-queue-main"><strong>UCL · David Barber</strong><small>d.barber@ucl.ac.uk</small><em data-tone="warn">缺少主题</em></span></button></div><div class="nmda-review-queue-row"><label class="nmda-review-select"><input type="checkbox"/></label><button class="nmda-review-queue-item"><span class="nmda-review-queue-index">3</span><span class="nmda-review-queue-main"><strong>Imperial · Wenjia Bai</strong><small>wenjia.bai@imperial.ac.uk</small><em data-tone="ok">可直接使用</em></span></button></div></div>
 </aside>
 <section class="nmda-review-evidence-pane">
 <div class="nmda-review-pane-title"><strong>原文</strong><small>用于对照</small></div>
@@ -1621,14 +1724,19 @@
 <div class="nmda-review-source-context" id="nmda-review-source-context"><div class="nmda-source-context-block is-mail-range"><span>21</span><p>Dear Professor Teh,</p></div><div class="nmda-source-context-block is-mail-range"><span>22</span><p>I am writing to enquire about potential PhD opportunities...</p></div><div class="nmda-source-context-block is-mail-range"><span>23</span><p>My recent work focuses on reliable clinical AI...</p></div><div class="nmda-source-context-block is-mail-range"><span>24</span><p>Yours sincerely,<br/>Junhao Jiao</p></div></div>
 </section>
 <section class="nmda-review-edit-pane">
-<div class="nmda-review-pane-title"><strong>邮件内容</strong><small id="nmda-review-problem-summary">需要时直接修改</small></div>
+<div class="nmda-review-pane-title"><strong>邮件内容</strong><small id="nmda-review-problem-summary">内容已完整，确认后继续</small></div>
 <div class="nmda-review-feedback" hidden="" id="nmda-review-feedback"></div>
 <div class="nmda-import-editor-grid nmda-review-core-fields">
 <label class="nmda-field" id="nmda-review-field-recipients"><span class="nmda-label">收件人</span><input id="nmda-import-edit-recipients" placeholder="recipient@example.edu" type="text" value="yee.whye.teh@stats.ox.ac.uk"/></label>
-<label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-subject"><span class="nmda-label">主题</span><input id="nmda-import-edit-subject" type="text" value=""/></label>
+<label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-subject"><span class="nmda-label">主题</span><input id="nmda-import-edit-subject" type="text" value="PhD Enquiry – Reliable Clinical AI"/></label>
+<div class="nmda-context-assist" id="nmda-subject-assist"><div><strong id="nmda-subject-assist-title">还有 1 封邮件缺少主题</strong><small id="nmda-subject-assist-copy">是否也填写为“PhD Enquiry – Reliable Clinical AI”？不会覆盖已有主题。</small></div><div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary nmda-btn-small" type="button">一键填写 1 封</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button">不用</button></div></div>
 <label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-body"><span class="nmda-label">正文</span><textarea id="nmda-import-edit-body">Dear Professor Teh,
 
 I am writing to enquire about potential PhD opportunities...
+
+My recent work focuses on reliable clinical AI, biomedical informatics, uncertainty-aware prediction, and evaluation under distribution shift. I would be very interested in discussing whether my background could align with projects in your group.
+
+I have worked with large-scale clinical datasets and reproducible model evaluation, and I hope to continue developing methods that are both technically rigorous and useful in real clinical settings.
 
 Yours sincerely,
 Junhao Jiao</textarea></label>
@@ -1638,7 +1746,7 @@ Junhao Jiao</textarea></label>
 <input id="nmda-import-edit-tags" type="hidden"/>
 <div class="nmda-review-actions">
 <button class="nmda-btn nmda-btn-danger-quiet" id="nmda-review-exclude" type="button">排除此封</button>
-<div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-quiet" id="nmda-import-editor-cancel" type="button">收起预览</button><button class="nmda-btn" id="nmda-import-editor-save" type="button">保存</button><button class="nmda-btn nmda-btn-primary" id="nmda-import-editor-next" type="button">保存并下一封</button></div>
+<div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-quiet" id="nmda-import-editor-cancel" type="button">收起预览</button><button class="nmda-btn" id="nmda-import-editor-save" type="button">确认本封</button><button class="nmda-btn nmda-btn-primary" id="nmda-import-editor-next" type="button">确认并下一封</button></div>
 </div>
 </section>
 </div>
@@ -1689,8 +1797,8 @@ Junhao Jiao</textarea></label>
 </div>
 <input id="nmda-batch-tag-include" type="hidden"/><button hidden="" id="nmda-clear-tag-filter" type="button"></button><div hidden="" id="nmda-batch-tag-chips"></div>
 <input id="nmda-bulk-tag-value" type="hidden"/><button hidden="" id="nmda-bulk-add-tag" type="button"></button><button hidden="" id="nmda-bulk-remove-tag" type="button"></button><button hidden="" id="nmda-bulk-disable" type="button"></button>
-<details class="nmda-inline-scheduler" id="nmda-scheduler-card">
-<summary><span><strong>自动安排时间</strong><small id="nmda-schedule-summary"></small></span><span>展开</span></summary>
+<details class="nmda-inline-scheduler" id="nmda-scheduler-card" open>
+<summary><span><strong>自动安排时间</strong><small id="nmda-schedule-summary">6 已选 · 待排 6</small></span><span>收起</span></summary>
 <div class="nmda-scheduler-grid">
 <label class="nmda-field"><span class="nmda-label">开始时间</span><input id="nmda-rule-start-at" type="datetime-local"/></label>
 <label class="nmda-field"><span class="nmda-label">同校每轮最多</span><input id="nmda-rule-max-school" max="20" min="1" step="1" type="number" value="1"/></label>
