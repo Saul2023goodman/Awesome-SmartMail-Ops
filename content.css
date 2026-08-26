@@ -64,6 +64,7 @@
   isolation: isolate;
 }
 #nmda-panel[hidden] { display: none !important; }
+#nmda-panel [hidden] { display:none !important; }
 #nmda-panel.is-maximized { inset: 12px; width: auto; height: auto; border-radius: 16px; }
 
 .nmda-head {
@@ -832,3 +833,29 @@
 .nmda-roster-audit-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
 .nmda-roster-diff-section{min-width:0;padding:10px;border:1px solid #e5eaf1;border-radius:10px;background:#fff}.nmda-roster-diff-section>strong{display:block;margin-bottom:7px;font-size:12px;color:#25384d}.nmda-roster-diff-section>div{display:flex;flex-direction:column;gap:5px}.nmda-roster-diff-section span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#53647a}.nmda-roster-diff-section small{font-size:11px;color:#8995a5}
 @media(max-width:900px){.nmda-roster-source-strip{align-items:flex-start;flex-direction:column}.nmda-roster-audit-details{grid-template-columns:1fr}}
+
+/* v1.11: product-state taxonomy — status is not a tag, custom marks stay compact. */
+.nmda-batch-filter-bar { grid-template-columns:150px minmax(200px,1fr) auto; }
+.nmda-contact-task-cell { min-width:150px; display:grid; gap:5px; }
+.nmda-contact-state-line,.nmda-business-mark-line { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+.nmda-state-pill { display:inline-flex; align-items:center; min-height:20px; padding:2px 7px; border-radius:999px; border:1px solid #dbe5f3; background:#f8fafc; color:#475569; font:750 8.5px/1.1 system-ui,sans-serif; white-space:nowrap; }
+.nmda-state-pill[data-stage="未联系"] { background:#f8fafc; color:#64748b; }
+.nmda-state-pill[data-stage="已发送"] { background:#eff6ff; border-color:#bfdbfe; color:#1d4ed8; }
+.nmda-state-pill[data-stage="已回复"] { background:#ecfdf5; border-color:#bbf7d0; color:#047857; }
+.nmda-state-pill.is-followup { background:#fffbeb; border-color:#fde68a; color:#a16207; }
+.nmda-business-mark { display:inline-flex; align-items:center; min-height:20px; padding:2px 7px; border-radius:7px; border:1px solid #e2e8f0; background:#fff; color:#475569; font:700 8.5px/1.1 system-ui,sans-serif; white-space:nowrap; max-width:110px; overflow:hidden; text-overflow:ellipsis; }
+.nmda-more-mark { color:#94a3b8; font-size:8px; font-weight:750; }
+.nmda-task-tags-input.nmda-quiet-input { min-height:25px; padding:4px 6px; border-color:transparent; background:#f8fafc; font-size:8.5px; }
+.nmda-task-tags-input.nmda-quiet-input:focus { border-color:#93c5fd; background:#fff; }
+.nmda-batch-empty[hidden],.nmda-preview-card[hidden],.nmda-scheduler-card[hidden],.nmda-run-card[hidden] { display:none !important; }
+/* v1.11 batch table density: keep the decision columns visible on common 1366px screens. */
+.nmda-batch-table { min-width:1220px; }
+.nmda-batch-table th:nth-child(1), .nmda-batch-table td:nth-child(1) { width:42px; }
+.nmda-batch-table th:nth-child(2), .nmda-batch-table td:nth-child(2) { width:48px; }
+.nmda-batch-table th:nth-child(3), .nmda-batch-table td:nth-child(3) { width:155px; }
+.nmda-batch-table th:nth-child(4), .nmda-batch-table td:nth-child(4) { width:170px; }
+.nmda-batch-table th:nth-child(5), .nmda-batch-table td:nth-child(5) { width:185px; }
+.nmda-batch-table th:nth-child(6), .nmda-batch-table td:nth-child(6) { width:165px; }
+.nmda-batch-table th:nth-child(7), .nmda-batch-table td:nth-child(7) { width:260px; }
+.nmda-batch-table th:nth-child(8), .nmda-batch-table td:nth-child(8) { width:55px; }
+.nmda-batch-table th:nth-child(9), .nmda-batch-table td:nth-child(9) { width:140px; }

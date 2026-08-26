@@ -200,7 +200,7 @@
     const match=Core.matchHeader(m[1]);
     return match?{field:match.field,value:m[2]||'',label:m[1].trim()}:null;
   }
-  const WORD_STD_HEADERS=['编号','收件人','学校 / 机构','主题','正文','附件','定时时间','任务分类','来源文件'];
+  const WORD_STD_HEADERS=['编号','收件人','学校 / 机构','主题','正文','附件','定时时间','任务标记','来源文件'];
   function standardWordRows(records){
     return [WORD_STD_HEADERS,...records.map(r=>[
       r.id||'',r.recipients||'',r.school||'',r.subject||'',r.body||'',r.attachments||'',r.scheduleAt||'',r.tags||'',r.sourceFile||''

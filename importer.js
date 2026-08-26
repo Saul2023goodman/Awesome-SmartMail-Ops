@@ -13,7 +13,7 @@
   function mergeWordTaskRecordSets(recordSets,{namePrefix='Word文档批次',source='multi-word',packageMode=false}={}){
     const candidates=(recordSets||[]).filter(rs=>rs.meta?.wordTaskRows && !rs.meta?.supplemental);
     if(candidates.length<2)return false;
-    const header=['编号','收件人','学校 / 机构','主题','正文','附件','定时时间','任务分类','来源文件'],rows=[header],rowMeta={};
+    const header=['编号','收件人','学校 / 机构','主题','正文','附件','定时时间','任务标记','来源文件'],rows=[header],rowMeta={};
     let mailFrameCount=0, confidenceTotal=0, confidenceCount=0, scanBlocks=0, scanSubjects=0, scanSalutations=0, scanClosings=0, scanEmails=0;
     for(const rs of candidates){
       const d=Core.detectHeader(rs.rows||[]);
@@ -122,7 +122,7 @@
   function resolveFiles(refs,index){const files=[],missing=[],ambiguous=[],details=[];for(const ref of refs||[]){const d=resolveOneFile(ref,index||buildFileIndex([]));details.push(d);if(d.status==='matched')files.push(d.file);else if(d.status==='missing')missing.push(ref);else ambiguous.push(ref);}return{files,missing,ambiguous,details};}
 
   globalThis.NMDAImporter={
-    version:'1.10.0', engine, UniversalImportEngine,
+    version:'1.11.0', engine, UniversalImportEngine,
     FIELD_DEFS:Core.FIELD_DEFS, normalizeHeader:Core.normalizeHeader, mappingForHeaders:Core.mappingForHeaders,
     detectHeader:Core.detectHeader, detectBestSheet:Core.detectBestSheet, detectBestRecordSet:Core.detectBestRecordSet, parseFile, parseFiles, parseDirectory,
     parseDateValue,formatLocalDateTime,createProfile,loadProfiles,saveProfile,deleteProfile,suggestProfile,

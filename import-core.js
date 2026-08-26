@@ -9,7 +9,7 @@
     { key: 'body', label: '正文', aliases: ['正文','邮件正文','内容','邮件内容','正文内容','body','content','message','text','emailbody','邮件文本'] },
     { key: 'attachments', label: '附件', aliases: ['附件','附件名','附件名称','附件路径','附件文件','附件列表','材料','文件','attachment','attachments','file','files','filename','filenames','filepath','documents'] },
     { key: 'scheduleAt', label: '定时时间', aliases: ['定时时间','定时发送时间','发送时间','计划发送时间','预约发送时间','schedule','scheduleat','scheduledat','sendat','sendtime','scheduledtime','datetime'] },
-    { key: 'tags', label: '任务分类', aliases: ['标签','邮件标签','联系人标签','任务标签','批次','分组','类别','分类','tag','tags','label','labels','group','batch','category','categories'] }
+    { key: 'tags', label: '任务标记', aliases: ['标签','邮件标签','联系人标签','任务标签','批次','分组','类别','分类','tag','tags','label','labels','group','batch','category','categories'] }
   ];
 
   const FIELD_KEYS = FIELD_DEFS.map(x => x.key);
