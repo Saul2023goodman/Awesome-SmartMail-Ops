@@ -588,10 +588,14 @@
               <div class="nmda-card nmda-ingest-result-card" id="nmda-ingest-result-card" hidden>
                 <div class="nmda-card-head nmda-ingest-result-head">
                   <div><div><div class="nmda-card-title">识别结果</div><div class="nmda-card-desc">先看能否直接使用；只有不确定项才进入人工处理。</div></div></div>
-                  <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-import-issues" type="button" hidden>处理待确认</button></div>
+                  <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-bulk-subject-open" type="button" hidden>批量补主题</button><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-import-issues" type="button" hidden>处理待确认</button></div>
                 </div>
                 <div id="nmda-import-preview-summary" class="nmda-ingest-health"></div>
                 <div id="nmda-review-guidance" class="nmda-review-guidance">系统完成识别后，会把“自动通过 / 待确认 / 阻塞问题”分开。人工校正只处理待确认项。</div>
+                <div class="nmda-bulk-subject-panel" id="nmda-bulk-subject-panel" hidden>
+                  <div class="nmda-bulk-subject-copy"><strong>批量补充缺失主题</strong><small id="nmda-bulk-subject-summary">只填写空白主题，不覆盖任何已有主题。</small></div>
+                  <div class="nmda-bulk-subject-form"><input id="nmda-bulk-subject-value" type="text" placeholder="输入统一邮件主题"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-bulk-subject-apply" type="button">填入缺失主题</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-bulk-subject-cancel" type="button">取消</button></div>
+                </div>
               </div>
 
               <div class="nmda-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
@@ -1130,6 +1134,7 @@
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), rosterFileEl = $('nmda-roster-file'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
   const pasteSourceEl = $('nmda-paste-source'), importPreviewBodyEl = $('nmda-import-preview-body'), importPreviewSummaryEl = $('nmda-import-preview-summary'), importReviewBtnEl = $('nmda-review-import-issues');
+  const bulkSubjectOpenEl = $('nmda-bulk-subject-open'), bulkSubjectPanelEl = $('nmda-bulk-subject-panel'), bulkSubjectValueEl = $('nmda-bulk-subject-value'), bulkSubjectSummaryEl = $('nmda-bulk-subject-summary');
   const importEditorOverlayEl = $('nmda-import-editor-overlay'), importEditRecipientsEl = $('nmda-import-edit-recipients'), importEditSubjectEl = $('nmda-import-edit-subject'), importEditBodyEl = $('nmda-import-edit-body'), importEditAttachmentsEl = $('nmda-import-edit-attachments'), importEditScheduleEl = $('nmda-import-edit-schedule'), importEditTagsEl = $('nmda-import-edit-tags'), importEditorEvidenceEl = $('nmda-import-editor-evidence');
   const reviewQueueEl = $('nmda-review-queue'), reviewSourceContextEl = $('nmda-review-source-context'), reviewSourceMetaEl = $('nmda-review-source-meta'), reviewCandidatesEl = $('nmda-review-email-candidates'), reviewProgressEl = $('nmda-review-progress'), reviewProblemSummaryEl = $('nmda-review-problem-summary'), reviewFeedbackEl = $('nmda-review-feedback');
   const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files'), sharedFilesEl = $('nmda-shared-files');
@@ -1423,6 +1428,43 @@
 
   function reviewTasks() { return (batch.tasks||[]).filter(taskNeedsImportReview); }
 
+  function missingSubjectTasks() {
+    return (batch.tasks || []).filter(task => !task?.importExcluded && !String(task?.subject || '').trim());
+  }
+
+  function setBulkSubjectPanel(open = true) {
+    if (!bulkSubjectPanelEl) return;
+    const missing = missingSubjectTasks();
+    bulkSubjectPanelEl.hidden = !open || !missing.length;
+    if (bulkSubjectSummaryEl) bulkSubjectSummaryEl.textContent = missing.length
+      ? `当前 ${missing.length} 封邮件缺少主题。只填空白主题，不覆盖已有主题；其他异常仍会继续保留。`
+      : '当前没有缺失主题。';
+    if (open && missing.length) {
+      if (bulkSubjectValueEl) { bulkSubjectValueEl.value = ''; setTimeout(() => bulkSubjectValueEl.focus(), 0); }
+    }
+  }
+
+  function applyBulkMissingSubject() {
+    const subject = String(bulkSubjectValueEl?.value || '').trim();
+    const missing = missingSubjectTasks();
+    if (!subject) {
+      if (bulkSubjectSummaryEl) bulkSubjectSummaryEl.textContent = '请输入要批量填入的主题。';
+      bulkSubjectValueEl?.focus();
+      return;
+    }
+    if (!missing.length) { setBulkSubjectPanel(false); return; }
+    batch.handoffComplete = false;
+    for (const task of missing) {
+      const prev = batch.taskEdits.get(task.editKey) || {};
+      // Subject batching is deliberately fill-only: never overwrite a source or manually entered subject.
+      if (!String(task.subject || '').trim()) batch.taskEdits.set(task.editKey, { ...prev, subject });
+    }
+    const count = missing.length;
+    setBulkSubjectPanel(false);
+    rebuildTasks();
+    setImportStatus(`已为 ${count} 封缺失主题的邮件批量填入主题；已有主题保持不变。`, 'ok');
+  }
+
   function reviewCandidateEmails(task) {
     const {rowMeta,sourceBlocks,contextOffset=0}=taskSourceMeta(task);
     const candidates=[];
@@ -1546,6 +1588,10 @@
     const guide=$('nmda-review-guidance');
     if(guide) guide.innerHTML=review?`机器已经完成大部分工作。当前只需处理 <strong>${review}</strong> 条不确定邮件；打开异常处理中心可直接查看原文证据。`:`<strong>核心邮件信息已全部确认。</strong> 如需抽查机器结果，可在下方任务抽查中检查任意邮件。`;
     if (importReviewBtnEl) { importReviewBtnEl.hidden = !review; importReviewBtnEl.textContent = review ? `处理 ${review} 条待确认` : '全部已确认'; }
+    const missingSubjects = missingSubjectTasks().length;
+    if (bulkSubjectOpenEl) { bulkSubjectOpenEl.hidden = !missingSubjects; bulkSubjectOpenEl.textContent = missingSubjects ? `批量补主题（${missingSubjects}）` : '批量补主题'; }
+    if (bulkSubjectPanelEl && !missingSubjects) bulkSubjectPanelEl.hidden = true;
+    if (bulkSubjectSummaryEl && missingSubjects && !bulkSubjectPanelEl?.hidden) bulkSubjectSummaryEl.textContent = `当前 ${missingSubjects} 封邮件缺少主题。只填空白主题，不覆盖已有主题；其他异常仍会继续保留。`;
     const restoreExcluded=$('nmda-restore-excluded'); if(restoreExcluded){restoreExcluded.hidden=!excluded;restoreExcluded.textContent=excluded?`恢复已排除（${excluded}）`:'恢复已排除';}
     const limit=batch.importPreviewExpanded?Math.min(150,tasks.length):Math.min(12,tasks.length);
     const sample = tasks.slice(0, limit);
@@ -2423,6 +2469,9 @@
     if (reviewProgressEl) reviewProgressEl.textContent = '';
     const reviewGuide = $('nmda-review-guidance'); if (reviewGuide) reviewGuide.textContent = '载入来源后，系统会把自动通过与待确认邮件分开。';
     const reviewBtn = $('nmda-review-import-issues'); if (reviewBtn) { reviewBtn.hidden = true; reviewBtn.textContent = '处理待确认'; }
+    const bulkSubjectBtn = $('nmda-bulk-subject-open'); if (bulkSubjectBtn) { bulkSubjectBtn.hidden = true; bulkSubjectBtn.textContent = '批量补主题'; }
+    if (bulkSubjectPanelEl) bulkSubjectPanelEl.hidden = true;
+    if (bulkSubjectValueEl) bulkSubjectValueEl.value = '';
     const restoreBtn = $('nmda-restore-excluded'); if (restoreBtn) restoreBtn.hidden = true;
     const fileInfo = $('nmda-file-index-info'); if (fileInfo) fileInfo.textContent = '尚未选择本地附件。';
     const attachmentSummary = $('nmda-attachment-summary'); if (attachmentSummary) attachmentSummary.textContent = '解析出任务后会统计需要匹配的附件。';
@@ -2555,6 +2604,10 @@
     const task=reviewTasks()[0];
     if(task)openImportTaskEditor(task);
   });
+  bulkSubjectOpenEl?.addEventListener('click', () => setBulkSubjectPanel(bulkSubjectPanelEl?.hidden !== false));
+  $('nmda-bulk-subject-cancel')?.addEventListener('click', () => setBulkSubjectPanel(false));
+  $('nmda-bulk-subject-apply')?.addEventListener('click', applyBulkMissingSubject);
+  bulkSubjectValueEl?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); applyBulkMissingSubject(); } });
   $('nmda-import-editor-close')?.addEventListener('click', closeImportTaskEditor);
   $('nmda-import-editor-cancel')?.addEventListener('click', closeImportTaskEditor);
   $('nmda-import-editor-save')?.addEventListener('click', () => saveImportTaskEditor(false));
@@ -2872,5 +2925,5 @@
   restoreFormState();
   renderPreview();
   initContacts();
-  console.info(`[${APP}] v1.11.0 loaded`);
+  console.info(`[${APP}] v1.11.1 loaded`);
 })();

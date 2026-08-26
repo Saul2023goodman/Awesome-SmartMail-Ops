@@ -859,3 +859,27 @@
 .nmda-batch-table th:nth-child(7), .nmda-batch-table td:nth-child(7) { width:260px; }
 .nmda-batch-table th:nth-child(8), .nmda-batch-table td:nth-child(8) { width:55px; }
 .nmda-batch-table th:nth-child(9), .nmda-batch-table td:nth-child(9) { width:140px; }
+
+/* v1.11.1 — bulk repair for missing subjects */
+.nmda-bulk-subject-panel {
+  margin-top:9px;
+  padding:10px 11px;
+  border:1px solid #dbeafe;
+  border-radius:10px;
+  background:#f8fbff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.nmda-bulk-subject-copy { min-width:180px; display:flex; flex-direction:column; gap:2px; }
+.nmda-bulk-subject-copy strong { font-size:10px; color:#0f172a; }
+.nmda-bulk-subject-copy small { font-size:9px; color:#64748b; line-height:1.45; }
+.nmda-bulk-subject-form { flex:1; display:flex; align-items:center; justify-content:flex-end; gap:7px; }
+.nmda-bulk-subject-form input { min-width:260px; max-width:560px; flex:1; height:32px; border:1px solid #cbd5e1; border-radius:8px; padding:0 10px; font-size:10px; background:#fff; }
+.nmda-bulk-subject-form input:focus { outline:2px solid #bfdbfe; border-color:#60a5fa; }
+@media (max-width:900px) {
+  .nmda-bulk-subject-panel { align-items:stretch; flex-direction:column; }
+  .nmda-bulk-subject-form { justify-content:flex-start; flex-wrap:wrap; }
+  .nmda-bulk-subject-form input { min-width:220px; width:100%; }
+}
