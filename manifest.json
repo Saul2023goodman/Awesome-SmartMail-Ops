@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "1.31.0",
-  "description": "网易邮箱网页版草稿工作台：导入阶段主动提示参考总名单，并在附件、排期、创建前提供按需上下文预检；支持多篇并排决策，只保存草稿，不自动发送。",
+  "version": "1.32.0",
+  "description": "网易邮箱网页版草稿工作台：导入后按业务优先级突出当前待办，附件缺失直接进入一级处理；参考总名单保持轻量增强，导入详情按需展开；支持并排决策，只保存草稿，不自动发送。",
   "permissions": [
     "storage",
     "scripting"

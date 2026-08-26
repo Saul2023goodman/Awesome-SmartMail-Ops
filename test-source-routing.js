@@ -85,6 +85,6 @@ const rs=(name,rows,meta={},source=name)=>new Core.NormalizedRecordSet({name,row
   const content=fs.readFileSync(path.join(root,'content.js'),'utf8');
   assert(!/bestConfig\s*=.*enabled\s*=\s*true/.test(content),'no-mail input must not force-enable a guessed collection');
   assert(content.includes("config.purpose !== 'mail'"),'task generation must be purpose-gated');
-  assert(content.includes('未找到可确认的邮件资料'),'no-mail state must stop with a source-level explanation');
+  assert(content.includes('没有识别到可创建的邮件'),'no-mail state must stop with a user-facing source explanation');
   console.log('source routing tests passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

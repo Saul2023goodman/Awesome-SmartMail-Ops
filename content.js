@@ -581,7 +581,7 @@
             </div>
             <div class="nmda-ingest-workspace nmda-ingest-workspace-v2">
               <div class="nmda-card nmda-ingest-source-card" id="nmda-import-card">
-                <div class="nmda-card-head"><div><div class="nmda-card-title" id="nmda-import-card-title">添加资料</div><div class="nmda-card-desc" id="nmda-import-card-desc">邮件、名单、表格和附件可以混合加入；系统会自动分流。</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" id="nmda-import-busy-badge" hidden>正在处理…</span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button" hidden>清空本批次</button></div></div>
+                <div class="nmda-card-head"><div><div class="nmda-card-title" id="nmda-import-card-title">添加资料</div><div class="nmda-card-desc" id="nmda-import-card-desc">加入邮件资料；需要的附件和参考名单也可以一起添加。</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" id="nmda-import-busy-badge" hidden>正在处理…</span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button" hidden>清空本批次</button></div></div>
                 <input id="nmda-import-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip,.pdf,.ppt,.pptx,.rtf,.png,.jpg,.jpeg,.gif,.webp,.svg,.rar,.7z">
                 <input id="nmda-import-dir" type="file" webkitdirectory multiple hidden>
                 <input id="nmda-import-package" type="file" hidden accept=".zip">
@@ -615,6 +615,20 @@
                 <div id="nmda-import-status" class="nmda-summary nmda-import-status">还没有添加资料。</div>
                 <div id="nmda-source-inventory" class="nmda-source-inventory" hidden></div>
 
+              </div>
+
+              <div class="nmda-card nmda-ingest-result-card" id="nmda-ingest-result-card" hidden>
+                <div class="nmda-card-head nmda-ingest-result-head">
+                  <div><div class="nmda-card-title">当前待办</div><div class="nmda-card-desc">处理本批次仍需确认或补充的内容。</div></div>
+                  <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-import-issues" type="button" hidden>继续处理待办</button></div>
+                </div>
+                <div class="nmda-context-cue nmda-context-cue-compact nmda-attachment-context-cue" id="nmda-attachment-context-cue" hidden>
+                  <div class="nmda-context-cue-icon" aria-hidden="true">⇧</div>
+                  <div class="nmda-context-cue-main"><span class="nmda-context-eyebrow">待办 · 创建前必须补齐</span><strong id="nmda-attachment-context-title">附件待补</strong><small id="nmda-attachment-context-copy">选择附件文件夹后会自动匹配到对应邮件。</small></div>
+                  <div class="nmda-context-cue-actions"><label class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-attachment-dir-action" for="nmda-attachment-dir">添加附件文件夹</label><label class="nmda-btn nmda-btn-small" for="nmda-attachment-files">选择文件</label><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-later" type="button">稍后处理</button></div>
+                </div>
+                <div id="nmda-import-preview-summary" class="nmda-ingest-health"></div>
+                <div id="nmda-review-guidance" class="nmda-review-guidance">解析完成后可查看每封邮件的结果。</div>
                 <details class="nmda-optional-source-details" id="nmda-attachments-card" hidden>
                   <summary><span><strong>添加附件</strong><small>仅在邮件需要附件时使用</small></span><span>展开</span></summary>
                   <div id="nmda-attachment-summary" class="nmda-summary">生成邮件后会显示附件匹配情况。</div>
@@ -626,20 +640,6 @@
                   <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-clear-attachments" type="button">清空附件</button><span id="nmda-file-index-info" class="nmda-hint">尚未选择本地附件。</span></div>
                   <div id="nmda-attachment-resolution" class="nmda-attachment-resolution" hidden><div class="nmda-card-subtitle">需要补充的附件</div><div id="nmda-attachment-resolution-list"></div></div>
                 </details>
-              </div>
-
-              <div class="nmda-card nmda-ingest-result-card" id="nmda-ingest-result-card" hidden>
-                <div class="nmda-card-head nmda-ingest-result-head">
-                  <div><div class="nmda-card-title">待办中心</div><div class="nmda-card-desc">只处理会影响创建草稿的事项；完成一项后自动更新下一步。</div></div>
-                  <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-import-issues" type="button" hidden>继续处理待办</button></div>
-                </div>
-                <div id="nmda-import-preview-summary" class="nmda-ingest-health"></div>
-                <div id="nmda-review-guidance" class="nmda-review-guidance">解析完成后可查看每封邮件的结果。</div>
-                <div class="nmda-context-cue nmda-context-cue-compact nmda-attachment-context-cue" id="nmda-attachment-context-cue" hidden>
-                  <div class="nmda-context-cue-icon" aria-hidden="true">⇧</div>
-                  <div class="nmda-context-cue-main"><span class="nmda-context-eyebrow">建议 · 在处理附件前准备</span><strong id="nmda-attachment-context-title">资料里有附件要求</strong><small id="nmda-attachment-context-copy">现在加入附件所在文件夹，系统可以一次自动匹配到对应邮件，避免之后逐封寻找。</small></div>
-                  <div class="nmda-context-cue-actions"><label class="nmda-btn nmda-btn-primary nmda-btn-small" for="nmda-attachment-dir">选择附件文件夹</label><label class="nmda-btn nmda-btn-small" for="nmda-attachment-files">选择文件</label><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-later" type="button">稍后处理</button></div>
-                </div>
                 <div class="nmda-import-handoff-card" id="nmda-import-handoff-card" hidden>
                   <div id="nmda-import-ready-summary" class="nmda-import-ready-summary">尚未生成任务。</div>
                   <div class="nmda-row nmda-import-handoff-actions"><span class="nmda-hint" id="nmda-handoff-hint"></span><button class="nmda-btn nmda-btn-primary" id="nmda-go-batch" type="button">进入选择与安排</button></div>
@@ -1475,46 +1475,51 @@
     const cue=$('nmda-roster-context-cue');if(!cue)return;
     const state=rosterContextState();cue.dataset.state=state;
     const eyebrow=$('nmda-roster-context-eyebrow'),title=$('nmda-roster-context-title'),copy=$('nmda-roster-context-copy'),status=$('nmda-roster-source-status'),upload=$('nmda-roster-upload-action'),skip=$('nmda-roster-skip'),remove=$('nmda-roster-remove'),benefits=$('nmda-roster-context-benefits');
-    const roster=rosterState(),count=referenceRosterCount();
+    const count=referenceRosterCount();
+    if(status)status.hidden=true;
+    if(benefits)benefits.hidden=true;
+    if(upload){upload.classList.toggle('nmda-btn-primary',state==='pending'||state==='prepare');upload.classList.toggle('nmda-btn-quiet',state==='added'||state==='skipped');}
     if(state==='prepare'){
-      if(eyebrow)eyebrow.textContent='推荐 · 导入时补充';
-      if(title)title.textContent='有参考总名单？建议与邮件资料一起加入';
-      if(copy)copy.textContent='它能更早核对已在名单 / 尚未加入 / 同名同校，并补全排期所需的院校信息。没有也可以继续，本批次重复仍会自动检查。';
-      if(status)status.textContent='未添加参考总名单。';
+      if(eyebrow)eyebrow.textContent='可选 · 参考名单';
+      if(title)title.textContent='有参考总名单？可以一起加入';
+      if(copy)copy.textContent='用于核对已有联系人并补全院校信息；没有名单也不影响当前批次查重。';
       if(upload)upload.textContent='上传参考总名单';
-      if(skip)skip.hidden=true;if(remove)remove.hidden=true;if(benefits)benefits.hidden=false;
+      if(skip)skip.hidden=true;if(remove)remove.hidden=true;
     }else if(state==='pending'){
-      if(eyebrow)eyebrow.textContent='建议 · 进入待办前补充';
-      if(title)title.textContent='邮件已导入，是否补充参考总名单？';
-      if(copy)copy.textContent='现在加入最省返工：系统会立即交叉核对联系人、名单遗漏和院校信息；不加入也可以继续。';
-      if(status)status.textContent='这一步是增强核验，不影响基础查重。';
-      if(upload)upload.textContent='现在上传总名单';
-      if(skip)skip.hidden=false;if(remove)remove.hidden=true;if(benefits)benefits.hidden=false;
+      if(eyebrow)eyebrow.textContent='可选增强';
+      if(title)title.textContent='参考总名单可减少重复联系';
+      if(copy)copy.textContent='有名单就现在加入；没有可直接跳过，不会影响当前批次查重。';
+      if(upload)upload.textContent='上传总名单';
+      if(skip){skip.hidden=false;skip.textContent='暂不添加';}if(remove)remove.hidden=true;
     }else if(state==='added'){
-      if(eyebrow)eyebrow.textContent='已就绪 · 参考上下文';
-      if(title)title.textContent=`参考总名单已加入（${count} 条）`;
-      if(copy)copy.textContent='后续会自动用于联系人交叉核对和院校排期，不需要重复操作。';
-      if(status)status.textContent=`${roster.sourceNames?.length?roster.sourceNames.join('、'):'参考总名单'} · ${count} 条记录`;
-      if(upload)upload.textContent='替换 / 补充总名单';
-      if(skip)skip.hidden=true;if(remove)remove.hidden=false;if(benefits)benefits.hidden=true;
+      if(eyebrow)eyebrow.textContent='已加入';
+      if(title)title.textContent=`参考总名单 · ${count} 条`;
+      if(copy)copy.textContent='已用于联系人核对和院校排期。';
+      if(upload)upload.textContent='补充名单';
+      if(skip)skip.hidden=true;if(remove){remove.hidden=false;remove.textContent='移除';}
     }else{
-      if(eyebrow)eyebrow.textContent='本批次已选择';
-      if(title)title.textContent='暂不使用参考总名单';
-      if(copy)copy.textContent='系统仍会检查当前批次重复；如果稍后需要名单交叉核对，可以随时补充。';
-      if(status)status.textContent='基础查重保持启用。';
-      if(upload)upload.textContent='补充参考总名单';
-      if(skip)skip.hidden=true;if(remove)remove.hidden=true;if(benefits)benefits.hidden=true;
+      if(eyebrow)eyebrow.textContent='已跳过';
+      if(title)title.textContent='未使用参考总名单';
+      if(copy)copy.textContent='当前批次仍会正常查重，需要时可随时补充。';
+      if(upload)upload.textContent='补充名单';
+      if(skip)skip.hidden=true;if(remove)remove.hidden=true;
     }
   }
 
   function renderAttachmentContextCue() {
     const cue=$('nmda-attachment-context-cue');if(!cue)return;
     const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{total:0,matched:0,issues:0};
-    const shouldShow=!!batch.dataset && stats.total>0 && stats.issues>0 && !batch.attachmentPromptDeferred;
+    const contextPending=typeof rosterContextNeedsDecision==='function'&&rosterContextNeedsDecision();
+    const shouldShow=!!batch.dataset && stats.total>0 && stats.issues>0 && !batch.attachmentPromptDeferred && !contextPending;
     cue.hidden=!shouldShow;if(!shouldShow)return;
-    const title=$('nmda-attachment-context-title'),copy=$('nmda-attachment-context-copy');
-    if(title)title.textContent=`检测到 ${stats.total} 个附件要求，还有 ${stats.issues} 个未匹配`;
-    if(copy)copy.textContent='现在加入附件所在文件夹，系统会一次自动匹配到对应邮件；也可以先处理邮件内容，附件仍会保留在待办中。';
+    const title=$('nmda-attachment-context-title'),copy=$('nmda-attachment-context-copy'),later=$('nmda-attachment-later'),dirAction=$('nmda-attachment-dir-action');
+    const mailPending=typeof reviewTasks==='function'&&reviewTasks().length>0;
+    if(dirAction){dirAction.classList.toggle('nmda-btn-primary',!mailPending);dirAction.classList.toggle('nmda-btn-quiet',mailPending);}
+    if(title)title.textContent=`还有 ${stats.issues} 个附件待补`;
+    if(copy)copy.textContent=mailPending
+      ? `这是创建前必须完成的待办。现在加入可自动匹配；也可以先处理邮件内容。`
+      : `这是当前最后一项待办。补齐后会自动进入“选择与安排”。`;
+    if(later)later.hidden=!mailPending;
   }
 
   function renderImportLifecycleState() {
@@ -1530,8 +1535,14 @@
       const desc = $('nmda-import-card-desc');
       if (title) title.textContent = batch.dataset ? '本批次资料' : '添加资料';
       if (desc) desc.textContent = batch.dataset
-        ? '继续添加时会自动合并到当前批次。'
-        : '邮件、名单、表格和附件可以混合加入；系统会自动分流。';
+        ? '需要时可继续补充资料。'
+        : '加入邮件资料；需要的附件和参考名单也可以一起添加。';
+      const fileAction=ui.querySelector('label.nmda-source-action[for="nmda-import-file"] strong');
+      const dirAction=ui.querySelector('label.nmda-source-action[for="nmda-import-dir"] strong');
+      const pasteAction=$('nmda-show-paste')?.querySelector('strong');
+      if(fileAction)fileAction.textContent=batch.dataset?'添加文件':'选择文件';
+      if(dirAction)dirAction.textContent=batch.dataset?'添加文件夹':'选择文件夹';
+      if(pasteAction)pasteAction.textContent=batch.dataset?'粘贴补充':'粘贴内容';
     }
     const workbench = ui.querySelector('.nmda-bulk-workbench');
     if (workbench) {
@@ -1649,10 +1660,7 @@
     const sources = [...(dataset.sourceFiles || [])];
     const embeddedCount = (dataset.embeddedFiles || []).length;
     const warnings = dataset.warnings || [];
-    const purposeCounts={mail:0,roster:0,attachment:0,ignored:0};
-    sets.forEach((_,index)=>{const purpose=ensureCollectionConfig(index)?.purpose||'ignored';purposeCounts[purpose]=(purposeCounts[purpose]||0)+1;});
-    if (sources.length <= 1 && purposeCounts.mail === sets.length && !embeddedCount && !warnings.length) { box.hidden = true; box.innerHTML = ''; return; }
-    const purposeLabel=purpose=>({mail:'邮件',roster:'总名单',attachment:'附件候选',ignored:'暂不使用'}[purpose]||'暂不使用');
+    const purposeLabel=purpose=>({mail:'邮件',roster:'参考名单',attachment:'附件',ignored:'未使用'}[purpose]||'未使用');
     const sourceRows = sources.length ? sources.map((file, index) => {
       const name = sourceFileName(file);
       const related = sets.map((rs,setIndex)=>({rs,setIndex})).filter(({rs}) => {
@@ -1661,14 +1669,19 @@
       const purposes=[...new Set(related.map(({setIndex})=>ensureCollectionConfig(setIndex)?.purpose||'ignored'))];
       const formats = [...new Set(related.map(({rs}) => rs.meta?.format).filter(Boolean))];
       const format = formats.length ? formats.map(formatDisplayName).join(' + ') : formatDisplayName(dataset.format);
-      const roleText=purposes.length?purposes.map(purposeLabel).join(' + '):'读取容器';
+      const roleText=purposes.length?purposes.map(purposeLabel).join(' + '):'来源文件';
       const firstRelated=related[0];const kind=collectionKind(firstRelated?.rs,firstRelated?ensureCollectionConfig(firstRelated.setIndex)?.purpose:'ignored');
-      return `<div class="nmda-source-item"><div class="nmda-source-item-icon">${escapeHtml(kind.icon)}</div><div class="nmda-source-item-main"><strong title="${escapeHtml(name)}">${escapeHtml(name)}</strong><small>${escapeHtml(format)} · ${related.length || (sources.length === 1 ? sets.length : 0)} 组内容 · ${humanFileSize(file.size)}</small></div><span class="nmda-source-purpose" data-purpose="${escapeHtml(purposes[0]||'ignored')}">${escapeHtml(roleText)}</span><span class="nmda-source-item-index">${index + 1}</span></div>`;
-    }).join('') : `<div class="nmda-source-item"><div class="nmda-source-item-icon">◇</div><div class="nmda-source-item-main"><strong>粘贴内容</strong><small>${escapeHtml(formatDisplayName(dataset.format))} · ${sets.length} 组内容</small></div></div>`;
-    const routingText=[purposeCounts.mail?`邮件 ${purposeCounts.mail} 组`:'',purposeCounts.roster?`总名单 ${purposeCounts.roster} 组`:'',purposeCounts.attachment?`附件候选 ${purposeCounts.attachment} 组`:'',purposeCounts.ignored?`暂不使用 ${purposeCounts.ignored} 组`:''].filter(Boolean).join(' · ');
-    const meta = `<div class="nmda-source-inventory-head"><strong>资料已自动分流</strong><span>${routingText}${embeddedCount ? ` · ${embeddedCount} 个包内附件` : ''}${warnings.length ? ` · ${warnings.length} 条读取提示` : ''}</span></div>`;
-    const warningHtml = warnings.length ? `<details class="nmda-ingest-warnings"><summary>查看 ${warnings.length} 条读取提示</summary>${warnings.slice(0,20).map(w => `<div>${escapeHtml(w)}</div>`).join('')}${warnings.length > 20 ? `<div>另有 ${warnings.length - 20} 条未展开。</div>` : ''}</details>` : '';
-    box.innerHTML = meta + `<div class="nmda-source-list">${sourceRows}</div>` + warningHtml;
+      return `<div class="nmda-source-item"><div class="nmda-source-item-icon">${escapeHtml(kind.icon)}</div><div class="nmda-source-item-main"><strong title="${escapeHtml(name)}">${escapeHtml(name)}</strong><small>${escapeHtml(format)} · ${humanFileSize(file.size)}</small></div><span class="nmda-source-purpose" data-purpose="${escapeHtml(purposes[0]||'ignored')}">${escapeHtml(roleText)}</span><span class="nmda-source-item-index">${index + 1}</span></div>`;
+    }).join('') : `<div class="nmda-source-item"><div class="nmda-source-item-icon">◇</div><div class="nmda-source-item-main"><strong>粘贴内容</strong><small>${escapeHtml(formatDisplayName(dataset.format))}</small></div></div>`;
+    const fileCount=sources.length || 1;
+    const taskCount=(batch.tasks||[]).length;
+    const rosterCount=referenceRosterCount();
+    const attachmentStats=typeof importAttachmentStats==='function'?importAttachmentStats():{total:0,issues:0};
+    const summaryParts=[`${fileCount} 个文件`,taskCount?`${taskCount} 封邮件`:''];
+    if(rosterCount)summaryParts.push(`参考名单 ${rosterCount} 条`);
+    if(attachmentStats.issues)summaryParts.push(`${attachmentStats.issues} 个附件待补`);
+    const warningHtml = warnings.length ? `<details class="nmda-ingest-warnings"><summary>读取细节（${warnings.length}）</summary>${warnings.slice(0,20).map(w => `<div>${escapeHtml(w)}</div>`).join('')}${warnings.length > 20 ? `<div>另有 ${warnings.length - 20} 条未展开。</div>` : ''}</details>` : '';
+    box.innerHTML = `<details class="nmda-source-inventory-details"><summary><span><strong>导入详情</strong><small>${summaryParts.filter(Boolean).join(' · ')}</small></span><span class="nmda-source-inventory-open">查看</span></summary><div class="nmda-source-list">${sourceRows}</div>${embeddedCount?`<div class="nmda-source-detail-note">已从资料包中加入 ${embeddedCount} 个附件文件。</div>`:''}${warningHtml}</details>`;
     box.hidden = false;
   }
 
@@ -2537,7 +2550,7 @@
     if(contentPending)metrics.push(`<div class="nmda-health-metric is-warn"><strong>${contentPending}</strong><span>需补内容</span></div>`);
     if(duplicateGroups)metrics.push(`<div class="nmda-health-metric is-warn"><strong>${duplicateGroups}</strong><span>重复组待选</span></div>`);
     if(reviewPending)metrics.push(`<div class="nmda-health-metric is-warn"><strong>${reviewPending}</strong><span>需人工核对</span></div>`);
-    if(stats.issues)metrics.push(`<div class="nmda-health-metric is-warn"><strong>${stats.issues}</strong><span>附件待加</span></div>`);
+    if(stats.issues)metrics.push(`<div class="nmda-health-metric is-warn is-attachment"><strong>${stats.issues}</strong><span>附件待补</span></div>`);
     if(otherBlocked)metrics.push(`<div class="nmda-health-metric is-error"><strong>${otherBlocked}</strong><span>其他阻塞</span></div>`);
     if(policyBlocked)metrics.push(`<div class="nmda-health-metric"><strong>${policyBlocked}</strong><span>联系限制</span></div>`);
     if(excluded)metrics.push(`<div class="nmda-health-metric"><strong>${excluded}</strong><span>已排除</span></div>`);
@@ -2547,7 +2560,7 @@
     const contextPending=rosterContextNeedsDecision();
     if(guide){
       if(contextPending){
-        guide.innerHTML='<span class="nmda-guidance-main"><strong>先完成导入阶段。</strong><small>添加参考总名单，或明确选择“本批次暂不添加”；完成后系统再带你处理邮件待办。</small></span>';
+        guide.innerHTML='<span class="nmda-guidance-main"><strong>先决定是否加入参考总名单</strong><small>这是可选增强；上传或跳过后即可继续当前批次。</small></span>';
         guide.dataset.state='context';
       }else if(blockerTasks||stats.issues){
         const parts=[];
@@ -2556,10 +2569,13 @@
         if(duplicateGroups)parts.push(`${duplicateGroups} 组重复需要取舍`);
         if(stats.issues)parts.push(`${stats.issues} 个附件最后补齐`);
         if(otherBlocked)parts.push(`${otherBlocked} 封存在其他阻塞`);
-        guide.innerHTML=`<span class="nmda-guidance-main"><strong>还有待办，不需要自己找顺序。</strong><small>${parts.join('；')}。系统会优先打开最影响后续的事项。</small></span>`;
+        const mailBlockers=contentPending+reviewPending+duplicateGroups+otherBlocked;
+        const titleText=mailBlockers?'建议先处理邮件内容':'补齐附件后即可继续';
+        const nextText=mailBlockers&&stats.issues?`${parts.filter(x=>!x.includes('附件')).join('；')}；附件可最后统一补齐。`:parts.join('；');
+        guide.innerHTML=`<span class="nmda-guidance-main"><strong>${titleText}</strong><small>${nextText}。</small></span>`;
         guide.dataset.state='pending';
       }else{
-        guide.innerHTML='<span class="nmda-guidance-main"><strong>待办已完成。</strong><small>邮件已经满足进入选择与安排的条件。</small></span>';
+        guide.innerHTML='<span class="nmda-guidance-main"><strong>已准备好进入下一步</strong><small>选择本次要创建的邮件并设置时间。</small></span>';
         guide.dataset.state='ready';
       }
     }
@@ -3599,10 +3615,12 @@
     }
     const shared = uniqueFiles(batch.sharedFiles);
     const card=$('nmda-attachments-card');
+    const contextPending=typeof rosterContextNeedsDecision==='function'&&rosterContextNeedsDecision();
+    if(card)card.hidden=contextPending||(!uniqueRefs.length&&!shared.length);
     const cardTitle=card?.querySelector('summary strong');
     const cardHint=card?.querySelector('summary small');
-    if(cardTitle)cardTitle.textContent=issues.size?`需要添加附件（${issues.size}）`:'附件';
-    if(cardHint)cardHint.textContent=issues.size?'资料中已列出附件，请把对应文件加入本批次':uniqueRefs.length?`已匹配 ${matched}/${uniqueRefs.length} 个要求附件`:'没有要求附件时可忽略';
+    if(cardTitle)cardTitle.textContent='附件明细';
+    if(cardHint)cardHint.textContent=issues.size?`${issues.size} 个待补 · 展开查看匹配情况`:uniqueRefs.length?`已匹配 ${matched}/${uniqueRefs.length}`:'无附件要求';
     if(card)card.dataset.issue=issues.size?'1':'0';
     if(issues.size && card && !batch.attachmentAttentionShown && !reviewTasks().length){card.open=true;batch.attachmentAttentionShown=true;}
     else if(issues.size && card && reviewTasks().length && !batch.attachmentAttentionShown){card.open=false;}
@@ -3689,20 +3707,20 @@
     $('nmda-ingest-diagnostics').hidden = false;
     $('nmda-ingest-result-card').hidden = false;
     $('nmda-attachments-card').hidden = false;
-    renderSourceInventory();
     configureCollection(bestIndex, false);
+    renderSourceInventory();
     clearStaleOverrides();
     batch.fileIndex=Importer.buildFileIndex(allAttachmentFiles());
     batch.rosterPromptChoice=referenceRosterCount()?'added':'pending';
     batch.attachmentPromptDeferred=false;
     if (!isCurrentBatchSession(sessionToken)) return false;
-    const warningText = dataset.warnings?.length ? `；${dataset.warnings.length} 条读取提示` : '';
-    const embeddedText = dataset.embeddedFiles?.length ? `；自动载入 ${dataset.embeddedFiles.length} 个包内附件` : '';
-    const formatText = dataset.format ? `；${formatDisplayName(dataset.format)}` : '';
     const routedCounts=[...batch.collectionConfigs.values()].reduce((acc,config)=>{acc[config.purpose]=(acc[config.purpose]||0)+1;return acc;},{mail:0,roster:0,attachment:0,ignored:0});
-    $('nmda-import-format-info').textContent = `已添加 ${dataset.sourceFiles?.length || 1} 个来源 · 邮件 ${routedCounts.mail} 组 · 总名单 ${routedCounts.roster} 组 · 附件候选 ${routedCounts.attachment} 组 · 暂不使用 ${routedCounts.ignored} 组${embeddedText}${warningText}。`;
-    const routingSummary=[routedCounts.mail?`邮件 ${routedCounts.mail} 组`:'',routedCounts.roster?`总名单 ${routedCounts.roster} 组`:'',routedCounts.attachment?`附件候选 ${routedCounts.attachment} 组`:'',routedCounts.ignored?`暂不使用 ${routedCounts.ignored} 组`:''].filter(Boolean).join('，');
-    setImportStatus(routedCounts.mail?`读取完成：${label}；已分流为${routingSummary}${warningText}。${referenceRosterCount()?'参考总名单已同步参与核对。':'如果有参考总名单，建议现在补充后再进入下一步。'}`:`读取完成：${label}；未找到可确认的邮件资料。${routingSummary?`已识别${routingSummary}。`:''}如用途判断不对，请在“读取结果不对？”中调整。`,routedCounts.mail?(dataset.warnings?.length?'warn':'ok'):'warn');
+    const sourceCount=dataset.sourceFiles?.length || 1;
+    $('nmda-import-format-info').textContent = `已加入 ${sourceCount} 个文件 · ${batch.tasks.length} 封邮件${referenceRosterCount()?` · 参考名单 ${referenceRosterCount()} 条`:''}`;
+    setImportStatus(routedCounts.mail
+      ? `邮件已加入本批次。${referenceRosterCount()?'参考总名单已参与核对。':'有参考总名单可现在补充；没有可直接继续。'}`
+      : `没有识别到可创建的邮件。请检查导入内容，或打开“识别结果不对？”调整。`,
+      routedCounts.mail?'ok':'warn');
     renderImportLifecycleState();
     if(!routedCounts.mail||!batch.tasks.length)setBatchStatus('当前没有生成邮件任务；非邮件资料不会占用任务数或阻塞后续流程。','warn');
     else setBatchStatus(`已准备 ${batch.tasks.length} 封邮件。${(batch.tasks||[]).some(taskHasBlockingIssue)?'完成必要待办后会自动进入下一步。':'内容已就绪，正在进入选择与安排。'}`, 'ok');
@@ -3858,13 +3876,13 @@
     batch.rosterPromptChoice='skipped';
     renderImportLifecycleState();
     scheduleBatchRender({aux:true,force:true});
-    setImportStatus('本批次暂不使用参考总名单；基础查重仍会继续。','ok');
+    setImportStatus('已跳过参考总名单；当前批次仍会正常查重。','ok');
     setTimeout(()=>void enterSelectionAndSchedule('参考总名单已跳过'),0);
   });
   $('nmda-attachment-later')?.addEventListener('click',()=>{
     batch.attachmentPromptDeferred=true;
     renderAttachmentContextCue();
-    setImportStatus('附件仍保留在待办中；可以先处理邮件内容，完成后系统会再次带你回到附件。','ok');
+    setImportStatus('附件待办已保留；先处理邮件内容即可。','ok');
   });
   $('nmda-roster-enabled')?.addEventListener('change', e => {
     rosterState().enabled=!!e.target.checked;

@@ -2987,3 +2987,255 @@
 .nmda-review-guidance[data-state="context"] { border-color:#b6d7fe; background:#f6faff; }
 /* When a review stage is complete, the handoff to the next business step is a core action, not a hidden secondary control. */
 .nmda-bulk-workbench.is-review-page-focus #nmda-review-next-pending[data-mode="continue"] { display:inline-flex !important; }
+
+/* v1.32 · Task hierarchy — show business blockers, compress completed/system detail. */
+#nmda-import-card[data-loaded="1"] {
+  padding:10px 12px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-card-head {
+  align-items:center;
+  margin-bottom:6px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-card-title { font-size:12px; }
+#nmda-import-card[data-loaded="1"] .nmda-card-desc { font-size:8.8px; color:#7a8492; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action-grid {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:0;
+}
+#nmda-import-card[data-loaded="1"] .nmda-source-action {
+  width:auto;
+  min-height:34px;
+  flex:0 0 auto;
+  grid-template-columns:20px auto;
+  grid-template-rows:1fr;
+  align-items:center;
+  gap:6px;
+  padding:0 9px;
+  border-radius:7px;
+  background:#fff;
+}
+#nmda-import-card[data-loaded="1"] .nmda-source-action-icon {
+  grid-row:auto;
+  width:20px;
+  height:20px;
+  border-radius:6px;
+  font-size:9px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-source-action strong {
+  font-size:9.2px;
+  align-self:center;
+}
+#nmda-import-card[data-loaded="1"] .nmda-source-action small { display:none !important; }
+#nmda-import-card[data-loaded="1"] .nmda-ingest-source-tools {
+  min-height:24px;
+  margin-top:2px;
+}
+#nmda-import-card[data-loaded="1"] #nmda-import-format-info {
+  color:#57606a;
+  font-size:8.6px;
+}
+#nmda-import-card[data-loaded="1"] #nmda-import-status[data-kind="ok"] {
+  min-height:0;
+  margin-top:2px;
+  padding:3px 0 !important;
+  border:0;
+  background:transparent;
+  color:#57606a;
+  font-size:8.5px;
+}
+
+/* Reference roster is optional context, not a warning/blocker. */
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue {
+  margin-top:5px;
+  padding:7px 8px;
+  grid-template-columns:24px minmax(0,1fr) auto;
+  gap:7px;
+  border-color:#dbe5ef;
+  background:#f8fbff;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="pending"] {
+  border-color:#cfe0f4;
+  background:#f7faff;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="pending"] .nmda-context-cue-icon {
+  background:#eaf2ff;
+  color:#0969da;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="added"] {
+  border-color:#d5e8dc;
+  background:#f8fcf9;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="skipped"] {
+  border-color:#e1e6eb;
+  background:#fafbfc;
+  border-style:solid;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-cue-icon {
+  width:24px;
+  height:24px;
+  border-radius:6px;
+  font-size:10px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-eyebrow {
+  font-size:7.3px;
+  color:#6e7781;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-cue-main > strong {
+  font-size:9.4px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-cue-main > small {
+  font-size:7.9px;
+  line-height:1.35;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-cue-actions {
+  gap:5px;
+  flex-wrap:nowrap;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-btn-small {
+  min-height:28px;
+  padding:0 8px;
+  font-size:9px;
+}
+
+/* Import/source routing is audit detail. Keep it available, but out of the primary flow. */
+.nmda-source-inventory { padding-top:0; gap:0; }
+.nmda-source-inventory-details {
+  border-top:1px solid #eef1f4;
+  margin-top:3px;
+  padding-top:2px;
+}
+.nmda-source-inventory-details > summary {
+  min-height:30px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:4px 1px;
+  cursor:pointer;
+  list-style:none;
+  color:#57606a;
+}
+.nmda-source-inventory-details > summary::-webkit-details-marker { display:none; }
+.nmda-source-inventory-details > summary > span:first-child {
+  min-width:0;
+  display:flex;
+  align-items:baseline;
+  gap:7px;
+}
+.nmda-source-inventory-details > summary strong { font-size:9px; color:#3d444d; }
+.nmda-source-inventory-details > summary small {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:8px;
+  color:#8c959f;
+}
+.nmda-source-inventory-open { font-size:8px; color:#0969da; font-weight:700; }
+.nmda-source-inventory-details[open] .nmda-source-inventory-open { font-size:0; }
+.nmda-source-inventory-details[open] .nmda-source-inventory-open::after { content:'收起'; font-size:8px; }
+.nmda-source-inventory-details .nmda-source-list { margin-top:5px; }
+.nmda-source-detail-note { margin-top:6px; font-size:8px; color:#667085; }
+.nmda-source-inventory-details .nmda-ingest-warnings {
+  margin-top:6px;
+  border-color:#e1e6eb;
+  background:#fafbfc;
+  color:#57606a;
+}
+
+/* Attachment shortage is a blocking todo, so it gets the strongest step-2 treatment. */
+.nmda-attachment-context-cue {
+  margin:0 0 9px !important;
+  padding:11px 12px !important;
+  grid-template-columns:34px minmax(0,1fr) auto !important;
+  gap:10px !important;
+  border:1px solid #e6a43b !important;
+  border-left-width:4px !important;
+  background:#fffaf0 !important;
+  box-shadow:0 3px 12px rgba(154,103,0,.06);
+}
+.nmda-attachment-context-cue .nmda-context-cue-icon {
+  width:34px;
+  height:34px;
+  border-radius:8px;
+  background:#fff1c2 !important;
+  color:#8a5b00 !important;
+  font-size:13px;
+}
+.nmda-attachment-context-cue .nmda-context-eyebrow {
+  color:#8a5b00;
+  font-size:7.8px;
+}
+.nmda-attachment-context-cue .nmda-context-cue-main > strong {
+  font-size:11.2px;
+  color:#5d3a00;
+}
+.nmda-attachment-context-cue .nmda-context-cue-main > small {
+  font-size:8.7px;
+  color:#715726;
+  line-height:1.45;
+}
+.nmda-attachment-context-cue .nmda-context-cue-actions {
+  gap:6px;
+  flex-wrap:nowrap;
+}
+.nmda-attachment-context-cue .nmda-btn-small { min-height:31px; }
+.nmda-health-metric.is-attachment {
+  border-color:#f1c56e;
+  background:#fff8e7;
+}
+.nmda-health-metric.is-attachment strong,
+.nmda-health-metric.is-attachment span { color:#825000; }
+
+/* Todo center starts visually closer to the user's current step. */
+.nmda-ingest-result-card {
+  border-color:#bcc9d6;
+  box-shadow:0 4px 14px rgba(31,35,40,.035);
+}
+.nmda-ingest-result-card .nmda-card-desc { color:#667085; }
+.nmda-review-guidance[data-state="pending"] {
+  border-color:#dbe5ef;
+  background:#f7f9fb;
+  color:#3d444d;
+}
+
+@media (max-width:1040px) {
+  #nmda-import-card[data-loaded="1"] .nmda-roster-context-cue,
+  .nmda-attachment-context-cue {
+    grid-template-columns:28px minmax(0,1fr) !important;
+    align-items:start;
+  }
+  #nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-cue-actions,
+  .nmda-attachment-context-cue .nmda-context-cue-actions {
+    grid-column:2;
+    justify-content:flex-start;
+    padding-left:0;
+    flex-wrap:wrap;
+  }
+}
+
+/* v1.32 refinement: completed import feedback does not compete with the current todo. */
+#nmda-import-card[data-loaded="1"] #nmda-import-status[data-kind="ok"] { display:none !important; }
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="added"],
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="skipped"] {
+  padding-top:6px;
+  padding-bottom:6px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="added"] .nmda-context-cue-main > small,
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="skipped"] .nmda-context-cue-main > small {
+  color:#7a8492;
+}
+#nmda-attachments-card {
+  margin-top:7px;
+  border:1px solid #e1e6eb;
+  background:#fbfcfd;
+}
+#nmda-attachments-card > summary {
+  min-height:34px;
+  padding:7px 9px;
+  background:#fbfcfd !important;
+}
+#nmda-attachments-card[data-issue="1"] > summary strong { color:#57606a !important; }
+#nmda-attachments-card[data-issue="1"] > summary small { color:#8c959f !important; }

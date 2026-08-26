@@ -2,18 +2,14 @@
   {
     "label": "01-imported",
     "scrollTop": 0,
-    "scrollHeight": 1077,
+    "scrollHeight": 839,
     "clientHeight": 628,
     "activeStep": "1 添加资料 参考名单可补充 / 跳过",
     "readySteps": [],
     "primary": [
       {
-        "text": "现在上传总名单",
+        "text": "上传总名单",
         "visible": true
-      },
-      {
-        "text": "选择附件文件夹",
-        "visible": false
       }
     ],
     "reviewSummary": "5 待处理0 已检查1 可直接使用",
@@ -34,23 +30,19 @@
   },
   {
     "label": "04-mail-todos-resolved",
-    "scrollTop": 350,
-    "scrollHeight": 1405,
+    "scrollTop": 493,
+    "scrollHeight": 1314,
     "clientHeight": 628,
     "activeStep": "2 处理待办 2 项待办",
     "readySteps": [],
     "primary": [
       {
-        "text": "补充参考总名单",
-        "visible": false
-      },
-      {
         "text": "继续处理待办",
-        "visible": true
+        "visible": false
       },
       {
-        "text": "选择附件文件夹",
-        "visible": false
+        "text": "添加附件文件夹",
+        "visible": true
       }
     ],
     "reviewSummary": "5 封邮件0 待办",
@@ -59,18 +51,14 @@
   },
   {
     "label": "05-attachments-resolved-selection",
-    "scrollTop": 1122,
-    "scrollHeight": 2042,
+    "scrollTop": 982,
+    "scrollHeight": 1902,
     "clientHeight": 628,
     "activeStep": "3 选择与安排 已选 5 封",
     "readySteps": [
       "4 创建草稿 已可创建 5 封"
     ],
     "primary": [
-      {
-        "text": "补充参考总名单",
-        "visible": false
-      },
       {
         "text": "查看邮件",
         "visible": false
@@ -94,18 +82,14 @@
   },
   {
     "label": "06-selection-scheduled",
-    "scrollTop": 1122,
-    "scrollHeight": 2057,
+    "scrollTop": 982,
+    "scrollHeight": 1917,
     "clientHeight": 628,
     "activeStep": "3 选择与安排 已选 5 封 · 定时 5",
     "readySteps": [
       "4 创建草稿 已可创建 5 封"
     ],
     "primary": [
-      {
-        "text": "补充参考总名单",
-        "visible": false
-      },
       {
         "text": "查看邮件",
         "visible": false
@@ -129,18 +113,14 @@
   },
   {
     "label": "07-selection-table-bottom",
-    "scrollTop": 1122,
-    "scrollHeight": 2057,
+    "scrollTop": 982,
+    "scrollHeight": 1917,
     "clientHeight": 628,
     "activeStep": "3 选择与安排 已选 5 封 · 定时 5",
     "readySteps": [
       "4 创建草稿 已可创建 5 封"
     ],
     "primary": [
-      {
-        "text": "补充参考总名单",
-        "visible": false
-      },
       {
         "text": "查看邮件",
         "visible": false
