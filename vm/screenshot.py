@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description='Capture deterministic NMDA VM UI screenshots.')
 parser.add_argument('--tab', choices=['batch','single','contacts'], default='batch')
 parser.add_argument('--sample', action='store_true', help='Import a deterministic pasted-email sample on the batch tab.')
-parser.add_argument('--view', choices=['base','review','selection'], default='base', help='Batch UI state to capture after sample import.')
+parser.add_argument('--view', choices=['base','review','selection','duplicate'], default='base', help='Batch UI state to capture after sample import.')
 parser.add_argument('--no-max', action='store_true', help='Keep the panel in floating mode instead of maximized mode.')
 parser.add_argument('--width', type=int, default=1600)
 parser.add_argument('--height', type=int, default=1100)

@@ -35,16 +35,76 @@
       pasteButton?.click();
       const textarea = document.querySelector('#nmda-paste-source');
       if (textarea) {
-        textarea.value = `Professor Alice Chen — alice.chen@example.edu\nSubject: Prospective PhD inquiry\n\nDear Professor Chen,\nI am writing to inquire about potential doctoral opportunities in your group.\n\nBest regards,\nYohan\n\nProfessor Bob Li — bob.li@example.edu\nSubject: Prospective PhD inquiry\n\nDear Professor Li,\nI am writing to inquire about potential doctoral opportunities in your group.\n\nBest regards,\nYohan`;
+        textarea.value = view === 'duplicate'
+          ? `Professor Alice Chen — alice.chen@example.edu
+Subject: PhD inquiry — research fit
+
+Dear Professor Chen,
+I am writing to inquire about potential doctoral opportunities in your group. My recent work focuses on reliable data analysis and I would be grateful for the opportunity to discuss research fit.
+
+Best regards,
+Yohan
+
+Professor Alice Chen — alice.chen@example.edu
+Subject: Prospective PhD inquiry
+
+Dear Professor Chen,
+I am interested in doctoral opportunities in your group.
+
+Best regards,
+Yohan
+
+Professor Bob Li — bob.li@example.edu
+Subject: Prospective PhD inquiry
+
+Dear Professor Li,
+I am writing to inquire about potential doctoral opportunities in your group.
+
+Best regards,
+Yohan`
+          : `Professor Alice Chen — alice.chen@example.edu
+Subject: Prospective PhD inquiry
+
+Dear Professor Chen,
+I am writing to inquire about potential doctoral opportunities in your group.
+
+Best regards,
+Yohan
+
+Professor Bob Li — bob.li@example.edu
+Subject: Prospective PhD inquiry
+
+Dear Professor Li,
+I am writing to inquire about potential doctoral opportunities in your group.
+
+Best regards,
+Yohan`;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         document.querySelector('#nmda-paste-import')?.click();
       }
     }
 
-    if (sample && wantedTab === 'batch' && (view === 'review' || view === 'selection')) {
+    if (sample && wantedTab === 'batch' && (view === 'review' || view === 'selection' || view === 'duplicate')) {
       await new Promise(resolve => setTimeout(resolve, 900));
       document.querySelector('#nmda-review-import-issues')?.click();
       await new Promise(resolve => setTimeout(resolve, 250));
+      if (view === 'duplicate') {
+        const keys = [...document.querySelectorAll('[data-review-key]')].slice(0, 2).map(button => button.dataset.reviewKey).filter(Boolean);
+        for (const key of keys) {
+          document.querySelector(`[data-review-key="${CSS.escape(key)}"]`)?.click();
+          await new Promise(resolve => setTimeout(resolve, 120));
+          const recipient = document.querySelector('#nmda-import-edit-recipients');
+          if (recipient) {
+            recipient.value = 'alice.chen@example.edu';
+            recipient.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+        const recipient = document.querySelector('#nmda-import-edit-recipients');
+        recipient?.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 500));
+        document.querySelector('[data-review-key]')?.click();
+        await new Promise(resolve => setTimeout(resolve, 180));
+      }
       if (view === 'selection') {
         const candidate = document.querySelector('[data-review-email]');
         candidate?.click();
