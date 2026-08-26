@@ -5,7 +5,7 @@ const m=js.match(/root\.innerHTML = `([\s\S]*?)`;\n\s*document\.documentElement\
 if(!m) throw new Error('buildUI template not found');
 const html=m[1];
 
-for(const label of ['添加资料','检查邮件','选择与安排','创建草稿']) {
+for(const label of ['添加资料','处理待办','选择与安排','创建草稿']) {
   if(!html.includes(`<strong>${label}</strong>`)) throw new Error(`missing user flow step: ${label}`);
 }
 if(html.includes('data-flow-step="5"')) throw new Error('batch flow should be four user actions, not five internal stages');
@@ -18,8 +18,8 @@ if(!html.includes('data-tab="single"') || !html.includes('data-tab="contacts"'))
 const batchStart=html.indexOf('data-pane="batch"');
 const contactsStart=html.indexOf('data-pane="contacts"');
 const batchHtml=html.slice(batchStart,contactsStart>batchStart?contactsStart:undefined);
-if(!batchHtml.includes('id="nmda-inline-review"') || !batchHtml.includes('<div class="nmda-card-title">检查邮件</div>')) throw new Error('inline mail review missing from batch flow');
-if(!batchHtml.includes('data-review-filter="pending">待处理</button>') || !batchHtml.includes('data-review-filter="all">全部邮件</button>')) throw new Error('parsing preview filters missing');
+if(!batchHtml.includes('id="nmda-inline-review"') || !batchHtml.includes('<div class="nmda-card-title">处理待办</div>')) throw new Error('inline guided todo review missing from batch flow');
+if(!batchHtml.includes('data-review-filter="pending">只看待办</button>') || !batchHtml.includes('data-review-filter="all">全部邮件</button>')) throw new Error('guided review filters missing');
 if(batchHtml.includes('id="nmda-bulk-subject-panel"') || batchHtml.includes('placeholder="统一补充空白主题"')) throw new Error('subject batch fill must not remain as a separate visible control');
 if(!batchHtml.includes('id="nmda-subject-assist"') || !batchHtml.includes('id="nmda-subject-assist-apply"')) throw new Error('contextual one-click subject suggestion missing');
 if(!batchHtml.includes('id="nmda-review-confirm-selected"') || !batchHtml.includes('>确认所选</button>')) throw new Error('ambiguous selected edits still need one confirmation action');
@@ -40,10 +40,10 @@ for(const tech of ['质量门','自动复核','机器先','人工确认','EXCEPT
 
 if(!/\.nmda-bulk-workbench > \.nmda-process-guide[\s\S]*?position:sticky/.test(css)) throw new Error('right sticky workflow rail missing');
 if(!/v1\.23[\s\S]*?\.nmda-batch-table\s*\{[^}]*min-width:820px/.test(css)) throw new Error('five-column batch table width contract missing');
-if(!/\.nmda-run-card\s*\{[\s\S]*?position:static\s*!important/.test(css)) throw new Error('final action card must not overlap content as a sticky layer');
+if(!/v1\.28[\s\S]*?\.nmda-run-card\s*\{[\s\S]*?position:sticky\s*!important/.test(css)) throw new Error('final create action must remain visible as a sticky action bar');
 if(!/v1\.19[\s\S]*?\.nmda-review-edit-pane[\s\S]*?grid-row:1\s*!important/.test(css)) throw new Error('editable mail must be the primary review pane');
-if(!/\.nmda-review-core-fields textarea[\s\S]*?overflow:hidden/.test(css)) throw new Error('review body should auto-grow instead of adding nested scrolling');
+if(!/v1\.28[\s\S]*?\.nmda-review-core-fields textarea[\s\S]*?max-height:38vh[\s\S]*?overflow-y:auto/.test(css)) throw new Error('long review body should be capped so actions stay in view');
 if(!/grid-template-columns:148px minmax\(0,1fr\)/.test(css)) throw new Error('primary navigation width was not reduced');
 
 if(!html.includes('同步邮箱') || !html.includes('记录异常时再维护')) throw new Error('contact sync / maintenance hierarchy missing');
-console.log('ui contract OK: edit-first mail review, secondary parsing evidence, contextual subject assist, default-open scheduling, compact non-overlapping flow');
+console.log('ui contract OK: guided todo review, capped editor, sticky consequential actions, secondary evidence, contextual subject assist, default-open scheduling');

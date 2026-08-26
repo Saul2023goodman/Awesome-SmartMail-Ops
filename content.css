@@ -2080,3 +2080,109 @@
   .nmda-duplicate-actions { align-items:flex-start; flex-direction:column; }
   .nmda-duplicate-actions .nmda-hint { max-width:none; }
 }
+
+/* v1.28 · Guided workflow — optimize for complex batches, one next action, stable review context. */
+.nmda-review-guidance[data-state="pending"] {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 11px;
+  border-color:#f0cf8a;
+  background:#fffaf0;
+}
+.nmda-review-guidance[data-state="ready"] { background:#f0fff4; border-color:#b7e4c7; }
+.nmda-guidance-main { min-width:0; display:grid; gap:2px; }
+.nmda-guidance-main strong { color:#3b4654; font-size:10.5px; }
+.nmda-guidance-main small { color:#6e7781; font-size:9px; line-height:1.45; }
+
+/* Keep the user's task context visible even when the current mail is long. */
+.nmda-inline-review-top {
+  position:sticky;
+  top:0;
+  z-index:12;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px !important;
+  border-bottom:1px solid #eaeef2;
+  background:#fff;
+  box-shadow:0 3px 10px rgba(31,35,40,.05);
+}
+.nmda-inline-review-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0; }
+.nmda-inline-review-actions .nmda-review-page-summary { flex:0 1 auto; }
+#nmda-review-next-pending { flex:0 0 auto; }
+.nmda-review-edit-pane { overflow-anchor:none; }
+.nmda-review-core-fields textarea {
+  min-height:210px !important;
+  max-height:38vh !important;
+  overflow-y:auto !important;
+  resize:vertical;
+}
+.nmda-review-workbench.has-duplicate-decision .nmda-review-core-fields textarea {
+  min-height:150px !important;
+  max-height:24vh !important;
+}
+.nmda-review-actions {
+  position:sticky !important;
+  bottom:0 !important;
+  z-index:10 !important;
+  margin-top:8px !important;
+  border-top:1px solid #d8dee4 !important;
+  background:#fff !important;
+  box-shadow:0 -7px 18px rgba(31,35,40,.07);
+}
+.nmda-review-queue-main em { color:#9a6700; font-weight:760; }
+.nmda-review-queue-row.is-active .nmda-review-queue-main em { color:#825000; }
+
+/* Attachments are a step-2 todo, not a reason to pull the user back into step 1. */
+#nmda-attachments-card[data-issue="1"] > summary { background:#fffaf0; }
+#nmda-attachments-card[data-issue="1"] > summary strong { color:#7d4e00; }
+
+/* Ready-to-create is distinct from actively creating: avoid making step 4 look current too early. */
+.nmda-process-guide button[data-state="ready"] {
+  border-color:#b6d7fe;
+  background:#f6faff;
+  opacity:1;
+}
+.nmda-process-guide button[data-state="ready"] > span { background:#ddf4ff; color:#0969da; }
+.nmda-process-guide button[data-state="ready"] strong { color:#0550ae; }
+
+/* Long selection tables must not hide the only consequential action. */
+.nmda-run-card {
+  position:sticky !important;
+  bottom:0 !important;
+  z-index:14 !important;
+  box-shadow:0 -8px 22px rgba(31,35,40,.09) !important;
+}
+.nmda-page { scroll-padding-top:64px; }
+
+@media (max-width:900px) {
+  .nmda-inline-review-top { align-items:flex-start; }
+  .nmda-inline-review-actions { align-items:flex-end; flex-direction:column; }
+  .nmda-review-core-fields textarea { max-height:34vh !important; }
+}
+.nmda-review-workbench.has-duplicate-decision .nmda-review-actions { display:none !important; }
+/* v1.28.1 · Duplicate decisions keep their consequential action in view while comparing long groups. */
+.nmda-duplicate-decision { overflow:visible; }
+.nmda-duplicate-decision-head { border-radius:10px 10px 0 0; background:#fffaf7; }
+.nmda-duplicate-actions {
+  position:sticky;
+  bottom:0;
+  z-index:11;
+  border-radius:0 0 10px 10px;
+  box-shadow:0 -6px 16px rgba(74,47,36,.08);
+}
+/* v1.28.2 · Review focus mode: while resolving mail todos, unrelated stages leave the scroll path. */
+.nmda-bulk-workbench.is-review-focus #nmda-stage-prepare,
+.nmda-bulk-workbench.is-review-focus #nmda-import-card,
+.nmda-bulk-workbench.is-review-focus #nmda-ingest-result-card,
+.nmda-bulk-workbench.is-review-focus #nmda-roster-audit-card,
+.nmda-bulk-workbench.is-review-focus #nmda-ingest-diagnostics,
+.nmda-bulk-workbench.is-review-focus > .nmda-workflow-stage-separator,
+.nmda-bulk-workbench.is-review-focus > #nmda-stage-execute,
+.nmda-bulk-workbench.is-review-focus > #nmda-batch-empty,
+.nmda-bulk-workbench.is-review-focus > #nmda-preview-card,
+.nmda-bulk-workbench.is-review-focus > #nmda-run-card { display:none !important; }
+.nmda-bulk-workbench.is-review-focus .nmda-inline-review { margin-top:0; }
