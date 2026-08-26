@@ -9,7 +9,7 @@ const required=[
   ['human issue labels are action-oriented','return \'补收件人\''],
   ['duplicate issue label is action-oriented','return \'处理重复\''],
   ['review next action exists','id="nmda-review-next-pending"'],
-  ['blocked handoff is removed rather than disabled','card.hidden = blocked || !tasks.length'],
+  ['blocked/context-pending handoff is removed rather than disabled','card.hidden = contextPending || blocked || !tasks.length'],
   ['attachment does not steal focus before mail todos',"!batch.attachmentAttentionShown && !reviewTasks().length"],
   ['ready step four is not current','state=creating?\'active\':unlocked?\'ready\':\'locked\''],
   ['review enters focus mode',"classList.add('is-review-focus')"],

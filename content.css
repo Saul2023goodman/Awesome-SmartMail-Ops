@@ -2916,3 +2916,74 @@
   .nmda-duplicate-actions { align-items:flex-start !important; flex-direction:column; }
   .nmda-duplicate-actions .nmda-hint { max-width:none; }
 }
+
+/* v1.31 · Context preflight — ask for useful context at the moment it can prevent rework. */
+.nmda-context-cue {
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  margin-top:9px;
+  padding:10px 11px;
+  border:1px solid #d8dee4;
+  border-radius:9px;
+  background:#f8fafc;
+}
+.nmda-context-cue[hidden] { display:none !important; }
+.nmda-context-cue-icon {
+  width:30px;height:30px;border-radius:8px;
+  display:grid;place-items:center;
+  background:#eaf2ff;color:#0969da;
+  font-size:13px;font-weight:800;
+}
+.nmda-context-cue-main { min-width:0; display:grid; gap:2px; }
+.nmda-context-eyebrow { font-size:8px; line-height:1.2; font-weight:800; color:#57606a; letter-spacing:.02em; }
+.nmda-context-cue-main > strong { font-size:10.5px; line-height:1.35; color:#24292f; }
+.nmda-context-cue-main > small { max-width:720px; font-size:8.7px; line-height:1.5; color:#667085; }
+.nmda-context-cue-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex-wrap:wrap; }
+.nmda-context-benefits { display:flex; flex-wrap:wrap; gap:4px; margin-top:3px; }
+.nmda-context-benefits[hidden] { display:none !important; }
+.nmda-context-benefits span {
+  padding:2px 6px;border-radius:999px;background:#eef2f6;color:#57606a;
+  font-size:7.7px;font-weight:700;white-space:nowrap;
+}
+.nmda-context-status { margin-top:2px; font-size:8px; color:#8c959f; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-roster-context-cue[data-state="pending"] { border-color:#e7c66b; background:#fffaf0; }
+.nmda-roster-context-cue[data-state="pending"] .nmda-context-cue-icon { background:#fff1c2; color:#8a5b00; }
+.nmda-roster-context-cue[data-state="added"] { border-color:#b7e4c7; background:#f6fff8; }
+.nmda-roster-context-cue[data-state="added"] .nmda-context-cue-icon { background:#dafbe1; color:#1a7f37; }
+.nmda-roster-context-cue[data-state="skipped"] { background:#f6f8fa; border-style:dashed; }
+.nmda-roster-context-cue[data-state="skipped"] .nmda-context-cue-icon { background:#eaeef2; color:#57606a; }
+#nmda-import-card[data-loaded="1"] .nmda-context-cue { margin-top:7px; padding:8px 9px; grid-template-columns:26px minmax(0,1fr) auto; }
+#nmda-import-card[data-loaded="1"] .nmda-context-cue-icon { width:26px;height:26px;border-radius:7px;font-size:11px; }
+#nmda-import-card[data-loaded="1"] .nmda-context-cue-main > strong { font-size:9.8px; }
+#nmda-import-card[data-loaded="1"] .nmda-context-cue-main > small { font-size:8.2px; }
+#nmda-import-card[data-loaded="1"] .nmda-context-benefits span { font-size:7.3px; }
+
+.nmda-context-cue-compact { margin:8px 0 0; padding:9px 10px; }
+.nmda-attachment-context-cue { border-color:#d7c684; background:#fffdf5; }
+.nmda-attachment-context-cue .nmda-context-cue-icon { background:#fff1c2;color:#8a5b00; }
+
+.nmda-stage-preflight {
+  display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:center;
+  margin:8px 9px 0;padding:8px 9px;border:1px solid #dbeafe;border-radius:8px;background:#f6faff;
+}
+.nmda-stage-preflight-icon { width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:#ddf4ff;color:#0969da;font-size:11px;font-weight:800; }
+.nmda-stage-preflight div { min-width:0;display:grid;gap:2px; }
+.nmda-stage-preflight strong { font-size:9px;color:#334155; }
+.nmda-stage-preflight small { font-size:8px;line-height:1.45;color:#667085; }
+
+.nmda-create-preflight { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:5px; }
+.nmda-create-preflight > span { display:flex; flex-wrap:wrap; gap:4px; }
+.nmda-create-preflight em { font-style:normal;padding:2px 6px;border-radius:999px;background:#eaf2ff;color:#365b88;font-size:7.8px;font-weight:720; }
+.nmda-create-preflight > strong { font-size:8.3px;color:#1a7f37; }
+
+@media (max-width:900px) {
+  .nmda-context-cue { grid-template-columns:30px minmax(0,1fr); align-items:start; }
+  .nmda-context-cue-actions { grid-column:1 / -1; justify-content:flex-start; padding-left:40px; }
+  #nmda-import-card[data-loaded="1"] .nmda-context-cue { grid-template-columns:26px minmax(0,1fr); }
+  #nmda-import-card[data-loaded="1"] .nmda-context-cue-actions { padding-left:34px; }
+}
+.nmda-review-guidance[data-state="context"] { border-color:#b6d7fe; background:#f6faff; }
+/* When a review stage is complete, the handoff to the next business step is a core action, not a hidden secondary control. */
+.nmda-bulk-workbench.is-review-page-focus #nmda-review-next-pending[data-mode="continue"] { display:inline-flex !important; }
