@@ -15,8 +15,7 @@ if(!js.includes("if (/主题为空|未找到 Subject/.test(issue) && task.subjec
 if(!js.includes('function effectiveImportConfidence(task)')) throw new Error('current-state confidence recomputation missing');
 if(!js.includes('function taskCanBatchConfirm(task)')) throw new Error('batch confirmation should be limited to genuinely ambiguous complete mails');
 if(!js.includes("selectButton.hidden=!batchMode||visible.length<2")) throw new Error('bulk confirmation selector should appear only in pending-review mode when batching saves effort');
-if(!js.includes('id="nmda-review-evidence-details"')) throw new Error('technical parsing evidence should be a secondary disclosure');
+if(js.includes('id="nmda-review-evidence-details"') || js.includes('<strong>识别依据</strong>')) throw new Error('technical parsing evidence should stay out of the user review flow');
 if(!/v1\.19[\s\S]*?\.nmda-review-edit-pane[\s\S]*?grid-row:1\s*!important/.test(css)) throw new Error('editable mail is not visually primary');
-if(!/\.nmda-review-evidence-pane[\s\S]*?grid-row:2\s*!important/.test(css)) throw new Error('technical evidence is not secondary');
 if(!/v1\.29[\s\S]*?\.nmda-review-actions\s*\{[\s\S]*?position:static\s*!important/.test(css)) throw new Error('mail actions must remain in document flow instead of covering the message');
-console.log('v1.29 auto-flow contract OK: deterministic repairs auto-resolve, completed checks auto-advance, batching appears only in todo mode, and review actions never cover message content');
+console.log('v1.30 auto-flow contract OK: deterministic repairs auto-resolve, completed checks auto-advance, technical evidence stays out of the main review flow, and review actions never cover message content');

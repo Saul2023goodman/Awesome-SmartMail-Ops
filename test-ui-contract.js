@@ -23,7 +23,7 @@ if(!batchHtml.includes('data-review-filter="pending">只看待办</button>') || 
 if(batchHtml.includes('id="nmda-bulk-subject-panel"') || batchHtml.includes('placeholder="统一补充空白主题"')) throw new Error('subject batch fill must not remain as a separate visible control');
 if(!batchHtml.includes('id="nmda-subject-assist"') || !batchHtml.includes('id="nmda-subject-assist-apply"')) throw new Error('contextual one-click subject suggestion missing');
 if(!batchHtml.includes('id="nmda-review-confirm-selected"') || !batchHtml.includes('>确认所选</button>')) throw new Error('ambiguous selected edits still need one confirmation action');
-if(!batchHtml.includes('id="nmda-review-evidence-details"') || !batchHtml.includes('<strong>识别依据</strong>')) throw new Error('secondary parsing evidence disclosure missing');
+if(batchHtml.includes('nmda-review-evidence-details') || batchHtml.includes('<strong>识别依据</strong>')) throw new Error('parsing evidence must not appear in the user review flow');
 
 const previewCardStart=batchHtml.indexOf('id="nmda-preview-card"');
 const schedulerStart=batchHtml.indexOf('id="nmda-scheduler-card"');
@@ -44,8 +44,11 @@ if(!/v1\.28[\s\S]*?\.nmda-run-card\s*\{[\s\S]*?position:sticky\s*!important/.tes
 if(!/v1\.19[\s\S]*?\.nmda-review-edit-pane[\s\S]*?grid-row:1\s*!important/.test(css)) throw new Error('editable mail must be the primary review pane');
 if(!/v1\.29[\s\S]*?\.nmda-review-actions\s*\{[\s\S]*?position:static\s*!important/.test(css)) throw new Error('review confirmation actions must stay in layout instead of floating over mail content');
 if(!batchHtml.includes('id="nmda-review-search"') || !batchHtml.includes('id="nmda-review-prev"') || !batchHtml.includes('id="nmda-review-next"')) throw new Error('review canvas search and sequential navigation missing');
-if(!batchHtml.includes('id="nmda-review-more-menu"') || !batchHtml.includes('id="nmda-review-exclude"')) throw new Error('destructive review action should live in contextual more menu');
+if(batchHtml.includes('id="nmda-review-more-menu"')) throw new Error('single-action more menu adds unnecessary interaction cost');
+if(!batchHtml.includes('id="nmda-review-exclude"') || !batchHtml.includes('>排除此封</button>')) throw new Error('exclude must be a direct mail-level action');
+if(!js.includes('nmda-duplicate-preview-body') || !js.includes('保留此封') || !js.includes('编辑这封')) throw new Error('duplicate decision must provide simultaneous side-by-side mail previews');
+if(!/v1\.30[\s\S]*?nmda-duplicate-candidates\[data-count=\"3\"\][\s\S]*?repeat\(3/.test(css)) throw new Error('three-way duplicate comparison layout missing');
 if(!/grid-template-columns:148px minmax\(0,1fr\)/.test(css)) throw new Error('primary navigation width was not reduced');
 
 if(!html.includes('同步邮箱') || !html.includes('记录异常时再维护')) throw new Error('contact sync / maintenance hierarchy missing');
-console.log('ui contract OK: guided review canvas, non-overlapping actions, searchable queue, sequential navigation, secondary evidence, contextual subject assist, default-open scheduling');
+console.log('ui contract OK: decision-first review canvas, direct exclude, no parsing evidence, simultaneous duplicate comparison, searchable queue, sequential navigation, contextual subject assist, default-open scheduling');

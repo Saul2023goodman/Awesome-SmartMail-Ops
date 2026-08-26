@@ -636,7 +636,7 @@
 
               <div class="nmda-card nmda-inline-review" id="nmda-inline-review" hidden>
                 <div class="nmda-inline-review-top">
-                  <div><div class="nmda-card-title" id="nmda-review-workspace-title">处理待办</div><div class="nmda-card-desc" id="nmda-review-workspace-desc">先解决影响创建的事项；邮件正文仍可直接编辑，识别依据按需展开。</div></div>
+                  <div><div class="nmda-card-title" id="nmda-review-workspace-title">处理待办</div><div class="nmda-card-desc" id="nmda-review-workspace-desc">先解决影响创建的事项；需要比较时并排查看，需要修改时直接编辑。</div></div>
                   <div class="nmda-inline-review-actions"><div id="nmda-review-page-summary" class="nmda-review-page-summary"></div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个待办</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-import-editor-cancel" type="button">退出检查</button></div>
                 </div>
                 <div class="nmda-review-page-empty" id="nmda-review-page-empty">添加资料后，这里会显示解析结果。</div>
@@ -660,24 +660,19 @@
                         <span class="nmda-review-mail-heading"><strong id="nmda-review-mail-title">邮件内容</strong><small id="nmda-review-problem-summary">需要时直接修改</small></span>
                         <div class="nmda-review-mail-actions">
                           <div class="nmda-review-pager" role="group" aria-label="切换邮件"><button type="button" id="nmda-review-prev" aria-label="上一封">‹</button><span id="nmda-review-position">1 / 1</span><button type="button" id="nmda-review-next" aria-label="下一封">›</button></div>
-                          <details class="nmda-review-more-menu" id="nmda-review-more-menu">
-                            <summary aria-label="更多邮件操作">更多</summary>
-                            <div class="nmda-review-more-popover">
-                              <button class="nmda-review-menu-danger" id="nmda-review-exclude" type="button"><strong>从本批次排除</strong><small>不会创建这封草稿；之后仍可恢复</small></button>
-                            </div>
-                          </details>
+                          <button class="nmda-review-exclude-direct" id="nmda-review-exclude" type="button" title="不会创建这封草稿；之后可从已排除邮件中恢复">排除此封</button>
                         </div>
                       </div>
                       <div class="nmda-review-edit-scroll">
                         <div id="nmda-review-feedback" class="nmda-review-feedback" hidden></div>
                         <section class="nmda-duplicate-decision" id="nmda-duplicate-decision" hidden>
                           <div class="nmda-duplicate-decision-head">
-                            <div><strong id="nmda-duplicate-decision-title">发现重复邮件</strong><small id="nmda-duplicate-decision-copy">请选择本组要保留的邮件。</small></div>
+                            <div><strong id="nmda-duplicate-decision-title">发现重复邮件</strong><small id="nmda-duplicate-decision-copy">同时预览本组邮件，勾选实际要保留的版本。</small></div>
                             <span class="nmda-duplicate-kind" id="nmda-duplicate-decision-kind">重复</span>
                           </div>
                           <div class="nmda-duplicate-candidates" id="nmda-duplicate-candidates"></div>
                           <div class="nmda-duplicate-actions">
-                            <span class="nmda-hint" id="nmda-duplicate-decision-hint">默认只勾选信息最完整的一封；也可以保留多封。</span>
+                            <span class="nmda-hint" id="nmda-duplicate-decision-hint">默认勾选信息更完整的一封；也可以直接勾选多封。</span>
                             <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary" id="nmda-duplicate-keep-selected" type="button">保留所选（1）</button><button class="nmda-btn" id="nmda-duplicate-keep-all" type="button">全部保留</button></div>
                           </div>
                         </section>
@@ -690,12 +685,7 @@
                           </div>
                           <label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-body"><span class="nmda-label">正文</span><textarea id="nmda-import-edit-body"></textarea></label>
                         </div>
-                        <details class="nmda-review-evidence-pane" id="nmda-review-evidence-details">
-                          <summary class="nmda-review-pane-title"><span><strong>识别依据</strong><small>原文、识别线索和邮件边界</small></span><span class="nmda-evidence-toggle">展开</span></summary>
-                          <div id="nmda-review-source-meta" class="nmda-review-source-meta"></div>
-                          <div id="nmda-review-email-candidates" class="nmda-review-candidates"></div>
-                          <div id="nmda-review-source-context" class="nmda-review-source-context"></div>
-                        </details>
+
                       </div>
                       <input id="nmda-import-edit-schedule" type="hidden">
                       <input id="nmda-import-edit-attachments" type="hidden">
@@ -1983,7 +1973,6 @@
     const bodyLength=String(task.body||'').trim().length;
     bits.push(`正文 ${bodyLength} 字`);
     if(task.files?.length)bits.push(`附件 ${task.files.length}`);
-    if(Number(task.importConfidence||0))bits.push(`识别 ${Math.round(Number(task.importConfidence||0))}%`);
     return bits.join(' · ');
   }
 
@@ -2027,19 +2016,26 @@
       ? `同一收件人有 ${group.tasks?.length||0} 封邮件`
       : `可能是同一联系人：${group.tasks?.length||0} 封邮件`;
     if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent=group.type==='exact-email'
-      ? `${group.email||group.label||'该收件人'}。请选择实际要创建的版本；只有明确需要多封时才“全部保留”。`
-      : `${group.label||'姓名与院校相同'}。请先比较内容，再决定保留一封还是全部保留。`;
+      ? `${group.email||group.label||'该收件人'}。下面已并排展示所有版本，请直接比较正文后勾选要创建的邮件。`
+      : `${group.label||'姓名与院校相同'}。下面已并排展示所有候选，请根据正文和收件人直接决定保留哪些。`;
     const unresolvedCount=unresolvedDuplicateGroups(task).length;
     if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=unresolvedCount>1
       ? `此封邮件还涉及 ${unresolvedCount-1} 组重复；处理本组后会继续提示。`
-      : '默认选中信息最完整的一封；“全部保留”会明确记录为有意重复。';
-    duplicateCandidatesEl.innerHTML=(group.tasks||[]).map((candidate,index)=>{
+      : '默认勾选信息更完整的一封；你可以在同一视图里改成保留任意一封或多封。';
+    const compareTasks=group.tasks||[];
+    duplicateCandidatesEl.dataset.count=String(compareTasks.length);
+    duplicateCandidatesEl.innerHTML=compareTasks.map((candidate,index)=>{
       const isRecommended=candidate.editKey===recommended?.editKey;
       const isSelected=selectedKeys.has(candidate.editKey);
-      const body=String(candidate.body||'').replace(/\s+/g,' ').trim();
-      const snippet=body.length>112?`${body.slice(0,112)}…`:body;
+      const body=String(candidate.body||'').trim();
       const title=String(candidate.subject||candidate.id||`邮件 ${index+1}`).trim()||`邮件 ${index+1}`;
-      return `<div class="nmda-duplicate-candidate ${isSelected?'is-selected':''} ${candidate.editKey===task.editKey?'is-current':''}" data-duplicate-row="${escapeHtml(candidate.editKey)}"><label><input type="checkbox" data-duplicate-pick="${escapeHtml(candidate.editKey)}" ${isSelected?'checked':''}><span class="nmda-duplicate-candidate-main"><span class="nmda-duplicate-candidate-title"><strong>${escapeHtml(title)}</strong>${isRecommended?'<em>推荐保留</em>':''}${candidate.editKey===task.editKey?'<small>正在查看</small>':''}</span><span class="nmda-duplicate-candidate-meta">${escapeHtml(duplicateCandidateMeta(candidate))}</span><span class="nmda-duplicate-candidate-snippet">${escapeHtml(snippet||'正文为空')}</span></span></label><button type="button" class="nmda-btn nmda-btn-small nmda-btn-quiet" data-duplicate-open="${escapeHtml(candidate.editKey)}">查看内容</button></div>`;
+      const recipient=String(candidate.recipients||'').trim()||'未填写收件人';
+      return `<article class="nmda-duplicate-candidate ${isSelected?'is-selected':''} ${candidate.editKey===task.editKey?'is-current':''}" data-duplicate-row="${escapeHtml(candidate.editKey)}">
+        <label class="nmda-duplicate-pick-line"><input type="checkbox" data-duplicate-pick="${escapeHtml(candidate.editKey)}" ${isSelected?'checked':''}><span><strong>保留此封</strong><small>${escapeHtml(duplicateCandidateMeta(candidate))}</small></span></label>
+        <div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>${escapeHtml(title)}</strong>${isRecommended?'<em>信息更完整</em>':''}${candidate.editKey===task.editKey?'<small>正在编辑</small>':''}</div><span class="nmda-duplicate-preview-recipient">${escapeHtml(recipient)}</span></div>
+        <div class="nmda-duplicate-preview-body"><pre>${escapeHtml(body||'正文为空')}</pre></div>
+        <button type="button" class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-duplicate-edit" data-duplicate-open="${escapeHtml(candidate.editKey)}">编辑这封</button>
+      </article>`;
     }).join('');
   }
 
@@ -2328,9 +2324,24 @@
   }
 
   function renderReviewSource(task) {
+    const issues=unresolvedImportIssues(task);
+    const candidates=reviewCandidateEmails(task);
+    const recipientAssist=$('nmda-recipient-assist');
+    if(recipientAssist){
+      const needsRecipient=issues.some(x=>/收件人|邮箱/.test(x))&&!recipientLooksValid(task.recipients);
+      recipientAssist.hidden=!(needsRecipient&&candidates.length);
+      recipientAssist.innerHTML=needsRecipient&&candidates.length
+        ? `<span>可选收件人：</span>${candidates.slice(0,5).map(c=>`<button type="button" data-recipient-suggestion="${escapeHtml(c.email)}" title="${escapeHtml(c.reason||'')}" >${escapeHtml(c.email)}</button>`).join('')}`
+        : '';
+      recipientAssist.querySelectorAll('[data-recipient-suggestion]').forEach(button=>button.addEventListener('click',()=>{
+        importEditRecipientsEl.value=button.dataset.recipientSuggestion||'';
+        importEditRecipientsEl.dispatchEvent(new Event('input',{bubbles:true}));
+        importEditRecipientsEl.dispatchEvent(new Event('change',{bubbles:true}));
+      }));
+    }
+    // 用户决策界面只展示做决定所需的信息；解析证据保留在内部状态/诊断层，不进入邮件审阅主流程。
     if(!reviewSourceContextEl||!reviewSourceMetaEl||!reviewCandidatesEl)return;
     const {collection,rowMeta,sourceBlocks,contextOffset=0}=taskSourceMeta(task);
-    const issues=unresolvedImportIssues(task);
     const evidenceSet=new Set(task?.importEvidence||[]);
     const effectiveConfidence=effectiveImportConfidence(task);
     const excludedBlocks=rowMeta?.excludedBlocks||[];
@@ -2340,29 +2351,6 @@
     const hasSignature=recognizedRoles.has('signature')||evidenceSet.has('signature');
     const boundaryLocated=Number.isFinite(Number(rowMeta?.structure?.mailEndBlock??rowMeta?.endBlock))&&(hasClosing||evidenceSet.has('tail-boundary'));
     reviewSourceMetaEl.innerHTML=`<div class="nmda-parse-steps"><span data-ok="${recipientLooksValid(task.recipients)?'1':'0'}">收件人</span><span data-ok="${String(task.subject||'').trim()?'1':'0'}">主题</span><span data-ok="${hasSalutation?'1':'0'}">称呼</span><span data-ok="${String(task.body||'').trim()?'1':'0'}">正文</span><span data-ok="${hasClosing?'1':'0'}">结束语</span><span data-ok="${hasSignature?'1':'0'}">署名</span><span data-ok="${boundaryLocated?'1':'0'}">边界</span></div><span><strong>${escapeHtml(task.sourceFile||collection?.source||'来源')}</strong></span><span>${escapeHtml(task.collectionName||collection?.name||'')}</span><span>识别 ${Math.round(effectiveConfidence)}%</span>${excludedBlocks.length?`<span>已隔离 ${excludedBlocks.length} 段非正文</span>`:''}${rowMeta?.heading?`<span title="${escapeHtml(rowMeta.heading)}">对象线索：${escapeHtml(rowMeta.heading)}</span>`:''}`;
-    const candidates=reviewCandidateEmails(task);
-    reviewCandidatesEl.innerHTML=candidates.length
-      ? `<div class="nmda-review-candidate-title">可用邮箱候选 <small>用于核对来源</small></div><div class="nmda-review-candidate-list">${candidates.map(c=>`<button type="button" data-review-email="${escapeHtml(c.email)}" title="${escapeHtml(c.reason)}">${escapeHtml(c.email)}<small>${escapeHtml(c.reason)}</small></button>`).join('')}</div>`
-      : (issues.some(x=>/收件人/.test(x))?'<div class="nmda-review-no-candidate">附近没有可直接采用的邮箱。请手工补充，或排除这封邮件。</div>':'');
-    const recipientAssist=$('nmda-recipient-assist');
-    if(recipientAssist){
-      const needsRecipient=issues.some(x=>/收件人|邮箱/.test(x))&&!recipientLooksValid(task.recipients);
-      recipientAssist.hidden=!(needsRecipient&&candidates.length);
-      recipientAssist.innerHTML=needsRecipient&&candidates.length
-        ? `<span>来源附近找到：</span>${candidates.slice(0,2).map(c=>`<button type="button" data-recipient-suggestion="${escapeHtml(c.email)}">${escapeHtml(c.email)}</button>`).join('')}`
-        : '';
-      recipientAssist.querySelectorAll('[data-recipient-suggestion]').forEach(button=>button.addEventListener('click',()=>{
-        importEditRecipientsEl.value=button.dataset.recipientSuggestion||'';
-        importEditRecipientsEl.dispatchEvent(new Event('input',{bubbles:true}));
-        importEditRecipientsEl.dispatchEvent(new Event('change',{bubbles:true}));
-      }));
-    }
-    reviewCandidatesEl.querySelectorAll('[data-review-email]').forEach(button=>button.addEventListener('click',()=>{
-      importEditRecipientsEl.value=button.dataset.reviewEmail||'';
-      importEditRecipientsEl.dispatchEvent(new Event('input',{bubbles:true}));
-      importEditRecipientsEl.dispatchEvent(new Event('change',{bubbles:true}));
-      importEditRecipientsEl.focus({preventScroll:true});
-    }));
     if(!sourceBlocks.length||!rowMeta){
       reviewSourceContextEl.innerHTML=`<div class="nmda-review-fallback"><strong>来源未提供原始块定位。</strong><p>${escapeHtml(task.subject||'')}</p><pre>${escapeHtml(task.body||'')}</pre></div>`; return;
     }
@@ -2534,10 +2522,6 @@
     importEditScheduleEl.value=task.scheduleAt||'';
     importEditTagsEl.value=(task.tags||[]).join('; ');
     const issues=unresolvedImportIssues(task);
-    if(reviewEvidenceDetailsEl){
-      const hasRecipientSuggestion=issues.some(issue=>/收件人|邮箱/.test(issue))&&reviewCandidateEmails(task).length>0;
-      reviewEvidenceDetailsEl.open=issues.some(issue=>/请检查|边界|称呼|落款|总名单/.test(issue)) || (!hasRecipientSuggestion && issues.some(issue=>/收件人|邮箱/.test(issue)));
-    }
     const issueLabels=[...new Set(issues.map(reviewIssueLabel).filter(Boolean))];
     const editorTitle=$('nmda-import-editor-title');if(editorTitle)editorTitle.textContent=issues.length?`当前：${reviewIssueLabel(primaryReviewIssue(task))}`:'邮件内容';
     if(importEditorEvidenceEl)importEditorEvidenceEl.textContent=`${task.id || task.collectionName || '邮件'}${issues.length ? ` · ${issueLabels.join(' · ')}` : ' · 内容完整，可直接使用'}`;
