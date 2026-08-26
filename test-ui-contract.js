@@ -23,7 +23,7 @@ if(!batchHtml.includes('data-review-filter="pending">待处理</button>') || !ba
 if(batchHtml.includes('id="nmda-bulk-subject-panel"') || batchHtml.includes('placeholder="统一补充空白主题"')) throw new Error('subject batch fill must not remain as a separate visible control');
 if(!batchHtml.includes('id="nmda-subject-assist"') || !batchHtml.includes('id="nmda-subject-assist-apply"')) throw new Error('contextual one-click subject suggestion missing');
 if(!batchHtml.includes('id="nmda-review-confirm-selected"') || !batchHtml.includes('>确认所选</button>')) throw new Error('ambiguous selected edits still need one confirmation action');
-if(!batchHtml.includes('id="nmda-review-evidence-details"') || !batchHtml.includes('<strong>解析依据</strong>')) throw new Error('secondary parsing evidence disclosure missing');
+if(!batchHtml.includes('id="nmda-review-evidence-details"') || !batchHtml.includes('<strong>识别依据</strong>')) throw new Error('secondary parsing evidence disclosure missing');
 
 const previewCardStart=batchHtml.indexOf('id="nmda-preview-card"');
 const schedulerStart=batchHtml.indexOf('id="nmda-scheduler-card"');
@@ -45,5 +45,5 @@ if(!/v1\.19[\s\S]*?\.nmda-review-edit-pane[\s\S]*?grid-row:1\s*!important/.test(
 if(!/\.nmda-review-core-fields textarea[\s\S]*?overflow:hidden/.test(css)) throw new Error('review body should auto-grow instead of adding nested scrolling');
 if(!/grid-template-columns:148px minmax\(0,1fr\)/.test(css)) throw new Error('primary navigation width was not reduced');
 
-if(!html.includes('同步邮箱') || !html.includes('维护选项')) throw new Error('contact sync / maintenance hierarchy missing');
+if(!html.includes('同步邮箱') || !html.includes('记录异常时再维护')) throw new Error('contact sync / maintenance hierarchy missing');
 console.log('ui contract OK: edit-first mail review, secondary parsing evidence, contextual subject assist, default-open scheduling, compact non-overlapping flow');

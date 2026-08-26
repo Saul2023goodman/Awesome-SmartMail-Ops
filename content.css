@@ -1721,3 +1721,260 @@
   .nmda-review-core-fields textarea { min-height:300px !important; }
   .nmda-review-source-context { max-height:360px; }
 }
+
+/* v1.26 — product UI pass: readable productive density, fewer visual containers, state-aware layout */
+#nmda-root {
+  --nmda-bg:#f6f8fa;
+  --nmda-surface:#ffffff;
+  --nmda-surface-soft:#f6f8fa;
+  --nmda-border:#d8dee4;
+  --nmda-border-strong:#afb8c1;
+  --nmda-text:#1f2328;
+  --nmda-muted:#636c76;
+  --nmda-blue:#0969da;
+  --nmda-blue-dark:#0550ae;
+  --nmda-blue-soft:#ddf4ff;
+  --nmda-shadow:0 18px 48px rgba(31,35,40,.18),0 2px 8px rgba(31,35,40,.08);
+}
+#nmda-panel {
+  width:min(1380px,96vw);
+  height:min(920px,94vh);
+  grid-template-columns:146px minmax(0,1fr);
+  grid-template-rows:58px minmax(0,1fr);
+  border-radius:16px;
+  font-size:13px;
+  line-height:1.5;
+}
+#nmda-panel.is-maximized { inset:10px; border-radius:14px; }
+.nmda-head { padding:0 14px 0 16px; }
+.nmda-brand-mark { box-shadow:none; }
+.nmda-title { font-size:14px; font-weight:760; }
+.nmda-subtitle { font-size:10px; color:#6e7781; }
+.nmda-safe-badge { min-height:25px; display:inline-flex; align-items:center; font-size:9.5px; }
+.nmda-icon-btn { width:32px; height:32px; border-radius:8px; }
+
+/* Navigation: keep it compact, but never miniature. */
+.nmda-tabs { padding:12px 8px; gap:4px; background:#f6f8fa; }
+.nmda-nav-label { padding:0 8px 5px; font-size:9px; letter-spacing:.08em; }
+.nmda-tab { min-height:52px; grid-template-columns:28px minmax(0,1fr); gap:8px; padding:8px; border-radius:9px; }
+.nmda-tab-icon { width:28px; height:28px; border-radius:7px; }
+.nmda-tab strong { font-size:11.5px; }
+.nmda-tab small { margin-top:1px; font-size:9px; line-height:1.3; }
+.nmda-tab.is-active { border-color:#b6d7fe; background:#eaf2ff; box-shadow:inset 3px 0 0 var(--nmda-blue); }
+
+/* Page hierarchy: one title, one task surface, then secondary detail. */
+.nmda-page-head { min-height:60px; padding:10px 18px 9px; background:#f6f8fa; }
+.nmda-page-head h2 { font-size:17px; font-weight:760; }
+.nmda-page-head p { margin-top:3px; font-size:10.5px; color:#6e7781; }
+.nmda-page-head-meta { display:none !important; }
+.nmda-page { padding:14px 16px 28px; }
+.nmda-card,.nmda-import-card {
+  gap:11px;
+  padding:14px;
+  border-color:#d8dee4;
+  border-radius:11px;
+  box-shadow:none;
+}
+.nmda-card-title { font-size:13px; font-weight:760; }
+.nmda-card-desc { margin-top:2px; font-size:10px; line-height:1.45; color:#6e7781; }
+.nmda-label { font-size:11px; font-weight:700; }
+.nmda-hint { font-size:9.5px; line-height:1.45; }
+#nmda-panel input[type="text"],#nmda-panel input[type="search"],#nmda-panel input[type="datetime-local"],#nmda-panel input[type="file"],#nmda-panel textarea,#nmda-panel select {
+  min-height:36px;
+  border-radius:7px;
+  padding:7px 10px;
+}
+.nmda-btn { min-height:36px; border-radius:7px; font-size:11px; }
+.nmda-btn-small { min-height:31px; font-size:10px; }
+.nmda-btn-primary { box-shadow:0 1px 0 rgba(31,35,40,.08); }
+#nmda-panel button:focus-visible,#nmda-panel input:focus-visible,#nmda-panel textarea:focus-visible,#nmda-panel select:focus-visible,#nmda-panel summary:focus-visible {
+  outline:2px solid #0969da;
+  outline-offset:2px;
+}
+
+/* Batch: preserve the requested right-side process rail, but make it clearer and less noisy. */
+.nmda-bulk-workbench { grid-template-columns:minmax(0,1fr) 160px; column-gap:14px; padding-bottom:36px; }
+.nmda-process-guide { top:10px; padding:9px; border-radius:11px; border-color:#d0d7de; box-shadow:0 4px 14px rgba(31,35,40,.06); }
+.nmda-process-guide-title { display:flex; align-items:baseline; justify-content:space-between; gap:6px; padding:2px 4px 8px; margin-bottom:5px; }
+.nmda-process-guide-title small { order:1; display:block; color:#8c959f; font-size:8.5px; font-weight:650; }
+.nmda-process-guide-title strong { order:2; font-size:10px; font-weight:760; color:#57606a; }
+.nmda-process-guide button { grid-template-columns:29px minmax(0,1fr); column-gap:8px; padding:8px 7px; border-radius:8px; }
+.nmda-process-guide button > span { width:29px; height:29px; border-radius:7px; font-size:9px; }
+.nmda-process-guide button strong { font-size:10px; line-height:1.25; }
+.nmda-process-guide button small { margin-top:2px; font-size:8.5px; line-height:1.35; }
+.nmda-process-guide > i { height:10px; margin-left:14px; background:#d8dee4; }
+.nmda-process-guide button[data-state="active"] { border-color:#b6d7fe; background:#eaf2ff; }
+.nmda-process-guide button[data-state="done"] { opacity:.82; }
+.nmda-process-guide button[data-state="locked"] { opacity:.38; }
+
+/* The stage header duplicated the page title + process rail. Keep only the actual transition stage. */
+#nmda-stage-prepare { display:none !important; }
+.nmda-workflow-stage-separator { margin:14px 2px 12px; }
+.nmda-workflow-stage-head { margin:0 0 8px; }
+.nmda-workflow-stage-head strong { font-size:12.5px; }
+.nmda-workflow-stage-head small { font-size:9px; }
+.nmda-stage-number { width:28px; height:28px; font-size:8.5px; }
+
+/* Empty state: one calm focal area rather than a tiny card at the top of a blank page. */
+.nmda-bulk-workbench[data-phase="empty"] #nmda-import-card {
+  width:min(820px,100%);
+  margin:50px auto 0;
+  padding:22px;
+  border-color:#c6d1dc;
+  box-shadow:0 8px 26px rgba(31,35,40,.05);
+}
+.nmda-bulk-workbench[data-phase="empty"] #nmda-import-card .nmda-card-title { font-size:16px; }
+.nmda-bulk-workbench[data-phase="empty"] #nmda-import-card .nmda-card-desc { max-width:600px; font-size:11px; }
+.nmda-bulk-workbench[data-phase="empty"] .nmda-source-action-grid { gap:9px; margin-top:4px; }
+.nmda-bulk-workbench[data-phase="empty"] .nmda-source-action { min-height:78px; padding:12px; grid-template-columns:32px minmax(0,1fr); border-radius:9px; }
+.nmda-bulk-workbench[data-phase="empty"] .nmda-source-action-icon { width:32px; height:32px; }
+.nmda-bulk-workbench[data-phase="empty"] .nmda-source-action strong { font-size:11px; }
+.nmda-bulk-workbench[data-phase="empty"] .nmda-source-action small { font-size:9px; }
+.nmda-bulk-workbench[data-phase="empty"] #nmda-import-status { margin-top:1px; background:transparent; padding:0; color:#8c959f; }
+
+/* Loaded state: importing becomes a toolbar; the user's attention moves to exceptions/results. */
+#nmda-import-card[data-loaded="1"] { padding:12px 13px; }
+#nmda-import-card[data-loaded="1"] .nmda-card-desc { font-size:9.5px; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action-grid { gap:6px; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action { min-height:44px; padding:6px 9px; grid-template-columns:24px minmax(0,1fr); border-radius:8px; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action-icon { width:24px; height:24px; font-size:11px; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action strong { font-size:9.8px; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action small { display:none; }
+#nmda-import-card[data-loaded="1"] .nmda-ingest-source-tools { min-height:30px; }
+#nmda-import-card[data-loaded="1"] .nmda-compact-options > summary { min-height:31px; }
+.nmda-import-status { min-height:31px; font-size:9.5px; padding:6px 9px; }
+.nmda-source-inventory { gap:6px; }
+.nmda-source-inventory-head strong { font-size:10.5px; }
+.nmda-source-inventory-head span { font-size:9px; }
+.nmda-source-item { border-radius:8px !important; }
+
+/* Results: status is a summary row, not four equal hero cards. */
+.nmda-ingest-result-card { border-color:#c6d1dc; background:#fff; }
+.nmda-ingest-health { display:flex; flex-wrap:wrap; gap:6px; }
+.nmda-health-metric { min-width:125px; flex:0 1 160px; grid-template-columns:auto 1fr; align-items:baseline; gap:6px; padding:8px 10px; border-radius:8px; }
+.nmda-health-metric strong { font-size:16px; }
+.nmda-health-metric span { font-size:9px; }
+.nmda-review-guidance { min-height:34px; padding:7px 9px; font-size:9.5px; border-radius:8px; background:#f6f8fa; }
+.nmda-guidance-action { min-height:30px; padding:4px 9px; }
+.nmda-import-handoff-card { margin-top:2px; padding-top:9px; }
+.nmda-roster-audit-card { padding:11px 13px; border-color:#d8dee4; background:#fff; }
+.nmda-roster-audit-card .nmda-ingest-health { margin-top:-1px; }
+.nmda-roster-details > summary { font-size:9.5px; }
+.nmda-ingest-diagnostics { border-style:dashed; background:#fbfcfd; }
+.nmda-ingest-diagnostics > summary { min-height:38px; padding:8px 11px; }
+.nmda-ingest-diagnostics > summary strong { font-size:10px; }
+.nmda-ingest-diagnostics > summary small { font-size:8.5px; }
+
+/* Review: editable mail is the hero; evidence remains progressive disclosure. */
+.nmda-inline-review { border-color:#c6d1dc; }
+.nmda-inline-review-top { padding:12px 13px 2px; }
+.nmda-inline-review-top .nmda-card-title { font-size:13px; }
+.nmda-review-viewbar { min-height:39px; margin:0 12px; padding:5px 7px; }
+.nmda-review-filter button { min-height:28px; font-size:9px; }
+.nmda-review-layout { grid-template-columns:196px minmax(0,1fr) !important; }
+.nmda-review-queue-pane { max-height:calc(94vh - 126px); }
+.nmda-review-pane-title { min-height:40px; padding:8px 10px; }
+.nmda-review-pane-title strong { font-size:10.5px; }
+.nmda-review-pane-title small { font-size:8.5px; }
+.nmda-review-queue-main strong { font-size:9.5px; }
+.nmda-review-queue-main small,.nmda-review-queue-main em { font-size:8px; }
+.nmda-review-edit-pane > .nmda-import-editor-grid,.nmda-review-feedback { margin-left:12px; margin-right:12px; }
+.nmda-review-core-fields textarea { min-height:330px !important; font-size:11px; line-height:1.7; }
+.nmda-review-core-fields input { min-height:36px; font-size:11px; }
+.nmda-review-actions { margin-top:10px; padding:10px 12px; }
+.nmda-review-evidence-pane > summary { padding:10px 12px; }
+.nmda-review-source-meta,.nmda-review-candidates,.nmda-review-source-context { margin-left:12px; margin-right:12px; }
+
+/* Selection/scheduling: reduce stacked card feeling and keep actions near the table. */
+.nmda-list-card { gap:9px; }
+.nmda-task-toolbar { grid-template-columns:minmax(220px,1fr) 150px auto auto; gap:7px; }
+.nmda-search-field input { min-height:34px; font-size:10px; }
+.nmda-compact-select { min-height:34px; font-size:9px; }
+.nmda-compact-select select { font-size:9.5px; }
+.nmda-inline-scheduler { border-radius:8px; }
+.nmda-inline-scheduler > summary { min-height:38px; padding:8px 10px; }
+.nmda-inline-scheduler > summary strong { font-size:10.5px; }
+.nmda-inline-scheduler > summary small { font-size:8.5px; }
+.nmda-batch-table-wrap { max-height:390px; border-radius:8px; }
+.nmda-table th { font-size:9px; }
+.nmda-table td { font-size:9.5px; }
+.nmda-run-card { padding:12px 13px; border-color:#b6d7fe; background:#f6faff; }
+
+/* Single draft: one content canvas + one options card + one action card. */
+.nmda-single-grid { grid-template-columns:minmax(0,1.7fr) minmax(300px,.68fr); gap:14px; }
+.nmda-compose-card { padding:15px; }
+.nmda-side-stack { gap:10px; }
+.nmda-single-options-card { gap:10px; }
+.nmda-option-divider { height:1px; background:#eaeef2; }
+.nmda-file-field input[type="file"] { padding:4px 6px !important; }
+.nmda-file-field input[type="file"]::file-selector-button {
+  min-height:28px;
+  margin-right:9px;
+  padding:0 10px;
+  border:1px solid #afb8c1;
+  border-radius:6px;
+  background:#f6f8fa;
+  color:#24292f;
+  font:700 10px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+.nmda-action-card { position:sticky; top:0; padding:12px; }
+.nmda-action-card .nmda-hint { padding:1px 1px 0; }
+#nmda-body-text { min-height:320px !important; font-size:11px; line-height:1.65; }
+
+/* Contacts: list is primary; sync/export become a compact command bar. */
+.nmda-crm-top-grid { display:block; margin-bottom:10px; }
+.nmda-contact-command-card { gap:8px; padding:11px 13px; }
+.nmda-contact-command-card > .nmda-card-head { align-items:center; }
+.nmda-contact-command-actions { justify-content:flex-end; }
+.nmda-contact-sync-line { display:grid; grid-template-columns:minmax(180px,.72fr) minmax(260px,1.28fr); gap:8px; align-items:center; }
+.nmda-contact-sync-line .nmda-read-meta,#nmda-contact-status { min-height:30px; display:flex; align-items:center; padding:6px 9px; margin:0; border-radius:7px; font-size:9.5px; }
+.nmda-maintenance-details { padding-top:4px; }
+.nmda-maintenance-details > summary { font-size:9px; }
+.nmda-contact-list-card {
+  min-height:0 !important;
+  align-content:start;
+  grid-template-rows:auto auto auto minmax(260px,1fr);
+  gap:9px;
+  padding:13px;
+}
+.nmda-contact-toolbar-unified { grid-template-columns:minmax(260px,1.15fr) minmax(260px,.85fr); gap:8px; align-items:center; }
+.nmda-contact-toolbar-unified input { height:36px !important; min-height:36px !important; }
+.nmda-class-chip-bar { min-height:0; padding-top:0; }
+.nmda-contact-table-wrap { max-height:500px; min-height:260px; border-radius:8px; }
+.nmda-contact-table th { position:sticky; top:0; z-index:1; background:#f6f8fa; }
+.nmda-contact-table td:first-child small { font-size:9px; }
+
+@media (max-width:1100px) {
+  #nmda-panel { grid-template-columns:136px minmax(0,1fr); }
+  .nmda-bulk-workbench { grid-template-columns:minmax(0,1fr) 138px; column-gap:10px; }
+  .nmda-process-guide button small { display:none; }
+  .nmda-process-guide-title small { display:none; }
+  .nmda-single-grid { grid-template-columns:minmax(0,1.55fr) minmax(280px,.75fr); }
+}
+@media (max-width:900px) {
+  .nmda-bulk-workbench { grid-template-columns:minmax(0,1fr) 58px; }
+  .nmda-process-guide-title { justify-content:center; }
+  .nmda-process-guide-title strong { font-size:8px; }
+  .nmda-process-guide button strong,.nmda-process-guide button small { display:none; }
+  .nmda-process-guide button { grid-template-columns:1fr; justify-items:center; }
+  .nmda-single-grid { grid-template-columns:1fr; }
+  .nmda-action-card { position:static; }
+  .nmda-contact-sync-line { grid-template-columns:1fr; }
+}
+@media (max-width:760px) {
+  #nmda-panel { inset:4px; width:auto; height:auto; grid-template-columns:58px minmax(0,1fr); }
+  .nmda-tabs { padding-left:5px; padding-right:5px; }
+  .nmda-nav-label,.nmda-tab strong,.nmda-tab small { display:none; }
+  .nmda-tab { grid-template-columns:1fr; justify-items:center; padding:6px; }
+  .nmda-bulk-workbench[data-phase="empty"] #nmda-import-card { margin-top:18px; padding:16px; }
+  .nmda-source-action-grid { grid-template-columns:1fr !important; }
+  .nmda-task-toolbar,.nmda-contact-toolbar-unified { grid-template-columns:1fr; }
+}
+.nmda-file-picker { display:flex; align-items:center; gap:9px; min-height:36px; }
+.nmda-file-picker .nmda-btn { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+.nmda-file-picker .nmda-hint { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-field-assist { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:1px; color:#6e7781; font-size:9.5px; }
+.nmda-field-assist[hidden] { display:none !important; }
+.nmda-field-assist button { min-height:27px; padding:3px 8px; border:1px solid #b6d7fe; border-radius:6px; background:#eaf2ff; color:#0969da; font:700 9.5px/1 system-ui,sans-serif; cursor:pointer; }
+.nmda-field-assist button:hover { background:#ddf4ff; border-color:#80bfff; }

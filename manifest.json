@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "1.25.0",
+  "version": "1.26.0",
   "description": "网易邮箱网页版草稿工作台：以收件人、主题和时间为核心完成批量选择与排程，院校仅作后台错峰依据；只保存草稿，不自动发送。",
   "permissions": [
     "storage",
