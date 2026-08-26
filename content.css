@@ -1,4 +1,4 @@
-/* NetEase Mail Draft Assistant v1.12 — flow-first product workbench UI */
+/* NetEase Mail Draft Assistant v1.13 — business-flow workbench UI */
 #nmda-root,
 #nmda-root * { box-sizing: border-box; }
 
@@ -1003,4 +1003,42 @@
   .nmda-process-guide button { grid-template-columns:1fr; grid-template-rows:auto auto; text-align:center; justify-items:center; }
   .nmda-process-guide button > span { grid-row:auto; }
   .nmda-process-guide button strong { font-size:9px; }
+}
+
+
+/* v1.13 — one business flow, fewer primary actions */
+.nmda-page-head-meta { display:flex; align-items:center; gap:8px; color:#64748b; font-size:9px; white-space:nowrap; }
+.nmda-safe-inline { display:inline-flex; align-items:center; min-height:24px; padding:0 8px; border:1px solid #bbf7d0; border-radius:999px; background:#f0fdf4; color:#166534; font-weight:800; }
+.nmda-bulk-workbench { padding-bottom:100px; }
+.nmda-workflow-stage-head { display:flex; align-items:center; gap:10px; margin:2px 0 10px; padding:0 2px; }
+.nmda-workflow-stage-head > div { display:grid; gap:1px; min-width:0; }
+.nmda-workflow-stage-head strong { color:#172033; font-size:13px; font-weight:820; letter-spacing:-.01em; }
+.nmda-workflow-stage-head small { color:#7c8799; font-size:9px; }
+.nmda-stage-number { width:30px; height:30px; display:grid; place-items:center; flex:0 0 auto; border:1px solid #c7d2fe; border-radius:9px; background:#eef2ff; color:#4338ca; font-size:9px; font-weight:850; }
+.nmda-workflow-stage-separator { height:1px; margin:18px 2px 14px; background:linear-gradient(90deg, transparent, #dbe3ef 8%, #dbe3ef 92%, transparent); }
+.nmda-source-action-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.nmda-source-action-legacy[hidden] { display:none !important; }
+.nmda-import-handoff-card { position:relative; bottom:auto; z-index:1; border-color:#dbeafe !important; box-shadow:none !important; backdrop-filter:none; background:#f8fbff !important; }
+.nmda-import-handoff-card .nmda-card-head { display:none; }
+.nmda-import-handoff-actions { justify-content:flex-end; }
+.nmda-import-handoff-actions > .nmda-hint { margin-right:auto; }
+.nmda-batch-empty { border-style:dashed; background:#fbfcfe; }
+.nmda-bulk-editor { align-items:center; }
+#nmda-bulk-disable[hidden] { display:none !important; }
+.nmda-maintenance-details { border-top:1px solid #edf2f7; padding-top:7px; }
+.nmda-maintenance-details > summary { width:max-content; cursor:pointer; color:#64748b; font-size:9px; font-weight:750; list-style:none; }
+.nmda-maintenance-details > summary::-webkit-details-marker { display:none; }
+.nmda-maintenance-details > summary::after { content:'  ▾'; color:#94a3b8; }
+.nmda-maintenance-details[open] > summary::after { content:'  ▴'; }
+.nmda-maintenance-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px; padding:9px 10px; border:1px solid #fde7b0; border-radius:9px; background:#fffdf7; }
+.nmda-maintenance-row strong,.nmda-maintenance-row small { display:block; }
+.nmda-maintenance-row strong { color:#7c4a03; font-size:9.5px; }
+.nmda-maintenance-row small { margin-top:2px; color:#8a6a35; font-size:8.2px; line-height:1.4; }
+.nmda-mail-history-card > .nmda-card-head { align-items:center; }
+.nmda-mail-history-card > .nmda-card-head > div:first-child { align-items:flex-start; }
+
+@media (max-width: 900px) {
+  .nmda-source-action-grid { grid-template-columns:1fr; }
+  .nmda-page-head-meta { display:none; }
+  .nmda-maintenance-row { align-items:flex-start; flex-direction:column; }
 }
