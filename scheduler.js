@@ -43,8 +43,19 @@
       .replace(/[^a-z0-9\p{L}]+/gu,'')
       .trim();
   }
+  function institutionEvidence(value,recipients='',source=''){
+    const school=cleanInstitution(value),trusted=['roster','manual','recognized'].includes(String(source||''));
+    if(!school)return{valid:false,value:'',reason:'empty'};
+    if(/^(?:[a-z]|\d{1,3}|[a-z]\d{0,2}|(?:group|batch|round|wave|tier|class|category|tag)\s*[a-z0-9-]*|(?:第[\u4e00-\u5341\d]+批|分组|批次|类别|标签)\s*[a-z0-9-]*)$/i.test(school))return{valid:false,value:'',reason:'short-code'};
+    const strong=/(?:university|college|school|institute|academy|polytechnic|conservatoire|faculty|department|大学|学院|学校|研究院|科学院|理工|师范|商学院|学部)/i.test(school);
+    if(strong||trusted)return{valid:true,value:school,reason:strong?'institution-name':'trusted-source'};
+    const domain=recipientDomain(recipients),key=normalizeInstitutionKey(school);
+    const domainTokens=domain.split('.').filter(token=>token.length>=2&&!['edu','ac','com','org','net','mail'].includes(token));
+    const matched=domainTokens.some(token=>key===token||key.includes(token)||token.includes(key));
+    return matched?{valid:true,value:school,reason:'domain-match'}:{valid:false,value:'',reason:'unverified'};
+  }
   function groupForTask(task){
-    const school=cleanInstitution(task?.school||''), domain=recipientDomain(task?.recipients||'');
+    const evidence=institutionEvidence(task?.school||'',task?.recipients||'',task?.schoolSource||''),school=evidence.valid?evidence.value:'', domain=recipientDomain(task?.recipients||'');
     const generic=new Set(['gmail.com','googlemail.com','outlook.com','hotmail.com','live.com','yahoo.com','qq.com','163.com','126.com','icloud.com','proton.me','protonmail.com']);
     if(domain&&!generic.has(domain)) return { key:`domain:${domain}`, label:school||`邮箱域名 · ${domain}`, source:school?(task?.schoolSource||'school'):'domain', domain };
     if(school) return { key:`school:${normalizeInstitutionKey(school)}`, label:school, source:task?.schoolSource||'school', domain };
@@ -130,5 +141,5 @@
     };
   }
 
-  globalThis.NMDAScheduler={DEFAULT_RULES,formatLocalDateTime,parseLocalDateTime,defaultStart,recipientDomain,cleanInstitution,normalizeInstitutionKey,groupForTask,normalizeRules,audit,buildPlan};
+  globalThis.NMDAScheduler={DEFAULT_RULES,formatLocalDateTime,parseLocalDateTime,defaultStart,recipientDomain,cleanInstitution,normalizeInstitutionKey,institutionEvidence,groupForTask,normalizeRules,audit,buildPlan};
 })();

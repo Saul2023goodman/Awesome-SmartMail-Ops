@@ -34,6 +34,8 @@ for(const line of [
   '资料来源：https://example.edu/profile',
   '参考文献：https://example.edu/paper',
   'Professor profile: https://example.edu/faculty',
+  'Official university profile: https://example.edu/faculty',
+  'Source URL: https://example.edu/faculty',
   'Sources: official faculty page and publication list',
   '改写说明：突出方法契合度'
 ]){
@@ -119,3 +121,111 @@ for(const line of [
 }
 
 console.log('parser boundary regression OK: metadata isolated; signatures, postscripts, and ordinary prose protected');
+
+// v1.21 structure-sequence regressions: punctuation residue, split closings, role evidence, and split metadata.
+{
+  const scan=Mail.recognizeMailFrames([
+    '孙教授 — 示例大学','📧 sun@example.edu','主题：博士申请咨询','尊敬的孙教授：',
+    '感谢您审阅来信。我希望进一步了解课题组的博士招生与研究安排。',
+    '基于上述学习与实践积累，我希望继续研究人工智能及其治理问题。',
+    '此致\n敬礼—','孙潇阳'
+  ],{includeWeak:true});
+  const record=scan.records[0];
+  assert.strictEqual(record.subject,'博士申请咨询','Chinese Subject marker was not localized');
+  assert(record.body.endsWith('孙潇阳'),'Chinese signature after a closing dash was dropped');
+  assert(!record.issues.some(issue=>/未归类内容/.test(issue)),'closing punctuation became an ambiguous tail');
+  assert.strictEqual(record.endBlock,7,'mail end should be the signer, not the closing phrase');
+  const roles=new Map(record.blockRoles.map(item=>[item.index,item.roles.map(role=>role.role)]));
+  assert(roles.get(6).includes('closing'),'Chinese closing role missing');
+  assert(roles.get(7).includes('signature'),'Chinese signature role missing');
+}
+
+{
+  const scan=Mail.recognizeMailFrames([
+    '孙教授 — 示例大学','📧 sun@example.edu','主题：123','尊敬的孙教授：',
+    '这是一段足够长的正文，用于验证纯数字主题在主题标记之后不会被误判为记录编号。','此致\n敬礼—','孙潇阳'
+  ],{includeWeak:true});
+  assert.strictEqual(scan.records[0].subject,'123','numeric subject was mistaken for a record marker');
+}
+
+{
+  const scan=Mail.recognizeMailFrames([
+    '孙教授 — 示例大学','📧 sun@example.edu','主题：','123','尊敬的孙教授：',
+    '这是一段足够长的正文，用于验证主题标签与纯数字主题分处两个原始段落时仍保持字段归属。','此致\n敬礼—','孙潇阳'
+  ],{includeWeak:true});
+  assert.strictEqual(scan.records[0].subject,'123','split numeric subject lost its positional field meaning');
+}
+
+{
+  const scan=Mail.recognizeMailFrames([
+    '孙教授 — 示例大学','📧 sun@example.edu','Subject: PhD enquiry','尊敬的孙教授：',
+    '这是一段足够长的正文，用于验证此致与敬礼分别位于不同 Word 段落时仍能形成同一个结束语结构。',
+    '此致','敬礼—','孙潇阳'
+  ],{includeWeak:true});
+  const record=scan.records[0];
+  assert(record.body.includes('此致\n\n敬礼—'),'split Chinese closing was not joined into the mail');
+  assert(record.body.endsWith('孙潇阳'),'split closing lost the signer');
+  assert.strictEqual(record.structure.closeStartBlock,5);
+  assert.strictEqual(record.structure.closeEndBlock,6);
+  assert.strictEqual(record.structure.signatureEndBlock,7);
+}
+
+{
+  const {record}=recognize(['Research source','https://example.edu/faculty','Attachments','CV.pdf','Transcript.pdf']);
+  assert(!record.body.includes('Research source'),'bare source heading leaked into the body');
+  assert(!record.body.includes('example.edu/faculty'),'source continuation leaked into the body');
+  assert(record.sourceReferences.includes('https://example.edu/faculty'),'split source value was not preserved');
+  assert.strictEqual(record.attachments,'CV.pdf; Transcript.pdf','split attachment list was not routed');
+  assert(record.excludedBlocks.length>=5,'split metadata evidence was not fully retained');
+}
+
+{
+  const scan=Mail.recognizeMailFrames([
+    'Professor Yin — University of Queensland','📧 h.yin1@uq.edu.au','Subject: Prospective PhD Enquiry','Dear Professor Yin,',
+    'Many thanks for sharing your recent work; it helped me refine the proposed study and its evaluation plan.',
+    'Best regards to everyone in the laboratory, whose related work has also informed this research direction.',
+    'A final substantive paragraph completes the request for doctoral supervision and future discussion.','Yours sincerely,','Xiong Guo'
+  ],{includeWeak:true});
+  const record=scan.records[0];
+  assert(record.body.includes('Many thanks for sharing'),'ordinary gratitude sentence was mistaken for the closing');
+  assert(record.body.includes('Best regards to everyone'),'ordinary regards sentence was mistaken for the closing');
+  assert(record.body.endsWith('Xiong Guo'));
+}
+
+{
+  const scan=Mail.recognizeMailFrames([
+    'Professor Yin — University of Queensland','📧 h.yin1@uq.edu.au','Subject: Prospective PhD Enquiry','Dear Professor Yin,',
+    'Thank you','This standalone acknowledgement is followed by more substantive body content and therefore is not the structural end of the message.',
+    'The final paragraph completes the request for doctoral supervision, research discussion, and possible next steps.','Yours sincerely,','Xiong Guo'
+  ],{includeWeak:true});
+  const record=scan.records[0];
+  assert(record.body.includes('This standalone acknowledgement'),'an early standalone closing phrase truncated later body content');
+  assert(record.body.endsWith('Xiong Guo'));
+}
+
+{
+  const scan=Mail.recognizeMailFrames([
+    'Professor Yin — University of Queensland','first@example.edu','second@example.edu','Subject: Prospective PhD Enquiry','Dear Professor Yin,',
+    'This complete email contains sufficient body text to test ambiguity handling between two equally plausible nearby recipient candidates.','Yours sincerely,','Xiong Guo'
+  ],{includeWeak:true});
+  assert.strictEqual(scan.records[0].recipients,'','equally plausible recipients should not be selected silently');
+  assert(scan.records[0].issues.includes('收件人存在多个相近候选'));
+  assert.strictEqual(scan.records[0].blockRoles.flatMap(item=>item.roles).filter(role=>role.role==='recipient-candidate').length,2,'ambiguous email locations should remain visible');
+}
+
+console.log('parser structure regression OK: split closings, punctuation, semantic roles, split metadata, and ambiguity handled');
+
+{
+  const scan=Mail.recognizeMailFrames([
+    'Professor Yin — University of Queensland','📧 h.yin1@uq.edu.au','**Subject:** Markdown title','**Dear Professor Yin,**',
+    'This sufficiently complete paragraph verifies that presentation markup does not change semantic component localization.','**Yours sincerely,**','**Xiong Guo**',
+    '### Research source','- https://example.edu/profile'
+  ],{includeWeak:true});
+  const record=scan.records[0];
+  assert.strictEqual(record.subject,'Markdown title');
+  assert(record.body.endsWith('Xiong Guo'));
+  assert(!record.body.includes('Research source'));
+  assert(record.sourceReferences.includes('https://example.edu/profile'));
+}
+
+console.log('parser presentation regression OK: Markdown decoration does not alter field roles');

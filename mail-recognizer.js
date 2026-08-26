@@ -2,20 +2,33 @@
   'use strict';
 
   const EMAIL_RE = /\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b/ig;
-  const SUBJECT_RE = /(?:^|[\s>*#\-])(?:\*{0,2})\s*(?:subject|主题|邮件主题|邮件标题)\s*[:：]\s*/i;
-  const SALUTATION_RE = /(?:\b(?:dear|hello|hi)\s+(?:(?:prof(?:essor)?|dr|mr|mrs|ms)\.?\s+)?[^,\n]{1,90},?|(?:尊敬的|敬爱的)[^，,：:\n]{1,60}[，,：:]|[\p{L}·•]{1,30}(?:教授|老师|博士)[，,]?\s*您好[！!，,]?|^\s*您好[！!，,：:])/iu;
-  const CLOSE_RE = /(?:\b(?:yours\s+sincerely|sincerely|best\s+regards|kind\s+regards|warm\s+regards|regards|best\s+wishes|respectfully|many\s+thanks)\b\s*[,，]?|此致\s*敬礼|祝好|顺颂(?:时祺|商祺)|敬祝[^\n]{0,20})/iu;
+  const SUBJECT_LABEL_RE = /^(?:\*{0,2})\s*(?:subject|e-?mail\s+subject|主题|邮件主题|邮件标题)\s*(?:\*{0,2})\s*[:：]\s*(?:\*{0,2})?\s*/iu;
+  const EN_SALUTATION_RE = /^(?:dear|hello|hi)\s+(?:(?:prof(?:essor)?|dr|mr|mrs|ms)\.?\s+)?[^,，:：\n]{1,90}(?:[,，:：]|$)/iu;
+  const CN_SALUTATION_RE = /^(?:(?:尊敬的|敬爱的)[^，,：:\n]{1,60}[，,：:]?|[\p{L}·•]{1,30}(?:教授|老师|博士)[，,]?\s*您好[！!，,：:]?|您好[！!，,：:])/iu;
   const HARD_NOISE_RE = /^\s*(?:[-—_]{3,}|#{1,6}\s+|\*{0,2}(?:完整套磁信|改写点标注|改写说明|契合点|备注|说明)\s*[:：]?|✏️|📝|📌|(?:剩下的发|好的，我来|第一部分|第二部分|发送计划))/i;
   const NUMBER_ONLY_RE = /^\s*(?:\d{1,4}|[一二三四五六七八九十百]+)[\.、)）:]?\s*$/;
   const POSTSCRIPT_RE = /^\s*(?:p\.?\s*s\.?|postscript|附言|又及)\s*[:：.]/iu;
   const RECORD_HEADING_RE = /^(?:\d+[.、)）:]\s*)?[^\n]{2,100}?\s+[—–-]\s+[^\n]{0,160}(?:university|college|school|institute|academy|polytechnic|大学|学院|学校|研究院|科学院|@[A-Z0-9.-]+)[^\n]*$/iu;
+  const EN_CLOSE_RE = /^(yours\s+sincerely|sincerely\s+yours|sincerely|best\s+regards|with\s+best\s+regards|kind\s+regards|warm\s+regards|regards|best\s+wishes|respectfully|with\s+gratitude|many\s+thanks|thank\s+you)\b/iu;
+  const CN_COMPLETE_CLOSE_RE = /^(此致\s*敬礼|祝好|顺颂(?:时祺|商祺|教祺|研祺|春祺|夏祺|秋祺|冬祺)|敬颂(?:时祺|教祺|研祺|学安)|谨致问候|敬祝(?:安好|顺利|学安|教安|研安|工作顺利))/u;
+  const CN_CLOSE_START_RE = /^此致\s*[,，。！!;；:：—–―-]*\s*$/u;
+  const CN_CLOSE_END_RE = /^敬礼\s*[,，。！!;；:：—–―-]*/u;
+  const TAIL_PUNCTUATION_RE = /^[\s,，。.!！;；:：—–―\-_*`~～·•]+$/u;
+  const SIGNATURE_STOP_WORDS = new Set(['thanks','thank','regards','best','sincerely','respectfully','hello','dear','source','sources','reference','references','attachment','attachments','subject','email','note','notes']);
   const METADATA_FIELDS = [
-    {field:'source',label:'来源',re:/^(?:research\s+sources?|information\s+sources?|data\s+sources?|source(?:s|\s+links?)?|references?|reference\s+links?|citations?|research\s+(?:basis|evidence)|(?:professor|supervisor|advisor|faculty|official)\s+profiles?|profile\s+links?|official\s+(?:page|profile)|资料来源|研究来源|信息来源|数据来源|来源链接|来源|参考资料|参考文献|引用来源|导师主页|教授主页|官方主页|网页链接)/iu},
-    {field:'attachments',label:'附件',re:/^(?:required\s+attachments?|attached\s+files?|attachment(?:s|\s+list)?|enclosures?|附件(?:清单|列表|要求)?|随附文件|所需材料)/iu},
-    {field:'scheduleAt',label:'定时',re:/^(?:scheduled?\s+(?:send(?:ing)?\s+)?(?:time|date)|send(?:ing)?\s+(?:time|date)|delivery\s+(?:time|date)|定时(?:发送)?时间|计划发送时间|发送时间|预约发送时间)/iu},
+    {field:'source',label:'来源',re:/^(?:research\s+sources?|information\s+sources?|data\s+sources?|source(?:s|\s+(?:links?|urls?))?|references?|reference\s+(?:links?|urls?)|citations?|research\s+(?:basis|evidence)|(?:professor|supervisor|advisor|faculty)\s+(?:profiles?|pages?)|profile\s+(?:links?|urls?)|official\s+(?:university\s+)?(?:page|profile)|publication\s+(?:list|links?)|paper\s+links?|资料来源|研究来源|信息来源|数据来源|来源链接|来源网址|来源|参考资料|参考文献|引用来源|导师主页|教授主页|学校主页|课题组主页|论文链接|官方主页|网页链接)/iu},
+    {field:'attachments',label:'附件',re:/^(?:required\s+attachments?|attached\s+(?:files?|documents?)|documents?\s+attached|files?\s+to\s+attach|attachment(?:s|\s+list)?|enclosures?|附件(?:清单|列表|要求)?|待附文件|随附文件|所需材料)/iu},
+    {field:'scheduleAt',label:'定时',re:/^(?:scheduled?\s+(?:send(?:ing)?\s+)?(?:time|date)|send(?:ing)?\s+(?:time|date)|delivery\s+(?:time|date)|send\s+at|schedule|定时(?:发送)?时间|计划发送时间|发送时间|预约发送时间)/iu},
     {field:'recipient',label:'收件人',re:/^(?:recipient(?:\s+email)?|to\s+address|professor\s+email|supervisor\s+email|advisor\s+email|收件人(?:邮箱)?|导师邮箱|教授邮箱)/iu},
     {field:'notes',label:'说明',re:/^(?:internal\s+notes?|editor(?:ial)?\s+notes?|drafting\s+notes?|instructions?|rewrite\s+notes?|matching\s+points?|rationale|analysis|备注|内部说明|操作说明|写作说明|改写说明|改写点|契合点|匹配点|发送说明|研究说明)/iu}
   ];
+  const METADATA_MATCHERS = METADATA_FIELDS.map(def=>{
+    const core=def.re.source.replace(/^\^/,'');
+    return {...def,
+      valued:new RegExp(`^(?:${core})\\s*(?:(?:[:：])|(?:\\s+[—–-]\\s+))\\s*(.+)$`,def.re.flags),
+      heading:new RegExp(`^(?:${core})\\s*[:：]?\\s*$`,def.re.flags)
+    };
+  });
 
   function textOfBlock(block) {
     if (block == null) return '';
@@ -39,6 +52,21 @@
       .replace(/^\*{1,3}|\*{1,3}$/g, '')
       .replace(/\*\*/g, '')
       .trim();
+  }
+
+  function presentationPrefixLength(value) {
+    return String(value || '').match(/^\s*(?:(?:#{1,6}|>|[-*•▪◦])\s*)*/u)?.[0].length || 0;
+  }
+
+  function logicalLines(value) {
+    const text=cleanBlockText(value),out=[];
+    const re=/[^\n]+/g;let m;
+    while((m=re.exec(text))){
+      const raw=m[0],lead=raw.match(/^\s*/)?.[0].length||0,trail=raw.match(/\s*$/)?.[0].length||0;
+      const start=m.index+lead,end=m.index+raw.length-trail;
+      if(end>start)out.push({text:text.slice(start,end),start,end});
+    }
+    return out;
   }
 
   function collapseSubject(value) {
@@ -70,39 +98,136 @@
     return false;
   }
 
-  function subjectAnchor(text) {
-    const t = cleanBlockText(text);
-    const m = SUBJECT_RE.exec(t);
-    return m ? { index:m.index + m[0].length, markerStart:m.index, marker:m[0] } : null;
+  function subjectAnchor(value) {
+    const text=cleanBlockText(value);
+    for(const line of logicalLines(text)){
+      const prefix=presentationPrefixLength(line.text),candidate=line.text.slice(prefix);
+      const m=SUBJECT_LABEL_RE.exec(candidate);
+      if(m)return{index:line.start+prefix+m[0].length,markerStart:line.start+prefix,marker:m[0],lineStart:line.start,lineEnd:line.end};
+    }
+    return null;
   }
 
-  function salutationAnchor(text) {
-    const t = cleanBlockText(text);
-    const m = SALUTATION_RE.exec(t);
-    return m ? { index:m.index, end:m.index + m[0].length, text:m[0] } : null;
+  function salutationAnchor(value) {
+    const text=cleanBlockText(value);
+    for(const line of logicalLines(text)){
+      const prefix=presentationPrefixLength(line.text),candidate=line.text.slice(prefix);
+      const m=EN_SALUTATION_RE.exec(candidate)||CN_SALUTATION_RE.exec(candidate);
+      if(m)return{index:line.start+prefix+(m.index||0),end:line.start+prefix+(m.index||0)+m[0].length,text:m[0],lineStart:line.start,lineEnd:line.end};
+    }
+    const subject=subjectAnchor(text);
+    if(subject){
+      const tail=text.slice(subject.index),m=/(?:\b(?:dear|hello|hi)\s+(?:(?:prof(?:essor)?|dr|mr|mrs|ms)\.?\s+)?[^,，:：\n]{1,90}(?:[,，:：]|$)|(?:尊敬的|敬爱的)[^，,：:\n]{1,60}[，,：:])/iu.exec(tail);
+      if(m)return{index:subject.index+m.index,end:subject.index+m.index+m[0].length,text:m[0],lineStart:subject.index,lineEnd:text.length};
+    }
+    return null;
   }
 
-  function closeAnchor(text) {
-    const t = cleanBlockText(text);
-    const m = CLOSE_RE.exec(t);
-    return m ? { index:m.index, end:m.index + m[0].length, text:m[0] } : null;
+  function isLikelyPersonNameLine(value) {
+    const text=cleanInlineMarkup(value).replace(/^[,，:：;；—–―\-\s]+|[,，:：;；—–―\-\s]+$/g,'').trim();
+    if(!text||text.length>90||/[.!?。！？:：/@]/u.test(text))return false;
+    if(/^[\p{Script=Han}·]{2,12}(?:\s*[（(][A-Za-z][A-Za-z'’ .-]{0,50}[)）])?$/u.test(text))return true;
+    const tokens=text.split(/\s+/).filter(Boolean);
+    if(tokens.length<1||tokens.length>6)return false;
+    if(tokens.some(token=>SIGNATURE_STOP_WORDS.has(token.toLowerCase())))return false;
+    return tokens.every(token=>/^(?:[A-Z][\p{L}'’.-]*|[A-Z]{2,}|[A-Z]\.)$/u.test(token));
+  }
+
+  function closingLineInfo(line) {
+    const prefix=presentationPrefixLength(line.text),candidate=line.text.slice(prefix).trim().replace(/\*{1,3}$/,'').trim();
+    const absoluteStart=line.start+prefix;
+    if(CN_CLOSE_START_RE.test(candidate))return{kind:'start',index:absoluteStart,end:line.end,text:candidate};
+    const cnComplete=CN_COMPLETE_CLOSE_RE.exec(candidate);
+    if(cnComplete){
+      const after=candidate.slice(cnComplete[0].length),punct=after.match(/^\s*[,，。！!;；:：—–―-]*\s*/u)?.[0]||'',tail=after.slice(punct.length).trim();
+      if(!tail||isLikelyPersonNameLine(tail))return{kind:'complete',index:absoluteStart,end:absoluteStart+cnComplete[0].length+punct.length,text:candidate.slice(0,cnComplete[0].length+punct.length)};
+    }
+    const cnEnd=CN_CLOSE_END_RE.exec(candidate);
+    if(cnEnd){
+      const tail=candidate.slice(cnEnd[0].length).trim();
+      if(!tail||isLikelyPersonNameLine(tail))return{kind:'end',index:absoluteStart,end:absoluteStart+cnEnd[0].length,text:candidate.slice(0,cnEnd[0].length)};
+    }
+    const en=EN_CLOSE_RE.exec(candidate);
+    if(en){
+      const markerEnd=en[0].length,after=candidate.slice(markerEnd),punct=after.match(/^\s*[,，:：;；—–―-]*\s*/u)?.[0]||'',tail=after.slice(punct.length).trim();
+      const hasSeparator=/[,，:：;；—–―-]/u.test(punct);
+      if(!tail||(hasSeparator&&isLikelyPersonNameLine(tail)))return{kind:'complete',index:absoluteStart,end:absoluteStart+markerEnd+punct.length,text:candidate.slice(0,markerEnd+punct.length)};
+    }
+    return null;
+  }
+
+  function closeAnchor(value) {
+    const text=cleanBlockText(value),lines=logicalLines(text);
+    for(let i=0;i<lines.length;i++){
+      const found=closingLineInfo(lines[i]);if(!found)continue;
+      if(found.kind==='start'&&i+1<lines.length){
+        const next=closingLineInfo(lines[i+1]);
+        if(next?.kind==='end')return{index:found.index,end:next.end,text:text.slice(found.index,next.end),kind:'complete'};
+      }
+      return found;
+    }
+    return null;
+  }
+
+  function laterClosingExists(blocks,from,endBlock) {
+    for(let i=Math.max(0,from);i<Math.min(endBlock,blocks.length);i++)if(closeAnchor(textOfBlock(blocks[i])))return true;
+    return false;
+  }
+
+  function closingCandidatePrecedesBody(blocks,span,endBlock) {
+    const candidates=[],endRaw=cleanBlockText(textOfBlock(blocks[span.endBlock])),inlineTail=endRaw.slice(span.end).trim();
+    for(const text of inlineTail.split(/\n+/).map(x=>x.trim()).filter(Boolean))candidates.push(text);
+    for(let i=span.endBlock+1;i<Math.min(endBlock,span.endBlock+5,blocks.length);i++)for(const text of cleanBlockText(textOfBlock(blocks[i])).split(/\n+/).map(x=>x.trim()).filter(Boolean))candidates.push(text);
+    for(const text of candidates){
+      const classification=classifyBoundaryBlock(text,{phase:'post-close'});
+      if(classification.role==='formatting')continue;
+      if(['signature','postscript','metadata','subject','salutation','record-heading','record-marker','annotation'].includes(classification.role))return false;
+      if(classification.role==='body')return laterClosingExists(blocks,span.endBlock+1,endBlock);
+    }
+    return false;
+  }
+
+  function findClosingSpan(blocks,startBlock,endBlock) {
+    for(let i=Math.max(0,startBlock);i<Math.min(endBlock,blocks.length);i++){
+      const found=closeAnchor(textOfBlock(blocks[i]));if(!found)continue;
+      let span=null;
+      if(found.kind==='start'){
+        for(let j=i+1;j<Math.min(endBlock,i+3,blocks.length);j++){
+          const next=closeAnchor(textOfBlock(blocks[j]));
+          if(next?.kind==='end'||next?.kind==='complete'&&/^敬礼/u.test(cleanInlineMarkup(next.text))){
+            span={startBlock:i,endBlock:j,index:found.index,end:next.end,text:`${found.text}\n${next.text}`,kind:'complete'};break;
+          }
+          if(!TAIL_PUNCTUATION_RE.test(cleanBlockText(textOfBlock(blocks[j]))))break;
+        }
+      }
+      span=span||{startBlock:i,endBlock:i,index:found.index,end:found.end,text:found.text,kind:found.kind};
+      if(closingCandidatePrecedesBody(blocks,span,endBlock))continue;
+      return span;
+    }
+    return null;
   }
 
   function stripListPrefix(value) {
-    return cleanBlockText(value)
-      .replace(/^\s*(?:[-*•▪◦]+|(?:✏️|📝|📌|🔗|📎|⏰|📧))\s*/u,'')
+    const text=cleanBlockText(value),prefix=presentationPrefixLength(text);
+    return text.slice(prefix)
+      .replace(/^\s*(?:✏️|📝|📌|🔗|📎|⏰|📧)\s*/u,'')
+      .replace(/([:：])\s*\*{1,3}\s*/u,'$1 ')
       .trim();
   }
 
   function metadataAnchor(value) {
     const text=stripListPrefix(value);
-    for(const def of METADATA_FIELDS){
-      const m=text.match(new RegExp(`${def.re.source}\\s*[:：]\\s*(.*)$`,def.re.flags));
-      if(m)return{field:def.field,label:def.label,value:String(m[1]||'').trim(),text};
+    for(const def of METADATA_MATCHERS){
+      const valued=def.valued.exec(text);
+      if(valued)return{field:def.field,label:def.label,value:String(valued[1]||'').trim(),text,headingOnly:false};
+      const heading=def.heading.exec(text);
+      if(heading)return{field:def.field,label:def.label,value:'',text,headingOnly:true};
     }
-    if(/^📧\s*[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\s*$/iu.test(cleanBlockText(value))){
-      return{field:'recipient',label:'收件人',value:extractEmails(value)[0]||'',text};
-    }
+    const directEmails=extractEmails(value);
+    // A leading mail icon is an explicit recipient marker even when the source appends a human
+    // note such as “（请以官网为准）”. Requiring the whole block to be only an email caused these
+    // high-quality recipient lines to fall back to generic prose classification.
+    if(/^\s*📧/u.test(cleanBlockText(value))&&directEmails.length)return{field:'recipient',label:'收件人',value:directEmails[0],text,headingOnly:false};
     return null;
   }
 
@@ -110,8 +235,7 @@
     const text=cleanInlineMarkup(value);
     if(!text||text.length>180||metadataAnchor(text)||subjectAnchor(text)||salutationAnchor(text)||closeAnchor(text)||HARD_NOISE_RE.test(text)||NUMBER_ONLY_RE.test(text))return false;
     if(POSTSCRIPT_RE.test(text))return false;
-    if(/^(?:[\p{L}][\p{L}'’.-]*)(?:\s+[\p{L}][\p{L}'’.-]*){0,5}$/u.test(text))return true;
-    if(/^[\p{Script=Han}·•]{2,12}$/u.test(text))return true;
+    if(isLikelyPersonNameLine(text))return true;
     if(/\b(?:ph\.?d\.?|doctoral|master'?s?|student|candidate|researcher|assistant|associate|professor|lecturer|department|faculty|school|college|university|institute|laboratory|lab|中心|实验室|研究院|学院|大学|博士|硕士|学生|研究员|教授|讲师)\b/iu.test(text))return true;
     if(/^(?:e-?mail|email|tel|telephone|phone|mobile|wechat|微信|电话|手机|网址|website)\s*[:：]/iu.test(text))return true;
     if(/^(?:https?:\/\/|www\.)\S+$/iu.test(text))return true;
@@ -122,16 +246,20 @@
   function classifyBoundaryBlock(value,{phase='body'}={}) {
     const text=cleanBlockText(value);
     if(!text)return{role:'empty',hard:false,label:'空行'};
+    if(TAIL_PUNCTUATION_RE.test(text))return{role:'formatting',hard:false,label:'排版符号'};
     const metadata=metadataAnchor(text);
     if(metadata)return{role:'metadata',hard:true,label:metadata.label,metadata};
     if(subjectAnchor(text))return{role:'subject',hard:true,label:'下一主题'};
-    if(HARD_NOISE_RE.test(text))return{role:'annotation',hard:true,label:'说明'};
     if(NUMBER_ONLY_RE.test(text))return{role:'record-marker',hard:true,label:'下一记录'};
+    // Identity headings may themselves be Markdown headings (e.g. “### 1. Name — mail@uni.edu”).
+    // Detect their semantic role before the generic Markdown/noise rule, otherwise the previous
+    // record can consume the next record's identity line and hide its embedded email.
     if(phase!=='body'&&RECORD_HEADING_RE.test(cleanInlineMarkup(text)))return{role:'record-heading',hard:true,label:'下一记录'};
+    if(HARD_NOISE_RE.test(text))return{role:'annotation',hard:true,label:'说明'};
     if(salutationAnchor(text))return{role:'salutation',hard:phase!=='body',label:'称呼'};
-    if(closeAnchor(text))return{role:'closing',hard:false,label:'落款'};
+    if(closeAnchor(text))return{role:'closing',hard:false,label:'结束语'};
     if(POSTSCRIPT_RE.test(text))return{role:'postscript',hard:false,label:'附言'};
-    if(phase==='post-close'&&isLikelySignatureLine(text))return{role:'signature',hard:false,label:'签名'};
+    if(phase==='post-close'&&isLikelySignatureLine(text))return{role:'signature',hard:false,label:'署名'};
     return{role:'body',hard:false,label:'正文'};
   }
 
@@ -139,44 +267,63 @@
     return {index,text:cleanBlockText(textOfBlock(block)),role:classification.role,label:classification.label,field:classification.metadata?.field||'',value:classification.metadata?.value||''};
   }
 
-  function sidecarFromExcluded(items) {
-    const attachments=[],sources=[];let scheduleAt='';
-    for(const item of items||[]){
-      if(item.field==='attachments'&&item.value)attachments.push(item.value);
-      else if(item.field==='source'&&item.value)sources.push(item.value);
-      else if(item.field==='scheduleAt'&&item.value&&!scheduleAt)scheduleAt=item.value;
-    }
-    return{attachments:[...new Set(attachments)].join('; '),scheduleAt,sources};
+  function continuationClassification(field,label,value) {
+    const clean=stripListPrefix(value).replace(/^\d{1,3}[.、)）]\s*/u,'').trim();
+    return{role:'metadata-continuation',hard:true,label,metadata:{field,label,value:clean}};
   }
 
-  function nearestRecipientContext(blocks, start, end, salutationText='') {
+  // Recipient is a leading field of the *next* mail frame, never a post-body sidecar of the
+  // completed frame. v1.21 introduced consumedEndBlock to stop source/notes metadata leaking
+  // into the next record, but it also consumed a next-record recipient when the source order was
+  // `previous signature -> notes -> 📧 next@... -> record marker/heading -> Subject`. That made
+  // previousConsumedEnd jump past the real recipient before nearestRecipientContext could see it.
+  // Keep source/attachment/schedule/notes tail ownership, but stop ownership immediately before
+  // a recipient header so the next frame can resolve it from its own preamble.
+  function isRecipientBoundary(classification) {
+    return classification?.role==='metadata' && classification.metadata?.field==='recipient';
+  }
+
+  function sidecarFromExcluded(items) {
+    const attachments=[],sources=[],schedules=[];
+    for(const item of items||[]){
+      const value=String(item.value||'').trim();if(!value)continue;
+      if(item.field==='attachments')attachments.push(value);
+      else if(item.field==='source')sources.push(value);
+      else if(item.field==='scheduleAt')schedules.push(value);
+    }
+    return{attachments:[...new Set(attachments)].join('; '),scheduleAt:schedules[0]||'',sources:[...new Set(sources)]};
+  }
+
+  function nearestRecipientContext(blocks, start, end, salutationText='', options={}) {
     const candidates = [];
-    const surname = String(salutationText || '').replace(/[,，]/g,'').trim().split(/\s+/).pop()?.toLowerCase() || '';
+    const indexOffset=Number(options?.indexOffset||0);
+    const salutation=String(salutationText||'').replace(/[,，:：！!]/g,' ').trim();
+    const surname=salutation.split(/\s+/).filter(Boolean).pop()?.toLowerCase()||'';
     for (let i=Math.max(0,start); i<=Math.min(end,blocks.length-1); i++) {
-      const text = cleanBlockText(textOfBlock(blocks[i]));
-      const metadata=metadataAnchor(text);
-      const emails = extractEmails(text);
+      const text = cleanBlockText(textOfBlock(blocks[i])),metadata=metadataAnchor(text),emails=extractEmails(text);
       for (const email of emails) {
         let score = 100 - Math.min(70, Math.max(0,end-i)*8);
+        const explicitRecipient=metadata?.field==='recipient'||/(?:recipient|收件人|导师邮箱|教授邮箱|to\s*[:：])/iu.test(text);
         if (/📧/.test(text)) score += 18;
         if (/[-—–]\s*[^\n]*@/.test(text) || /@[^\s]+\s*$/.test(text)) score += 10;
         if (surname && text.toLowerCase().includes(surname)) score += 14;
         if (/\b(?:from|my email|sender)\b/i.test(text)) score -= 30;
-        if(metadata&&metadata.field!=='recipient')score-=80;
-        else if(metadata?.field==='recipient')score+=18;
-        candidates.push({email,index:i,score,text});
+        if(metadata&&metadata.field!=='recipient')score-=80;else if(explicitRecipient)score+=24;
+        candidates.push({email,index:i+indexOffset,score,text,explicitRecipient});
       }
     }
-    candidates.sort((a,b)=>b.score-a.score || b.index-a.index);
-    return { selected:candidates.find(candidate=>candidate.score>=55) || null, candidates };
+    const deduped=new Map();
+    for(const candidate of candidates){const key=candidate.email.toLowerCase(),prior=deduped.get(key);if(!prior||candidate.score>prior.score)deduped.set(key,candidate);}
+    const ranked=[...deduped.values()].sort((a,b)=>b.score-a.score || b.index-a.index),first=ranked[0]||null,second=ranked[1]||null;
+    const ambiguous=!!(first&&second&&first.score>=55&&second.score>=55&&!first.explicitRecipient&&first.score-second.score<10);
+    return { selected:first&&first.score>=55&&!ambiguous?first:null, candidates:ranked, ambiguous };
   }
 
   function headingContext(blocks, contextStart, subjectBlock) {
     const from=Math.max(contextStart,subjectBlock-8);
-    // Strong identity heading first: "### 12. Name — email/university/...". Markdown is presentation, not semantics.
     for (let i=subjectBlock-1; i>=from; i--) {
       const raw=cleanBlockText(textOfBlock(blocks[i])); if(!raw)continue;
-      if (SUBJECT_RE.test(raw) || SALUTATION_RE.test(raw) || CLOSE_RE.test(raw) || metadataAnchor(raw)) continue;
+      if (subjectAnchor(raw) || salutationAnchor(raw) || closeAnchor(raw) || metadataAnchor(raw)) continue;
       const clean=cleanInlineMarkup(raw);
       if (/^(?:\d+[.、)）:]\s*)?[^\n]{2,100}?\s+[—–-]\s+[^\n]{2,180}$/i.test(clean)) return {index:i,text:clean};
     }
@@ -184,14 +331,13 @@
       const raw = cleanBlockText(textOfBlock(blocks[i]));
       if (!raw || HARD_NOISE_RE.test(raw) || NUMBER_ONLY_RE.test(raw) || metadataAnchor(raw)) continue;
       if (/^\s*(?:📧\s*)?[A-Z0-9._%+\-]+@/i.test(raw)) continue;
-      if (SUBJECT_RE.test(raw) || SALUTATION_RE.test(raw) || CLOSE_RE.test(raw)) continue;
+      if (subjectAnchor(raw) || salutationAnchor(raw) || closeAnchor(raw)) continue;
       const text = cleanInlineMarkup(raw);
       if (text.length > 180 || /^(?:突出|强调|契合点|改写)/.test(text)) continue;
       return {index:i,text};
     }
     return null;
   }
-
 
   function institutionFromHeading(headingText) {
     const clean=cleanInlineMarkup(headingText||'').replace(/^\s*\d+[\.、)）:]\s*/,'').trim();
@@ -211,121 +357,160 @@
   }
 
   function subjectText(blocks, subjectBlock, salutBlock, subjectInfo, salutInfo) {
-    const parts = [];
-    for (let i=subjectBlock; i<=salutBlock; i++) {
-      let text = cleanBlockText(textOfBlock(blocks[i]));
-      if (!text) continue;
-      if (i===subjectBlock) text = text.slice(subjectInfo.index);
-      if (i===salutBlock) {
-        const localSal = i===subjectBlock ? salutationAnchor(cleanBlockText(textOfBlock(blocks[i]))) : salutInfo;
-        if (localSal) {
-          const cut = i===subjectBlock ? Math.max(0, localSal.index - subjectInfo.index) : localSal.index;
-          text = text.slice(0,cut);
-        }
-      }
-      if (text.trim()) parts.push(text);
-    }
-    return collapseSubject(parts.join('\n'));
-  }
-
-  function appendPostClose(blocks,parts,closeBlock,nextSubjectBlock,closeInfo=null) {
-    let endBlock=closeBlock,inPostscript=false,signatureLines=0;
-    const excludedBlocks=[];
-    const candidates=[];
-    const closeRaw=cleanBlockText(textOfBlock(blocks[closeBlock]));
-    const inlineTail=closeInfo?closeRaw.slice(closeInfo.end).trim():'';
-    for(const text of inlineTail.split(/\n+/).map(x=>x.trim()).filter(Boolean))candidates.push({text,index:closeBlock,inline:true});
-    for(let i=closeBlock+1;i<Math.min(nextSubjectBlock,closeBlock+10,blocks.length);i++){
-      for(const text of cleanBlockText(textOfBlock(blocks[i])).split(/\n+/).map(x=>x.trim()).filter(Boolean))candidates.push({text,index:i,inline:false});
-    }
-    for(const candidate of candidates){
-      const raw=candidate.text,i=candidate.index;
-      if(!raw)continue;
-      const classification=classifyBoundaryBlock(raw,{phase:'post-close'});
-      if(classification.hard){excludedBlocks.push(excludedBlock(candidate,i,classification));break;}
-      if(classification.role==='postscript')inPostscript=true;
-      if(inPostscript){
-        if(classification.role==='subject'||classification.role==='salutation')break;
-        parts.push(cleanInlineMarkup(raw));endBlock=i;continue;
-      }
-      if(classification.role==='signature'&&signatureLines<6){
-        parts.push(cleanInlineMarkup(raw));endBlock=i;signatureLines++;continue;
-      }
-      // An unclassified paragraph after a completed closing is not silently promoted to the email.
-      excludedBlocks.push(excludedBlock(candidate,i,{role:'ambiguous-tail',label:'未归类尾部'}));
-      break;
-    }
-    return{endBlock,excludedBlocks};
-  }
-
-  function bodyText(blocks, salutationBlock, closeBlock, nextSubjectBlock, salutInfo, closeInfo) {
     const parts=[];
-    for (let i=salutationBlock; i<=closeBlock; i++) {
-      let text=cleanBlockText(textOfBlock(blocks[i]));
-      if (!text) continue;
-      const start=i===salutationBlock&&salutInfo?salutInfo.index:0;
-      const end=i===closeBlock&&closeInfo?closeInfo.end:text.length;
-      text=text.slice(start,end);
-      parts.push(cleanInlineMarkup(text));
+    scanSubject:for(let i=subjectBlock;i<=salutBlock&&parts.join(' ').length<260;i++){
+      let text=cleanBlockText(textOfBlock(blocks[i]));if(!text)continue;
+      if(i===subjectBlock)text=text.slice(subjectInfo.index);
+      if(i===salutBlock&&salutInfo){
+        const localSal=i===subjectBlock?salutationAnchor(cleanBlockText(textOfBlock(blocks[i]))):salutInfo;
+        if(localSal){const cut=i===subjectBlock?Math.max(0,localSal.index-subjectInfo.index):localSal.index;text=text.slice(0,cut);}
+      }
+      for(const line of text.split(/\n+/).map(x=>x.trim()).filter(Boolean)){
+        const classification=classifyBoundaryBlock(line,{phase:'header'});
+        if(!parts.length&&(i===subjectBlock||classification.role==='body'||classification.role==='record-marker')){parts.push(line);continue;}
+        if(classification.hard||classification.role==='closing'||classification.role==='postscript')break scanSubject;
+        parts.push(line);
+      }
     }
-    const tail=appendPostClose(blocks,parts,closeBlock,nextSubjectBlock,closeInfo);
-    return { text:parts.filter(Boolean).join('\n\n').replace(/\n{3,}/g,'\n\n').trim(), endBlock:tail.endBlock, excludedBlocks:tail.excludedBlocks };
+    return collapseSubject(parts.join(' ')).slice(0,260);
   }
 
+  function appendPostClose(blocks,parts,closeInfo,nextSubjectBlock) {
+    let endBlock=closeInfo.endBlock,inPostscript=false,signatureLines=0,postscriptLines=0,boundaryMode=false,activeField='',activeLabel='';
+    let consumedEndBlock=endBlock;
+    const excludedBlocks=[],signatureBlocks=new Set(),postscriptBlocks=new Set(),candidates=[];
+    const closeRaw=cleanBlockText(textOfBlock(blocks[closeInfo.endBlock])),inlineTail=closeRaw.slice(closeInfo.end).trim();
+    for(const text of inlineTail.split(/\n+/).map(x=>x.trim()).filter(Boolean))candidates.push({text,index:closeInfo.endBlock,inline:true});
+    for(let i=closeInfo.endBlock+1;i<Math.min(nextSubjectBlock,closeInfo.endBlock+16,blocks.length);i++)for(const text of cleanBlockText(textOfBlock(blocks[i])).split(/\n+/).map(x=>x.trim()).filter(Boolean))candidates.push({text,index:i,inline:false});
+    for(const candidate of candidates){
+      const raw=candidate.text,i=candidate.index;if(!raw)continue;
+      const classification=classifyBoundaryBlock(raw,{phase:'post-close'});
+      if(classification.role==='formatting')continue;
+      if(boundaryMode){
+        if(['subject','salutation','record-heading','record-marker'].includes(classification.role)||isRecipientBoundary(classification))break;
+        if(classification.role==='metadata'){
+          activeField=classification.metadata?.field||'';activeLabel=classification.label;
+          excludedBlocks.push(excludedBlock(candidate,i,classification));consumedEndBlock=Math.max(consumedEndBlock,i);continue;
+        }
+        if(classification.hard&&classification.role!=='annotation')break;
+        const continuation=activeField?continuationClassification(activeField,activeLabel,raw):{role:'ambiguous-tail',hard:true,label:'未归类尾部'};
+        excludedBlocks.push(excludedBlock(candidate,i,continuation));consumedEndBlock=Math.max(consumedEndBlock,i);continue;
+      }
+      if(isRecipientBoundary(classification))break;
+      if(classification.hard){
+        excludedBlocks.push(excludedBlock(candidate,i,classification));consumedEndBlock=Math.max(consumedEndBlock,i);boundaryMode=true;
+        activeField=classification.metadata?.field||'';activeLabel=classification.label||'';continue;
+      }
+      if(classification.role==='postscript'){inPostscript=true;postscriptLines=0;}
+      if(inPostscript){
+        if(postscriptLines>=4){excludedBlocks.push(excludedBlock(candidate,i,{role:'ambiguous-tail',label:'未归类尾部'}));boundaryMode=true;consumedEndBlock=Math.max(consumedEndBlock,i);continue;}
+        parts.push(cleanInlineMarkup(raw));endBlock=Math.max(endBlock,i);consumedEndBlock=Math.max(consumedEndBlock,i);postscriptBlocks.add(i);postscriptLines++;continue;
+      }
+      if(classification.role==='signature'&&signatureLines<8){
+        parts.push(cleanInlineMarkup(raw));endBlock=Math.max(endBlock,i);consumedEndBlock=Math.max(consumedEndBlock,i);signatureBlocks.add(i);signatureLines++;continue;
+      }
+      excludedBlocks.push(excludedBlock(candidate,i,{role:'ambiguous-tail',label:'未归类尾部'}));consumedEndBlock=Math.max(consumedEndBlock,i);boundaryMode=true;
+    }
+    return{endBlock,consumedEndBlock,excludedBlocks,signatureBlocks:[...signatureBlocks],postscriptBlocks:[...postscriptBlocks]};
+  }
+
+  function bodyText(blocks, salutationBlock, closeInfo, nextSubjectBlock, salutInfo) {
+    const parts=[];
+    for (let i=salutationBlock; i<=closeInfo.endBlock; i++) {
+      let text=cleanBlockText(textOfBlock(blocks[i]));if(!text)continue;
+      const start=i===salutationBlock&&salutInfo?salutInfo.index:0,end=i===closeInfo.endBlock?closeInfo.end:text.length;
+      text=text.slice(start,end);if(text.trim())parts.push(cleanInlineMarkup(text));
+    }
+    const tail=appendPostClose(blocks,parts,closeInfo,nextSubjectBlock);
+    return {text:parts.filter(Boolean).join('\n\n').replace(/\n{3,}/g,'\n\n').trim(),...tail};
+  }
 
   function bodyTextOpenEnded(blocks, startBlock, nextSubjectBlock, startInfo=null) {
-    const parts=[]; let endBlock=startBlock;const excludedBlocks=[];
+    const parts=[],excludedBlocks=[];let endBlock=startBlock,consumedEndBlock=startBlock,boundaryMode=false,activeField='',activeLabel='';
     scanBlocks:for(let i=startBlock;i<Math.min(nextSubjectBlock,blocks.length);i++){
-      let raw=cleanBlockText(textOfBlock(blocks[i]));
-      if(!raw)continue;
-      if(i===startBlock && startInfo) raw=raw.slice(startInfo.index);
+      let raw=cleanBlockText(textOfBlock(blocks[i]));if(!raw)continue;
+      if(i===startBlock&&startInfo)raw=raw.slice(startInfo.index);
       const local=[];
       for(const segment of raw.split(/\n+/).map(x=>x.trim()).filter(Boolean)){
-        if((i>startBlock||local.length)&&parts.length+local.length>=2){
-          const classification=classifyBoundaryBlock(segment,{phase:'open-ended'});
-          if(classification.hard){excludedBlocks.push(excludedBlock({text:segment},i,classification));break scanBlocks;}
+        const classification=classifyBoundaryBlock(segment,{phase:'open-ended'});
+        const isInitialSalutation=i===startBlock&&!parts.length&&!local.length&&classification.role==='salutation';
+        if(isRecipientBoundary(classification)&&!isInitialSalutation)break scanBlocks;
+        if(boundaryMode){
+          if(['subject','salutation','record-heading','record-marker'].includes(classification.role))break scanBlocks;
+          if(classification.role==='metadata'){
+            activeField=classification.metadata?.field||'';activeLabel=classification.label;
+            excludedBlocks.push(excludedBlock({text:segment},i,classification));consumedEndBlock=i;continue;
+          }
+          const continuation=activeField?continuationClassification(activeField,activeLabel,segment):{role:'ambiguous-tail',hard:true,label:'未归类尾部'};
+          excludedBlocks.push(excludedBlock({text:segment},i,continuation));consumedEndBlock=i;continue;
+        }
+        if(classification.hard&&!isInitialSalutation){
+          excludedBlocks.push(excludedBlock({text:segment},i,classification));consumedEndBlock=i;boundaryMode=true;activeField=classification.metadata?.field||'';activeLabel=classification.label||'';continue;
         }
         const clean=cleanInlineMarkup(segment);if(clean)local.push(clean);
       }
-      if(local.length){parts.push(local.join('\n'));endBlock=i;}
+      if(local.length){parts.push(local.join('\n'));endBlock=i;consumedEndBlock=Math.max(consumedEndBlock,i);}
     }
-    // Trim presentation / commentary debris from the tail.
-    while(parts.length && (HARD_NOISE_RE.test(parts[parts.length-1]) || NUMBER_ONLY_RE.test(parts[parts.length-1])))parts.pop();
-    return {text:parts.join('\n\n').replace(/\n{3,}/g,'\n\n').trim(),endBlock,excludedBlocks};
+    while(parts.length&&(HARD_NOISE_RE.test(parts[parts.length-1])||NUMBER_ONLY_RE.test(parts[parts.length-1])))parts.pop();
+    return{text:parts.join('\n\n').replace(/\n{3,}/g,'\n\n').trim(),endBlock,consumedEndBlock,excludedBlocks,signatureBlocks:[],postscriptBlocks:[]};
   }
 
-  function bodyTextUntilClose(blocks, startBlock, closeBlock, nextSubjectBlock, closeInfo) {
+  function bodyTextUntilClose(blocks, startBlock, closeInfo, nextSubjectBlock) {
     const parts=[];
-    for(let i=startBlock;i<=closeBlock;i++){
-      let raw=cleanBlockText(textOfBlock(blocks[i]));
-      if(i===closeBlock&&closeInfo)raw=raw.slice(0,closeInfo.end);
+    for(let i=startBlock;i<=closeInfo.endBlock;i++){
+      let raw=cleanBlockText(textOfBlock(blocks[i]));if(i===closeInfo.endBlock)raw=raw.slice(0,closeInfo.end);
       if(raw)parts.push(cleanInlineMarkup(raw));
     }
-    const tail=appendPostClose(blocks,parts,closeBlock,nextSubjectBlock,closeInfo);
-    return {text:parts.filter(Boolean).join('\n\n').replace(/\n{3,}/g,'\n\n').trim(),endBlock:tail.endBlock,excludedBlocks:tail.excludedBlocks};
+    const tail=appendPostClose(blocks,parts,closeInfo,nextSubjectBlock);
+    return{text:parts.filter(Boolean).join('\n\n').replace(/\n{3,}/g,'\n\n').trim(),...tail};
+  }
+
+  function addBlockRole(map,index,role,label,extra={}) {
+    if(!Number.isFinite(Number(index))||Number(index)<0)return;
+    const key=Number(index),list=map.get(key)||[];
+    if(!list.some(item=>item.role===role&&item.label===label&&item.field===(extra.field||'')))list.push({role,label,...extra});
+    map.set(key,list);
+  }
+
+  function buildBlockRoles(blocks,{subjectBlock,salutationBlock,salutInfo,closeInfo,body,heading,recipientEvidence,recipientCandidates=[]}) {
+    const map=new Map();
+    if(heading)addBlockRole(map,heading.index,'identity','对象标题');
+    if(recipientEvidence)addBlockRole(map,recipientEvidence.index,'recipient','收件人线索');
+    for(const candidate of recipientCandidates||[]){
+      if(Number(candidate?.score)<55||candidate?.email===recipientEvidence?.email)continue;
+      addBlockRole(map,candidate.index,'recipient-candidate','邮箱候选');
+    }
+    if(subjectBlock>=0)addBlockRole(map,subjectBlock,'subject','主题');
+    if(salutationBlock>=0)addBlockRole(map,salutationBlock,'salutation','称呼');
+    const contentStart=salutationBlock>=0?salutationBlock:subjectBlock+1,contentEnd=closeInfo?closeInfo.startBlock:body.endBlock;
+    for(let i=Math.max(0,contentStart);i<=Math.min(contentEnd,body.endBlock);i++){
+      const raw=cleanBlockText(textOfBlock(blocks[i]));let substantive=true;
+      if(i===salutationBlock&&salutInfo)substantive=!!cleanInlineMarkup(raw.slice(salutInfo.end)).trim();
+      if(closeInfo&&i===closeInfo.startBlock)substantive=!!raw.slice(0,closeInfo.index).trim();
+      if(substantive)addBlockRole(map,i,'body','正文');
+    }
+    if(closeInfo)for(let i=closeInfo.startBlock;i<=closeInfo.endBlock;i++)addBlockRole(map,i,'closing','结束语');
+    for(const i of body.signatureBlocks||[])addBlockRole(map,i,'signature','署名');
+    for(const i of body.postscriptBlocks||[])addBlockRole(map,i,'postscript','附言');
+    for(const item of body.excludedBlocks||[])addBlockRole(map,item.index,'excluded',`已排除·${item.label||'非正文'}`,{field:item.field||'',sourceRole:item.role||''});
+    return[...map.entries()].sort((a,b)=>a[0]-b[0]).map(([index,roles])=>({index,roles}));
   }
 
   function sanitizeRecognizedBody(value) {
     const raw=String(value??'').replace(/\r\n?/g,'\n').trim();
     if(!raw)return{text:'',excludedBlocks:[]};
-    const blocks=raw.split(/\n{2,}/).map((text,index)=>({text,index}));
-    let closeBlock=-1;
-    let closeInfo=null;
-    for(let i=0;i<blocks.length;i++){const found=closeAnchor(blocks[i].text);if(found){closeBlock=i;closeInfo=found;break;}}
-    if(closeBlock>=0){
-      const parts=blocks.slice(0,closeBlock).map(block=>cleanInlineMarkup(block.text)).filter(Boolean);
-      const closeText=cleanBlockText(blocks[closeBlock].text).slice(0,closeInfo.end);
-      if(closeText)parts.push(cleanInlineMarkup(closeText));
-      const tail=appendPostClose(blocks,parts,closeBlock,blocks.length,closeInfo);
+    const blocks=raw.split(/\n{2,}/).map((text,index)=>({text,index})),closeInfo=findClosingSpan(blocks,0,blocks.length);
+    if(closeInfo){
+      const parts=[];
+      for(let i=0;i<=closeInfo.endBlock;i++){
+        let text=cleanBlockText(blocks[i].text);if(i===closeInfo.endBlock)text=text.slice(0,closeInfo.end);
+        if(text)parts.push(cleanInlineMarkup(text));
+      }
+      const tail=appendPostClose(blocks,parts,closeInfo,blocks.length);
       return{text:parts.join('\n\n').replace(/\n{3,}/g,'\n\n').trim(),excludedBlocks:tail.excludedBlocks};
     }
-    const kept=[];const excludedBlocks=[];
-    for(let i=0;i<blocks.length;i++){
-      const classification=classifyBoundaryBlock(blocks[i].text,{phase:'open-ended'});
-      if(i>=2&&classification.hard){excludedBlocks.push(excludedBlock(blocks[i],i,classification));break;}
-      kept.push(cleanInlineMarkup(blocks[i].text));
-    }
-    return{text:kept.filter(Boolean).join('\n\n').replace(/\n{3,}/g,'\n\n').trim(),excludedBlocks};
+    const parsed=bodyTextOpenEnded(blocks,0,blocks.length,null);
+    return{text:parsed.text,excludedBlocks:parsed.excludedBlocks};
   }
 
   function scoreFrame(frame) {
@@ -333,129 +518,75 @@
     if (frame.subject) score+=30;
     if (frame.salutation) score+=24;
     if (frame.closing) score+=20;
-    if (frame.body && frame.body.length>=80) score+=11;
-    else if (frame.body) score+=5;
+    if (frame.body && frame.body.length>=80) score+=11;else if (frame.body) score+=5;
     if (frame.recipients) score+=15;
-    return Math.min(100,score);
+    if(frame.recipientAmbiguous)score-=12;
+    return Math.max(0,Math.min(100,score));
   }
 
   function recognizeMailFrames(inputBlocks,{sourceFile='',minConfidence=55,includeWeak=true}={}) {
-    const blocks=(inputBlocks||[]).map((b,index)=>({
-      index,
-      type: typeof b==='object' && b ? (b.type||'block') : 'block',
-      style: typeof b==='object' && b ? (b.style||'') : '',
-      text: cleanBlockText(textOfBlock(b))
-    })).filter(b=>b.text);
+    const blocks=(inputBlocks||[]).map((b,index)=>({index,type:typeof b==='object'&&b?(b.type||'block'):'block',style:typeof b==='object'&&b?(b.style||''):'',text:cleanBlockText(textOfBlock(b))})).filter(b=>b.text);
     if (!blocks.length) return {records:[],stats:{blocks:0,subjects:0,salutations:0,closings:0,emails:0},blocks:[]};
-
     const subjectBlocks=[];
-    for(let i=0;i<blocks.length;i++) if(subjectAnchor(blocks[i].text)) subjectBlocks.push(i);
-    const records=[]; const usedSalutations=new Set(); let previousEnd=-1;
+    for(let i=0;i<blocks.length;i++)if(subjectAnchor(blocks[i].text))subjectBlocks.push(i);
+    const records=[],usedSalutations=new Set();let previousConsumedEnd=-1;
 
     const buildFrame=(subjectBlock,nextSubjectBlock,ordinal)=>{
       const subjectInfo=subjectAnchor(blocks[subjectBlock].text);
       let salutationBlock=-1,salutInfo=null;
-      for(let i=subjectBlock;i<Math.min(nextSubjectBlock,subjectBlock+10);i++){
-        const a=salutationAnchor(blocks[i].text); if(a){salutationBlock=i;salutInfo=a;break;}
-      }
-      let closeBlock=-1,closeInfo=null;
-      const closeSearchStart=salutationBlock>=0?salutationBlock:subjectBlock;
+      for(let i=subjectBlock;i<Math.min(nextSubjectBlock,subjectBlock+10);i++){const found=salutationAnchor(blocks[i].text);if(found){salutationBlock=i;salutInfo=found;break;}}
       let semanticBoundary=nextSubjectBlock;
-      if(salutationBlock>=0){
-        for(let i=salutationBlock+1;i<nextSubjectBlock;i++){if(salutationAnchor(blocks[i].text)){semanticBoundary=i;break;}}
-      }
-      for(let i=closeSearchStart;i<semanticBoundary;i++){
-        const a=closeAnchor(blocks[i].text); if(a){closeBlock=i;closeInfo=a;break;}
-      }
-
-      let subject='',body={text:'',endBlock:subjectBlock};
+      if(salutationBlock>=0)for(let i=salutationBlock+1;i<nextSubjectBlock;i++){if(salutationAnchor(blocks[i].text)){semanticBoundary=i;break;}}
+      const closeInfo=findClosingSpan(blocks,salutationBlock>=0?salutationBlock:subjectBlock,semanticBoundary);
+      let subject='',body={text:'',endBlock:subjectBlock,consumedEndBlock:subjectBlock,excludedBlocks:[],signatureBlocks:[],postscriptBlocks:[]};
       const issues=[];
       if(salutationBlock>=0){
         subject=subjectText(blocks,subjectBlock,salutationBlock,subjectInfo,salutInfo);
-        if(closeBlock>=0)body=bodyText(blocks,salutationBlock,closeBlock,nextSubjectBlock,salutInfo,closeInfo);
-        else { body=bodyTextOpenEnded(blocks,salutationBlock,semanticBoundary,salutInfo); issues.push('未找到邮件落款'); }
+        if(closeInfo)body=bodyText(blocks,salutationBlock,closeInfo,nextSubjectBlock,salutInfo);else{body=bodyTextOpenEnded(blocks,salutationBlock,semanticBoundary,salutInfo);issues.push('未找到邮件落款');}
       }else{
-        // Degraded frame: Subject is still a strong start anchor. Keep the candidate instead of dropping it.
         subject=collapseSubject(cleanBlockText(blocks[subjectBlock].text).slice(subjectInfo.index));
-        if(closeBlock>=0){ body=bodyTextUntilClose(blocks,subjectBlock+1,closeBlock,nextSubjectBlock,closeInfo); issues.push('未找到邮件称呼'); }
-        else { body=bodyTextOpenEnded(blocks,subjectBlock+1,nextSubjectBlock,null); issues.push('未找到邮件称呼','未找到邮件落款'); }
+        if(closeInfo){body=bodyTextUntilClose(blocks,subjectBlock+1,closeInfo,nextSubjectBlock);issues.push('未找到邮件称呼');}else{body=bodyTextOpenEnded(blocks,subjectBlock+1,nextSubjectBlock,null);issues.push('未找到邮件称呼','未找到邮件落款');}
       }
       if((body.excludedBlocks||[]).some(item=>item.role==='ambiguous-tail'))issues.push('邮件落款后存在未归类内容，已从正文隔离');
-      const contextStart=Math.max(0,previousEnd+1);
-      const recipientContext=nearestRecipientContext(blocks,contextStart,Math.max(subjectBlock,salutationBlock>=0?salutationBlock:subjectBlock),salutInfo?.text||'');
-      const heading=headingContext(blocks,contextStart,subjectBlock);
-      const recipients=recipientContext.selected?.email||'';
-      const sidecar=sidecarFromExcluded(body.excludedBlocks||[]);
-      const frame={
-        id:deriveId(heading,ordinal), recipients, school:institutionFromHeading(heading?.text||''), subject, body:body.text,
-        attachments:sidecar.attachments, scheduleAt:sidecar.scheduleAt, tags:'', sourceFile,
-        salutation:salutInfo?.text||'', closing:closeInfo?.text||'',
-        startBlock:subjectBlock, endBlock:body.endBlock, heading:heading?.text||'',
-        excludedBlocks:[...(body.excludedBlocks||[])], sourceReferences:[...sidecar.sources],
-        recipientEvidence:recipientContext.selected||null,
-        recipientCandidates:(recipientContext.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),
-        evidence:['subject',...(salutInfo?['salutation']:[]),...(closeInfo?['closing']:[]),...(body.text.length>=80?['body']:[]),...(recipients?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],
-        issues
-      };
+      const contextStart=Math.max(0,previousConsumedEnd+1),recipientContext=nearestRecipientContext(blocks,contextStart,Math.max(subjectBlock,salutationBlock>=0?salutationBlock:subjectBlock),salutInfo?.text||'');
+      const heading=headingContext(blocks,contextStart,subjectBlock),recipients=recipientContext.selected?.email||'',sidecar=sidecarFromExcluded(body.excludedBlocks||[]);
+      const structure={subjectBlock,salutationBlock,bodyStartBlock:salutationBlock>=0?salutationBlock:subjectBlock+1,closeStartBlock:closeInfo?.startBlock??-1,closeEndBlock:closeInfo?.endBlock??-1,signatureStartBlock:(body.signatureBlocks||[])[0]??-1,signatureEndBlock:(body.signatureBlocks||[]).slice(-1)[0]??-1,mailStartBlock:subjectBlock,mailEndBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock};
+      const frame={id:deriveId(heading,ordinal),recipients,school:institutionFromHeading(heading?.text||''),subject,body:body.text,attachments:sidecar.attachments,scheduleAt:sidecar.scheduleAt,tags:'',sourceFile,salutation:salutInfo?.text||'',closing:closeInfo?.text||'',startBlock:subjectBlock,endBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock,heading:heading?.text||'',excludedBlocks:[...(body.excludedBlocks||[])],sourceReferences:[...sidecar.sources],structure,recipientEvidence:recipientContext.selected||null,recipientAmbiguous:recipientContext.ambiguous,recipientCandidates:(recipientContext.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),evidence:['subject',...(salutInfo?['salutation']:[]),...(closeInfo?['closing']:[]),...((body.signatureBlocks||[]).length?['signature']:[]),...(body.text.length>=80?['body']:[]),...(recipients?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],issues};
+      frame.blockRoles=buildBlockRoles(blocks,{subjectBlock,salutationBlock,salutInfo,closeInfo,body,heading,recipientEvidence:recipientContext.selected,recipientCandidates:recipientContext.candidates});
       frame.confidence=scoreFrame(frame);
+      if(recipientContext.ambiguous)frame.issues.push('收件人存在多个相近候选');
       if(!recipients)frame.issues.push('未定位收件人邮箱');
       if(!subject)frame.issues.push('主题为空');
       if(frame.body.length<40)frame.issues.push('正文过短');
       if(frame.confidence<70)frame.issues.push('邮件边界识别置信度较低');
       if(salutationBlock>=0)usedSalutations.add(salutationBlock);
-      // A lone Subject with no usable body is not enough evidence to call something a mail.
       if(!salutInfo&&!closeInfo&&frame.body.length<80&&!recipients)return null;
       return frame;
     };
 
     for(let s=0;s<subjectBlocks.length;s++){
-      const subjectBlock=subjectBlocks[s], nextSubjectBlock=subjectBlocks[s+1] ?? blocks.length;
-      const frame=buildFrame(subjectBlock,nextSubjectBlock,records.length+1);
-      if(frame && (includeWeak || frame.confidence>=minConfidence)){
-        records.push(frame); previousEnd=frame.endBlock;
-      }
+      const subjectBlock=subjectBlocks[s],nextSubjectBlock=subjectBlocks[s+1]??blocks.length,frame=buildFrame(subjectBlock,nextSubjectBlock,records.length+1);
+      if(frame&&(includeWeak||frame.confidence>=minConfidence)){records.push(frame);previousConsumedEnd=Math.max(frame.consumedEndBlock??frame.endBlock,frame.endBlock);}
     }
 
-    // Fallback for sources where Subject is missing: Dear + closing still defines a mail body.
     for(let i=0;i<blocks.length;i++){
       if(usedSalutations.has(i))continue;
-      const salut=salutationAnchor(blocks[i].text); if(!salut)continue;
-      const nextSubject=subjectBlocks.find(x=>x>i) ?? blocks.length;
-      let closeBlock=-1,close=null;
-      let fallbackBoundary=Math.min(nextSubject,i+80);
+      const salut=salutationAnchor(blocks[i].text);if(!salut)continue;
+      const nextSubject=subjectBlocks.find(x=>x>i)??blocks.length;let fallbackBoundary=Math.min(nextSubject,i+80);
       for(let j=i+1;j<fallbackBoundary;j++){if(salutationAnchor(blocks[j].text)){fallbackBoundary=j;break;}}
-      for(let j=i;j<fallbackBoundary;j++){const c=closeAnchor(blocks[j].text);if(c){closeBlock=j;close=c;break;}}
-      if(closeBlock<0)continue;
-      const body=bodyText(blocks,i,closeBlock,nextSubject,salut,close);
-      const prevEnd=records.filter(r=>r.endBlock<i).sort((a,b)=>b.endBlock-a.endBlock)[0]?.endBlock ?? -1;
-      const rc=nearestRecipientContext(blocks,prevEnd+1,i,salut.text);
-      const heading=headingContext(blocks,prevEnd+1,i);
-      const sidecar=sidecarFromExcluded(body.excludedBlocks||[]);
-      const frame={id:deriveId(heading,records.length+1),recipients:rc.selected?.email||'',school:institutionFromHeading(heading?.text||''),subject:'',body:body.text,attachments:sidecar.attachments,scheduleAt:sidecar.scheduleAt,tags:'',sourceFile,
-        salutation:salut.text,closing:close.text,startBlock:i,endBlock:body.endBlock,heading:heading?.text||'',recipientEvidence:rc.selected||null,recipientCandidates:(rc.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),
-        excludedBlocks:[...(body.excludedBlocks||[])],sourceReferences:[...sidecar.sources],
-        evidence:['salutation','closing',...(body.text.length>=80?['body']:[]),...(rc.selected?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],issues:['未找到 Subject 标记',...((body.excludedBlocks||[]).some(item=>item.role==='ambiguous-tail')?['邮件落款后存在未归类内容，已从正文隔离']:[])]};
-      frame.confidence=scoreFrame(frame);
-      if(!frame.recipients)frame.issues.push('未定位收件人邮箱');
-      if(frame.confidence<70)frame.issues.push('邮件边界识别置信度较低');
-      if(includeWeak || frame.confidence>=minConfidence)records.push(frame);
+      const closeInfo=findClosingSpan(blocks,i,fallbackBoundary);if(!closeInfo)continue;
+      const body=bodyText(blocks,i,closeInfo,nextSubject,salut),prevEnd=records.filter(r=>r.endBlock<i).sort((a,b)=>(b.consumedEndBlock??b.endBlock)-(a.consumedEndBlock??a.endBlock))[0]?.consumedEndBlock??-1;
+      const rc=nearestRecipientContext(blocks,prevEnd+1,i,salut.text),heading=headingContext(blocks,prevEnd+1,i),sidecar=sidecarFromExcluded(body.excludedBlocks||[]);
+      const structure={subjectBlock:-1,salutationBlock:i,bodyStartBlock:i,closeStartBlock:closeInfo.startBlock,closeEndBlock:closeInfo.endBlock,signatureStartBlock:(body.signatureBlocks||[])[0]??-1,signatureEndBlock:(body.signatureBlocks||[]).slice(-1)[0]??-1,mailStartBlock:i,mailEndBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock};
+      const frame={id:deriveId(heading,records.length+1),recipients:rc.selected?.email||'',school:institutionFromHeading(heading?.text||''),subject:'',body:body.text,attachments:sidecar.attachments,scheduleAt:sidecar.scheduleAt,tags:'',sourceFile,salutation:salut.text,closing:closeInfo.text,startBlock:i,endBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock,heading:heading?.text||'',recipientEvidence:rc.selected||null,recipientAmbiguous:rc.ambiguous,recipientCandidates:(rc.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),excludedBlocks:[...(body.excludedBlocks||[])],sourceReferences:[...sidecar.sources],structure,evidence:['salutation','closing',...((body.signatureBlocks||[]).length?['signature']:[]),...(body.text.length>=80?['body']:[]),...(rc.selected?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],issues:['未找到 Subject 标记',...((body.excludedBlocks||[]).some(item=>item.role==='ambiguous-tail')?['邮件落款后存在未归类内容，已从正文隔离']:[])]};
+      frame.blockRoles=buildBlockRoles(blocks,{subjectBlock:-1,salutationBlock:i,salutInfo:salut,closeInfo,body,heading,recipientEvidence:rc.selected,recipientCandidates:rc.candidates});frame.confidence=scoreFrame(frame);
+      if(rc.ambiguous)frame.issues.push('收件人存在多个相近候选');if(!frame.recipients)frame.issues.push('未定位收件人邮箱');if(frame.confidence<70)frame.issues.push('邮件边界识别置信度较低');
+      if(includeWeak||frame.confidence>=minConfidence)records.push(frame);
     }
 
-    records.sort((a,b)=>a.startBlock-b.startBlock);
-    records.forEach((r,i)=>{ if(!r.id)r.id=String(i+1); r.ordinal=i+1; });
-    const stats={
-      blocks:blocks.length,
-      subjects:subjectBlocks.length,
-      salutations:blocks.filter(b=>salutationAnchor(b.text)).length,
-      closings:blocks.filter(b=>closeAnchor(b.text)).length,
-      emails:blocks.reduce((n,b)=>n+extractEmails(b.text).length,0),
-      records:records.length,
-      complete:records.filter(r=>r.recipients&&r.subject&&r.body).length,
-      missingRecipients:records.filter(r=>!r.recipients).length,
-      averageConfidence:records.length?Math.round(records.reduce((a,r)=>a+r.confidence,0)/records.length):0,
-      excludedTailBlocks:records.reduce((count,record)=>count+(record.excludedBlocks||[]).length,0)
-    };
-    return {records,stats,blocks};
+    records.sort((a,b)=>a.startBlock-b.startBlock);records.forEach((r,i)=>{if(!r.id)r.id=String(i+1);r.ordinal=i+1;});
+    const stats={blocks:blocks.length,subjects:subjectBlocks.length,salutations:blocks.filter(b=>salutationAnchor(b.text)).length,closings:records.filter(r=>r.closing).length,emails:blocks.reduce((n,b)=>n+extractEmails(b.text).length,0),records:records.length,complete:records.filter(r=>r.recipients&&r.subject&&r.body).length,missingRecipients:records.filter(r=>!r.recipients).length,averageConfidence:records.length?Math.round(records.reduce((a,r)=>a+r.confidence,0)/records.length):0,excludedTailBlocks:records.reduce((count,record)=>count+(record.excludedBlocks||[]).length,0)};
+    return{records,stats,blocks};
   }
 
   function recognizeMailText(text,options={}) {
@@ -465,32 +596,14 @@
 
   function recordsToRows(records) {
     const headers=['编号','收件人','学校 / 机构','主题','正文','附件','定时时间','任务分类','来源文件'];
-    return [headers,...(records||[]).map(r=>[r.id||'',r.recipients||'',r.school||'',r.subject||'',r.body||'',r.attachments||'',r.scheduleAt||'',r.tags||'',r.sourceFile||''])];
+    return[headers,...(records||[]).map(r=>[r.id||'',r.recipients||'',r.school||'',r.subject||'',r.body||'',r.attachments||'',r.scheduleAt||'',r.tags||'',r.sourceFile||''])];
   }
 
   function rowMetaFromRecords(records) {
     const meta={};
-    (records||[]).forEach((r,i)=>{meta[i+1]={
-      confidence:r.confidence||0,
-      evidence:[...(r.evidence||[])],
-      issues:[...(r.issues||[])],
-      heading:r.heading||'',
-      school:r.school||'',
-      sourceFile:r.sourceFile||'',
-      salutation:r.salutation||'',
-      closing:r.closing||'',
-      startBlock:r.startBlock,
-      endBlock:r.endBlock,
-      recipientEvidence:r.recipientEvidence?{email:r.recipientEvidence.email,index:r.recipientEvidence.index,score:r.recipientEvidence.score,text:r.recipientEvidence.text||''}:null,
-      recipientCandidates:(r.recipientCandidates||[]).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text||''})),
-      excludedBlocks:(r.excludedBlocks||[]).map(item=>({...item})),
-      sourceReferences:[...(r.sourceReferences||[])]
-    };});
+    (records||[]).forEach((r,i)=>{meta[i+1]={confidence:r.confidence||0,evidence:[...(r.evidence||[])],issues:[...(r.issues||[])],heading:r.heading||'',school:r.school||'',sourceFile:r.sourceFile||'',salutation:r.salutation||'',closing:r.closing||'',startBlock:r.startBlock,endBlock:r.endBlock,consumedEndBlock:r.consumedEndBlock??r.endBlock,structure:{...(r.structure||{})},blockRoles:(r.blockRoles||[]).map(item=>({index:item.index,roles:(item.roles||[]).map(role=>({...role}))})),recipientEvidence:r.recipientEvidence?{email:r.recipientEvidence.email,index:r.recipientEvidence.index,score:r.recipientEvidence.score,text:r.recipientEvidence.text||''}:null,recipientAmbiguous:!!r.recipientAmbiguous,recipientCandidates:(r.recipientCandidates||[]).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text||''})),excludedBlocks:(r.excludedBlocks||[]).map(item=>({...item})),sourceReferences:[...(r.sourceReferences||[])]};});
     return meta;
   }
 
-  globalThis.NMDAMailRecognizer={
-    EMAIL_RE, extractEmails, isNoiseBlock, subjectAnchor, salutationAnchor, closeAnchor, metadataAnchor,
-    classifyBoundaryBlock, sanitizeRecognizedBody, recognizeMailFrames, recognizeMailText, recordsToRows, rowMetaFromRecords, cleanInlineMarkup, institutionFromHeading
-  };
+  globalThis.NMDAMailRecognizer={EMAIL_RE,extractEmails,isNoiseBlock,subjectAnchor,salutationAnchor,closeAnchor,metadataAnchor,isLikelySignatureLine,classifyBoundaryBlock,sanitizeRecognizedBody,resolveRecipientContext:nearestRecipientContext,recognizeMailFrames,recognizeMailText,recordsToRows,rowMetaFromRecords,cleanInlineMarkup,institutionFromHeading};
 })();

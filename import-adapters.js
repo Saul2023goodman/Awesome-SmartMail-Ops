@@ -112,7 +112,7 @@
     // Keep a compact evidence window per mail row. This survives multi-file merging, where collection-level
     // sourceBlocks would otherwise become ambiguous across different source documents.
     for(const meta of Object.values(rowMeta)){
-      const start=Math.max(0,Number(meta.startBlock||0)-8), end=Math.min(sourceBlocks.length-1,Number(meta.endBlock ?? meta.startBlock ?? 0)+8);
+      const start=Math.max(0,Number(meta.startBlock||0)-8), end=Math.min(sourceBlocks.length-1,Number(meta.consumedEndBlock ?? meta.endBlock ?? meta.startBlock ?? 0)+8);
       meta.sourceContext=sourceBlocks.slice(start,end+1).map((b,pos)=>({...b,position:start+pos}));
       meta.sourceContextStart=start;
     }
