@@ -626,7 +626,7 @@
               <div class="nmda-card nmda-ingest-result-card" id="nmda-ingest-result-card" hidden>
                 <div class="nmda-card-head nmda-ingest-result-head">
                   <div><div class="nmda-card-title">解析结果</div></div>
-                  <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-small" id="nmda-review-import-issues" type="button" hidden>查看解析预览</button></div>
+                  <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-small" id="nmda-review-import-issues" type="button" hidden>检查邮件</button></div>
                 </div>
                 <div id="nmda-import-preview-summary" class="nmda-ingest-health"></div>
                 <div id="nmda-review-guidance" class="nmda-review-guidance">解析完成后可查看每封邮件的结果。</div>
@@ -642,7 +642,7 @@
                   <div id="nmda-review-page-summary" class="nmda-review-page-summary"></div>
                 </div>
                 <div class="nmda-review-viewbar">
-                  <div class="nmda-review-filter" role="group" aria-label="解析预览范围"><button class="is-active" type="button" data-review-filter="pending">需修改</button><button type="button" data-review-filter="all">全部邮件</button></div>
+                  <div class="nmda-review-filter" role="group" aria-label="解析预览范围"><button class="is-active" type="button" data-review-filter="pending">待处理</button><button type="button" data-review-filter="all">全部邮件</button></div>
                   <div class="nmda-review-view-actions"><button class="nmda-btn nmda-btn-small" id="nmda-review-select-filtered" type="button">选择当前列表</button></div>
                 </div>
                 <div class="nmda-review-batchbar" id="nmda-review-batchbar" hidden>
@@ -1190,6 +1190,7 @@
     if (!guides.length || typeof batch === 'undefined') return;
     const hasSource = !!batch.dataset;
     const handed = !!batch.handoffComplete;
+    const attachmentIssues=hasSource && typeof importAttachmentStats==='function' ? importAttachmentStats().issues : 0;
     let review = 0, selected = 0, scheduled = 0;
     for (const task of (batch.tasks || [])) {
       if (hasSource && typeof taskNeedsImportReview === 'function' && taskNeedsImportReview(task)) review++;
@@ -1199,14 +1200,15 @@
       guide.querySelectorAll('[data-flow-step]').forEach(button => {
         const step = Number(button.dataset.flowStep || 0);
         let state='locked', unlocked=false;
-        if(step===1){unlocked=true; state=hasSource?'done':'active';}
-        else if(step===2){unlocked=hasSource; state=!hasSource?'locked':review?'active':'done';}
+        if(step===1){unlocked=true; state=!hasSource?'active':attachmentIssues?'active':'done';}
+        else if(step===2){unlocked=hasSource; state=!hasSource?'locked':review?(attachmentIssues?'ready':'active'):'done';}
         else if(step===3){unlocked=handed; state=!handed?'locked':selected?'done':'active';}
         else if(step===4){unlocked=handed&&selected>0; state=unlocked?'active':'locked';}
         button.dataset.state=state; button.disabled=!unlocked;
         const small=button.querySelector('small');
         if(!small) return;
-        if(step===2) small.textContent=!hasSource?'添加资料后查看':review?`${review} 封需要修改`:'解析结果可用';
+        if(step===1) small.textContent=!hasSource?'邮件与附件':attachmentIssues?`还需添加 ${attachmentIssues} 个附件`:'资料已就绪';
+        if(step===2) small.textContent=!hasSource?'添加资料后查看':review?`${review} 封邮件待处理`:'邮件内容可用';
         if(step===3) small.textContent=!handed?'先处理必要问题':selected?`已选 ${selected} 封${scheduled?` · 定时 ${scheduled}`:''}`:'选择本次邮件';
         if(step===4) small.textContent=!unlocked?'选择邮件后可创建':`可创建 ${selected} 封`;
       });
@@ -1304,7 +1306,7 @@
     sessionId: 0, importBusy: false, schedulePlan: null,
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
     roster: { dataset:null, entries:[], audit:null, warnings:[], enabled:true, autoSchool:true, strict:false, sourceNames:[] },
-    handoffComplete: false, reviewFilter: 'pending', reviewSelected: new Set()
+    handoffComplete: false, reviewFilter: 'pending', reviewSelected: new Set(), attachmentAttentionShown: false
   };
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), rosterFileEl = $('nmda-roster-file'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
@@ -1622,13 +1624,20 @@
     return parsed.some(item => /@/.test(String(item?.email || item || '')));
   }
 
+  function isAutoResolvableReviewIssue(issue) {
+    const text=String(issue||'');
+    return /^(缺少收件人|收件人邮箱格式无效|缺少主题|缺少正文)$/.test(text)
+      || /未定位收件人|主题为空|正文过短/.test(text);
+  }
+
   function unresolvedImportIssues(task) {
     const out=[];
     if (!String(task?.recipients||'').trim()) out.push('缺少收件人');
     else if (!recipientLooksValid(task.recipients)) out.push('收件人邮箱格式无效');
     if (!String(task?.subject||'').trim()) out.push('缺少主题');
     if (!String(task?.body||'').trim()) out.push('缺少正文');
-    // Human confirmation is scoped: mail-frame confirmation must not silently suppress later roster conflicts.
+    // Human confirmation is scoped: deterministic missing fields disappear as soon as they are fixed.
+    // Only ambiguous parsing / manual edits / roster conflicts require an explicit confirmation.
     if (!task?.reviewConfirmed) {
       if (task?.importConfidence && task.importConfidence < 70) out.push('请检查邮件内容');
       for (const issue of task?.importIssues || []) {
@@ -1645,7 +1654,29 @@
     return out;
   }
 
+  function taskIssueState(task) {
+    const reviewIssues=unresolvedImportIssues(task);
+    const content=reviewIssues.filter(isAutoResolvableReviewIssue);
+    const review=reviewIssues.filter(issue=>!isAutoResolvableReviewIssue(issue));
+    const attachment=[]; const schedule=[]; const policy=[]; const other=[];
+    for(const error of task?.errors||[]){
+      const text=String(error||'');
+      if(/^(缺少收件人|收件人邮箱格式无效|缺少主题|缺少正文)$/.test(text))continue;
+      if(/^缺少附件：|^附件同名冲突：/.test(text)){attachment.push(text);continue;}
+      if(/^定时时间无法识别：/.test(text)){schedule.push(text);continue;}
+      if(/^联系策略：/.test(text)){policy.push(text);continue;}
+      if((task?.rosterIssues||[]).includes(text))continue;
+      other.push(text);
+    }
+    return {content,review,attachment,schedule,policy,other,reviewIssues};
+  }
+
   function taskNeedsImportReview(task) { return !task?.importExcluded && unresolvedImportIssues(task).length > 0; }
+  function taskHasBlockingIssue(task) {
+    if(!task || task.importExcluded || task.policyBlocked)return false;
+    const state=taskIssueState(task);
+    return state.content.length>0 || state.review.length>0 || state.attachment.length>0 || state.schedule.length>0 || state.other.length>0;
+  }
 
   function excludedImportCount() {
     let count=0;
@@ -1753,13 +1784,23 @@
     if(!task||!subject)return;
     stashCurrentReviewDraft();
     const missing=otherMissingSubjectTasks(task.editKey);
+    const pendingBefore=new Set(missing.filter(taskNeedsImportReview).map(item=>item.editKey));
     for(const item of missing)setTaskEdit(item,{subject});
+    const autoResolved=missing.filter(item=>pendingBefore.has(item.editKey)&&!taskNeedsImportReview(item)).length;
+    const stillPending=missing.filter(taskNeedsImportReview).length;
     hideSubjectAssist();
     importEditSubjectEl.dataset.startedBlank='0';
-    renderReviewQueue(task.editKey);
     renderImportTaskPreview();
+    renderImportHandoff();
     renderReviewPageOverview();
-    setImportStatus(`已为另外 ${missing.length} 封缺少主题的邮件填写同一主题。`,'ok');
+    const currentStillPending=taskNeedsImportReview(task);
+    if(batch.reviewFilter==='pending' && !currentStillPending){
+      const next=reviewTasks()[0]||null;
+      if(next)openImportTaskEditor(next); else closeImportTaskEditor();
+    }else renderReviewQueue(task.editKey);
+    const resolvedText=autoResolved?`，其中 ${autoResolved} 封已自动完成检查`:'';
+    const pendingText=stillPending?`；${stillPending} 封还有其他内容需要处理`:'';
+    setImportStatus(`已为另外 ${missing.length} 封缺少主题的邮件填写同一主题${resolvedText}${pendingText}。`,'ok');
   }
 
   function confirmSelectedReviewTasks() {
@@ -1801,7 +1842,7 @@
     const ready=Math.max(0,tasks.length-pendingCount-checked);
     if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
     if(reviewPageSummaryEl)reviewPageSummaryEl.innerHTML=tasks.length
-      ? `<span><strong>${pendingCount}</strong> 需修改</span><span><strong>${checked}</strong> 已检查</span><span><strong>${ready}</strong> 可直接使用</span>`
+      ? `<span><strong>${pendingCount}</strong> 待处理</span><span><strong>${checked}</strong> 已检查</span><span><strong>${ready}</strong> 可直接使用</span>`
       : '<span>尚无批量邮件</span>';
     if(reviewPageEmptyEl)reviewPageEmptyEl.hidden=!!tasks.length;
     ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter===batch.reviewFilter));
@@ -1870,11 +1911,11 @@
     const allList=reviewVisibleTasks();
     const list=allList.slice(0,Math.max(50,viewPerf.reviewRenderLimit||250));
     const pendingCount=reviewTasks().length;
-    if(reviewProgressEl) reviewProgressEl.textContent=pendingCount?`${pendingCount} 封需修改`:'无需修改';
+    if(reviewProgressEl) reviewProgressEl.textContent=pendingCount?`${pendingCount} 封待处理`:'没有待处理邮件';
     reviewQueueEl.innerHTML=list.length?list.map((task,index)=>{
       const issues=unresolvedImportIssues(task);
       const pending=issues.length>0;
-      const status=pending?((issues[0]==='修改待确认'?'待确认':issues[0])||'需要修改'):(task.reviewConfirmed||task.rosterConfirmed?'已检查':'可直接使用');
+      const status=pending?((issues[0]==='修改待确认'?'待确认':issues[0])||'待处理'):(task.reviewConfirmed||task.rosterConfirmed?'已检查':'可直接使用');
       const checked=batch.reviewSelected?.has(task.editKey)?'checked':'';
       return `<div class="nmda-review-queue-row ${task.editKey===activeKey?'is-active':''} ${checked?'is-selected':''}" data-review-row="${escapeHtml(task.editKey)}"><label class="nmda-review-select"><input type="checkbox" data-review-select="${escapeHtml(task.editKey)}" ${checked} aria-label="选择 ${escapeHtml(task.id||`邮件 ${index+1}`)}"></label><button type="button" class="nmda-review-queue-item" data-review-key="${escapeHtml(task.editKey)}"><span class="nmda-review-queue-index">${index+1}</span><span class="nmda-review-queue-main"><strong>${escapeHtml(task.id||`邮件 ${index+1}`)}</strong><small>${escapeHtml(task.subject||task.recipients||'未识别主题')}</small><em data-tone="${pending?'warn':'ok'}">${escapeHtml(status)}${pending&&issues.length>1?` · +${issues.length-1}`:''}</em></span></button></div>`;
     }).join(''):`<div class="nmda-review-empty">${batch.reviewFilter==='pending'?'当前没有需要修改的邮件。':'当前没有可查看的邮件。'}</div>`;
@@ -1921,7 +1962,7 @@
     const issues=unresolvedImportIssues(task);
     const map=[['recipients','nmda-review-field-recipients',/收件人|邮箱/],['subject','nmda-review-field-subject',/主题|Subject/],['body','nmda-review-field-body',/正文|邮件称呼|邮件落款|边界/]];
     for(const [,id,re] of map){const el=$(id); if(el)el.dataset.issue=issues.some(x=>re.test(x))?'1':'0';}
-    if(reviewProblemSummaryEl) reviewProblemSummaryEl.textContent=issues.length?(issues.every(issue=>issue==='修改待确认')?'修改已保留，确认本封后继续。':`当前需处理：${issues.map(issue=>issue==='修改待确认'?'待确认':issue).join('；')}`):'核心信息完整，可以确认。';
+    if(reviewProblemSummaryEl) reviewProblemSummaryEl.textContent=issues.length?(issues.every(issue=>issue==='修改待确认')?'修改已保留，确认本封后继续。':`当前需处理：${issues.map(issue=>issue==='修改待确认'?'待确认':issue).join('；')}`):'内容完整，可直接使用。';
   }
 
   function refreshReviewDraftIndicators() {
@@ -1934,7 +1975,7 @@
     for(const [id,ok,label] of states){const el=$(id);if(el){el.dataset.issue=ok?'0':'1';el.dataset.resolved=ok?'1':'0';}if(!ok)problems.push(label);}
     if(reviewProblemSummaryEl){
       const key=importEditorOverlayEl?.dataset.editKey;const task=(batch.tasks||[]).find(t=>t.editKey===key);const soft=(task?unresolvedImportIssues(task):[]).filter(x=>!/(收件人|邮箱|缺少主题|缺少正文)/.test(x));
-      reviewProblemSummaryEl.textContent=problems.length?`仍需补充：${problems.join('、')}`:task?.reviewDraftPending?'修改已保留，确认本封后继续。':soft.filter(x=>x!=='修改待确认').length?`还需检查：${soft.filter(x=>x!=='修改待确认').join('；')}`:'核心信息完整，可以确认。';
+      reviewProblemSummaryEl.textContent=problems.length?`仍需补充：${problems.join('、')}`:task?.reviewDraftPending?'修改已保留，确认本封后继续。':soft.filter(x=>x!=='修改待确认').length?`还需检查：${soft.filter(x=>x!=='修改待确认').join('；')}`:'内容完整，可直接使用。';
     }
     if(reviewFeedbackEl)reviewFeedbackEl.hidden=true;
   }
@@ -1945,18 +1986,45 @@
     const tasks=batch.tasks||[];
     if(!batch.dataset){if(resultCard)resultCard.hidden=true;return;}
     if(resultCard)resultCard.hidden=false;
-    let review=0,extraErrors=0,autoPassed=0;
+    let contentPending=0,reviewPending=0,otherBlocked=0,autoPassed=0,policyBlocked=0;
     for(const task of tasks){
-      const needsReview=taskNeedsImportReview(task);
-      if(needsReview){review++;continue;}
-      if((task.errors||[]).some(error=>!/联系策略/.test(error)))extraErrors++;else autoPassed++;
+      const state=taskIssueState(task);
+      if(state.content.length)contentPending++;
+      if(state.review.length)reviewPending++;
+      if(state.other.length)otherBlocked++;
+      if(task.policyBlocked)policyBlocked++;
+      if(!taskHasBlockingIssue(task)&&!task.policyBlocked)autoPassed++;
     }
+    const reviewTotal=tasks.filter(taskNeedsImportReview).length;
+    const stats=importAttachmentStats();
     const excluded=excludedImportCount();
     const totalDetected=tasks.length+excluded;
-    if(importPreviewSummaryEl) importPreviewSummaryEl.innerHTML=`<div class="nmda-health-metric is-total"><strong>${totalDetected}</strong><span>已识别</span></div><div class="nmda-health-metric is-ok"><strong>${autoPassed}</strong><span>可直接使用</span></div><div class="nmda-health-metric ${review?'is-warn':'is-ok'}"><strong>${review}</strong><span>需修改</span></div><div class="nmda-health-metric ${extraErrors?'is-error':''}"><strong>${extraErrors}</strong><span>其他问题</span></div>${excluded?`<div class="nmda-health-metric"><strong>${excluded}</strong><span>已排除</span></div>`:''}`;
+    const metrics=[
+      `<div class="nmda-health-metric is-total"><strong>${totalDetected}</strong><span>已识别</span></div>`,
+      `<div class="nmda-health-metric is-ok"><strong>${autoPassed}</strong><span>可继续</span></div>`
+    ];
+    if(contentPending)metrics.push(`<div class="nmda-health-metric is-warn"><strong>${contentPending}</strong><span>内容待补</span></div>`);
+    if(reviewPending)metrics.push(`<div class="nmda-health-metric is-warn"><strong>${reviewPending}</strong><span>需要核对</span></div>`);
+    if(stats.issues)metrics.push(`<div class="nmda-health-metric is-warn"><strong>${stats.issues}</strong><span>附件待加</span></div>`);
+    if(otherBlocked)metrics.push(`<div class="nmda-health-metric is-error"><strong>${otherBlocked}</strong><span>其他阻塞</span></div>`);
+    if(policyBlocked)metrics.push(`<div class="nmda-health-metric"><strong>${policyBlocked}</strong><span>联系限制</span></div>`);
+    if(excluded)metrics.push(`<div class="nmda-health-metric"><strong>${excluded}</strong><span>已排除</span></div>`);
+    if(importPreviewSummaryEl) importPreviewSummaryEl.innerHTML=metrics.join('');
+
     const guide=$('nmda-review-guidance');
-    if(guide) guide.innerHTML=review?`有 <strong>${review}</strong> 封邮件需要补充或修正。`:`解析结果已可用，可继续选择邮件。`;
-    if(importReviewBtnEl){importReviewBtnEl.hidden=!tasks.length;importReviewBtnEl.textContent=review?`查看解析预览（${review} 需修改）`:'查看解析预览';}
+    if(guide){
+      const notes=[]; const actions=[];
+      if(contentPending)notes.push(`<strong>${contentPending}</strong> 封邮件缺少必要内容`);
+      if(reviewPending)notes.push(`<strong>${reviewPending}</strong> 封邮件需要核对解析结果`);
+      if(stats.issues)notes.push(`<strong>${stats.issues}</strong> 个资料中要求的附件尚未添加`);
+      if(otherBlocked)notes.push(`<strong>${otherBlocked}</strong> 封邮件还有其他阻塞`);
+      if(reviewTotal)actions.push('<button type="button" class="nmda-guidance-action" data-issue-action="review">检查邮件</button>');
+      if(stats.issues)actions.push('<button type="button" class="nmda-guidance-action" data-issue-action="attachments">添加附件</button>');
+      guide.innerHTML=notes.length
+        ? `<span>${notes.join('；')}。</span>${actions.length?`<span class="nmda-guidance-actions">${actions.join('')}</span>`:''}`
+        : '当前资料已满足创建草稿所需条件，可以继续选择邮件。';
+    }
+    if(importReviewBtnEl){importReviewBtnEl.hidden=!tasks.length;importReviewBtnEl.textContent=reviewTotal?`检查邮件（${reviewTotal}）`:'查看邮件';}
     const restoreExcluded=$('nmda-restore-excluded');
     if(restoreExcluded){restoreExcluded.hidden=!excluded;restoreExcluded.textContent=excluded?`恢复已排除（${excluded}）`:'恢复已排除';}
   }
@@ -2154,17 +2222,25 @@
 
   function setTaskEdit(task, patch) {
     const prev = batch.taskEdits.get(task.editKey) || {};
+    const beforeReviewIssues=unresolvedImportIssues(task);
+    const wasAutoResolvableOnly=beforeReviewIssues.length>0 && beforeReviewIssues.every(isAutoResolvableReviewIssue);
     const coreChanged=(patch.recipients!=null && String(patch.recipients||'').trim()!==String(task.recipients||'').trim())
       || (patch.subject!=null && String(patch.subject||'').trim()!==String(task.subject||'').trim())
       || (patch.body!=null && String(patch.body||'')!==String(task.body||''));
     const next = { ...prev, ...patch };
-    if(coreChanged && patch.reviewConfirmed==null){next.reviewConfirmed=false;next.reviewDraftPending=true;}
+    if(coreChanged && patch.reviewConfirmed==null){
+      next.reviewConfirmed=false;
+      // A task that entered the queue only because a deterministic field was missing should leave
+      // automatically once that field is corrected. Editing an already-clean/ambiguous mail still
+      // requires explicit confirmation.
+      next.reviewDraftPending=!wasAutoResolvableOnly;
+    }
     if(patch.reviewConfirmed===true)next.reviewDraftPending=false;
     if (patch.tags != null) next.tags = parseTaskClassifications(patch.tags);
     batch.taskEdits.set(task.editKey, next);
     if (patch.enabled != null || patch.school != null || patch.scheduleAt != null) batch.schedulePlan = null;
     if (patch.enabled != null) task.enabled = !!patch.enabled;
-    if(coreChanged && patch.reviewConfirmed==null){task.reviewConfirmed=false;task.reviewDraftPending=true;}
+    if(coreChanged && patch.reviewConfirmed==null){task.reviewConfirmed=false;task.reviewDraftPending=!wasAutoResolvableOnly;}
     if(patch.reviewConfirmed===true){task.reviewConfirmed=true;task.reviewDraftPending=false;}
     if (patch.recipients != null) task.recipients = String(patch.recipients || '').trim();
     if (patch.subject != null) task.subject = String(patch.subject || '').trim();
@@ -2359,7 +2435,7 @@
       return;
     }
     const x=audit.summary;
-    if(summary)summary.innerHTML=`<div class="nmda-import-metric"><strong>${x.roster}</strong><span>总名单</span></div><div class="nmda-import-metric"><strong>${x.tasks}</strong><span>当前邮件</span></div><div class="nmda-import-metric"><strong>${x.matched}</strong><span>已匹配</span></div><div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>尚未撰写</span></div><div class="nmda-import-metric ${x.offRoster?'is-warn':''}"><strong>${x.offRoster}</strong><span>名单外</span></div><div class="nmda-import-metric ${(x.ambiguous+x.conflicts+x.duplicates)?'is-warn':''}"><strong>${x.ambiguous+x.conflicts+x.duplicates}</strong><span>需修改</span></div>`;
+    if(summary)summary.innerHTML=`<div class="nmda-import-metric"><strong>${x.roster}</strong><span>总名单</span></div><div class="nmda-import-metric"><strong>${x.tasks}</strong><span>当前邮件</span></div><div class="nmda-import-metric"><strong>${x.matched}</strong><span>已匹配</span></div><div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>尚未撰写</span></div><div class="nmda-import-metric ${x.offRoster?'is-warn':''}"><strong>${x.offRoster}</strong><span>名单外</span></div><div class="nmda-import-metric ${(x.ambiguous+x.conflicts+x.duplicates)?'is-warn':''}"><strong>${x.ambiguous+x.conflicts+x.duplicates}</strong><span>待核对</span></div>`;
     if(note)note.innerHTML=`已补充 <strong>${x.schoolSupplements}</strong> 条学校信息${x.emailCandidates?`，并为 <strong>${x.emailCandidates}</strong> 封缺邮箱邮件找到候选地址`:''}。总名单中尚未撰写的联系人不会影响本批次。`;
     if(details){
       const off=(audit.matches||[]).filter(m=>m.status==='off-roster').slice(0,12);
@@ -2463,7 +2539,7 @@
         let scheduleAt = '';
         if (String(scheduleRaw ?? '').trim()) {
           const parsed = Importer.parseDateValue(scheduleRaw);
-          if (!parsed) errors.push(`定时时间无法识别：${scheduleRaw}`);
+          if (!parsed) warnings.push(`原定时时间无法识别：${scheduleRaw}；请在自动安排时间中重新选择`);
           else {
             scheduleAt = Importer.formatLocalDateTime(parsed);
             if (parsed.getTime() <= Date.now() + 60 * 1000) warnings.push('定时时间已过，建议手工修改或使用智能排程覆盖');
@@ -2509,14 +2585,28 @@
   }
 
   function statusLabel(task) {
-    if (task.policyBlocked && task.status !== 'running' && task.status !== 'done') return `已拦截：${(task.policyReasons || []).join('、')}`;
+    if (task.policyBlocked && task.status !== 'running' && task.status !== 'done') { const policies=task.policyReasons||[]; const label=(task.policyReasons||[]).some(x=>String(x).includes('不再联系'))?'已停止联系':'已暂停联系'; return `${label}：${policies.join('、')}`; }
     if (!task.enabled && task.status !== 'running' && task.status !== 'done') return '未选择';
     if (task.status === 'done') return '已完成';
     if (task.status === 'running') return '处理中';
-    if (task.status === 'error') return task.runtimeError ? `失败：${task.runtimeError}` : `不可创建：${task.errors.join('；')}`;
-    if (task.warnings.length) return `可执行（${task.warnings.join('；')}）`;
-    return '可执行';
+    if(task.runtimeError)return `失败：${task.runtimeError}`;
+    const state=taskIssueState(task);
+    if(state.content.length){
+      const labels=[];
+      if(state.content.some(x=>/收件人|邮箱/.test(x)))labels.push('收件人');
+      if(state.content.some(x=>/主题/.test(x)))labels.push('主题');
+      if(state.content.some(x=>/正文/.test(x)))labels.push('正文');
+      return `待补内容：${[...new Set(labels)].join('、')}`;
+    }
+    if(state.review.length)return `需要核对：${state.review[0].replace('修改待确认','修改内容')}`;
+    if(state.attachment.length)return `待添加附件：${state.attachment[0].replace(/^缺少附件：|^附件同名冲突：/,'')}`;
+    if(state.schedule.length)return '待调整时间';
+    if(state.other.length)return `暂不可创建：${state.other[0]}`;
+    if (task.status === 'error') return '暂不可创建';
+    if (task.warnings.length) return `可创建（${task.warnings.join('；')}）`;
+    return '可创建';
   }
+
 
   function renderTagChips() {
     const box = $('nmda-batch-tag-chips');
@@ -2564,18 +2654,30 @@
     card.hidden = !hasDataset;
     if (!hasDataset) return;
     const tasks = batch.tasks || [];
-    const ready = tasks.filter(task => task.status === 'ready').length;
-    const scheduled = tasks.filter(task => !!task.scheduleAt).length;
-    const review = tasks.filter(taskNeedsImportReview).length;
-    const stats = importAttachmentStats();
+    const states=tasks.map(task=>[task,taskIssueState(task)]);
+    const blockerTasks=states.filter(([task])=>taskHasBlockingIssue(task));
+    const ready=states.filter(([task])=>!taskHasBlockingIssue(task)&&!task.policyBlocked).length;
+    const review=tasks.filter(taskNeedsImportReview).length;
+    const stats=importAttachmentStats();
     const excluded=excludedImportCount();
-    const blockerTasks=tasks.filter(task=>taskNeedsImportReview(task)||(task.errors||[]).some(error=>!/联系策略/.test(error)));
-    const blockers=new Set(blockerTasks.map(task=>task.editKey));
-    summary.innerHTML = `<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>邮件</span></div><div class="nmda-import-metric"><strong>${ready}</strong><span>可继续</span></div><div class="nmda-import-metric"><strong>${scheduled}</strong><span>定时任务</span></div><div class="nmda-import-metric ${review ? 'is-warn' : ''}"><strong>${review}</strong><span>需修改</span></div><div class="nmda-import-metric ${stats.issues ? 'is-warn' : ''}"><strong>${stats.issues}</strong><span>附件问题</span></div>${excluded?`<div class="nmda-import-metric"><strong>${excluded}</strong><span>已排除</span></div>`:''}`;
-    const blocked=blockers.size>0||stats.issues>0;
-    button.textContent = !tasks.length ? '暂无邮件' : blocked ? `还需处理 ${Math.max(blockers.size,review)+stats.issues} 个问题` : batch.handoffComplete ? `已继续（${tasks.length}）` : `继续选择邮件（${tasks.length}）`;
+    const metrics=[`<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>邮件</span></div>`,`<div class="nmda-import-metric"><strong>${ready}</strong><span>可继续</span></div>`];
+    if(review)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${review}</strong><span>邮件待处理</span></div>`);
+    if(stats.issues)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${stats.issues}</strong><span>附件待加</span></div>`);
+    if(excluded)metrics.push(`<div class="nmda-import-metric"><strong>${excluded}</strong><span>已排除</span></div>`);
+    summary.innerHTML=metrics.join('');
+    const blocked=blockerTasks.length>0;
+    button.textContent = !tasks.length ? '暂无邮件' : blocked ? '完成待办后继续' : batch.handoffComplete ? `已继续（${tasks.length}）` : `继续选择邮件（${tasks.length}）`;
     button.disabled = !tasks.length || blocked;
-    if(hint) hint.textContent=blocked?'还有必要内容未处理：先查看解析预览；附件问题在附件处补充。':batch.handoffComplete?'当前批次已进入选择与安排；修改邮件内容后会回到准备状态。':'解析结果已可用，可以继续选择本次要创建的邮件。';
+    if(hint){
+      const parts=[];
+      if(review)parts.push(`${review} 封邮件内容待处理`);
+      if(stats.issues)parts.push(`${stats.issues} 个附件待添加`);
+      const uncategorized=states.filter(([,state])=>state.other.length).length;
+      if(uncategorized)parts.push(`${uncategorized} 封还有其他阻塞`);
+      hint.textContent=blocked
+        ? `还需完成：${parts.join('；')}。`
+        : batch.handoffComplete?'当前批次已进入选择与安排；修改必要内容后会自动回到准备状态。':'资料已经就绪，可以继续选择本次要创建的邮件。';
+    }
   }
 
 
@@ -2756,12 +2858,23 @@
       else issues.set(key, detail);
     }
     const shared = uniqueFiles(batch.sharedFiles);
+    const card=$('nmda-attachments-card');
+    const cardTitle=card?.querySelector('summary strong');
+    const cardHint=card?.querySelector('summary small');
+    if(cardTitle)cardTitle.textContent=issues.size?`需要添加附件（${issues.size}）`:'附件';
+    if(cardHint)cardHint.textContent=issues.size?'资料中已列出附件，请把对应文件加入本批次':uniqueRefs.length?`已匹配 ${matched}/${uniqueRefs.length} 个要求附件`:'没有要求附件时可忽略';
+    if(card)card.dataset.issue=issues.size?'1':'0';
+    if(issues.size && card && !batch.attachmentAttentionShown){card.open=true;batch.attachmentAttentionShown=true;}
     $('nmda-attachment-summary').innerHTML = uniqueRefs.length
-      ? `<strong>${matched}/${uniqueRefs.length}</strong> 个来源附件引用已匹配 · <strong>${shared.length}</strong> 个公共附件将加入每封邮件${issues.size ? ` · <span class="nmda-danger">${issues.size} 个需处理</span>` : ''}`
-      : `当前任务没有专属附件引用 · <strong>${shared.length}</strong> 个公共附件将加入每封邮件`;
+      ? issues.size
+        ? `资料中要求 <strong>${uniqueRefs.length}</strong> 个附件；已找到 <strong>${matched}</strong> 个，还有 <strong class="nmda-danger">${issues.size}</strong> 个尚未提供。选择文件或文件夹后会自动匹配。${shared.length?` 另有 ${shared.length} 个公共附件。`:''}`
+        : `资料中要求的 <strong>${uniqueRefs.length}</strong> 个附件已全部找到。${shared.length?` 另有 ${shared.length} 个公共附件将加入每封邮件。`:''}`
+      : `资料中没有要求专属附件。${shared.length?`已选择 ${shared.length} 个公共附件，将加入每封邮件。`:'无需处理附件。'}`;
 
     const box = $('nmda-attachment-resolution');
     const list = $('nmda-attachment-resolution-list');
+    const subtitle=box?.querySelector('.nmda-card-subtitle');
+    if(subtitle)subtitle.textContent=issues.size?'还需要这些附件':'附件已齐全';
     if (!issues.size) { box.hidden = true; list.innerHTML = ''; return; }
     box.hidden = false;
     const pool = allAttachmentFiles();
@@ -2773,7 +2886,8 @@
         for (const file of pool) if (!suggestedIds.has(Importer.fileIdentity(file))) candidates.push({ file, score: 0 });
       }
       const options = candidates.map(item => `<option value="${escapeHtml(Importer.fileIdentity(item.file))}">${escapeHtml(item.file.webkitRelativePath || item.file.name)}${item.score >= 90 ? '（推荐）' : ''}</option>`).join('');
-      return `<div class="nmda-resolve-row"><div><strong title="${escapeHtml(detail.ref)}">${escapeHtml(detail.ref)}</strong><small>${detail.status === 'ambiguous' ? '发现多个同名文件' : '尚未自动匹配'}</small></div><select data-attachment-ref="${escapeHtml(Importer.normalizeFileKey(detail.ref))}"><option value="">— 手动指定文件 —</option>${options}</select></div>`;
+      const problem=detail.status === 'ambiguous' ? '找到多个同名文件，请选择正确的一个' : '资料要求此附件，但当前还没有找到对应文件';
+      return `<div class="nmda-resolve-row"><div><strong title="${escapeHtml(detail.ref)}">${escapeHtml(detail.ref)}</strong><small>${problem}</small></div><select data-attachment-ref="${escapeHtml(Importer.normalizeFileKey(detail.ref))}"><option value="">— 选择对应文件 —</option>${options}</select></div>`;
     }).join('');
     list.querySelectorAll('select[data-attachment-ref]').forEach(select => select.addEventListener('change', () => {
       const key = select.dataset.attachmentRef;
@@ -2803,6 +2917,7 @@
     batch.taskEdits.clear();
     batch.reviewSelected?.clear?.();
     batch.reviewFilter='pending';
+    batch.attachmentAttentionShown=false;
     closeImportTaskEditor();
     batch.directoryFiles = []; batch.taskFiles = uniqueFiles(dataset?.embeddedFiles || []); batch.sharedFiles = []; batch.attachmentOverrides.clear();
     batch.fileIndex = Importer.buildFileIndex(batch.taskFiles);
@@ -2861,6 +2976,7 @@
     batch.taskEdits.clear();
     batch.reviewSelected?.clear?.();
     batch.reviewFilter='pending';
+    batch.attachmentAttentionShown=false;
     batch.fileIndex = Importer.buildFileIndex([]);
     batch.profileSuggestion = null;
     batch.stopRequested = false;
@@ -2904,7 +3020,7 @@
     if (reviewPageEmptyEl) reviewPageEmptyEl.hidden=false;
     if (reviewBatchbarEl) reviewBatchbarEl.hidden=true;
     const reviewGuide = $('nmda-review-guidance'); if (reviewGuide) reviewGuide.textContent = '解析完成后可查看每封邮件的结果。';
-    const reviewBtn = $('nmda-review-import-issues'); if (reviewBtn) { reviewBtn.hidden = true; reviewBtn.textContent = '查看解析预览'; }
+    const reviewBtn = $('nmda-review-import-issues'); if (reviewBtn) { reviewBtn.hidden = true; reviewBtn.textContent = '检查邮件'; }
     hideSubjectAssist();
     if(schedulerCardEl){schedulerCardEl.open=true;schedulerCardEl.hidden=true;}
     if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent='收起';
@@ -3038,6 +3154,14 @@
   });
 
   importReviewBtnEl?.addEventListener('click', openReviewWorkspace);
+  $('nmda-review-guidance')?.addEventListener('click',event=>{
+    const action=event.target?.closest?.('[data-issue-action]')?.dataset?.issueAction;
+    if(action==='review'){openReviewWorkspace();return;}
+    if(action==='attachments'){
+      const card=$('nmda-attachments-card');
+      if(card){card.hidden=false;card.open=true;batch.attachmentAttentionShown=true;requestAnimationFrame(()=>card.scrollIntoView?.({behavior:'smooth',block:'start'}));}
+    }
+  });
   ui.querySelectorAll('[data-review-filter]').forEach(button=>button.addEventListener('click',()=>{
     batch.reviewFilter=button.dataset.reviewFilter==='all'?'all':'pending';
     viewPerf.reviewRenderLimit=250;

@@ -1567,3 +1567,17 @@
   .nmda-review-evidence-pane,.nmda-review-edit-pane { grid-column:1 !important; grid-row:auto; }
   .nmda-context-assist,.nmda-review-batchbar { grid-template-columns:1fr !important; align-items:stretch; }
 }
+
+/* v1.18 business-state guidance: surface the next required user action, not a generic error bucket. */
+.nmda-review-guidance { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.nmda-guidance-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.nmda-guidance-action { appearance:none; border:1px solid #bfdbfe; border-radius:8px; background:#fff; color:#1d4ed8; padding:5px 8px; font:inherit; font-weight:750; cursor:pointer; }
+.nmda-guidance-action:hover { background:#eff6ff; }
+#nmda-attachments-card[data-issue="1"] { border-color:#f2cc60; background:#fffdf5; }
+#nmda-attachments-card[data-issue="1"] > summary strong { color:#92400e; }
+#nmda-attachments-card[data-issue="1"] > summary small { color:#a16207; }
+@media (max-width:760px) {
+  .nmda-review-guidance { align-items:flex-start; }
+  .nmda-guidance-actions { width:100%; }
+  .nmda-guidance-action { flex:1; }
+}

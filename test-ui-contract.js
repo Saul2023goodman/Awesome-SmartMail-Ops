@@ -19,7 +19,7 @@ const batchStart=html.indexOf('data-pane="batch"');
 const contactsStart=html.indexOf('data-pane="contacts"');
 const batchHtml=html.slice(batchStart,contactsStart>batchStart?contactsStart:undefined);
 if(!batchHtml.includes('id="nmda-inline-review"') || !batchHtml.includes('<div class="nmda-card-title">解析预览</div>')) throw new Error('inline parsing preview missing from batch flow');
-if(!batchHtml.includes('data-review-filter="pending">需修改</button>') || !batchHtml.includes('data-review-filter="all">全部邮件</button>')) throw new Error('parsing preview filters missing');
+if(!batchHtml.includes('data-review-filter="pending">待处理</button>') || !batchHtml.includes('data-review-filter="all">全部邮件</button>')) throw new Error('parsing preview filters missing');
 if(batchHtml.includes('id="nmda-bulk-subject-panel"') || batchHtml.includes('placeholder="统一补充空白主题"')) throw new Error('subject batch fill must not remain as a separate visible control');
 if(!batchHtml.includes('id="nmda-subject-assist"') || !batchHtml.includes('id="nmda-subject-assist-apply"')) throw new Error('contextual one-click subject suggestion missing');
 if(!batchHtml.includes('id="nmda-review-confirm-selected"') || !batchHtml.includes('>确认所选</button>')) throw new Error('selected parsing edits need one confirmation action');

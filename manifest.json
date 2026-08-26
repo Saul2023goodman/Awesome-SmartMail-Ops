@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "1.17.0",
-  "description": "网易邮箱网页版外联工作台：批量导入后完整检查解析邮件，选择并默认展开自动安排时间，再统一创建草稿；填写单篇主题后可顺势一键补齐其他空白主题。只保存草稿，不自动发送。",
+  "version": "1.18.0",
+  "description": "网易邮箱网页版草稿工作台：导入资料后按当前未解决事项自动路由，补齐确定性字段后自动通过，缺附件明确提示并引导添加，时间统一在排程阶段处理。只保存草稿，不自动发送。",
   "permissions": [
     "storage",
     "scripting"
