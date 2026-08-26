@@ -14,7 +14,7 @@ for(const [name,text] of must) if(!js.includes(text)) throw new Error(`${name} m
 for(const obsolete of ['id="nmda-bulk-subject-panel"','placeholder="统一补充空白主题"']) if(js.includes(obsolete)) throw new Error(`obsolete standalone bulk subject UI remains: ${obsolete}`);
 if(!/function otherMissingSubjectTasks\(currentKey=''\)[\s\S]*?task\.editKey!==currentKey[\s\S]*?!String\(task\?\.subject\|\|''\)\.trim\(\)/.test(js)) throw new Error('subject assist scope is not other blank subjects only');
 if(!/\.nmda-review-layout\s*\{[\s\S]*?max-height:none\s*!important/.test(css)) throw new Error('review layout is still viewport-clipped');
-if(!/\.nmda-review-evidence-pane\s*\{[\s\S]*?overflow:visible\s*!important/.test(css)) throw new Error('evidence pane still has nested scroll');
+if(!/v1\.19[\s\S]*?\.nmda-review-evidence-pane[\s\S]*?grid-row:2\s*!important/.test(css)) throw new Error('parsing evidence should be secondary to editable mail');
 if(!/\.nmda-review-edit-pane\s*\{[\s\S]*?overflow:visible\s*!important/.test(css)) throw new Error('edit pane still has nested scroll');
 if(!/\.nmda-review-core-fields textarea\s*\{[\s\S]*?overflow:hidden/.test(css)) throw new Error('body textarea still uses internal scroll');
-console.log('v1.17 contract OK: full review, context subject assist, default-open scheduler, confirmation semantics');
+console.log('review contract OK: editable mail stays full-height; parsing evidence is secondary; scheduler remains default-open');

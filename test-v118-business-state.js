@@ -10,10 +10,14 @@ function sliceFunction(name,nextName){
 }
 const code=[
   sliceFunction('recipientLooksValid','isAutoResolvableReviewIssue'),
-  sliceFunction('isAutoResolvableReviewIssue','unresolvedImportIssues'),
+  sliceFunction('isAutoResolvableReviewIssue','effectiveImportConfidence'),
+  sliceFunction('effectiveImportConfidence','unresolvedImportIssues'),
   sliceFunction('unresolvedImportIssues','taskIssueState'),
   sliceFunction('taskIssueState','taskNeedsImportReview'),
-  sliceFunction('taskNeedsImportReview','taskHasBlockingIssue'),
+  sliceFunction('taskNeedsImportReview','taskCoreValid'),
+  sliceFunction('taskCoreValid','taskNeedsExplicitConfirmation'),
+  sliceFunction('taskNeedsExplicitConfirmation','taskCanBatchConfirm'),
+  sliceFunction('taskCanBatchConfirm','taskHasBlockingIssue'),
   sliceFunction('taskHasBlockingIssue','excludedImportCount'),
   sliceFunction('refreshTaskCoreValidation','setTaskEdit'),
   sliceFunction('setTaskEdit','mappingSelectHtml')
@@ -34,10 +38,15 @@ if(base.reviewDraftPending)throw new Error('deterministic subject repair must no
 if(sandbox.taskNeedsImportReview(base))throw new Error('subject-only task must leave pending immediately after repair');
 if(base.status!=='ready')throw new Error(`repaired subject-only task should become ready, got ${base.status}`);
 
-const ambiguous={...base,editKey:'b',subject:'',errors:['缺少主题'],importIssues:['主题为空'],importConfidence:55,reviewDraftPending:false,status:'error'};
+const subjectOnlyLow={...base,editKey:'b',subject:'',errors:['缺少主题'],importIssues:['未找到 Subject 标记','邮件边界识别置信度较低'],importConfidence:55,reviewDraftPending:false,status:'error'};
+sandbox.setTaskEdit(subjectOnlyLow,{subject:'Same subject'});
+if(subjectOnlyLow.reviewDraftPending)throw new Error('subject-derived low confidence should not create sticky confirmation after subject is supplied');
+if(sandbox.taskNeedsImportReview(subjectOnlyLow))throw new Error('supplying the missing subject should recompute effective evidence and clear stale subject-derived review state');
+
+const ambiguous={...base,editKey:'b2',subject:'',errors:['缺少主题'],importIssues:['主题为空','候选邮件边界重叠'],importConfidence:55,reviewDraftPending:false,status:'error'};
 sandbox.setTaskEdit(ambiguous,{subject:'Same subject'});
-if(!ambiguous.reviewDraftPending)throw new Error('ambiguous parsing edit must still require confirmation');
-if(!sandbox.taskNeedsImportReview(ambiguous))throw new Error('low-confidence mail must remain pending after subject repair');
+if(!ambiguous.reviewDraftPending)throw new Error('genuinely ambiguous parsing edit must still require confirmation');
+if(!sandbox.taskNeedsImportReview(ambiguous))throw new Error('non-deterministic parsing ambiguity must remain pending');
 
 const clean={...base,editKey:'c',subject:'Original',errors:[],importIssues:[],importConfidence:95,status:'ready',reviewDraftPending:false};
 sandbox.setTaskEdit(clean,{subject:'Edited'});
@@ -52,4 +61,4 @@ if(!sandbox.taskHasBlockingIssue(attachment))throw new Error('missing attachment
 if(!js.includes("warnings.push(`原定时时间无法识别：${scheduleRaw}；请在自动安排时间中重新选择`)"))throw new Error('invalid imported schedule should defer to scheduling step instead of hard-blocking');
 if(!js.includes('<span>附件待加</span>'))throw new Error('attachment summary category missing');
 if(!js.includes('data-issue-action="attachments"'))throw new Error('attachment guidance action missing');
-console.log('v1.18 business-state regression OK: deterministic fixes auto-resolve; attachment and scheduling routes are explicit');
+console.log('business-state regression OK: current facts clear stale subject review state; true ambiguity and attachment blockers remain explicit');
