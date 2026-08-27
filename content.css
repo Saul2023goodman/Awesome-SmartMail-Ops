@@ -3469,6 +3469,52 @@
   padding-top:3px;
 }
 .nmda-supplement-actions .nmda-btn-small { min-height:31px; }
+.nmda-preflight-source-routing {
+  grid-column:1 / -1;
+  min-width:0;
+  border:1px solid #dbe3ed;
+  border-radius:10px;
+  background:#fff;
+}
+.nmda-preflight-source-routing[hidden] { display:none !important; }
+.nmda-preflight-source-routing > summary {
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 12px;
+  cursor:pointer;
+  list-style:none;
+}
+.nmda-preflight-source-routing > summary::-webkit-details-marker { display:none; }
+.nmda-preflight-source-routing > summary > span:first-child { min-width:0; display:grid; gap:2px; }
+.nmda-preflight-source-routing > summary strong { color:#3d444d; font-size:9px; }
+.nmda-preflight-source-routing > summary small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#6e7781; font-size:8px; }
+.nmda-preflight-source-routing-toggle { color:#0969da; font-size:8px; font-weight:720; }
+.nmda-preflight-source-routing[open] .nmda-preflight-source-routing-toggle { font-size:0; }
+.nmda-preflight-source-routing[open] .nmda-preflight-source-routing-toggle::after { content:'收起'; font-size:8px; }
+.nmda-preflight-source-routing-list { display:grid; border-top:1px solid #edf1f5; }
+.nmda-preflight-source-role {
+  min-width:0;
+  display:grid;
+  grid-template-columns:25px minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  min-height:43px;
+  padding:7px 10px;
+  border-bottom:1px solid #edf1f5;
+}
+.nmda-preflight-source-role:last-child { border-bottom:0; }
+.nmda-preflight-source-role-icon { width:25px; height:25px; display:grid; place-items:center; border-radius:7px; background:#f1f6fd; color:#0969da; font-size:9px; font-weight:800; }
+.nmda-preflight-source-role[data-purpose="roster"] .nmda-preflight-source-role-icon { background:#edf9f0; color:#1a7f37; }
+.nmda-preflight-source-role[data-purpose="attachment"] .nmda-preflight-source-role-icon { background:#fff7df; color:#8a5b00; }
+.nmda-preflight-source-role[data-purpose="ignored"] .nmda-preflight-source-role-icon { background:#f6f8fa; color:#6e7781; }
+.nmda-preflight-source-role-main { min-width:0; display:grid; gap:2px; }
+.nmda-preflight-source-role-main strong,.nmda-preflight-source-role-main small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-preflight-source-role-main strong { color:#24292f; font-size:8.7px; }
+.nmda-preflight-source-role-main small { color:#8c959f; font-size:7.6px; }
+.nmda-preflight-source-role select,.nmda-routed-purpose select { height:28px; max-width:116px; border:1px solid #d0d7de; border-radius:7px; background:#fff; color:#3d444d; padding:0 22px 0 7px; font-size:8px; }
 .nmda-supplement-foot {
   display:flex;
   align-items:center;
@@ -3624,6 +3670,8 @@
   color:#8c959f;
   font-size:7.7px;
 }
+.nmda-attachment-asset-actions { display:flex; align-items:center; justify-content:flex-end; gap:4px; }
+.nmda-attachment-asset-row.is-compact .nmda-routed-purpose select { max-width:102px; }
 .nmda-attachment-remove { color:#cf222e; }
 .nmda-attachment-remove:hover { background:#fff1f2; color:#a40e26; }
 .nmda-attachment-assets-more {
@@ -3731,3 +3779,209 @@
 .nmda-attachment-library-bar-main > div { min-width:0; display:grid; gap:1px; }
 .nmda-attachment-library-bar-main strong { color:#24292f; font-size:9.5px; }
 .nmda-attachment-library-bar-main small { color:#667085; font-size:8px; line-height:1.45; }
+
+/* v1.35 · Single-scroll workspace + right-side create command. */
+#nmda-panel {
+  width:min(1360px,calc(100vw - 24px));
+  height:min(920px,calc(100dvh - 24px));
+  inset:12px 12px 12px auto;
+}
+.nmda-page {
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  scroll-padding:12px 0 24px;
+}
+.nmda-bulk-workbench {
+  grid-template-columns:minmax(0,1fr) 190px !important;
+  column-gap:14px !important;
+}
+.nmda-bulk-workbench > .nmda-process-guide {
+  grid-column:2 !important;
+  grid-row:1 / span 30 !important;
+  top:10px !important;
+}
+.nmda-process-guide {
+  max-height:none;
+  overflow:visible;
+  padding:10px !important;
+  border-color:#d0d7de;
+  border-radius:13px !important;
+  box-shadow:0 8px 24px rgba(31,35,40,.075) !important;
+}
+.nmda-process-guide > button[data-flow-step] {
+  min-height:48px;
+  grid-template-columns:30px minmax(0,1fr) !important;
+  column-gap:9px !important;
+  padding:8px !important;
+}
+.nmda-process-guide > button[data-flow-step] > span { width:30px !important; height:30px !important; }
+.nmda-process-guide > button[data-flow-step] strong { display:block !important; font-size:10px !important; }
+.nmda-process-guide > button[data-flow-step] small { display:block !important; font-size:8px !important; }
+.nmda-process-guide > i { margin-left:15px !important; height:8px !important; }
+
+.nmda-rail-create-card {
+  position:static !important;
+  bottom:auto !important;
+  z-index:auto !important;
+  display:grid;
+  grid-template-columns:1fr !important;
+  gap:8px !important;
+  min-height:0 !important;
+  margin:10px 0 0;
+  padding:11px !important;
+  overflow:hidden;
+  border:1px solid #b6d7fe !important;
+  border-radius:10px !important;
+  background:linear-gradient(180deg,#f8fbff 0%,#eef6ff 100%) !important;
+  box-shadow:0 1px 2px rgba(31,35,40,.04) !important;
+  transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+.nmda-rail-create-card.is-attention { border-color:#0969da !important; box-shadow:0 0 0 3px rgba(9,105,218,.12) !important; transform:translateY(-1px); }
+.nmda-rail-create-card .nmda-run-left { display:block; }
+.nmda-rail-create-card .nmda-card-title { color:#1f2328; font-size:11px !important; }
+.nmda-rail-create-card .nmda-run-status {
+  margin-top:3px;
+  color:#57606a;
+  font-size:8px;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+.nmda-rail-create-card .nmda-create-preflight { display:grid; gap:5px; margin-top:7px; }
+.nmda-rail-create-card .nmda-create-preflight > span { display:flex; gap:4px; flex-wrap:wrap; }
+.nmda-rail-create-card .nmda-create-preflight em { padding:3px 5px; font-size:7.3px; }
+.nmda-rail-create-card .nmda-create-preflight > strong { font-size:7.5px; line-height:1.4; }
+.nmda-rail-create-card .nmda-run-controls { display:grid; grid-template-columns:1fr; gap:6px; width:100%; }
+.nmda-process-guide .nmda-rail-create-card button {
+  width:100%;
+  min-height:34px;
+  display:inline-flex;
+  grid-template-columns:none;
+  align-items:center;
+  justify-content:center;
+  padding:7px 8px;
+  border:1px solid var(--nmda-border-strong);
+  border-radius:8px;
+  text-align:center;
+  font-size:8.5px;
+  font-weight:760;
+}
+.nmda-process-guide .nmda-rail-create-card .nmda-btn-primary { border-color:#0969da; background:#0969da; color:#fff; }
+.nmda-process-guide .nmda-rail-create-card .nmda-btn-primary:hover { background:#0550ae; }
+.nmda-process-guide .nmda-rail-create-card #nmda-batch-stop:disabled { display:none; }
+
+/* The task list grows with the page. It must not create a second vertical scrollbar. */
+.nmda-batch-table-wrap {
+  max-height:none !important;
+  overflow:visible !important;
+  contain:layout !important;
+}
+.nmda-batch-table { width:100%; table-layout:fixed; }
+
+/* Modal scroll ownership: the backdrop is the sole scroll surface. */
+#nmda-panel.has-modal .nmda-page { overflow:hidden !important; }
+.nmda-supplement-preflight,
+.nmda-attachment-manager-overlay {
+  align-items:flex-start !important;
+  justify-items:center !important;
+  overflow:auto !important;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  padding:0 18px !important;
+}
+.nmda-supplement-dialog,
+.nmda-attachment-manager {
+  width:min(820px,calc(100% - 8px)) !important;
+  max-height:none !important;
+  grid-template-rows:auto auto auto !important;
+  overflow:visible !important;
+  margin:clamp(12px,3vh,28px) 0;
+  flex:0 0 auto;
+}
+.nmda-supplement-grid,
+.nmda-attachment-manager-body {
+  min-height:auto !important;
+  overflow:visible !important;
+  scrollbar-gutter:auto !important;
+}
+.nmda-supplement-foot,
+.nmda-attachment-manager-foot {
+  position:static !important;
+  box-shadow:0 -1px 0 #eaeef2 !important;
+}
+.nmda-supplement-box-main > small { min-height:0; }
+
+@media (max-width:1100px) {
+  .nmda-bulk-workbench { grid-template-columns:minmax(0,1fr) 174px !important; column-gap:10px !important; }
+  .nmda-process-guide > button[data-flow-step] { grid-template-columns:28px minmax(0,1fr) !important; column-gap:7px !important; padding:7px 6px !important; }
+  .nmda-process-guide > button[data-flow-step] > span { width:28px !important; height:28px !important; }
+}
+@media (max-width:820px) {
+  #nmda-panel { inset:8px; width:auto; height:auto; }
+  .nmda-bulk-workbench { grid-template-columns:1fr !important; }
+  .nmda-bulk-workbench > .nmda-process-guide {
+    grid-column:1 !important;
+    grid-row:auto !important;
+    position:relative !important;
+    top:auto !important;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:5px;
+  }
+  .nmda-process-guide-title,.nmda-process-guide > i { display:none !important; }
+  .nmda-process-guide > button[data-flow-step] { min-height:42px; grid-template-columns:1fr !important; justify-items:center; text-align:center; }
+  .nmda-process-guide > button[data-flow-step] > span { grid-row:auto; }
+  .nmda-process-guide > button[data-flow-step] strong,.nmda-process-guide > button[data-flow-step] small { display:none !important; }
+  .nmda-rail-create-card { grid-column:1 / -1; grid-template-columns:minmax(0,1fr) minmax(180px,.75fr) !important; align-items:center; }
+  .nmda-rail-create-card .nmda-run-controls { align-self:center; }
+  .nmda-batch-table-wrap { overflow-x:auto !important; overflow-y:hidden !important; }
+  .nmda-batch-table { min-width:760px; }
+  .nmda-supplement-grid { grid-template-columns:1fr !important; }
+}
+@media (max-width:620px) {
+  .nmda-rail-create-card { grid-template-columns:1fr !important; }
+  .nmda-supplement-foot,.nmda-attachment-manager-foot { align-items:stretch; flex-direction:column; }
+  #nmda-complete-supplement-preflight { width:100%; }
+}
+
+/* v1.36 · Default-to-all scope and exception-only filtering. */
+.nmda-scope-tools { margin:0 12px 9px; border:1px solid #d8dee4; border-radius:9px; background:#f8fafc; overflow:hidden; }
+.nmda-scope-tools > summary { min-height:42px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; cursor:pointer; list-style:none; }
+.nmda-scope-tools > summary::-webkit-details-marker { display:none; }
+.nmda-scope-tools > summary > span:first-child { min-width:0; display:grid; gap:2px; }
+.nmda-scope-tools > summary strong { color:#3d444d; font-size:9.5px; }
+.nmda-scope-tools > summary small { color:#6e7781; font-size:8px; line-height:1.4; }
+.nmda-scope-toggle { color:#0969da; font-size:8.5px; font-weight:750; }
+.nmda-scope-tools[open] .nmda-scope-toggle { font-size:0; }
+.nmda-scope-tools[open] .nmda-scope-toggle::after { content:'收起'; font-size:8.5px; }
+.nmda-scope-tools .nmda-task-toolbar { padding:9px 10px 10px; border-top:1px solid #eaeef2; background:#fff; }
+.nmda-list-card > .nmda-card-head { padding-bottom:9px; }
+
+/* v1.38 — holiday-aware scheduling + roster priority */
+.nmda-scheduler-policy-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.nmda-scheduler-policy-row > span { min-width:0; }
+.nmda-scheduler-holiday-toggle {
+  flex:0 0 min(320px,42%);
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:7px;
+  padding:5px 7px;
+  border:1px solid #dbe3ed;
+  border-radius:7px;
+  background:#fff;
+  cursor:pointer;
+}
+.nmda-scheduler-holiday-toggle input { margin:0; }
+.nmda-scheduler-holiday-toggle strong,
+.nmda-scheduler-holiday-toggle small { display:block; }
+.nmda-scheduler-holiday-toggle strong { color:#334155; font-size:8.3px; }
+.nmda-scheduler-holiday-toggle small { margin-top:1px; color:#8793a3; font-size:7.3px; line-height:1.35; }
+@media (max-width:900px) {
+  .nmda-scheduler-policy-row { align-items:stretch; flex-direction:column; }
+  .nmda-scheduler-holiday-toggle { flex:1 1 auto; width:100%; }
+}

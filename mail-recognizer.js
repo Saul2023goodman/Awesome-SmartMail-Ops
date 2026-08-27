@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const EMAIL_RE = /\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b/ig;
+  const EMAIL_RE = /\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}(?![A-Z0-9.\-])/ig;
   const SUBJECT_LABEL_RE = /^(?:\*{0,2})\s*(?:subject|e-?mail\s+subject|主题|邮件主题|邮件标题)\s*(?:\*{0,2})\s*[:：]\s*(?:\*{0,2})?\s*/iu;
   const EN_SALUTATION_RE = /^(?:dear|hello|hi)\s+(?:(?:prof(?:essor)?|dr|mr|mrs|ms)\.?\s+)?[^,，:：\n]{1,90}(?:[,，:：]|$)/iu;
   const CN_SALUTATION_RE = /^(?:(?:尊敬的|敬爱的)[^，,：:\n]{1,60}[，,：:]?|[\p{L}·•]{1,30}(?:教授|老师|博士)[，,]?\s*您好[！!，,：:]?|您好[！!，,：:])/iu;

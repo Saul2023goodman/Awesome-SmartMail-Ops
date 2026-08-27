@@ -22,48 +22,121 @@
 
   function validPurpose(value){return Object.values(SOURCE_PURPOSES).includes(String(value||''))?String(value):'';}
   function recordSetText(recordSet,limit=24000){return (recordSet?.rows||[]).slice(0,160).flatMap(row=>row||[]).map(v=>String(v??'')).join('\n').slice(0,limit);}
-  function explicitMailFields(detection){
-    const out=new Set();
-    for(const [field,evidence] of Object.entries(detection?.evidence||{}))if(String(evidence).includes('header')&&Number(detection?.confidence?.[field]||0)>=70)out.add(field);
-    return out;
+  function containsEmail(value){return /[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i.test(String(value??''));}
+  function detectMailHeader(recordSet){
+    const rows=recordSet?.rows||[];let best={index:-1,fields:new Set(),mapping:{},score:0};
+    for(let index=0;index<Math.min(rows.length,50);index++){
+      const fields=new Set(),mapping={};
+      for(let column=0;column<(rows[index]||[]).length;column++){
+        const match=Core.matchHeader(rows[index][column]);
+        if(!match||(match.reason!=='header-exact'&&Number(match.score||0)<92)||mapping[match.field]!=null)continue;
+        fields.add(match.field);mapping[match.field]=column;
+      }
+      const coreCount=['recipients','subject','body'].filter(key=>fields.has(key)).length;
+      const score=coreCount*150+fields.size*8-index*2;
+      if(score>best.score)best={index,fields,mapping,score};
+    }
+    return best;
   }
   function rosterHeaderEvidence(headers){
     const found=new Set();
     for(const raw of headers||[]){const header=Core.normalizeHeader(raw);for(const [field,re] of Object.entries(ROSTER_HEADER_PATTERNS))if(re.test(header))found.add(field);}
     return found;
   }
+  function detectRosterHeader(recordSet){
+    const rows=recordSet?.rows||[];let best={index:-1,fields:new Set(),score:0};
+    for(let index=0;index<Math.min(rows.length,50);index++){
+      const fields=rosterHeaderEvidence(rows[index]||[]),identityCount=['email','name','school'].filter(key=>fields.has(key)).length;
+      const score=identityCount*120+Number(fields.has('workflow'))*35+fields.size*5-index*2;
+      if(score>best.score)best={index,fields,score};
+    }
+    return best;
+  }
+  function recordSetShape(recordSet,detection){
+    const rows=(recordSet?.rows||[]).slice(Math.max(0,Number(detection?.index||0)+1),Math.max(0,Number(detection?.index||0)+1)+160).filter(row=>(row||[]).some(v=>String(v??'').trim()));
+    const emailRows=rows.filter(row=>(row||[]).some(containsEmail)).length;
+    return{rows:rows.length,emailRows,emailRatio:rows.length?emailRows/rows.length:0};
+  }
+  function mappedFieldHasValue(recordSet,detection,field,predicate=value=>String(value??'').trim()!==''){
+    const column=detection?.mapping?.[field];if(column==null)return false;
+    const start=Math.max(0,Number(detection?.index||0)+1);
+    return (recordSet?.rows||[]).slice(start,start+160).some(row=>predicate(row?.[column]));
+  }
+  function sourceRoleCandidates(recordSet,detection){
+    const meta=recordSet?.meta||{},mailHeader=detectMailHeader(recordSet),mailFields=mailHeader.fields,headers=detection?.headers||[],rosterHeader=detectRosterHeader(recordSet),generatedEnvelope=!!meta.wordTaskRows&&!meta.mailFrames;
+    let hasRecipient=mailFields.has('recipients'),hasSubject=mailFields.has('subject'),hasBody=mailFields.has('body');
+    if(generatedEnvelope){
+      hasRecipient=hasRecipient&&mappedFieldHasValue(recordSet,mailHeader,'recipients',containsEmail);
+      hasSubject=hasSubject&&mappedFieldHasValue(recordSet,mailHeader,'subject');
+      hasBody=hasBody&&mappedFieldHasValue(recordSet,mailHeader,'body',value=>String(value??'').trim().length>=20);
+    }
+    const sourceName=`${recordSet?.source||''} ${recordSet?.name||''}`,text=recordSetText(recordSet);
+    const materialName=MATERIAL_NAME_RE.test(sourceName),materialCues=MATERIAL_TEXT_CUES.filter(re=>re.test(text)).length;
+    const rosterFields=rosterHeader.fields.size?rosterHeader.fields:rosterHeaderEvidence(headers),identityCount=['email','name','school'].filter(key=>rosterFields.has(key)).length;
+    const shape=recordSetShape(recordSet,identityCount>=2&&rosterHeader.index>=0?{index:rosterHeader.index}:detection);
+    const scan=meta.mailScan||{},frameSignals=['subjects','salutations','closings','emails'].filter(key=>Number(scan[key]||0)>0).length;
+    const frameConfidence=Number(scan.averageConfidence||0),verifiedFrames=!!meta.mailFrames&&Number(scan.records||0)>0&&frameSignals>=2&&frameConfidence>=55;
+    const candidates={
+      mail:{score:0,reasons:[]},roster:{score:0,reasons:[]},attachment:{score:0,reasons:[]},ignored:{score:0,reasons:[]}
+    };
+    const add=(purpose,score,reason)=>{if(score>candidates[purpose].score)candidates[purpose].score=score;if(reason&&!candidates[purpose].reasons.includes(reason))candidates[purpose].reasons.push(reason);};
+
+    // Mail intent must be demonstrated by message structure or source-authored mail
+    // columns. Text such as “education” or “publications” inside a real outreach mail
+    // is content, not evidence that the whole document is an attachment.
+    if(verifiedFrames){
+      add('mail',Math.min(100,86+Math.round(frameConfidence*.12)+(Number(scan.complete||0)>0?4:0)),`识别到 ${scan.records} 封具有主题/称呼/落款边界的邮件`);
+    }
+    // oneFileTask uses adapter-generated standard columns as a neutral envelope;
+    // those column names were not present in the user's document and prove nothing.
+    if(!meta.oneFileTask&&(!generatedEnvelope||hasSubject)){
+      if(hasRecipient&&hasSubject&&hasBody)add('mail',100,'表头明确包含收件人、主题和正文');
+      else if(hasRecipient&&(hasSubject||hasBody))add('mail',96,`表头明确包含收件人和${hasSubject?'主题':'正文'}`);
+      else if(hasSubject&&hasBody)add('mail',92,'表头明确包含主题和正文');
+    }
+
+    // A roster is a repeated identity table. Email density and long research notes do
+    // not turn it into a mail batch when subject/body columns are absent.
+    if(identityCount>=3)add('roster',98,`表头包含姓名、邮箱和院校，形成联系人表`);
+    else if(identityCount===2)add('roster',94,`表头包含 ${[rosterFields.has('name')?'姓名':'',rosterFields.has('email')?'邮箱':'',rosterFields.has('school')?'院校':''].filter(Boolean).join('、')}`);
+    else if(identityCount===1&&rosterFields.has('workflow'))add('roster',74,'包含联系人身份字段和批次/状态字段');
+    if(identityCount>=2&&shape.rows>=2){add('roster',Math.min(100,candidates.roster.score+2),`包含 ${shape.rows} 条重复联系人记录`);}
+    if(identityCount>=2&&shape.emailRatio>=.5){add('roster',Math.min(100,candidates.roster.score+1),'多数记录包含联系人邮箱');}
+    if(hasSubject||hasBody)candidates.roster.score=Math.max(0,candidates.roster.score-(hasSubject&&hasBody?38:22));
+
+    // Attachments are deliverables, not every readable Word document. Filename and
+    // CV/proposal content cues become decisive only when no strong mail frame/columns
+    // exist; this prevents a mail mentioning the sender's CV from being swallowed.
+    if(materialName&&materialCues>=2)add('attachment',98,'文件名与内容均符合简历/成绩单/研究计划等材料');
+    else if(materialName)add('attachment',91,'文件名符合简历/成绩单/研究计划等材料');
+    else if(meta.oneFileTask&&materialCues>=3)add('attachment',92,`文档包含 ${materialCues} 类申请材料结构`);
+    else if(meta.oneFileTask&&materialCues>=2)add('attachment',84,`文档包含 ${materialCues} 类申请材料线索`);
+    else if(meta.wordTaskRows&&meta.kind==='records'&&materialCues>=4)add('attachment',82,`内容包含 ${materialCues} 类申请材料线索`);
+    if(candidates.mail.score>=92)candidates.attachment.score=Math.min(candidates.attachment.score,72);
+
+    if(meta.supplemental)add('ignored',100,'已有更可靠的邮件识别结果，原始结构仅作解析依据');
+    else if(meta.oneFileTask&&!candidates.mail.score&&!candidates.attachment.score)add('ignored',45,'普通文档缺少可验证的邮件、名单或附件结构');
+    return{candidates,mailFields,mailHeader,hasRecipient,hasSubject,hasBody,generatedEnvelope,rosterFields,rosterHeader,identityCount,materialName,materialCues,verifiedFrames,shape};
+  }
   function classifyRecordSet(recordSet,{forcedPurpose=''}={}){
     const meta=recordSet?.meta||{},forced=validPurpose(forcedPurpose||meta.purposeOverride);
     if(forced)return{purpose:forced,confidence:100,reasons:['来源已明确指定用途']};
-    if(meta.supplemental)return{purpose:SOURCE_PURPOSES.ignored,confidence:100,reasons:['已有更可靠的邮件识别结果，原始结构仅作解析依据']};
-    if(meta.mailFrames)return{purpose:SOURCE_PURPOSES.mail,confidence:Math.max(92,Number(meta.mailScan?.averageConfidence||0)),reasons:['识别到邮件称呼、主题、正文或落款边界']};
+    const detection=Core.detectHeader(recordSet?.rows||[]),evidence=sourceRoleCandidates(recordSet,detection),ranked=Object.entries(evidence.candidates).map(([purpose,value])=>({purpose,...value})).sort((a,b)=>b.score-a.score);
+    const top=ranked[0],runner=ranked[1],gap=Number(top?.score||0)-Number(runner?.score||0);
 
-    const detection=Core.detectHeader(recordSet?.rows||[]),mailFields=explicitMailFields(detection),headers=detection.headers||[];
-    const hasRecipient=mailFields.has('recipients'),hasSubject=mailFields.has('subject'),hasBody=mailFields.has('body');
-    const sourceName=`${recordSet?.source||''} ${recordSet?.name||''}`,text=recordSetText(recordSet);
-    const materialName=MATERIAL_NAME_RE.test(sourceName),materialCues=MATERIAL_TEXT_CUES.filter(re=>re.test(text)).length;
-    if(materialName||(meta.wordTaskRows&&meta.kind==='records'&&materialCues>=3))return{purpose:SOURCE_PURPOSES.attachment,confidence:materialName&&materialCues?98:materialName?94:88,reasons:[materialName?'文件名符合 CV/简历/申请材料':'',materialCues?`内容包含 ${materialCues} 类简历或申请材料线索`:''].filter(Boolean)};
-    // oneFileTask is a fallback envelope generated by the Word adapter. Its standard
-    // columns are not source-authored mail headers and therefore cannot prove mail intent.
-    if(meta.oneFileTask){
-      if(materialName||materialCues>=2)return{purpose:SOURCE_PURPOSES.attachment,confidence:materialName&&materialCues?98:materialName?94:88,reasons:[materialName?'文件名符合 CV/简历/申请材料':'',materialCues?`内容包含 ${materialCues} 类简历或申请材料线索`:''].filter(Boolean)};
-      return{purpose:SOURCE_PURPOSES.ambiguous,confidence:45,reasons:['仅检测到普通文档正文，没有足够邮件结构证据']};
-    }
-    if((hasRecipient&&(hasSubject||hasBody))||(hasSubject&&hasBody)){
-      return{purpose:SOURCE_PURPOSES.mail,confidence:hasRecipient&&hasSubject&&hasBody?98:91,reasons:[`表头明确包含${[hasRecipient?'收件人':'',hasSubject?'主题':'',hasBody?'正文':''].filter(Boolean).join('、')}`]};
-    }
-
-    const rosterFields=rosterHeaderEvidence(headers),identityCount=['email','name','school'].filter(key=>rosterFields.has(key)).length;
-    if(identityCount>=2&&!hasSubject&&!hasBody){
-      return{purpose:SOURCE_PURPOSES.roster,confidence:rosterFields.has('workflow')?97:93,reasons:[`表头包含${[rosterFields.has('name')?'姓名':'',rosterFields.has('email')?'邮箱':'',rosterFields.has('school')?'院校':'',rosterFields.has('workflow')?'批次/状态':''].filter(Boolean).join('、')}，且没有邮件主题/正文`]};
-    }
-
-    if(!hasRecipient&&!hasSubject&&!hasBody&&(materialName||(meta.oneFileTask&&materialCues>=2))){
-      return{purpose:SOURCE_PURPOSES.attachment,confidence:materialName&&materialCues?98:materialName?94:88,reasons:[materialName?'文件名符合 CV/简历/申请材料':'',materialCues?`内容包含 ${materialCues} 类简历或申请材料线索`:''].filter(Boolean)};
-    }
-
-    if(identityCount>=1&&!hasSubject&&!hasBody)return{purpose:SOURCE_PURPOSES.ambiguous,confidence:55,reasons:['可能是联系人资料，但不足以自动作为总名单']};
-    return{purpose:SOURCE_PURPOSES.ambiguous,confidence:35,reasons:['未找到足够的邮件、名单或附件结构证据']};
+    // Explicit mail fields and complete identity tables are deterministic business
+    // contracts. Otherwise require both a usable score and separation from the next
+    // candidate; uncertain documents stay out of every automatic pipeline.
+    const explicitMail=!meta.oneFileTask&&(evidence.generatedEnvelope
+      ? evidence.hasSubject&&(evidence.hasRecipient||evidence.hasBody)
+      : evidence.hasRecipient&&(evidence.hasSubject||evidence.hasBody));
+    const explicitRoster=evidence.identityCount>=2&&!evidence.hasSubject&&!evidence.hasBody;
+    let selected=top;
+    if(meta.supplemental)selected={purpose:SOURCE_PURPOSES.ignored,...evidence.candidates.ignored};
+    else if(explicitMail)selected={purpose:SOURCE_PURPOSES.mail,...evidence.candidates.mail};
+    else if(explicitRoster&&!evidence.verifiedFrames)selected={purpose:SOURCE_PURPOSES.roster,...evidence.candidates.roster};
+    else if(!top||top.score<70||gap<8)return{purpose:SOURCE_PURPOSES.ambiguous,confidence:Math.max(35,Number(top?.score||0)),reasons:['邮件、总名单和附件证据不足或互相冲突，已停止自动分流'],candidates:ranked};
+    return{purpose:selected.purpose,confidence:Math.max(0,Math.min(100,Number(selected.score||0))),reasons:selected.reasons?.length?selected.reasons:['已按来源结构完成用途判断'],candidates:ranked};
   }
 
   function annotateRecordSet(recordSet,options={}){
@@ -216,6 +289,6 @@
     splitAttachments,normalizeFileKey,relaxedFileName,fileIdentity,buildFileIndex,resolveOneFile,suggestFiles,resolveFiles,
     supportedFormats:['XLSX','ODS','FODS','DOCX/DOCM/DOTX','CSV','TSV','PSV','TXT','JSON','JSONL/NDJSON','HTML table','Excel 2003 XML','ZIP batch'],
     candidateDataFile:A.candidateDataFile,directAttachmentFile,
-    SOURCE_PURPOSES,classifyRecordSet,annotateRecordSet,summarizeSourceRouting,prepareDataset,mergeWordTaskRecordSets
+    SOURCE_PURPOSES,sourceRoleCandidates,detectMailHeader,detectRosterHeader,classifyRecordSet,annotateRecordSet,summarizeSourceRouting,prepareDataset,mergeWordTaskRecordSets
   };
 })();
