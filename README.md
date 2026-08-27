@@ -1,8 +1,17 @@
-# NetEase Mail Draft Assistant v1.35.0 · ROSTER-LAYOUT-HARDENING
+# NetEase Mail Draft Assistant v1.37.0 · SOURCE-ROLE-ROUTING
 
-本版把创建草稿操作收进右侧流程栏，收敛页面、表格与弹窗的滚动职责，并修复复杂总名单中纵向合并院校单元格、层级空白与重复联系人造成的院校漏补问题。
+本版重构混合导入的来源角色判断：邮件、参考总名单和附件分别使用独立结构证据；证据冲突时停止自动分流，并可在导入弹窗直接纠正用途。
 
-详见 `ROSTER-LAYOUT-HARDENING-v1.35.md`。
+详见 `SOURCE-ROLE-ROUTING-v1.37.md`。
+
+## v1.37.0
+
+- 邮件字段、邮件边界、名单身份表和附件材料并行评分，不再按先触发哪条规则决定用途。
+- 真实邮件即使正文提到 Education、Publications、Skills、CV 或 Research Proposal，也不会因此变成附件。
+- `University / Supervisor / Email / Research Interest / 备注` 等真实教授名单优先识别为联系人表，长备注不再冒充正文。
+- Adapter 自动生成的标准列不算来源证据；必须检查实际字段值，避免把普通 Word/CV 包装成邮件。
+- 不确定来源不进入邮件、名单或附件管线，避免误生成草稿和误附文件。
+- 导入弹窗提供折叠的“检查资料分类”，自动进入附件池的文件也可原位改为邮件、总名单或暂不使用。
 
 ---
 

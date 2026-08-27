@@ -669,6 +669,10 @@
                         <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-preflight-attachment-skip" type="button">暂不添加</button>
                       </div>
                     </article>
+                    <details class="nmda-preflight-source-routing" id="nmda-preflight-source-routing">
+                      <summary><span><strong>检查资料分类</strong><small id="nmda-preflight-source-routing-summary">系统已区分邮件、总名单和附件</small></span><span class="nmda-preflight-source-routing-toggle">查看</span></summary>
+                      <div class="nmda-preflight-source-routing-list" id="nmda-preflight-source-routing-list"></div>
+                    </details>
                   </div>
                   <div class="nmda-supplement-foot">
                     <div><strong id="nmda-preflight-batch-summary">本批次已就绪</strong><small>未补充的资料不会丢失入口；需要时会在对应业务步骤再次提醒。</small></div>
@@ -1614,10 +1618,72 @@
     return out;
   }
 
+  function collectionMatchesSource(collection,sourceName,fileName='') {
+    const source=String(collection?.source||''),members=(collection?.meta?.sourceMembers||[]).map(String);
+    return source===String(sourceName||'')||source===String(fileName||'')||members.includes(String(sourceName||''))||members.includes(String(fileName||''));
+  }
+
+  function sourceCollections(sourceName,fileName='') {
+    return recordSets().map((collection,index)=>({collection,index})).filter(({collection})=>collectionMatchesSource(collection,sourceName,fileName));
+  }
+
+  function setSourcePurpose(sourceName,purpose,fileName='') {
+    if(!['mail','roster','attachment','ignored'].includes(purpose))return;
+    const related=sourceCollections(sourceName,fileName),primary=related.filter(({collection})=>!collection.meta?.supplemental),targets=primary.length?primary:related;
+    if(!targets.length)return;
+    for(const {collection,index} of targets){
+      const config=ensureCollectionConfig(index);if(!config)continue;
+      config.purpose=purpose;config.enabled=purpose==='mail';
+      collection.meta={...(collection.meta||{}),purposeOverride:purpose,sourcePurpose:purpose,purposeConfidence:100,purposeReasons:['用户已确认资料用途']};
+    }
+    batch.handoffComplete=false;
+    syncRoutedSources();
+    clearStaleOverrides();
+    batch.fileIndex=Importer.buildFileIndex(allAttachmentFiles());
+    rebuildTasks();
+    renderSourceInventory();renderCollectionList();renderPreflightSourceRoles();renderAttachmentAssetViews();renderSupplementPreflight();
+    const label={mail:'邮件',roster:'参考总名单',attachment:'附件',ignored:'暂不使用'}[purpose];
+    setImportStatus(`已将 ${fileName||sourceName} 调整为${label}，本批次结果已重新整理。`,'ok');
+  }
+
+  function sourcePurposeDecision(file) {
+    const sourceName=sourceFileName(file),related=sourceCollections(sourceName,file?.name),primary=related.filter(({collection})=>!collection.meta?.supplemental),items=primary.length?primary:related;
+    const purposes=[...new Set(items.map(({index})=>ensureCollectionConfig(index)?.purpose||'ignored'))];
+    const purpose=purposes.length===1?purposes[0]:'ignored';
+    const confidence=Math.max(0,...items.map(({collection})=>Number(collection.meta?.purposeConfidence||0)));
+    const reasons=[...new Set(items.flatMap(({collection})=>collection.meta?.purposeReasons||[]))];
+    return{sourceName,purpose,confidence,reasons,items};
+  }
+
+  function roleConfidenceText(score) {
+    const value=Number(score||0);return value>=90?'判断明确':value>=70?'基本确定':'需要留意';
+  }
+
+  function sourcePurposeOptions(selected) {
+    const options=[['mail','邮件'],['roster','总名单'],['attachment','附件'],['ignored','暂不使用']];
+    return options.map(([value,label])=>`<option value="${value}" ${selected===value?'selected':''}>${label}</option>`).join('');
+  }
+
+  function renderPreflightSourceRoles() {
+    const details=$('nmda-preflight-source-routing'),list=$('nmda-preflight-source-routing-list'),summary=$('nmda-preflight-source-routing-summary');
+    if(!details||!list||!summary)return;
+    const files=uniqueFiles(batch.dataset?.sourceFiles||[]),decisions=files.map(sourcePurposeDecision);
+    const counts={mail:0,roster:0,attachment:0,ignored:0};for(const decision of decisions)counts[decision.purpose]=(counts[decision.purpose]||0)+1;
+    const parts=[counts.mail?`${counts.mail} 个邮件来源`:'',counts.roster?`${counts.roster} 个总名单`:'',counts.attachment?`${counts.attachment} 个附件`:'',counts.ignored?`${counts.ignored} 个暂未使用`:''].filter(Boolean);
+    summary.textContent=parts.join(' · ')||'尚无可分类来源';
+    details.hidden=!decisions.length;
+    list.innerHTML=decisions.map(decision=>{
+      const reason=decision.reasons[0]||'未找到足够结构证据，未自动使用';
+      return `<div class="nmda-preflight-source-role" data-purpose="${escapeHtml(decision.purpose)}"><span class="nmda-preflight-source-role-icon">${decision.purpose==='mail'?'✉':decision.purpose==='roster'?'人':decision.purpose==='attachment'?'↗':'—'}</span><span class="nmda-preflight-source-role-main"><strong title="${escapeHtml(decision.sourceName)}">${escapeHtml(decision.sourceName)}</strong><small>${escapeHtml(roleConfidenceText(decision.confidence))} · ${escapeHtml(reason)}</small></span><label><span class="sr-only">资料用途</span><select data-preflight-source-purpose="${escapeHtml(encodeURIComponent(decision.sourceName))}">${sourcePurposeOptions(decision.purpose)}</select></label></div>`;
+    }).join('');
+    list.querySelectorAll('[data-preflight-source-purpose]').forEach(select=>select.addEventListener('change',()=>setSourcePurpose(decodeURIComponent(select.dataset.preflightSourcePurpose||''),select.value)));
+  }
+
   function attachmentAssetRowsHtml(entries,{compact=false}={}) {
     return (entries||[]).map(entry=>{
       const usage=entry.kind==='shared'?'每封草稿':entry.used?`已匹配 ${entry.used} 封`:'待匹配';
-      return `<div class="nmda-attachment-asset-row${compact?' is-compact':''}"><span class="nmda-attachment-file-icon" aria-hidden="true">↗</span><div class="nmda-attachment-file-main"><strong title="${escapeHtml(entry.file.name||'附件')}">${escapeHtml(entry.file.name||'附件')}</strong><small>${escapeHtml(formatAttachmentSize(entry.file))} · ${escapeHtml(entry.source)} · ${escapeHtml(usage)}</small></div><button class="nmda-text-action nmda-attachment-remove" type="button" data-attachment-remove="${escapeHtml(encodeURIComponent(entry.identity))}" aria-label="移除 ${escapeHtml(entry.file.name||'附件')}">移除</button></div>`;
+      const correction=entry.kind==='routed'?`<label class="nmda-routed-purpose"><span class="sr-only">调整资料用途</span><select data-routed-source-purpose="${escapeHtml(encodeURIComponent(sourceFileName(entry.file)))}" title="如果自动分类不对，可在这里更改"><option value="attachment" selected>作为附件</option><option value="mail">改为邮件</option><option value="roster">改为总名单</option><option value="ignored">暂不使用</option></select></label>`:'';
+      return `<div class="nmda-attachment-asset-row${compact?' is-compact':''}"><span class="nmda-attachment-file-icon" aria-hidden="true">↗</span><div class="nmda-attachment-file-main"><strong title="${escapeHtml(entry.file.name||'附件')}">${escapeHtml(entry.file.name||'附件')}</strong><small>${escapeHtml(formatAttachmentSize(entry.file))} · ${escapeHtml(entry.source)} · ${escapeHtml(usage)}</small></div><div class="nmda-attachment-asset-actions">${correction}<button class="nmda-text-action nmda-attachment-remove" type="button" data-attachment-remove="${escapeHtml(encodeURIComponent(entry.identity))}" aria-label="移除 ${escapeHtml(entry.file.name||'附件')}">移除</button></div></div>`;
     }).join('');
   }
 
@@ -1628,6 +1694,7 @@
     const manager=$('nmda-attachment-manager-overlay'),list=$('nmda-attachment-manager-list'),empty=$('nmda-attachment-manager-empty'),summary=$('nmda-attachment-manager-summary');
     if(manager){manager.hidden=!batch.attachmentManagerOpen;manager.setAttribute('aria-hidden',batch.attachmentManagerOpen?'false':'true');}
     if(list)list.innerHTML=attachmentAssetRowsHtml(entries);
+    for(const root of [inlineList,list].filter(Boolean))root.querySelectorAll('[data-routed-source-purpose]').forEach(select=>select.addEventListener('change',()=>setSourcePurpose(decodeURIComponent(select.dataset.routedSourcePurpose||''),select.value)));
     if(empty)empty.hidden=!!count;
     if(summary){
       const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{total:0,issues:0};
@@ -1701,6 +1768,7 @@
     if(aStatus)aStatus.textContent=aCount?`已准备 ${aCount} 个附件文件${stats.issues?` · ${stats.issues} 项仍待匹配`:stats.total?' · 已覆盖当前需求':''}`:aState==='skipped'?'本批次暂未添加附件':stats.issues?`${stats.issues} 项附件等待文件`:'尚未添加';
     if(aSkip){aSkip.hidden=!!aCount;aSkip.textContent=aState==='skipped'?'已跳过':'暂不添加';}
     renderAttachmentAssetViews();
+    renderPreflightSourceRoles();
     const batchSummary=$('nmda-preflight-batch-summary');if(batchSummary)batchSummary.textContent=`已导入 ${(batch.tasks||[]).length} 封邮件 · 批次资料可现在一次准备`;
   }
 
@@ -1929,8 +1997,9 @@
       const formats = [...new Set(related.map(({rs}) => rs.meta?.format).filter(Boolean))];
       const format = formats.length ? formats.map(formatDisplayName).join(' + ') : formatDisplayName(dataset.format);
       const roleText=purposes.length?purposes.map(purposeLabel).join(' + '):'来源文件';
-      const firstRelated=related[0];const kind=collectionKind(firstRelated?.rs,firstRelated?ensureCollectionConfig(firstRelated.setIndex)?.purpose:'ignored');
-      return `<div class="nmda-source-item"><div class="nmda-source-item-icon">${escapeHtml(kind.icon)}</div><div class="nmda-source-item-main"><strong title="${escapeHtml(name)}">${escapeHtml(name)}</strong><small>${escapeHtml(format)} · ${humanFileSize(file.size)}</small></div><span class="nmda-source-purpose" data-purpose="${escapeHtml(purposes[0]||'ignored')}">${escapeHtml(roleText)}</span><span class="nmda-source-item-index">${index + 1}</span></div>`;
+      const firstRelated=related.find(({rs})=>!rs.meta?.supplemental)||related[0];const kind=collectionKind(firstRelated?.rs,firstRelated?ensureCollectionConfig(firstRelated.setIndex)?.purpose:'ignored');
+      const confidence=Number(firstRelated?.rs?.meta?.purposeConfidence||0),decision=confidence?` · ${roleConfidenceText(confidence)}`:'';
+      return `<div class="nmda-source-item"><div class="nmda-source-item-icon">${escapeHtml(kind.icon)}</div><div class="nmda-source-item-main"><strong title="${escapeHtml(name)}">${escapeHtml(name)}</strong><small>${escapeHtml(format)} · ${humanFileSize(file.size)}${escapeHtml(decision)}</small></div><span class="nmda-source-purpose" data-purpose="${escapeHtml(purposes[0]||'ignored')}">${escapeHtml(roleText)}</span><span class="nmda-source-item-index">${index + 1}</span></div>`;
     }).join('') : `<div class="nmda-source-item"><div class="nmda-source-item-icon">◇</div><div class="nmda-source-item-main"><strong>粘贴内容</strong><small>${escapeHtml(formatDisplayName(dataset.format))}</small></div></div>`;
     const fileCount=sources.length || 1;
     const taskCount=(batch.tasks||[]).length;
