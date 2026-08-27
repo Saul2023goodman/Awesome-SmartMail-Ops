@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone-workspace UI/runtime QA for NetEase Mail Draft Assistant v2.1.
+"""Standalone-workspace UI/runtime QA for NetEase Mail Draft Assistant v2.2.
 
 This runner serves the real extension app files in Chromium, stubs only Chrome-extension
 transport APIs, drives the production import stack, and captures responsive screenshots.
@@ -36,9 +36,12 @@ def static_checks():
     checks.append({'name':'source-role regression','ok':p.returncode==0,'output':(p.stdout+p.stderr).strip()})
     try:
         manifest=json.loads((ROOT/'manifest.json').read_text(encoding='utf-8'))
-        arch_ok=manifest.get('version') in {'2.0.0','2.1.0'} and manifest.get('action') and manifest.get('content_scripts',[{}])[0].get('js')==['executor.js']
+        arch_ok=manifest.get('version') in {'2.2.0'} and manifest.get('action') and manifest.get('content_scripts',[{}])[0].get('js')==['executor.js']
         checks.append({'name':'manifest standalone architecture','ok':bool(arch_ok),'output':json.dumps(manifest.get('content_scripts'),ensure_ascii=False)})
     except Exception as e: checks.append({'name':'manifest standalone architecture','ok':False,'output':str(e)})
+    app_text=(ROOT/'app.js').read_text(encoding='utf-8')
+    forbidden='本批次自动查重；总名单和邮箱历史只作为增强参考。'
+    checks.append({'name':'technical copy removed','ok':forbidden not in app_text,'output':'absent' if forbidden not in app_text else forbidden})
     return {'ok':all(x['ok'] for x in checks),'checks':checks}
 
 def chrome_stub():
@@ -91,13 +94,15 @@ def audit_dom(page):
       if(collapsedOwners.length)issues.push({severity:'P0',code:'collapsed-scroll-owner',message:`${collapsedOwners.length} 个滚动模块高度异常，内容几乎不可见。`});
       const pageScroll=[...document.querySelectorAll('.nmda-page')].filter(e=>vis(e)&&/(auto|scroll)/.test(getComputedStyle(e).overflowY)&&e.scrollHeight>e.clientHeight+3);
       if(pageScroll.length)issues.push({severity:'P1',code:'outer-page-scroll',message:'主页面仍承担纵向滚动；应由当前任务模块独立滚动。'});
+      const forbiddenOuter=[...document.querySelectorAll('.nmda-ingest-workspace-v2,.nmda-classify-sidebar,.nmda-classify-support-view,#nmda-preflight-supplements,#nmda-preview-card')].filter(e=>vis(e)&&/(auto|scroll)/.test(getComputedStyle(e).overflowY)&&e.scrollHeight>e.clientHeight+3);
+      if(forbiddenOuter.length)issues.push({severity:'P1',code:'outer-task-scroll',message:`${forbiddenOuter.length} 个任务外壳仍承担纵向滚动。`});
       const tinyControls=controls.filter(e=>parseFloat(getComputedStyle(e).fontSize)<9).map(e=>({id:e.id,tag:e.tagName,size:getComputedStyle(e).fontSize}));
       if(tinyControls.length)issues.push({severity:'P1',code:'tiny-control-text',message:`${tinyControls.length} 个可交互控件字号低于 9px。`});
       return {viewport:V,panel:rect(panel),overlay:rect(overlay),dialog:rect(dialog),outsideControls,scrollOwners,nested,pageScroll:pageScroll.map(e=>e.id||e.className),tinyControls,issues};
     }""")
 
 def render_md(report):
-    lines=['# NetEase Mail Draft Assistant v2.1 · Standalone UI QA','',f"- Static / architecture checks: **{'PASS' if report['static']['ok'] else 'FAIL'}**",f"- Standalone runtime load: **{'PASS' if report['runtime']['loaded'] else 'FAIL'}**",f"- Real import flow: **{'PASS' if report['runtime']['import_ok'] else 'FAIL'}**",f"- Stage navigation / isolation: **{'PASS' if report['runtime'].get('flow_ok') else 'FAIL'}**",f"- IndexedDB attachment vault: **{'PASS' if report['runtime']['vault_ok'] else 'FAIL'}**",'', '## Responsive screenshots','', '| Viewport | P0 | P1 | Screenshot |','|---|---:|---:|---|']
+    lines=['# NetEase Mail Draft Assistant v2.2 · Standalone UI QA','',f"- Static / architecture checks: **{'PASS' if report['static']['ok'] else 'FAIL'}**",f"- Standalone runtime load: **{'PASS' if report['runtime']['loaded'] else 'FAIL'}**",f"- Real import flow: **{'PASS' if report['runtime']['import_ok'] else 'FAIL'}**",f"- Stage navigation / isolation: **{'PASS' if report['runtime'].get('flow_ok') else 'FAIL'}**",f"- Import stage content isolation: **{'PASS' if report['runtime'].get('stage1_isolation_ok') else 'FAIL'}**",f"- IndexedDB attachment vault: **{'PASS' if report['runtime']['vault_ok'] else 'FAIL'}**",'', '## Responsive screenshots','', '| Viewport | P0 | P1 | Screenshot |','|---|---:|---:|---|']
     for x in report['viewports']:
         p0=sum(i['severity']=='P0' for i in x['audit']['issues']);p1=sum(i['severity']=='P1' for i in x['audit']['issues']);lines.append(f"| {x['label']} {x['width']}×{x['height']} | {p0} | {p1} | `{x['screenshot']}` |")
     lines+=['','## Stage / module screenshots','', '| View | P0 | P1 | Screenshot |','|---|---:|---:|---|']
@@ -116,7 +121,7 @@ def main():
     ap=argparse.ArgumentParser();ap.add_argument('--baseline');args=ap.parse_args()
     SHOTS.mkdir(parents=True,exist_ok=True);REPORTS.mkdir(parents=True,exist_ok=True)
     static=static_checks()
-    runtime={'loaded':False,'import_ok':False,'vault_api_ok':False,'routing_summary':'','flow_ok':False};viewports=[];task_views=[]
+    runtime={'loaded':False,'import_ok':False,'vault_api_ok':False,'routing_summary':'','flow_ok':False,'stage1_isolation_ok':False};viewports=[];task_views=[]
     with sync_playwright() as p:
         browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
         page=browser.new_page(viewport={'width':1440,'height':900})
@@ -146,12 +151,39 @@ def main():
             shot=SHOTS/f'v2-preflight-{label}-{w}x{h}.png';page.screenshot(path=str(shot),full_page=False)
             viewports.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
 
+        # Batch materials are a separate task canvas, with roster and attachments separated again.
+        page.set_viewport_size({'width':1440,'height':900});page.locator('[data-preflight-view="support"]').click();page.wait_for_timeout(120)
+        for subview in ['roster','attachment']:
+            page.locator(f'button[data-support-view="{subview}"]').click();page.wait_for_timeout(100)
+            for w,h,label in [(1440,900,f'materials-{subview}-desktop'),(820,700,f'materials-{subview}-minimum')]:
+                page.set_viewport_size({'width':w,'height':h});page.wait_for_timeout(140)
+                shot=SHOTS/f'v2-{label}-{w}x{h}.png';page.screenshot(path=str(shot),full_page=False)
+                task_views.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
+
+        # Returning to import must not reintroduce a page/outer workspace scrollbar.
+        page.locator('#nmda-close-supplement-preflight').click();page.wait_for_timeout(120)
+        runtime['stage1_isolation_ok']=page.evaluate("""() => {
+          const wb=document.querySelector('.nmda-bulk-workbench');
+          const visible=e=>e&&!e.hidden&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().height>0;
+          return wb?.dataset.viewStep==='1' && visible(document.querySelector('#nmda-import-card')) && !visible(document.querySelector('#nmda-ingest-result-card')) && !visible(document.querySelector('#nmda-roster-audit-card')) && !visible(document.querySelector('#nmda-inline-review'));
+        }""")
+        for w,h,label in [(1440,900,'import-loaded-desktop'),(820,700,'import-loaded-minimum')]:
+            page.set_viewport_size({'width':w,'height':h});page.wait_for_timeout(140)
+            shot=SHOTS/f'v2-{label}-{w}x{h}.png';page.screenshot(path=str(shot),full_page=False)
+            task_views.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
+        page.set_viewport_size({'width':1440,'height':900});page.locator('#nmda-open-supplement-preflight').click();page.wait_for_timeout(140)
+
         # Continue through the real forward flow and verify the stage-isolated workspace.
         page.set_viewport_size({'width':1440,'height':900});page.wait_for_timeout(120)
         page.locator('#nmda-complete-supplement-preflight').click();page.wait_for_timeout(700)
-        runtime['flow_ok']=page.locator('.nmda-bulk-workbench').get_attribute('data-view-step')=='3' and page.locator('#nmda-preview-card').is_visible()
+        runtime['flow_ok']=runtime['stage1_isolation_ok'] and page.locator('.nmda-bulk-workbench').get_attribute('data-view-step')=='3' and page.locator('#nmda-preview-card').is_visible()
         for w,h,label in [(1440,900,'planning-desktop'),(820,700,'planning-minimum')]:
             page.set_viewport_size({'width':w,'height':h});page.wait_for_timeout(160)
+            shot=SHOTS/f'v2-{label}-{w}x{h}.png';page.screenshot(path=str(shot),full_page=False)
+            task_views.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
+        page.set_viewport_size({'width':1440,'height':900});page.locator('[data-planning-view="mails"]').click();page.wait_for_timeout(120)
+        for w,h,label in [(1440,900,'mail-times-desktop'),(820,700,'mail-times-minimum')]:
+            page.set_viewport_size({'width':w,'height':h});page.wait_for_timeout(140)
             shot=SHOTS/f'v2-{label}-{w}x{h}.png';page.screenshot(path=str(shot),full_page=False)
             task_views.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
         page.set_viewport_size({'width':1440,'height':900});page.locator('[data-flow-step="4"]').click();page.wait_for_timeout(180)
@@ -169,7 +201,7 @@ def main():
                 task_views.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
         runtime['page_errors']=errors
         browser.close()
-    report={'version':'2.1.0','static':static,'runtime':runtime,'viewports':viewports,'task_views':task_views}
+    report={'version':'2.2.0','static':static,'runtime':runtime,'viewports':viewports,'task_views':task_views}
     # Build report text with the API-level distinction explicit.
     md=render_md({**report,'runtime':{**runtime,'vault_ok':runtime['vault_api_ok']}})
     md=md.replace('IndexedDB attachment vault: **PASS**','Attachment-vault API loaded: **PASS** (real IndexedDB storage requires extension origin; this sandbox blocks navigable local origins)')

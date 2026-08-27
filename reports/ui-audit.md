@@ -1,9 +1,10 @@
-# NetEase Mail Draft Assistant v2.1 · Standalone UI QA
+# NetEase Mail Draft Assistant v2.2 · Standalone UI QA
 
 - Static / architecture checks: **PASS**
 - Standalone runtime load: **PASS**
 - Real import flow: **PASS**
 - Stage navigation / isolation: **PASS**
+- Import stage content isolation: **PASS**
 - Attachment-vault API loaded: **PASS** (real IndexedDB storage requires extension origin; this sandbox blocks navigable local origins)
 
 ## Responsive screenshots
@@ -20,8 +21,16 @@
 
 | View | P0 | P1 | Screenshot |
 |---|---:|---:|---|
+| materials-roster-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-materials-roster-desktop-1440x900.png` |
+| materials-roster-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-materials-roster-minimum-820x700.png` |
+| materials-attachment-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-materials-attachment-desktop-1440x900.png` |
+| materials-attachment-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-materials-attachment-minimum-820x700.png` |
+| import-loaded-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-import-loaded-desktop-1440x900.png` |
+| import-loaded-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-import-loaded-minimum-820x700.png` |
 | planning-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-planning-desktop-1440x900.png` |
 | planning-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-planning-minimum-820x700.png` |
+| mail-times-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-mail-times-desktop-1440x900.png` |
+| mail-times-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-mail-times-minimum-820x700.png` |
 | create-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-create-desktop-1440x900.png` |
 | create-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-create-minimum-820x700.png` |
 | single-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-single-desktop-1440x900.png` |

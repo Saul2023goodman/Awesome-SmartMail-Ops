@@ -148,7 +148,7 @@
             </div>
             <div class="nmda-ingest-workspace nmda-ingest-workspace-v2">
               <div class="nmda-card nmda-ingest-source-card" id="nmda-import-card">
-                <div class="nmda-card-head"><div><div class="nmda-card-title" id="nmda-import-card-title">导入邮件资料</div><div class="nmda-card-desc" id="nmda-import-card-desc">加入邮件文件、文件夹或粘贴内容。</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" id="nmda-import-busy-badge" hidden>正在处理…</span><button class="nmda-btn nmda-btn-small" id="nmda-open-supplement-preflight" type="button" hidden>批次准备</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button" hidden>清空本批次</button></div></div>
+                <div class="nmda-card-head"><div><div class="nmda-card-title" id="nmda-import-card-title">导入邮件资料</div><div class="nmda-card-desc" id="nmda-import-card-desc">把本批次邮件资料放进来。</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" id="nmda-import-busy-badge" hidden>正在处理…</span><button class="nmda-btn nmda-btn-small" id="nmda-open-supplement-preflight" type="button" hidden>批次准备</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button" hidden>清空本批次</button></div></div>
                 <input id="nmda-import-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip,.pdf,.ppt,.pptx,.rtf,.png,.jpg,.jpeg,.gif,.webp,.svg,.rar,.7z">
                 <input id="nmda-import-dir" type="file" webkitdirectory multiple hidden>
                 <input id="nmda-import-package" type="file" hidden accept=".zip">
@@ -196,15 +196,21 @@
                     <div class="nmda-classify-head-main">
                       <div class="nmda-supplement-head-icon" data-state="ok">✓</div>
                       <div>
-                        <span class="nmda-supplement-kicker">文件已识别</span>
+                        <span class="nmda-supplement-kicker">导入完成</span>
                         <h3 id="nmda-supplement-title">确认文件用途</h3>
-                        <p>只处理分类有误的文件。选择文件即可查看内容并修改用途。</p>
+                        <p>确认有疑问的文件即可。</p>
                       </div>
                     </div>
                     <div class="nmda-classify-head-summary" id="nmda-preflight-routing-chips" aria-label="分类概览"></div>
                   </header>
 
-                  <div class="nmda-classify-workspace">
+                  <nav class="nmda-classify-modebar" aria-label="导入核验步骤">
+                    <button class="is-active" type="button" data-preflight-view="files"><span>1</span><strong>核验文件</strong><small>确认用途</small></button>
+                    <button type="button" data-preflight-view="support"><span>2</span><strong>批次资料</strong><small>名单与附件</small></button>
+                  </nav>
+
+                  <div class="nmda-classify-workspace" data-preflight-view="files">
+                    <div class="nmda-classify-files-view" data-preflight-panel="files">
                     <aside class="nmda-classify-sidebar">
                       <div class="nmda-classify-pane-head">
                         <div><span>目录 / 批次</span><strong id="nmda-preflight-directory-title">全部文件</strong></div>
@@ -212,39 +218,7 @@
                       </div>
                       <div class="nmda-classify-directory-nav" id="nmda-preflight-directory-nav"></div>
 
-                      <section class="nmda-classify-supplements nmda-classify-upload-dock" id="nmda-preflight-supplements" aria-label="补充上传">
-                        <div class="nmda-classify-upload-dock-head"><span><strong>补充上传</strong><small>可选资料直接在这里添加</small></span></div>
-                        <div class="nmda-classify-supplement-stack">
-                          <article class="nmda-supplement-box nmda-supplement-box-compact" id="nmda-preflight-roster-box" data-state="pending">
-                            <div class="nmda-supplement-box-icon">名</div>
-                            <div class="nmda-supplement-box-main">
-                              <strong id="nmda-preflight-roster-title">参考总名单</strong>
-                              <small id="nmda-preflight-roster-copy">用于联系人核对与排期参考。</small>
-                              <div class="nmda-supplement-status" id="nmda-preflight-roster-status">尚未添加</div>
-                            </div>
-                            <div class="nmda-supplement-actions">
-                              <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-roster-file">上传名单</label>
-                            </div>
-                          </article>
-                          <article class="nmda-supplement-box nmda-supplement-box-compact nmda-supplement-box-attachment" id="nmda-preflight-attachment-box" data-state="pending">
-                            <div class="nmda-supplement-box-icon">附</div>
-                            <div class="nmda-supplement-box-main">
-                              <strong id="nmda-preflight-attachment-title">附件</strong>
-                              <small id="nmda-preflight-attachment-copy">发送文件或用于自动匹配。</small>
-                              <div class="nmda-attachment-requirements" id="nmda-preflight-attachment-requirements"></div>
-                              <div class="nmda-supplement-status" id="nmda-preflight-attachment-status">尚未添加</div>
-                              <div class="nmda-attachment-assets nmda-attachment-assets-inline" id="nmda-preflight-attachment-assets" hidden>
-                                <div class="nmda-attachment-assets-head"><strong>已加入附件</strong><span id="nmda-preflight-attachment-assets-count"></span></div>
-                                <div class="nmda-attachment-assets-list" id="nmda-preflight-attachment-assets-list"></div>
-                              </div>
-                            </div>
-                            <div class="nmda-supplement-actions nmda-supplement-actions-split">
-                              <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-attachment-files">添加文件</label>
-                              <label class="nmda-btn nmda-btn-small" for="nmda-attachment-dir">附件目录</label>
-                            </div>
-                          </article>
-                        </div>
-                      </section>
+
                     </aside>
 
                     <section class="nmda-preflight-source-routing nmda-classify-main" id="nmda-preflight-source-routing">
@@ -306,11 +280,54 @@
                         </div>
                       </div>
                     </aside>
+                    </div>
+
+                    <section class="nmda-classify-support-view" data-preflight-panel="support" data-support-view="roster" hidden>
+                      <header class="nmda-support-view-head">
+                        <div><span>批次资料</span><strong>按需要补充</strong></div>
+                        <nav class="nmda-support-modebar" aria-label="批次资料类型">
+                          <button class="is-active" type="button" data-support-view="roster"><span>名</span><strong>参考名单</strong></button>
+                          <button type="button" data-support-view="attachment"><span>附</span><strong>附件</strong></button>
+                        </nav>
+                      </header>
+                    <section class="nmda-classify-supplements nmda-classify-upload-dock" id="nmda-preflight-supplements" aria-label="批次资料">
+                        <div class="nmda-classify-supplement-stack">
+                          <article class="nmda-supplement-box nmda-supplement-box-compact" id="nmda-preflight-roster-box" data-support-pane="roster" data-state="pending">
+                            <div class="nmda-supplement-box-icon">名</div>
+                            <div class="nmda-supplement-box-main">
+                              <strong id="nmda-preflight-roster-title">参考总名单</strong>
+                              <small id="nmda-preflight-roster-copy">已有总名单时可加入。</small>
+                              <div class="nmda-supplement-status" id="nmda-preflight-roster-status">尚未添加</div>
+                            </div>
+                            <div class="nmda-supplement-actions">
+                              <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-roster-file">上传名单</label>
+                            </div>
+                          </article>
+                          <article class="nmda-supplement-box nmda-supplement-box-compact nmda-supplement-box-attachment" id="nmda-preflight-attachment-box" data-support-pane="attachment" data-state="pending">
+                            <div class="nmda-supplement-box-icon">附</div>
+                            <div class="nmda-supplement-box-main">
+                              <strong id="nmda-preflight-attachment-title">附件</strong>
+                              <small id="nmda-preflight-attachment-copy">添加本批次需要的附件。</small>
+                              <div class="nmda-attachment-requirements" id="nmda-preflight-attachment-requirements"></div>
+                              <div class="nmda-supplement-status" id="nmda-preflight-attachment-status">尚未添加</div>
+                              <div class="nmda-attachment-assets nmda-attachment-assets-inline" id="nmda-preflight-attachment-assets" hidden>
+                                <div class="nmda-attachment-assets-head"><strong>已加入附件</strong><span id="nmda-preflight-attachment-assets-count"></span></div>
+                                <div class="nmda-attachment-assets-list" id="nmda-preflight-attachment-assets-list"></div>
+                              </div>
+                            </div>
+                            <div class="nmda-supplement-actions nmda-supplement-actions-split">
+                              <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-attachment-files">添加文件</label>
+                              <label class="nmda-btn nmda-btn-small" for="nmda-attachment-dir">附件目录</label>
+                            </div>
+                          </article>
+                        </div>
+                      </section>
+                    </section>
                   </div>
 
                   <footer class="nmda-supplement-foot nmda-classify-foot">
                     <button class="nmda-btn nmda-btn-quiet" id="nmda-close-supplement-preflight" type="button">返回上传</button>
-                    <div class="nmda-classify-foot-summary"><strong id="nmda-preflight-batch-summary">正在核验本批次</strong><small>分类正确无需逐个确认。</small></div>
+                    <div class="nmda-classify-foot-summary"><strong id="nmda-preflight-batch-summary">正在核验本批次</strong><small>无误即可继续。</small></div>
                     <button class="nmda-btn nmda-btn-primary" id="nmda-complete-supplement-preflight" type="button">确认分类并继续 →</button>
                   </footer>
                 </section>
@@ -319,7 +336,7 @@
               <div class="nmda-attachment-manager-overlay" id="nmda-attachment-manager-overlay" hidden aria-hidden="true">
                 <section class="nmda-attachment-manager" role="dialog" aria-modal="true" aria-labelledby="nmda-attachment-manager-title">
                   <div class="nmda-attachment-manager-head">
-                    <div><span class="nmda-supplement-kicker">本批次附件</span><h3 id="nmda-attachment-manager-title">附件资料</h3><p>手动添加的文件会直接随本批次邮件发送；文件夹与自动识别材料只作为匹配资料库。增删后会立即重新计算。</p></div>
+                    <div><span class="nmda-supplement-kicker">本批次附件</span><h3 id="nmda-attachment-manager-title">附件资料</h3><p>管理本批次需要的附件。</p></div>
                     <button class="nmda-icon-btn" id="nmda-close-attachment-manager" type="button" aria-label="关闭附件管理">×</button>
                   </div>
                   <div class="nmda-attachment-manager-body">
@@ -343,15 +360,15 @@
                 </div>
                 <div class="nmda-context-cue nmda-context-cue-compact nmda-attachment-context-cue" id="nmda-attachment-context-cue" hidden>
                   <div class="nmda-context-cue-icon" aria-hidden="true">⇧</div>
-                  <div class="nmda-context-cue-main"><span class="nmda-context-eyebrow">待办 · 创建前必须补齐</span><strong id="nmda-attachment-context-title">附件待补</strong><small id="nmda-attachment-context-copy">直接添加文件会随邮件发送；匹配文件夹用于补齐资料中点名的附件。</small></div>
+                  <div class="nmda-context-cue-main"><span class="nmda-context-eyebrow">待办 · 创建前必须补齐</span><strong id="nmda-attachment-context-title">附件待补</strong><small id="nmda-attachment-context-copy">添加本批次需要的附件。</small></div>
                   <div class="nmda-context-cue-actions"><label class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-attachment-send-action" for="nmda-attachment-files">添加并发送文件</label><label class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-dir-action" for="nmda-attachment-dir">选择匹配文件夹</label><button class="nmda-btn nmda-btn-small" id="nmda-manage-attachments-todo" type="button">管理附件</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-later" type="button">稍后处理</button></div>
                 </div>
-                <div class="nmda-attachment-library-bar" id="nmda-attachment-library-bar" hidden><div class="nmda-attachment-library-bar-main"><span class="nmda-attachment-library-bar-icon">↗</span><div><strong id="nmda-attachment-library-bar-title">附件资料</strong><small id="nmda-attachment-library-bar-copy">已加入的附件会在这里持续可管理。</small></div></div><button class="nmda-btn nmda-btn-small" id="nmda-manage-attachments-workflow" type="button">查看 / 修改</button></div>
+                <div class="nmda-attachment-library-bar" id="nmda-attachment-library-bar" hidden><div class="nmda-attachment-library-bar-main"><span class="nmda-attachment-library-bar-icon">↗</span><div><strong id="nmda-attachment-library-bar-title">附件资料</strong><small id="nmda-attachment-library-bar-copy">查看或调整已加入的附件。</small></div></div><button class="nmda-btn nmda-btn-small" id="nmda-manage-attachments-workflow" type="button">查看 / 修改</button></div>
                 <div id="nmda-import-preview-summary" class="nmda-ingest-health"></div>
                 <div id="nmda-review-guidance" class="nmda-review-guidance">解析完成后可查看每封邮件的结果。</div>
                 <details class="nmda-optional-source-details" id="nmda-attachments-card" hidden>
-                  <summary><span><strong>添加附件</strong><small>手动文件直接发送；文件夹用于自动匹配</small></span><span>展开</span></summary>
-                  <div id="nmda-attachment-summary" class="nmda-summary">生成邮件后会显示附件匹配情况。</div>
+                  <summary><span><strong>添加附件</strong><small>选择要随邮件使用的附件</small></span><span>展开</span></summary>
+                  <div id="nmda-attachment-summary" class="nmda-summary">尚未添加附件。</div>
                   <div class="nmda-attachment-grid nmda-attachment-grid-simple">
                     <div class="nmda-file-source"><span class="nmda-label">附件</span><div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">添加并发送文件<input id="nmda-attachment-files" type="file" multiple hidden></label><label class="nmda-btn nmda-btn-small nmda-file-button">选择匹配目录<input id="nmda-attachment-dir" type="file" webkitdirectory multiple hidden></label></div></div>
                     <div class="nmda-file-source nmda-file-source-shared"><span class="nmda-label">额外公共附件</span><label class="nmda-btn nmda-btn-small nmda-file-button">添加并发送<input id="nmda-shared-files" type="file" multiple hidden></label></div>
@@ -432,7 +449,7 @@
               </div>
 
               <div class="nmda-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
-                <div class="nmda-card-head"><div><div class="nmda-card-title">联系人核验</div><div class="nmda-card-desc">本批次自动查重；总名单和邮箱历史只作为增强参考。</div></div></div>
+                <div class="nmda-card-head"><div><div class="nmda-card-title">联系人核验</div><div class="nmda-card-desc">发现可能重复的联系人时会在这里提示。</div></div></div>
                 <input id="nmda-roster-enabled" type="checkbox" checked hidden>
                 <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
                 <input id="nmda-roster-strict" type="checkbox" hidden>
@@ -445,14 +462,18 @@
 
             <div class="nmda-workflow-stage-separator" aria-hidden="true"></div>
             <div class="nmda-workflow-stage-head" id="nmda-stage-execute" hidden>
-              <span class="nmda-stage-number">03</span><div><strong>确认与安排</strong><small>默认创建全部可用邮件；需要时再筛选或排除。</small></div>
+              <span class="nmda-stage-number">03</span><div><strong>确认与安排</strong><small>确认邮件与发送时间。</small></div>
             </div>
             <div class="nmda-batch-empty" id="nmda-batch-empty" hidden><button id="nmda-go-import" type="button" hidden>回到准备区</button></div>
 
             <div class="nmda-card nmda-list-card" id="nmda-preview-card" hidden>
-              <div class="nmda-card-head nmda-list-head"><div><div><div class="nmda-card-title">确认本次邮件</div><div class="nmda-card-desc">可创建邮件已默认纳入；只需检查排期，或排除暂不处理的邮件。</div></div></div><div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div></div>
+              <div class="nmda-card-head nmda-list-head"><div><div><div class="nmda-card-title">确认本次邮件</div><div class="nmda-card-desc">选择邮件并安排时间。</div></div></div><div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div></div>
+              <div class="nmda-planning-modebar" id="nmda-planning-modebar" aria-label="排期视图">
+                <button class="is-active" type="button" data-planning-view="rules"><span>◷</span><strong>排期规则</strong></button>
+                <button type="button" data-planning-view="mails"><span>≡</span><strong>邮件时间</strong></button>
+              </div>
               <details class="nmda-scope-tools" id="nmda-scope-tools">
-                <summary><span><strong>筛选与排除</strong><small>仅在分批创建、查找或跳过个别邮件时使用</small></span><span class="nmda-scope-toggle">展开</span></summary>
+                <summary><span><strong>筛选与排除</strong><small>需要时再筛选或排除</small></span><span class="nmda-scope-toggle">展开</span></summary>
                 <div class="nmda-task-toolbar">
                 <label class="nmda-search-field"><input id="nmda-batch-search" type="search" placeholder="搜索收件人或主题"></label>
                 <label class="nmda-compact-select"><span>联系状态</span><select id="nmda-batch-stage-filter"><option value="">全部</option><option value="未联系">未联系</option><option value="已发送">已发送</option><option value="已回复">已回复</option></select></label>
@@ -464,15 +485,15 @@
               <input id="nmda-bulk-tag-value" type="hidden"><button id="nmda-bulk-add-tag" type="button" hidden></button><button id="nmda-bulk-remove-tag" type="button" hidden></button><button id="nmda-bulk-disable" type="button" hidden></button>
 
               <details class="nmda-inline-scheduler" id="nmda-scheduler-card" hidden open>
-                <summary><span><strong>自动安排时间</strong><small id="nmda-schedule-summary"></small></span><span id="nmda-scheduler-toggle-label">收起</span></summary>
-                <div class="nmda-stage-preflight" id="nmda-schedule-context-cue"><span class="nmda-stage-preflight-icon">◷</span><div><strong>设置自动排期</strong><small id="nmda-schedule-context-copy">开始时间与同校间隔。系统会利用现有院校信息自动错峰。</small></div></div>
+                <summary><span><strong>排期设置</strong><small id="nmda-schedule-summary"></small></span><span id="nmda-scheduler-toggle-label">收起</span></summary>
+                <div class="nmda-stage-preflight" id="nmda-schedule-context-cue"><span class="nmda-stage-preflight-icon">◷</span><div><strong>排期规则</strong><small id="nmda-schedule-context-copy">设置开始时间与同校间隔。</small></div></div>
                 <div class="nmda-scheduler-grid">
                   <label class="nmda-field"><span class="nmda-label">开始时间</span><input id="nmda-rule-start-at" type="datetime-local"></label>
                   <label class="nmda-field"><span class="nmda-label">每所院校每轮最多</span><input id="nmda-rule-max-school" type="number" min="1" max="20" step="1" value="1"></label>
                   <label class="nmda-field"><span class="nmda-label">间隔</span><div class="nmda-input-suffix"><input id="nmda-rule-interval-days" type="number" min="1" max="365" step="1" value="7"><span>天</span></div></label>
                   <label class="nmda-check-card"><input id="nmda-rule-preserve-existing" type="checkbox" checked><span><strong>保留已有时间</strong></span></label>
                 </div>
-                <div class="nmda-scheduler-purpose-note nmda-scheduler-policy-row"><span>同校自动错峰；总名单含优先级时按数字顺序安排。</span><label class="nmda-scheduler-holiday-toggle"><input id="nmda-rule-skip-holidays" type="checkbox" checked><span><strong>跳过节假日（含周末）</strong><small>按总名单 Country 识别国家公共假日；未覆盖国家仍避开周末</small></span></label></div>
+                <div class="nmda-scheduler-purpose-note nmda-scheduler-policy-row"><span>同校按顺序错开时间。</span><label class="nmda-scheduler-holiday-toggle"><input id="nmda-rule-skip-holidays" type="checkbox" checked><span><strong>避开节假日和周末</strong><small>同时避开可识别的公共假日</small></span></label></div>
                 <div class="nmda-scheduler-actions">
                   <div id="nmda-schedule-rule-preview" class="nmda-schedule-rule-preview">同校每 7 天最多 1 位。</div>
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-clear-auto-schedule" type="button">清除自动时间</button>
@@ -1096,7 +1117,7 @@
     sessionId: 0, importBusy: false, schedulePlan: null,
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
     roster: emptyRosterState(), duplicateAudit:null,
-    handoffComplete: false, autoAdvancing: false, reviewFilter: 'pending', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, attachmentManagerOpen:false, uiStep:1, sourceInspectName:'', preflightFolderPath:'', preflightSearch:'', preflightReviewOnly:false, preflightPurposeFilter:'', ignoredAttachmentIdentities:new Set()
+    handoffComplete: false, autoAdvancing: false, reviewFilter: 'pending', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, preflightView:'files', supportView:'roster', attachmentManagerOpen:false, uiStep:1, planningView:'rules', sourceInspectName:'', preflightFolderPath:'', preflightSearch:'', preflightReviewOnly:false, preflightPurposeFilter:'', ignoredAttachmentIdentities:new Set()
   };
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), rosterFileEl = $('nmda-roster-file'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
@@ -1747,6 +1768,48 @@
     const button=$('nmda-edit-batch-prep');if(button)button.textContent=supplementPreflightNeedsDecision()?'继续准备':'补充资料';
   }
 
+  function setPlanningView(view = 'rules') {
+    const next=view==='mails'?'mails':'rules';
+    batch.planningView=next;
+    const card=$('nmda-preview-card');
+    if(card)card.dataset.planningView=next;
+    ui.querySelectorAll('[data-planning-view]').forEach(button=>{
+      const active=button.dataset.planningView===next;
+      button.classList.toggle('is-active',active);
+      button.setAttribute('aria-current',active?'page':'false');
+    });
+  }
+
+  function setPreflightView(view = 'files') {
+    const next=view==='support'?'support':'files';
+    batch.preflightView=next;
+    const workspace=$('nmda-supplement-preflight')?.querySelector('.nmda-classify-workspace');
+    if(workspace)workspace.dataset.preflightView=next;
+    ui.querySelectorAll('[data-preflight-view]').forEach(button=>{
+      const active=button.dataset.preflightView===next;
+      button.classList.toggle('is-active',active);
+      button.setAttribute('aria-current',active?'step':'false');
+    });
+    ui.querySelectorAll('[data-preflight-panel]').forEach(panel=>{
+      panel.hidden=panel.dataset.preflightPanel!==next;
+    });
+    const button=$('nmda-complete-supplement-preflight');
+    if(button&&!button.textContent.includes('待确认'))button.textContent=next==='support'?'完成并继续 →':'继续 →';
+  }
+
+  function setSupportView(view = 'roster') {
+    const next=view==='attachment'?'attachment':'roster';
+    batch.supportView=next;
+    const support=$('nmda-supplement-preflight')?.querySelector('.nmda-classify-support-view');
+    if(support)support.dataset.supportView=next;
+    ui.querySelectorAll('button[data-support-view]').forEach(button=>{
+      const active=button.dataset.supportView===next;
+      button.classList.toggle('is-active',active);
+      button.setAttribute('aria-current',active?'page':'false');
+    });
+    ui.querySelectorAll('[data-support-pane]').forEach(pane=>{pane.hidden=pane.dataset.supportPane!==next;});
+  }
+
   function renderSupplementPreflight() {
     const overlay=$('nmda-supplement-preflight');if(!overlay)return;
     const hasBatch=!!batch.dataset,visible=hasBatch&&!!batch.supplementPreflightOpen;
@@ -1756,17 +1819,19 @@
     const sourceDecisions=uniqueFiles(batch.dataset?.sourceFiles||[]).map(sourcePurposeDecision),reviewCount=sourceDecisions.filter(item=>item.needsReview).length,taskCount=(batch.tasks||[]).length;
     const headIcon=overlay.querySelector('.nmda-supplement-head-icon'),kicker=overlay.querySelector('.nmda-supplement-kicker'),title=$('nmda-supplement-title');
     if(headIcon){const attention=!taskCount||reviewCount>0;headIcon.dataset.state=attention?'review':'ok';headIcon.textContent=attention?'!':'✓';}
-    if(kicker)kicker.textContent=reviewCount?`上传完成 · ${reviewCount} 个文件需要确认`:'上传完成 · 分类已整理';
-    if(title)title.textContent='确认文件用途';
+    if(kicker)kicker.textContent=reviewCount?`${reviewCount} 个文件待确认`:'文件用途已整理';
+    if(title)title.textContent='检查导入结果';
     const rosterBox=$('nmda-preflight-roster-box'),attachmentBox=$('nmda-preflight-attachment-box'),supplements=$('nmda-preflight-supplements');
     if(rosterBox)rosterBox.hidden=false;if(attachmentBox)attachmentBox.hidden=false;if(supplements)supplements.hidden=false;
-    const completeButton=$('nmda-complete-supplement-preflight');if(completeButton)completeButton.textContent=reviewCount?`确认分类并继续（${reviewCount} 个待确认） →`:'确认分类并继续 →';
+    setPreflightView(batch.preflightView||'files');
+    setSupportView(batch.supportView||'roster');
+    const completeButton=$('nmda-complete-supplement-preflight');if(completeButton)completeButton.textContent=reviewCount?`处理完 ${reviewCount} 个待确认后继续 →`:batch.preflightView==='support'?'完成并继续 →':'继续 →';
 
     const rState=rosterContextState(),rCount=referenceRosterCount();
     const rBox=$('nmda-preflight-roster-box'),rTitle=$('nmda-preflight-roster-title'),rCopy=$('nmda-preflight-roster-copy'),rStatus=$('nmda-preflight-roster-status'),rSkip=$('nmda-preflight-roster-skip');
     if(rBox)rBox.dataset.state=rState;
     if(rTitle)rTitle.textContent=rState==='added'?`参考总名单 · ${rCount} 条`:'参考总名单';
-    if(rCopy)rCopy.textContent=rState==='added'?'已用于联系人核对和院校信息补充；仍可继续追加。':'用于核对已有联系人并补全院校信息；没有也可以继续。';
+    if(rCopy)rCopy.textContent=rState==='added'?'名单已加入。':'已有总名单时可加入。';
     if(rStatus)rStatus.textContent=rState==='added'?`已加入 ${rCount} 条`:rState==='skipped'?'本批次未使用':'尚未添加';
     if(rSkip){rSkip.hidden=rState==='added';rSkip.textContent=rState==='skipped'?'已跳过':'跳过';}
 
@@ -1774,10 +1839,10 @@
     const aState=attachmentPreflightState(),aCount=attachmentPreparedFileCount(),refs=attachmentRequirementRefs();
     const aBox=$('nmda-preflight-attachment-box'),aTitle=$('nmda-preflight-attachment-title'),aCopy=$('nmda-preflight-attachment-copy'),aStatus=$('nmda-preflight-attachment-status'),aReq=$('nmda-preflight-attachment-requirements'),aSkip=$('nmda-preflight-attachment-skip');
     if(aBox)aBox.dataset.state=aState;
-    if(aTitle)aTitle.textContent=stats.total?`附件资料 · ${stats.total} 项需要`:'附件资料';
-    if(aCopy)aCopy.textContent=stats.total?`邮件中有 ${stats.total} 项附件要求；可以现在补齐，也可以稍后处理。`:'当前没有明确附件要求；需要发送附件时再添加即可。';
+    if(aTitle)aTitle.textContent=stats.total?`附件 · ${stats.total} 项待准备`:'附件';
+    if(aCopy)aCopy.textContent=stats.total?`本批次有 ${stats.total} 项附件待准备。`:'需要附件时再添加。';
     if(aReq){aReq.innerHTML=refs.length?refs.slice(0,3).map(ref=>`<span>${escapeHtml(ref)}</span>`).join('')+(refs.length>3?`<span>+${refs.length-3}</span>`:''):'';aReq.hidden=!refs.length;}
-    if(aStatus)aStatus.textContent=aCount?`已加入 ${aCount} 个文件${stats.issues?` · ${stats.issues} 项待匹配`:''}`:aState==='skipped'?'本批次暂未添加':stats.issues?`${stats.issues} 项待补`:'尚未添加';
+    if(aStatus)aStatus.textContent=aCount?`已加入 ${aCount} 个文件${stats.issues?` · ${stats.issues} 项待处理`:''}`:aState==='skipped'?'本批次暂未添加':stats.issues?`${stats.issues} 项待补`:'尚未添加';
     if(aSkip){aSkip.hidden=!!aCount;aSkip.textContent=aState==='skipped'?'已跳过':'暂不添加';}
 
     renderAttachmentAssetViews();renderPreflightSourceRoles();
@@ -1785,8 +1850,11 @@
     if(visible&&!batch.sourceInspectName&&sourceDecisions.length&&window.matchMedia('(min-width: 821px)').matches){const first=sourceDecisions.find(item=>item.needsReview)||sourceDecisions[0];requestAnimationFrame(()=>{if(batch.supplementPreflightOpen&&!batch.sourceInspectName)inspectSourceInPreflight(first.sourceName);});}
   }
 
-  function openSupplementPreflight() {
-    if(!batch.dataset)return;batch.supplementPreflightOpen=true;renderSupplementPreflight();
+  function openSupplementPreflight(view = 'files') {
+    if(!batch.dataset)return;
+    batch.preflightView=view==='support'?'support':'files';
+    batch.supplementPreflightOpen=true;
+    renderSupplementPreflight();
   }
 
   function completeSupplementPreflight() {
@@ -1800,8 +1868,11 @@
     const hasTasks=!!(batch.tasks||[]).length;
     setImportStatus(!hasTasks?'核验已完成，但当前仍没有可创建邮件。可继续调整资料用途或追加邮件资料。':mailPending||stats.issues?'批次资料已准备。现在继续处理邮件与附件待办。':'批次资料已准备，正在进入选择与安排。',!hasTasks?'warn':'ok');
     if(!hasTasks)return;
-    if(mailPending||stats.issues)requestAnimationFrame(()=>$('nmda-ingest-result-card')?.scrollIntoView?.({behavior:'smooth',block:'start'}));
-    else setTimeout(()=>void enterSelectionAndSchedule('批次资料已准备'),0);
+    if(mailPending||stats.issues){
+      batch.uiStep=2;
+      renderProcessGuide();
+      requestAnimationFrame(()=>openNextBlockingIssue());
+    }else setTimeout(()=>void enterSelectionAndSchedule('批次资料已准备'),0);
   }
 
   function renderRosterContextCue() {
@@ -1815,25 +1886,25 @@
     if(state==='prepare'){
       if(eyebrow)eyebrow.textContent='可选 · 参考名单';
       if(title)title.textContent='有参考总名单？可以一起加入';
-      if(copy)copy.textContent='用于核对已有联系人并补全院校信息；没有名单也不影响当前批次查重。';
+      if(copy)copy.textContent='有名单可一起加入；没有也可以继续。';
       if(upload)upload.textContent='上传参考总名单';
       if(skip)skip.hidden=true;if(remove)remove.hidden=true;
     }else if(state==='pending'){
       if(eyebrow)eyebrow.textContent='可选增强';
       if(title)title.textContent='参考总名单可减少重复联系';
-      if(copy)copy.textContent='有名单就现在加入；没有可直接跳过，不会影响当前批次查重。';
+      if(copy)copy.textContent='有名单就加入；没有可直接跳过。';
       if(upload)upload.textContent='上传总名单';
       if(skip){skip.hidden=false;skip.textContent='暂不添加';}if(remove)remove.hidden=true;
     }else if(state==='added'){
       if(eyebrow)eyebrow.textContent='已加入';
       if(title)title.textContent=`参考总名单 · ${count} 条`;
-      if(copy)copy.textContent='已用于联系人核对和院校排期。';
+      if(copy)copy.textContent='已加入本批次。';
       if(upload)upload.textContent='补充名单';
       if(skip)skip.hidden=true;if(remove){remove.hidden=false;remove.textContent='移除';}
     }else{
       if(eyebrow)eyebrow.textContent='已跳过';
       if(title)title.textContent='未使用参考总名单';
-      if(copy)copy.textContent='当前批次仍会正常查重，需要时可随时补充。';
+      if(copy)copy.textContent='需要时可随时补充。';
       if(upload)upload.textContent='补充名单';
       if(skip)skip.hidden=true;if(remove)remove.hidden=true;
     }
@@ -1874,8 +1945,8 @@
       const desc = $('nmda-import-card-desc');
       if (title) title.textContent = batch.dataset ? '邮件资料已导入' : '导入邮件资料';
       if (desc) desc.textContent = batch.dataset
-        ? '邮件来源已加入；参考总名单与附件统一在“批次准备”中管理。'
-        : '加入邮件文件、文件夹或粘贴内容。';
+        ? '邮件资料已加入，可继续添加或进入批次资料。'
+        : '把本批次邮件资料放进来。';
       const fileAction=ui.querySelector('label.nmda-source-action[for="nmda-import-file"] strong');
       const dirAction=ui.querySelector('label.nmda-source-action[for="nmda-import-dir"] strong');
       const pasteAction=$('nmda-show-paste')?.querySelector('strong');
@@ -2614,6 +2685,7 @@
     }
     if(batch.handoffComplete){
       batch.uiStep=3;
+      if(!batch.planningView)batch.planningView='rules';
       setWorkbenchTab('batch');
       scheduleBatchRender({aux:true,force:true});
       requestAnimationFrame(()=>requestAnimationFrame(()=>$('nmda-stage-execute')?.scrollIntoView?.({behavior:'smooth',block:'start'})));
@@ -2626,6 +2698,7 @@
       if(!isCurrentBatchSession(token)||(batch.tasks||[]).some(taskHasBlockingIssue))return false;
       batch.handoffComplete=true;
       batch.uiStep=3;
+      batch.planningView='rules';
       hideReviewWorkspaceWithoutStash();
       setWorkbenchTab('batch');
       setBatchStatus(`${reason}，已自动进入选择与安排。`,'ok');
@@ -3377,7 +3450,7 @@
     state.warnings=[...new Set([...(state.manualWarnings||[]),...(state.routedWarnings||[])])];
     state.audit=null;
     const status=$('nmda-roster-source-status');
-    if(status)status.textContent=state.entries.length?`已添加 ${state.entries.length} 条总名单人数${state.routedEntries.length?` · 自动分流 ${state.routedEntries.length} 条`:''}${state.sourceNames.length?` · ${state.sourceNames.join('、')}`:''}`:'未添加总名单。';
+    if(status)status.textContent=state.entries.length?`已添加 ${state.entries.length} 条参考名单${state.sourceNames.length?` · ${state.sourceNames.join('、')}`:''}`:'未添加总名单。';
     const remove=$('nmda-roster-remove');if(remove)remove.hidden=!state.entries.length;
   }
 
@@ -3569,7 +3642,7 @@
       batch.handoffComplete=false;
       const state=rosterState();state.dataset=dataset;state.manualEntries=parsed.entries;state.manualWarnings=parsed.warnings||[];state.manualSourceNames=list.map(f=>f.name);syncRosterParts();
       batch.rosterPromptChoice='added';
-      if(status)status.textContent=`已添加 ${state.entries.length} 条总名单人数 · 本次选择 ${parsed.stats.total} 条 · 邮箱 ${parsed.stats.withEmail} · 院校 ${parsed.stats.withSchool}${parsed.stats.invalidEmails?` · ${parsed.stats.invalidEmails} 条邮箱待检查`:''}${state.routedEntries.length?` · 自动分流 ${state.routedEntries.length} 条`:''}${parsed.stats.duplicates?` · 重复 ${parsed.stats.duplicates}`:''}`;
+      if(status)status.textContent=`已添加 ${state.entries.length} 条参考名单${parsed.stats.invalidEmails?` · ${parsed.stats.invalidEmails} 条邮箱待检查`:''}${parsed.stats.duplicates?` · ${parsed.stats.duplicates} 条重复`:''}`;
       if(batch.dataset)rebuildTasks();else renderRosterAudit();
       renderImportLifecycleState();
       renderSupplementPreflight();
@@ -3833,8 +3906,8 @@
       const rosterCount=referenceRosterCount();
       const schoolKnown=selected.filter(task=>String(task.school||'').trim()).length;
       const priorityKnown=selected.filter(task=>Scheduler.priorityForTask?.(task)?.has).length;
-      const contextText=rosterCount?`参考总名单已加入 ${rosterCount} 条；${schoolKnown} 封已有院校信息${priorityKnown?`，${priorityKnown} 封读取到名单顺序（同校内数字越小越优先）`:''}。`:`当前 ${selected.length} 封中 ${schoolKnown} 封已有院校信息；未识别院校的邮件会自动保守错峰。`;
-      scheduleContextCopy.textContent=`${contextText} 确认开始时间与同校间隔后即可应用。`;
+      const contextText=rosterCount?`已加入 ${rosterCount} 条参考名单；${schoolKnown} 封已有院校信息${priorityKnown?`，其中 ${priorityKnown} 封有明确顺序`:''}。`:`${schoolKnown} / ${selected.length} 封已有院校信息。`;
+      scheduleContextCopy.textContent=`${contextText} 设置开始时间与同校间隔后应用。`;
     }
     if(scheduleApplyEl){scheduleApplyEl.disabled=batch.running||!selected.length;scheduleApplyEl.textContent=auto||unscheduled?'应用安排':'重新安排';}
     if(scheduleClearEl)scheduleClearEl.disabled=batch.running||!tasks.some(t=>t.scheduleSource==='auto'&&t.scheduleAt);
@@ -3851,12 +3924,13 @@
       }
       batch.schedulePlan=plan;
       rebuildTasks();
+      if(window.matchMedia('(max-width: 900px)').matches)setPlanningView('mails');
       const s=plan.summary, audit=Scheduler.audit?.(batch.tasks||[],rules)||{conflicts:[],holidayConflicts:[]};
       const fallbackCount=Number(s.fallbackTasks||s.fallbackGroups||0);
-      const fallback=fallbackCount?`；${fallbackCount} 封未确认院校的邮件已按邮箱域名或单封保守错峰，不需要补填`:'';
+      const fallback='';
       const priority=s.priorityOrderedGroups?`；${s.priorityOrderedGroups} 所院校已按总名单顺序排列`:'';
       const holiday=s.holidayAdjusted?`；${s.holidayAdjusted} 封为避开节假日/周末自动顺延`:'';
-      const unsupported=(s.unsupportedCountries||[]).length?`；${s.unsupportedCountries.join('、')} 暂无内置国家假日表，仅避开周末`:'';
+      const unsupported='';
       const conflicts=(audit.conflicts?.length||0)+(audit.holidayConflicts?.length||0);
       const conflict=audit.conflicts?.length?`；保留的已有时间仍有 ${audit.conflicts.length} 个同校规则冲突，请手工调整或关闭“保留已有时间”后重排`:'';
       const holidayConflict=audit.holidayConflicts?.length?`；${audit.holidayConflicts.length} 个保留时间仍落在节假日/周末`:'';
@@ -3963,6 +4037,7 @@
     // Selection and filtering need only the table, summary, schedule and step rail.
     // Attachment resolution / roster / parsing work is recomputed only after structural changes.
     renderScheduleCenter();
+    setPlanningView(batch.planningView||'rules');
     if(aux){
       renderTagChips();
       renderAttachmentCenter();
@@ -4139,7 +4214,7 @@
     batch.rosterPromptChoice='idle';
     batch.attachmentPromptDeferred=false;
     batch.attachmentPrepChoice='idle';
-    batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.sourceInspectName='';batch.preflightFolderPath='';batch.preflightSearch='';batch.preflightReviewOnly=false;batch.preflightPurposeFilter='';
+    batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.preflightView='files';batch.planningView='rules';batch.sourceInspectName='';batch.preflightFolderPath='';batch.preflightSearch='';batch.preflightReviewOnly=false;batch.preflightPurposeFilter='';
     batch.fileIndex = Importer.buildFileIndex([]);
     batch.profileSuggestion = null;
     batch.stopRequested = false;
@@ -4189,7 +4264,7 @@
     if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent='收起';
     const restoreBtn = $('nmda-restore-excluded'); if (restoreBtn) restoreBtn.hidden = true;
     const fileInfo = $('nmda-file-index-info'); if (fileInfo) fileInfo.textContent = '尚未选择本地附件。';
-    const attachmentSummary = $('nmda-attachment-summary'); if (attachmentSummary) attachmentSummary.textContent = '生成邮件后会显示附件匹配情况。';
+    const attachmentSummary = $('nmda-attachment-summary'); if (attachmentSummary) attachmentSummary.textContent = '尚未添加附件。';
     const attachmentResolution = $('nmda-attachment-resolution'); if (attachmentResolution) attachmentResolution.hidden = true;
     const attachmentResolutionList = $('nmda-attachment-resolution-list'); if (attachmentResolutionList) attachmentResolutionList.innerHTML = '';
     const readySummary = $('nmda-import-ready-summary'); if (readySummary) readySummary.textContent = '还没有准备好邮件。';
@@ -4256,11 +4331,14 @@
     if(files.length)await loadRosterFiles(files);
   });
   $('nmda-roster-remove')?.addEventListener('click', removeRoster);
-  $('nmda-open-supplement-preflight')?.addEventListener('click',openSupplementPreflight);
-  $('nmda-edit-batch-prep')?.addEventListener('click',openSupplementPreflight);
-  $('nmda-close-supplement-preflight')?.addEventListener('click',()=>{batch.supplementPreflightOpen=false;renderSupplementPreflight();setImportStatus('已返回上传区；当前分类修正已保留，可继续添加资料或重新打开核验。','ok');});
+  $('nmda-open-supplement-preflight')?.addEventListener('click',()=>openSupplementPreflight('files'));
+  $('nmda-edit-batch-prep')?.addEventListener('click',()=>openSupplementPreflight('support'));
+  $('nmda-close-supplement-preflight')?.addEventListener('click',()=>{batch.supplementPreflightOpen=false;renderSupplementPreflight();setImportStatus('已返回上传区。','ok');});
   $('nmda-preflight-source-search')?.addEventListener('input',event=>{batch.preflightSearch=String(event.target.value||'');renderPreflightSourceRoles();});
   $('nmda-source-inspector-close')?.addEventListener('click',()=>{batch.sourceInspectName='';const diagnostics=$('nmda-ingest-diagnostics');if(diagnostics){diagnostics.hidden=true;diagnostics.open=false;}renderPreflightSourceRoles();});
+  ui.querySelectorAll('[data-preflight-view]').forEach(button=>button.addEventListener('click',()=>setPreflightView(button.dataset.preflightView)));
+  ui.querySelectorAll('button[data-support-view]').forEach(button=>button.addEventListener('click',()=>setSupportView(button.dataset.supportView)));
+  ui.querySelectorAll('[data-planning-view]').forEach(button=>button.addEventListener('click',()=>setPlanningView(button.dataset.planningView)));
   $('nmda-source-next-review')?.addEventListener('click',event=>{const source=decodeURIComponent(event.currentTarget.dataset.nextSource||'');if(source)inspectSourceInPreflight(source);});
   $('nmda-preflight-dropzones')?.querySelectorAll('[data-drop-purpose]').forEach(zone=>{
     zone.addEventListener('dragover',event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='move';zone.classList.add('is-over');});
@@ -4739,5 +4817,5 @@
   restoreFormState();
   invalidateBatchView(true);
   initContacts();
-  console.info(`[${APP}] standalone workspace v2.1.0 UI reflow loaded`);
+  console.info(`[${APP}] standalone workspace v2.2.0 decision workflow loaded`);
 })();

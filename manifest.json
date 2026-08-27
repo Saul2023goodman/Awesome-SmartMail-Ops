@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "2.1.0",
-  "description": "独立 Chrome 工作台：按导入、核验、排期、创建四阶段组织批量草稿流程；响应式界面不使用页面级滚动，网易邮箱页仅保留无界面的草稿执行器。",
+  "version": "2.2.0",
+  "description": "独立 Chrome 工作台：按用户任务拆分导入、文件核验、批次资料、排期规则、邮件时间与草稿创建；页面外层不承担业务滚动。",
   "permissions": [
     "storage",
     "scripting",

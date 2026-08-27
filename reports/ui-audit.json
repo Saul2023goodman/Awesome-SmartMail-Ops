@@ -1,5 +1,5 @@
 {
-  "version": "2.1.0",
+  "version": "2.2.0",
   "static": {
     "ok": true,
     "checks": [
@@ -67,6 +67,11 @@
         "name": "manifest standalone architecture",
         "ok": true,
         "output": "[{\"matches\": [\"https://mail.163.com/*\"], \"js\": [\"executor.js\"], \"run_at\": \"document_idle\"}]"
+      },
+      {
+        "name": "technical copy removed",
+        "ok": true,
+        "output": "absent"
       }
     ]
   },
@@ -76,6 +81,7 @@
     "vault_api_ok": true,
     "routing_summary": "邮件 / 总名单 / 附件",
     "flow_ok": true,
+    "stage1_isolation_ok": true,
     "page_errors": []
   },
   "viewports": [
@@ -106,24 +112,15 @@
           "bottom": 900
         },
         "dialog": {
-          "x": 92.5,
+          "x": 72.5,
           "y": 18,
-          "w": 1240,
+          "w": 1280,
           "h": 864,
-          "right": 1332.5,
+          "right": 1352.5,
           "bottom": 882
         },
         "outsideControls": [],
-        "scrollOwners": [
-          {
-            "id": "nmda-preflight-attachment-assets",
-            "cls": "nmda-attachment-assets nmda-attachment-assets-inline",
-            "scrollHeight": 81,
-            "clientHeight": 81,
-            "scrollWidth": 110,
-            "clientWidth": 95
-          }
-        ],
+        "scrollOwners": [],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],
@@ -159,22 +156,13 @@
         "dialog": {
           "x": 18,
           "y": 18,
-          "w": 1240,
+          "w": 1244,
           "h": 764,
-          "right": 1258,
+          "right": 1262,
           "bottom": 782
         },
         "outsideControls": [],
-        "scrollOwners": [
-          {
-            "id": "nmda-preflight-attachment-assets",
-            "cls": "nmda-attachment-assets nmda-attachment-assets-inline",
-            "scrollHeight": 81,
-            "clientHeight": 81,
-            "scrollWidth": 110,
-            "clientWidth": 95
-          }
-        ],
+        "scrollOwners": [],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],
@@ -216,16 +204,7 @@
           "bottom": 742
         },
         "outsideControls": [],
-        "scrollOwners": [
-          {
-            "id": "nmda-preflight-attachment-assets",
-            "cls": "nmda-attachment-assets nmda-attachment-assets-inline",
-            "scrollHeight": 97,
-            "clientHeight": 88,
-            "scrollWidth": 110,
-            "clientWidth": 80
-          }
-        ],
+        "scrollOwners": [],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],
@@ -267,16 +246,7 @@
           "bottom": 702
         },
         "outsideControls": [],
-        "scrollOwners": [
-          {
-            "id": "nmda-preflight-attachment-assets",
-            "cls": "nmda-attachment-assets nmda-attachment-assets-inline",
-            "scrollHeight": 97,
-            "clientHeight": 88,
-            "scrollWidth": 110,
-            "clientWidth": 65
-          }
-        ],
+        "scrollOwners": [],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],
@@ -310,32 +280,15 @@
           "bottom": 700
         },
         "dialog": {
-          "x": 10.5,
-          "y": 18,
-          "w": 784,
-          "h": 664,
-          "right": 794.5,
-          "bottom": 682
+          "x": 8,
+          "y": 8,
+          "w": 804,
+          "h": 684,
+          "right": 812,
+          "bottom": 692
         },
         "outsideControls": [],
-        "scrollOwners": [
-          {
-            "id": "nmda-preflight-attachment-assets",
-            "cls": "nmda-attachment-assets nmda-attachment-assets-inline",
-            "scrollHeight": 144,
-            "clientHeight": 88,
-            "scrollWidth": 110,
-            "clientWidth": 33
-          },
-          {
-            "id": "",
-            "cls": "nmda-classify-inspector-pane",
-            "scrollHeight": 404,
-            "clientHeight": 367,
-            "scrollWidth": 653,
-            "clientWidth": 653
-          }
-        ],
+        "scrollOwners": [],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],
@@ -344,6 +297,258 @@
     }
   ],
   "task_views": [
+    {
+      "width": 1440,
+      "height": 900,
+      "label": "materials-roster-desktop",
+      "screenshot": "qa/screenshots/v2-materials-roster-desktop-1440x900.png",
+      "audit": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "dialog": {
+          "x": 72.5,
+          "y": 18,
+          "w": 1280,
+          "h": 864,
+          "right": 1352.5,
+          "bottom": 882
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 820,
+      "height": 700,
+      "label": "materials-roster-minimum",
+      "screenshot": "qa/screenshots/v2-materials-roster-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "dialog": {
+          "x": 8,
+          "y": 8,
+          "w": 804,
+          "h": 684,
+          "right": 812,
+          "bottom": 692
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "label": "materials-attachment-desktop",
+      "screenshot": "qa/screenshots/v2-materials-attachment-desktop-1440x900.png",
+      "audit": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "dialog": {
+          "x": 72.5,
+          "y": 18,
+          "w": 1280,
+          "h": 864,
+          "right": 1352.5,
+          "bottom": 882
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 820,
+      "height": 700,
+      "label": "materials-attachment-minimum",
+      "screenshot": "qa/screenshots/v2-materials-attachment-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "dialog": {
+          "x": 8,
+          "y": 8,
+          "w": 804,
+          "h": 684,
+          "right": 812,
+          "bottom": 692
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "label": "import-loaded-desktop",
+      "screenshot": "qa/screenshots/v2-import-loaded-desktop-1440x900.png",
+      "audit": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 820,
+      "height": 700,
+      "label": "import-loaded-minimum",
+      "screenshot": "qa/screenshots/v2-import-loaded-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
     {
       "width": 1440,
       "height": 900,
@@ -421,22 +626,98 @@
           "bottom": 0
         },
         "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "label": "mail-times-desktop",
+      "screenshot": "qa/screenshots/v2-mail-times-desktop-1440x900.png",
+      "audit": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 820,
+      "height": 700,
+      "label": "mail-times-minimum",
+      "screenshot": "qa/screenshots/v2-mail-times-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
         "scrollOwners": [
-          {
-            "id": "nmda-preview-card",
-            "cls": "nmda-card nmda-list-card",
-            "scrollHeight": 719,
-            "clientHeight": 513,
-            "scrollWidth": 719,
-            "clientWidth": 719
-          },
           {
             "id": "",
             "cls": "nmda-table-wrap nmda-batch-table-wrap",
-            "scrollHeight": 188,
-            "clientHeight": 188,
+            "scrollHeight": 104,
+            "clientHeight": 104,
             "scrollWidth": 760,
-            "clientWidth": 674
+            "clientWidth": 689
           }
         ],
         "nested": [],
@@ -526,8 +807,8 @@
           {
             "id": "",
             "cls": "nmda-table-wrap nmda-batch-table-wrap",
-            "scrollHeight": 270,
-            "clientHeight": 270,
+            "scrollHeight": 161,
+            "clientHeight": 161,
             "scrollWidth": 760,
             "clientWidth": 689
           }
