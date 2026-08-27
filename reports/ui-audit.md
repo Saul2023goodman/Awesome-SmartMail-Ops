@@ -1,4 +1,4 @@
-# NetEase Mail Draft Assistant v2.2 · Standalone UI QA
+# NetEase Mail Draft Assistant v2.3 · Adaptive Canvas UI QA
 
 - Static / architecture checks: **PASS**
 - Standalone runtime load: **PASS**
@@ -16,6 +16,7 @@
 | compact 1100×760 | 0 | 0 | `qa/screenshots/v2-preflight-compact-1100x760.png` |
 | narrow 920×720 | 0 | 0 | `qa/screenshots/v2-preflight-narrow-920x720.png` |
 | minimum 820×700 | 0 | 0 | `qa/screenshots/v2-preflight-minimum-820x700.png` |
+| short-desktop 1366×611 | 0 | 0 | `qa/screenshots/v2-preflight-short-desktop-1366x611.png` |
 
 ## Stage / module screenshots
 
@@ -29,8 +30,10 @@
 | import-loaded-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-import-loaded-minimum-820x700.png` |
 | planning-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-planning-desktop-1440x900.png` |
 | planning-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-planning-minimum-820x700.png` |
+| planning-short-desktop 1366×611 | 0 | 0 | `qa/screenshots/v2-planning-short-desktop-1366x611.png` |
 | mail-times-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-mail-times-desktop-1440x900.png` |
 | mail-times-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-mail-times-minimum-820x700.png` |
+| mail-times-short-desktop 1366×611 | 0 | 0 | `qa/screenshots/v2-mail-times-short-desktop-1366x611.png` |
 | create-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-create-desktop-1440x900.png` |
 | create-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-create-minimum-820x700.png` |
 | single-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-single-desktop-1440x900.png` |

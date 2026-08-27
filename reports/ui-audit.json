@@ -1,5 +1,5 @@
 {
-  "version": "2.2.0",
+  "version": "2.3.0",
   "static": {
     "ok": true,
     "checks": [
@@ -69,7 +69,7 @@
         "output": "[{\"matches\": [\"https://mail.163.com/*\"], \"js\": [\"executor.js\"], \"run_at\": \"document_idle\"}]"
       },
       {
-        "name": "technical copy removed",
+        "name": "redundant / technical UI copy removed",
         "ok": true,
         "output": "absent"
       }
@@ -289,6 +289,57 @@
         },
         "outsideControls": [],
         "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 1366,
+      "height": 611,
+      "label": "short-desktop",
+      "screenshot": "qa/screenshots/v2-preflight-short-desktop-1366x611.png",
+      "audit": {
+        "viewport": {
+          "w": 1366,
+          "h": 611
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1366,
+          "h": 611,
+          "right": 1366,
+          "bottom": 611
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 1366,
+          "h": 611,
+          "right": 1366,
+          "bottom": 611
+        },
+        "dialog": {
+          "x": 35.5,
+          "y": 18,
+          "w": 1280,
+          "h": 575,
+          "right": 1315.5,
+          "bottom": 593
+        },
+        "outsideControls": [],
+        "scrollOwners": [
+          {
+            "id": "nmda-source-inspector-content",
+            "cls": "nmda-source-inspector-content",
+            "scrollHeight": 276,
+            "clientHeight": 254,
+            "scrollWidth": 349,
+            "clientWidth": 349
+          }
+        ],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],
@@ -634,6 +685,48 @@
       }
     },
     {
+      "width": 1366,
+      "height": 611,
+      "label": "planning-short-desktop",
+      "screenshot": "qa/screenshots/v2-planning-short-desktop-1366x611.png",
+      "audit": {
+        "viewport": {
+          "w": 1366,
+          "h": 611
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1366,
+          "h": 611,
+          "right": 1366,
+          "bottom": 611
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
       "width": 1440,
       "height": 900,
       "label": "mail-times-desktop",
@@ -717,9 +810,51 @@
             "scrollHeight": 104,
             "clientHeight": 104,
             "scrollWidth": 760,
-            "clientWidth": 689
+            "clientWidth": 693
           }
         ],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 1366,
+      "height": 611,
+      "label": "mail-times-short-desktop",
+      "screenshot": "qa/screenshots/v2-mail-times-short-desktop-1366x611.png",
+      "audit": {
+        "viewport": {
+          "w": 1366,
+          "h": 611
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1366,
+          "h": 611,
+          "right": 1366,
+          "bottom": 611
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],
@@ -807,10 +942,10 @@
           {
             "id": "",
             "cls": "nmda-table-wrap nmda-batch-table-wrap",
-            "scrollHeight": 161,
-            "clientHeight": 161,
+            "scrollHeight": 104,
+            "clientHeight": 104,
             "scrollWidth": 760,
-            "clientWidth": 689
+            "clientWidth": 685
           }
         ],
         "nested": [],
@@ -938,16 +1073,7 @@
           "bottom": 0
         },
         "outsideControls": [],
-        "scrollOwners": [
-          {
-            "id": "",
-            "cls": "nmda-table-wrap nmda-contact-table-wrap",
-            "scrollHeight": 439,
-            "clientHeight": 439,
-            "scrollWidth": 1313,
-            "clientWidth": 1164
-          }
-        ],
+        "scrollOwners": [],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],
@@ -994,9 +1120,9 @@
             "id": "",
             "cls": "nmda-table-wrap nmda-contact-table-wrap",
             "scrollHeight": 250,
-            "clientHeight": 181,
+            "clientHeight": 239,
             "scrollWidth": 1313,
-            "clientWidth": 704
+            "clientWidth": 700
           }
         ],
         "nested": [],

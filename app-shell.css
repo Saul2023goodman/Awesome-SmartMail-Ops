@@ -1,13 +1,13 @@
 html.nmda-app-document,html.nmda-app-document body.nmda-app-body{width:100%;height:100%;margin:0;overflow:hidden;background:#f6f8fa;color:#1f2328;}
-body.nmda-app-body{min-width:720px;}
+body.nmda-app-body{min-width:640px;}
 #nmda-root.nmda-standalone{position:fixed;inset:0;z-index:1;width:100%;height:100%;background:#f6f8fa;}
 #nmda-root.nmda-standalone #nmda-launcher{display:none!important;}
-#nmda-root.nmda-standalone #nmda-panel{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;grid-template-columns:188px minmax(0,1fr)!important;grid-template-rows:64px minmax(0,1fr)!important;}
+#nmda-root.nmda-standalone #nmda-panel{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;grid-template-columns:70px minmax(0,1fr)!important;grid-template-rows:52px minmax(0,1fr)!important;}
 #nmda-root.nmda-standalone #nmda-panel.is-maximized{inset:0!important;border-radius:0!important;}
-#nmda-root.nmda-standalone .nmda-head{padding:0 22px 0 20px;}
-#nmda-root.nmda-standalone .nmda-tabs{padding:16px 12px 14px;}
+#nmda-root.nmda-standalone .nmda-head{padding:0 12px;}
+#nmda-root.nmda-standalone .nmda-tabs{padding:9px 6px;}
 #nmda-root.nmda-standalone .nmda-main{min-width:0;min-height:0;}
-#nmda-root.nmda-standalone .nmda-page{padding:18px 22px 36px;overscroll-behavior:contain;}
+#nmda-root.nmda-standalone .nmda-page{padding:10px 12px;overscroll-behavior:contain;}
 #nmda-root.nmda-standalone .nmda-page-head{padding-left:22px;padding-right:22px;}
 #nmda-root.nmda-standalone #nmda-expand,#nmda-root.nmda-standalone #nmda-close{display:none!important;}
 #nmda-root.nmda-standalone .nmda-tabpane{contain:none!important;}
@@ -21,8 +21,8 @@ body.nmda-app-body{min-width:720px;}
 .nmda-mail-connection[data-state="login"]{border-color:#f0c36d;background:#fffaf0;}.nmda-mail-connection[data-state="login"] .nmda-mail-connection-dot{background:#bf8700;box-shadow:0 0 0 3px #fff1c2;}
 .nmda-mail-connection[data-state="offline"] .nmda-mail-connection-dot{background:#cf222e;box-shadow:0 0 0 3px #ffebe9;}
 .nmda-mail-open-button{min-height:28px!important;height:28px;padding:4px 8px!important;white-space:nowrap;font-size:9px!important;}
-@media (max-width:1120px){#nmda-root.nmda-standalone #nmda-panel{grid-template-columns:158px minmax(0,1fr)!important;}.nmda-mail-connection{min-width:220px;}.nmda-mail-connection-copy small{display:none;}}
-@media (max-width:880px){#nmda-root.nmda-standalone #nmda-panel{grid-template-columns:66px minmax(0,1fr)!important;}.nmda-tabs .nmda-nav-label,.nmda-tab>span:not(.nmda-tab-icon){display:none!important;}.nmda-tab{grid-template-columns:1fr!important;justify-items:center!important;padding:8px 6px!important;}.nmda-mail-connection{min-width:0;grid-template-columns:10px auto;}.nmda-mail-connection-copy{display:none;}.nmda-safe-badge{display:none!important;}#nmda-root.nmda-standalone .nmda-head{padding-left:14px;padding-right:14px;}}
+@media (max-width:1120px){.nmda-mail-connection{min-width:210px;}.nmda-mail-connection-copy small{display:none;}}
+@media (max-width:880px){#nmda-root.nmda-standalone #nmda-panel{grid-template-columns:64px minmax(0,1fr)!important;}.nmda-tabs .nmda-nav-label{display:none!important;}.nmda-mail-connection{min-width:0;grid-template-columns:10px auto;}.nmda-mail-connection-copy{display:none;}.nmda-safe-badge{display:none!important;}#nmda-root.nmda-standalone .nmda-head{padding-left:10px;padding-right:10px;}}
 /* Standalone pages do not need host-page layout containment. Keeping it would turn
    descendant position:fixed dialogs into main-column-relative overlays. */
 #nmda-root.nmda-standalone #nmda-panel,
