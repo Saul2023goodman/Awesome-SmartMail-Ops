@@ -1,4 +1,4 @@
-# NetEase Mail Draft Assistant v1.46.0 · DECISION-FIRST ROUTING
+# NetEase Mail Draft Assistant v1.47.0 · LEAN REVIEW
 
 本版继续优化上传后的文件用途核验：**中间列表只显示帮助用户做决定的信息；自动识别则采用“文件名意图 + 内容结构互证”，高准确性优先。**
 

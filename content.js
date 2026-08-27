@@ -652,28 +652,25 @@
                       </div>
                       <div class="nmda-classify-directory-nav" id="nmda-preflight-directory-nav"></div>
 
-                      <details class="nmda-classify-supplements" id="nmda-preflight-supplements">
-                        <summary><span><strong>补充本批次资料</strong><small>需要时再添加，不打断分类核验</small></span><span>＋</span></summary>
+                      <section class="nmda-classify-supplements nmda-classify-upload-dock" id="nmda-preflight-supplements" aria-label="补充上传">
+                        <div class="nmda-classify-upload-dock-head"><span><strong>补充上传</strong><small>可选资料直接在这里添加</small></span></div>
                         <div class="nmda-classify-supplement-stack">
                           <article class="nmda-supplement-box nmda-supplement-box-compact" id="nmda-preflight-roster-box" data-state="pending">
-                            <div class="nmda-supplement-box-icon">◎</div>
+                            <div class="nmda-supplement-box-icon">名</div>
                             <div class="nmda-supplement-box-main">
-                              <span class="nmda-supplement-box-kicker">可选</span>
                               <strong id="nmda-preflight-roster-title">参考总名单</strong>
-                              <small id="nmda-preflight-roster-copy">用于核对已有联系人并补全院校信息。</small>
+                              <small id="nmda-preflight-roster-copy">用于联系人核对与排期参考。</small>
                               <div class="nmda-supplement-status" id="nmda-preflight-roster-status">尚未添加</div>
                             </div>
                             <div class="nmda-supplement-actions">
-                              <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-roster-file">添加名单</label>
-                              <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-preflight-roster-skip" type="button">跳过</button>
+                              <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-roster-file">上传名单</label>
                             </div>
                           </article>
                           <article class="nmda-supplement-box nmda-supplement-box-compact nmda-supplement-box-attachment" id="nmda-preflight-attachment-box" data-state="pending">
-                            <div class="nmda-supplement-box-icon">↗</div>
+                            <div class="nmda-supplement-box-icon">附</div>
                             <div class="nmda-supplement-box-main">
-                              <span class="nmda-supplement-box-kicker">可选</span>
-                              <strong id="nmda-preflight-attachment-title">附件资料</strong>
-                              <small id="nmda-preflight-attachment-copy">需要发送或匹配附件时再加入。</small>
+                              <strong id="nmda-preflight-attachment-title">附件</strong>
+                              <small id="nmda-preflight-attachment-copy">发送文件或用于自动匹配。</small>
                               <div class="nmda-attachment-requirements" id="nmda-preflight-attachment-requirements"></div>
                               <div class="nmda-supplement-status" id="nmda-preflight-attachment-status">尚未添加</div>
                               <div class="nmda-attachment-assets nmda-attachment-assets-inline" id="nmda-preflight-attachment-assets" hidden>
@@ -681,21 +678,20 @@
                                 <div class="nmda-attachment-assets-list" id="nmda-preflight-attachment-assets-list"></div>
                               </div>
                             </div>
-                            <div class="nmda-supplement-actions">
+                            <div class="nmda-supplement-actions nmda-supplement-actions-split">
                               <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-attachment-files">添加文件</label>
-                              <label class="nmda-btn nmda-btn-small" for="nmda-attachment-dir">匹配文件夹</label>
-                              <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-preflight-attachment-skip" type="button">暂不添加</button>
+                              <label class="nmda-btn nmda-btn-small" for="nmda-attachment-dir">附件目录</label>
                             </div>
                           </article>
                         </div>
-                      </details>
+                      </section>
                     </aside>
 
                     <section class="nmda-preflight-source-routing nmda-classify-main" id="nmda-preflight-source-routing">
                       <div class="nmda-classify-toolbar">
                         <div class="nmda-classify-toolbar-title">
                           <strong id="nmda-preflight-source-routing-summary">文件列表</strong>
-                          <small id="nmda-preflight-source-routing-subtitle">选中文件查看内容；拖动文件时会出现快速归类区。</small>
+                          <small id="nmda-preflight-source-routing-subtitle">点击文件在右侧查看内容；用途不对时再修改。</small>
                         </div>
                         <div class="nmda-classify-toolbar-actions">
                           <label class="nmda-classify-search"><span>⌕</span><input id="nmda-preflight-source-search" type="search" placeholder="搜索文件名或目录"></label>
@@ -711,7 +707,6 @@
                       </div>
 
                       <div class="nmda-preflight-routing-tip" hidden><span>↕</span><small>拖动文件时会出现快速归类区域。</small></div>
-                      <div class="nmda-classify-list-head" aria-hidden="true"><span></span><span>文件</span><span>快速核验</span><span>用途</span></div>
                       <div class="nmda-preflight-source-routing-list nmda-classify-file-list" id="nmda-preflight-source-routing-list"></div>
                     </section>
 
@@ -1961,8 +1956,7 @@
       const visual=sourceRoleVisual(decision.purpose,decision.needsReview),fileName=String(decision.sourceName||'').replace(/\\/g,'/').split('/').pop()||'未命名来源';
       const active=batch.sourceInspectName===decision.sourceName;
       const path=sourceDirectoryPath(decision.sourceName),meta=[path||'根目录',humanFileSize(decision.file?.size)].filter(Boolean).join(' · ');
-      const hint=sourceListContentHint(decision);
-      return `<div class="nmda-classify-file-row${active?' is-selected':''}" data-tone="${escapeHtml(visual.tone)}" data-review="${decision.needsReview?'1':'0'}" data-inspect-source="${escapeHtml(encodeURIComponent(decision.sourceName))}" data-source-row="${escapeHtml(encodeURIComponent(decision.sourceName))}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(fileName)}"><span class="nmda-classify-drag" draggable="true" data-source-drag="${escapeHtml(encodeURIComponent(decision.sourceName))}" title="拖动可快速归类" aria-label="拖动 ${escapeHtml(fileName)} 重新归类">⠿</span>${sourceFileIconHtml(fileName)}<div class="nmda-classify-file-main"><strong>${escapeHtml(fileName)}</strong><small>${escapeHtml(meta)}</small></div><div class="nmda-classify-file-preview"><span>${escapeHtml(hint)}</span></div><span class="nmda-classify-purpose-pill" data-tone="${escapeHtml(visual.tone)}"><i>${escapeHtml(visual.icon)}</i><span>${escapeHtml(visual.label)}</span></span></div>`;
+      return `<div class="nmda-classify-file-row${active?' is-selected':''}" data-tone="${escapeHtml(visual.tone)}" data-review="${decision.needsReview?'1':'0'}" data-inspect-source="${escapeHtml(encodeURIComponent(decision.sourceName))}" data-source-row="${escapeHtml(encodeURIComponent(decision.sourceName))}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(fileName)}"><span class="nmda-classify-drag" draggable="true" data-source-drag="${escapeHtml(encodeURIComponent(decision.sourceName))}" title="拖动可快速归类" aria-label="拖动 ${escapeHtml(fileName)} 重新归类">⠿</span>${sourceFileIconHtml(fileName)}<div class="nmda-classify-file-main"><strong>${escapeHtml(fileName)}</strong><small>${escapeHtml(meta)}</small></div><span class="nmda-classify-purpose-pill" data-tone="${escapeHtml(visual.tone)}"><i>${escapeHtml(visual.icon)}</i><span>${escapeHtml(visual.label)}</span></span></div>`;
     }).join('');
   }
 
@@ -2157,7 +2151,7 @@
     if(kicker)kicker.textContent=reviewCount?`上传完成 · ${reviewCount} 个文件需要确认`:'上传完成 · 分类已整理';
     if(title)title.textContent='确认文件用途';
     const rosterBox=$('nmda-preflight-roster-box'),attachmentBox=$('nmda-preflight-attachment-box'),supplements=$('nmda-preflight-supplements');
-    if(rosterBox)rosterBox.hidden=!taskCount;if(attachmentBox)attachmentBox.hidden=!taskCount;if(supplements)supplements.hidden=!taskCount;
+    if(rosterBox)rosterBox.hidden=false;if(attachmentBox)attachmentBox.hidden=false;if(supplements)supplements.hidden=false;
     const completeButton=$('nmda-complete-supplement-preflight');if(completeButton)completeButton.textContent=reviewCount?`确认分类并继续（${reviewCount} 个待确认） →`:'确认分类并继续 →';
 
     const rState=rosterContextState(),rCount=referenceRosterCount();
