@@ -655,7 +655,7 @@
                       <div class="nmda-supplement-box-main">
                         <span class="nmda-supplement-box-kicker">批次附件</span>
                         <strong id="nmda-preflight-attachment-title">附件资料</strong>
-                        <small id="nmda-preflight-attachment-copy">CV、成绩单等可以现在一次加入；系统会按邮件要求自动匹配，未匹配项会保留到待办。</small>
+                        <small id="nmda-preflight-attachment-copy">直接选择文件代表明确要发送，会加入本批次每封邮件；选择文件夹仅作为匹配资料库，系统按邮件要求取用。</small>
                         <div class="nmda-attachment-requirements" id="nmda-preflight-attachment-requirements"></div>
                         <div class="nmda-supplement-status" id="nmda-preflight-attachment-status">尚未添加</div>
                         <div class="nmda-attachment-assets nmda-attachment-assets-inline" id="nmda-preflight-attachment-assets" hidden>
@@ -664,8 +664,8 @@
                         </div>
                       </div>
                       <div class="nmda-supplement-actions">
-                        <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-attachment-dir">选择附件文件夹</label>
-                        <label class="nmda-btn nmda-btn-small" for="nmda-attachment-files">选择文件</label>
+                        <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-attachment-files">添加并发送文件</label>
+                        <label class="nmda-btn nmda-btn-small" for="nmda-attachment-dir">选择匹配文件夹</label>
                         <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-preflight-attachment-skip" type="button">暂不添加</button>
                       </div>
                     </article>
@@ -684,7 +684,7 @@
               <div class="nmda-attachment-manager-overlay" id="nmda-attachment-manager-overlay" hidden aria-hidden="true">
                 <section class="nmda-attachment-manager" role="dialog" aria-modal="true" aria-labelledby="nmda-attachment-manager-title">
                   <div class="nmda-attachment-manager-head">
-                    <div><span class="nmda-supplement-kicker">本批次共享资产</span><h3 id="nmda-attachment-manager-title">附件资料</h3><p>这里展示本批次已经加入的附件。增删后会立即重新匹配邮件，不需要重新导入。</p></div>
+                    <div><span class="nmda-supplement-kicker">本批次附件</span><h3 id="nmda-attachment-manager-title">附件资料</h3><p>手动添加的文件会直接随本批次邮件发送；文件夹与自动识别材料只作为匹配资料库。增删后会立即重新计算。</p></div>
                     <button class="nmda-icon-btn" id="nmda-close-attachment-manager" type="button" aria-label="关闭附件管理">×</button>
                   </div>
                   <div class="nmda-attachment-manager-body">
@@ -695,7 +695,7 @@
                     </div>
                   </div>
                   <div class="nmda-attachment-manager-foot">
-                    <div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-primary" for="nmda-attachment-dir">添加附件文件夹</label><label class="nmda-btn" for="nmda-attachment-files">添加文件</label><button class="nmda-btn nmda-btn-danger-quiet" id="nmda-manager-clear-attachments" type="button">清空附件</button></div>
+                    <div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-primary" for="nmda-attachment-files">添加并发送文件</label><label class="nmda-btn" for="nmda-attachment-dir">添加匹配文件夹</label><button class="nmda-btn nmda-btn-danger-quiet" id="nmda-manager-clear-attachments" type="button">清空附件</button></div>
                     <button class="nmda-btn" id="nmda-attachment-manager-done" type="button">完成</button>
                   </div>
                 </section>
@@ -708,20 +708,20 @@
                 </div>
                 <div class="nmda-context-cue nmda-context-cue-compact nmda-attachment-context-cue" id="nmda-attachment-context-cue" hidden>
                   <div class="nmda-context-cue-icon" aria-hidden="true">⇧</div>
-                  <div class="nmda-context-cue-main"><span class="nmda-context-eyebrow">待办 · 创建前必须补齐</span><strong id="nmda-attachment-context-title">附件待补</strong><small id="nmda-attachment-context-copy">选择附件文件夹后会自动匹配到对应邮件。</small></div>
-                  <div class="nmda-context-cue-actions"><label class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-attachment-dir-action" for="nmda-attachment-dir">添加附件文件夹</label><label class="nmda-btn nmda-btn-small" for="nmda-attachment-files">选择文件</label><button class="nmda-btn nmda-btn-small" id="nmda-manage-attachments-todo" type="button">管理附件</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-later" type="button">稍后处理</button></div>
+                  <div class="nmda-context-cue-main"><span class="nmda-context-eyebrow">待办 · 创建前必须补齐</span><strong id="nmda-attachment-context-title">附件待补</strong><small id="nmda-attachment-context-copy">直接添加文件会随邮件发送；匹配文件夹用于补齐资料中点名的附件。</small></div>
+                  <div class="nmda-context-cue-actions"><label class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-attachment-send-action" for="nmda-attachment-files">添加并发送文件</label><label class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-dir-action" for="nmda-attachment-dir">选择匹配文件夹</label><button class="nmda-btn nmda-btn-small" id="nmda-manage-attachments-todo" type="button">管理附件</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-later" type="button">稍后处理</button></div>
                 </div>
                 <div class="nmda-attachment-library-bar" id="nmda-attachment-library-bar" hidden><div class="nmda-attachment-library-bar-main"><span class="nmda-attachment-library-bar-icon">↗</span><div><strong id="nmda-attachment-library-bar-title">附件资料</strong><small id="nmda-attachment-library-bar-copy">已加入的附件会在这里持续可管理。</small></div></div><button class="nmda-btn nmda-btn-small" id="nmda-manage-attachments-workflow" type="button">查看 / 修改</button></div>
                 <div id="nmda-import-preview-summary" class="nmda-ingest-health"></div>
                 <div id="nmda-review-guidance" class="nmda-review-guidance">解析完成后可查看每封邮件的结果。</div>
                 <details class="nmda-optional-source-details" id="nmda-attachments-card" hidden>
-                  <summary><span><strong>添加附件</strong><small>仅在邮件需要附件时使用</small></span><span>展开</span></summary>
+                  <summary><span><strong>添加附件</strong><small>手动文件直接发送；文件夹用于自动匹配</small></span><span>展开</span></summary>
                   <div id="nmda-attachment-summary" class="nmda-summary">生成邮件后会显示附件匹配情况。</div>
                   <div class="nmda-attachment-grid nmda-attachment-grid-simple">
-                    <div class="nmda-file-source"><span class="nmda-label">任务附件</span><div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">选择文件<input id="nmda-attachment-files" type="file" multiple hidden></label><label class="nmda-btn nmda-btn-small nmda-file-button">选择目录<input id="nmda-attachment-dir" type="file" webkitdirectory multiple hidden></label></div></div>
-                    <div class="nmda-file-source nmda-file-source-shared"><span class="nmda-label">每封都附加</span><label class="nmda-btn nmda-btn-small nmda-file-button">选择公共附件<input id="nmda-shared-files" type="file" multiple hidden></label></div>
+                    <div class="nmda-file-source"><span class="nmda-label">附件</span><div class="nmda-row nmda-wrap"><label class="nmda-btn nmda-btn-small nmda-file-button">添加并发送文件<input id="nmda-attachment-files" type="file" multiple hidden></label><label class="nmda-btn nmda-btn-small nmda-file-button">选择匹配目录<input id="nmda-attachment-dir" type="file" webkitdirectory multiple hidden></label></div></div>
+                    <div class="nmda-file-source nmda-file-source-shared"><span class="nmda-label">额外公共附件</span><label class="nmda-btn nmda-btn-small nmda-file-button">添加并发送<input id="nmda-shared-files" type="file" multiple hidden></label></div>
                   </div>
-                  <div id="nmda-attachment-drop" class="nmda-attachment-drop">也可以把附件拖到这里</div>
+                  <div id="nmda-attachment-drop" class="nmda-attachment-drop">也可以把要发送的附件拖到这里 · 拖入即视为明确发送</div>
                   <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small" id="nmda-clear-attachments" type="button">清空附件</button><span id="nmda-file-index-info" class="nmda-hint">尚未选择本地附件。</span></div>
                   <div id="nmda-attachment-resolution" class="nmda-attachment-resolution" hidden><div class="nmda-card-subtitle">需要补充的附件</div><div id="nmda-attachment-resolution-list"></div></div>
                 </details>
@@ -1607,9 +1607,9 @@
   function attachmentAssetEntries() {
     const groups=[
       ['directory',batch.directoryFiles||[],'附件文件夹'],
-      ['task',batch.taskFiles||[],'手动添加'],
+      ['task',batch.taskFiles||[],'资料包 / 匹配库'],
       ['routed',batch.routedAttachmentFiles||[],'导入资料'],
-      ['shared',batch.sharedFiles||[],'每封都附加']
+      ['shared',batch.sharedFiles||[],'手动添加 · 直接发送']
     ];
     const out=[],seen=new Set();
     for(const [kind,files,source] of groups) for(const file of files){
@@ -1764,8 +1764,8 @@
     if(aBox)aBox.dataset.state=aState;
     if(aTitle)aTitle.textContent=stats.total?`附件资料 · ${stats.total} 项需求`:'附件资料';
     if(aCopy)aCopy.textContent=stats.total
-      ? `邮件中已识别到 ${stats.total} 项附件需求。现在加入文件后会自动匹配；未匹配项会保留到待办。`
-      : '暂未识别到明确附件要求。仍可提前加入 CV、成绩单等常用文件；没有附件可直接跳过。';
+      ? `邮件中已识别到 ${stats.total} 项附件需求。直接添加文件会明确随每封邮件发送，同时参与需求匹配；选择文件夹只提供匹配候选。`
+      : '暂未识别到明确附件要求。直接添加的文件仍会随本批次每封邮件发送；没有附件可直接跳过。';
     if(aReq){aReq.innerHTML=refs.length?refs.slice(0,4).map(ref=>`<span>${escapeHtml(ref)}</span>`).join('')+(refs.length>4?`<span>+${refs.length-4}</span>`:''):'';aReq.hidden=!refs.length;}
     if(aStatus)aStatus.textContent=aCount?`已准备 ${aCount} 个附件文件${stats.issues?` · ${stats.issues} 项仍待匹配`:stats.total?' · 已覆盖当前需求':''}`:aState==='skipped'?'本批次暂未添加附件':stats.issues?`${stats.issues} 项附件等待文件`:'尚未添加';
     if(aSkip){aSkip.hidden=!!aCount;aSkip.textContent=aState==='skipped'?'已跳过':'暂不添加';}
@@ -1835,15 +1835,16 @@
     const bar=$('nmda-attachment-library-bar'),barTitle=$('nmda-attachment-library-bar-title'),barCopy=$('nmda-attachment-library-bar-copy'),prepared=attachmentPreparedFileCount();
     const showBar=!!batch.dataset&&!contextPending&&!shouldShow&&(prepared>0||stats.total>0);
     if(bar)bar.hidden=!showBar;
-    if(showBar){if(barTitle)barTitle.textContent=`附件资料 · ${prepared} 个文件`;if(barCopy)barCopy.textContent=stats.total?`邮件需求已匹配 ${Math.max(0,stats.total-stats.issues)}/${stats.total}；可随时增删，系统会重新匹配。`:'本批次附件已保留，可随时增删或替换。';}
+    if(showBar){if(barTitle)barTitle.textContent=`附件资料 · ${prepared} 个文件`;if(barCopy)barCopy.textContent=stats.total?`手动文件会直接发送；邮件需求已匹配 ${Math.max(0,stats.total-stats.issues)}/${stats.total}。`:'手动添加的文件会直接随本批次邮件发送，可随时增删。';}
     if(!shouldShow)return;
-    const title=$('nmda-attachment-context-title'),copy=$('nmda-attachment-context-copy'),later=$('nmda-attachment-later'),dirAction=$('nmda-attachment-dir-action');
+    const title=$('nmda-attachment-context-title'),copy=$('nmda-attachment-context-copy'),later=$('nmda-attachment-later'),sendAction=$('nmda-attachment-send-action'),dirAction=$('nmda-attachment-dir-action');
     const mailPending=typeof reviewTasks==='function'&&reviewTasks().length>0;
-    if(dirAction){dirAction.classList.toggle('nmda-btn-primary',!mailPending);dirAction.classList.toggle('nmda-btn-quiet',mailPending);}
+    if(sendAction){sendAction.classList.add('nmda-btn-primary');sendAction.classList.remove('nmda-btn-quiet');}
+    if(dirAction){dirAction.classList.remove('nmda-btn-primary');dirAction.classList.add('nmda-btn-quiet');}
     if(title)title.textContent=`还有 ${stats.issues} 个附件待补`;
     if(copy)copy.textContent=mailPending
-      ? `这是创建前必须完成的待办。现在加入可自动匹配；也可以先处理邮件内容。`
-      : `这是当前最后一项待办。补齐后会自动进入“选择与安排”。`;
+      ? `这是创建前必须完成的待办。手动添加的文件会直接发送；点名附件可用匹配文件夹补齐。`
+      : `这是当前最后一项待办。手动添加即发送；补齐点名附件后会自动进入“选择与安排”。`;
     if(later)later.hidden=!mailPending;
   }
 
@@ -3282,7 +3283,7 @@
     const totalBytes = files.reduce((sum, file) => sum + Number(file.size || 0), 0);
     const sizeText = totalBytes < 1024 * 1024 ? `${Math.round(totalBytes / 1024)} KB` : `${(totalBytes / 1024 / 1024).toFixed(1)} MB`;
     $('nmda-file-index-info').textContent = files.length
-      ? `已选择 ${files.length} 个文件（任务附件 ${taskCount}，公共附件 ${sharedCount}，共 ${sizeText}）。`
+      ? `已选择 ${files.length} 个文件（匹配资料 ${taskCount}，直接发送 ${sharedCount}，共 ${sizeText}）。`
       : '尚未选择本地附件。';
     rebuildTasks();
     renderAttachmentAssetViews();
@@ -4437,11 +4438,14 @@
     batch.attachmentPrepChoice='added';
     dirEl.value = ''; refreshFileIndex(true);renderSupplementPreflight();
   });
+  // User intent wins: files explicitly chosen from the attachment UI are not
+  // "candidates". They are direct-send attachments for every mail in this batch.
+  // Only directory/package/auto-routed files stay in the matching pool.
   taskFilesEl.addEventListener('change', () => {
     for(const file of taskFilesEl.files||[])batch.ignoredAttachmentIdentities.delete(Importer.fileIdentity(file));
-    batch.taskFiles = uniqueFiles([...batch.taskFiles, ...taskFilesEl.files]);
+    batch.sharedFiles = uniqueFiles([...batch.sharedFiles, ...taskFilesEl.files]);
     batch.attachmentPrepChoice='added';
-    taskFilesEl.value = ''; refreshFileIndex(true);renderSupplementPreflight();
+    taskFilesEl.value = ''; refreshFileIndex(false);renderSupplementPreflight();
   });
   sharedFilesEl.addEventListener('change', () => {
     for(const file of sharedFilesEl.files||[])batch.ignoredAttachmentIdentities.delete(Importer.fileIdentity(file));
@@ -4456,9 +4460,11 @@
     const dropped = [...(event.dataTransfer?.files || [])].filter(file => file && file.name);
     if (!dropped.length) return;
     for(const file of dropped)batch.ignoredAttachmentIdentities.delete(Importer.fileIdentity(file));
-    batch.taskFiles = uniqueFiles([...batch.taskFiles, ...dropped]);
+    // Dragging a local file into the explicit attachment drop-zone is also an
+    // unambiguous send instruction, equivalent to clicking "添加并发送文件".
+    batch.sharedFiles = uniqueFiles([...batch.sharedFiles, ...dropped]);
     batch.attachmentPrepChoice='added';
-    refreshFileIndex(true);renderSupplementPreflight();
+    refreshFileIndex(false);renderSupplementPreflight();
   });
   $('nmda-clear-attachments').addEventListener('click', () => {
     for(const config of batch.collectionConfigs.values())if(config.purpose==='attachment'){config.purpose='ignored';config.enabled=false;}
