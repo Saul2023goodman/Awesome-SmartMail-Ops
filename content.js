@@ -636,9 +636,9 @@
                     <div class="nmda-classify-head-main">
                       <div class="nmda-supplement-head-icon" data-state="ok">✓</div>
                       <div>
-                        <span class="nmda-supplement-kicker">上传完成 · 用一分钟快速核验</span>
-                        <h3 id="nmda-supplement-title">核验自动识别并修正分类</h3>
-                        <p>先看文件内容是否和当前用途一致。点击任一文件即可在右侧核验；不对时只需在右侧更改用途，也可拖动文件快速归类。</p>
+                        <span class="nmda-supplement-kicker">上传完成 · 最后确认一次</span>
+                        <h3 id="nmda-supplement-title">确认文件用途</h3>
+                        <p>分类正确无需逐个操作。只看有疑问的文件；选中文件后在右侧查看内容，不对时直接改用途。</p>
                       </div>
                     </div>
                     <div class="nmda-classify-head-summary" id="nmda-preflight-routing-chips" aria-label="分类概览"></div>
@@ -694,8 +694,8 @@
                     <section class="nmda-preflight-source-routing nmda-classify-main" id="nmda-preflight-source-routing">
                       <div class="nmda-classify-toolbar">
                         <div class="nmda-classify-toolbar-title">
-                          <strong id="nmda-preflight-source-routing-summary">全部文件</strong>
-                          <small id="nmda-preflight-source-routing-subtitle">点击文件查看内容，拖到上方类别即可重新分类。</small>
+                          <strong id="nmda-preflight-source-routing-summary">文件列表</strong>
+                          <small id="nmda-preflight-source-routing-subtitle">选中文件查看内容；拖动文件时会出现快速归类区。</small>
                         </div>
                         <div class="nmda-classify-toolbar-actions">
                           <label class="nmda-classify-search"><span>⌕</span><input id="nmda-preflight-source-search" type="search" placeholder="搜索文件名或目录"></label>
@@ -717,20 +717,18 @@
                     <aside class="nmda-classify-inspector-pane" aria-label="当前文件核验">
                       <div class="nmda-source-inspector-empty" id="nmda-source-inspector-empty">
                         <span class="nmda-source-inspector-empty-icon">⌁</span>
-                        <strong>选择一个文件开始核验</strong>
-                        <small>右侧只展示当前文件需要你知道的信息，不会展开整批技术细节。</small>
+                        <strong>选择一个文件查看内容</strong>
+                        <small>分类正确无需操作；只有发现用途不对时才修改。</small>
                       </div>
                       <div class="nmda-source-inspector-card" id="nmda-source-inspector-card" hidden>
                         <div class="nmda-source-inspector-card-head">
-                          <div><span>文件详情</span><strong id="nmda-source-inspector-title">文件</strong></div>
-                          <button class="nmda-icon-btn nmda-source-inspector-close" id="nmda-source-inspector-close" type="button" aria-label="关闭当前文件核验">×</button>
+                          <div><span>当前文件</span><strong id="nmda-source-inspector-title">文件核验</strong></div>
                         </div>
                         <div class="nmda-source-inspector-overview" id="nmda-source-inspector-overview"></div>
-                        <div class="nmda-source-inspector-content" id="nmda-source-inspector-content"></div>
                         <div class="nmda-source-inspector-actions" id="nmda-source-inspector-actions"></div>
+                        <div class="nmda-source-inspector-content" id="nmda-source-inspector-content"></div>
                         <button class="nmda-source-next-review" id="nmda-source-next-review" type="button" hidden>查看下一个待确认 →</button>
-                        <details class="nmda-source-inspector-more" id="nmda-ingest-diagnostics" hidden>
-                          <summary><span><strong>需要时进一步调整</strong><small id="nmda-source-inspector-copy">仅在读取内容确实不对时使用</small></span><span>展开</span></summary>
+                        <div class="nmda-source-inspector-legacy-tools" id="nmda-ingest-diagnostics" hidden aria-hidden="true">
                           <div class="nmda-diagnostics-grid">
                             <div class="nmda-ingest-structure-card" id="nmda-structure-card" hidden>
                               <div class="nmda-card-subtitle">读取内容</div>
@@ -748,14 +746,14 @@
                               <div id="nmda-mapping" class="nmda-mapping nmda-semantic-mapping" hidden></div>
                             </div>
                           </div>
-                        </details>
+                        </div>
                       </div>
                     </aside>
                   </div>
 
                   <footer class="nmda-supplement-foot nmda-classify-foot">
                     <button class="nmda-btn nmda-btn-quiet" id="nmda-close-supplement-preflight" type="button">返回上传</button>
-                    <div class="nmda-classify-foot-summary"><strong id="nmda-preflight-batch-summary">正在核验本批次</strong><small>只需处理明显不对或待确认的文件；其余可直接继续。</small></div>
+                    <div class="nmda-classify-foot-summary"><strong id="nmda-preflight-batch-summary">正在核验本批次</strong><small>分类正确无需逐个确认。</small></div>
                     <button class="nmda-btn nmda-btn-primary" id="nmda-complete-supplement-preflight" type="button">确认分类并继续 →</button>
                   </footer>
                 </section>
@@ -1877,9 +1875,9 @@
     return decisions.map(decision=>{
       const visual=sourceRoleVisual(decision.purpose,decision.needsReview),fileName=String(decision.sourceName||'').replace(/\\/g,'/').split('/').pop()||'未命名来源';
       const active=batch.sourceInspectName===decision.sourceName,icon=sourceFileIcon(fileName,decision.purpose,decision.needsReview);
-      const path=sourceDirectoryPath(decision.sourceName),meta=[sourceFileTypeLabel(fileName),path||'根目录',humanFileSize(decision.file?.size)].filter(Boolean).join(' · ');
-      const reason=sourceFriendlyReason(decision),hint=sourceListContentHint(decision);
-      return `<div class="nmda-classify-file-row${active?' is-selected':''}" data-tone="${escapeHtml(visual.tone)}" data-review="${decision.needsReview?'1':'0'}" data-inspect-source="${escapeHtml(encodeURIComponent(decision.sourceName))}" data-source-row="${escapeHtml(encodeURIComponent(decision.sourceName))}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(fileName)}"><span class="nmda-classify-drag" draggable="true" data-source-drag="${escapeHtml(encodeURIComponent(decision.sourceName))}" title="拖动可快速归类" aria-label="拖动 ${escapeHtml(fileName)} 重新归类">⠿</span><span class="nmda-classify-file-icon">${escapeHtml(icon)}</span><div class="nmda-classify-file-main"><strong>${escapeHtml(fileName)}</strong><small>${escapeHtml(meta)}</small></div><div class="nmda-classify-file-evidence"><span>${escapeHtml(reason)}</span><small>${escapeHtml(hint)}</small></div><span class="nmda-classify-purpose-pill" data-tone="${escapeHtml(visual.tone)}"><i>${escapeHtml(visual.icon)}</i>${escapeHtml(visual.label)}${decision.userConfirmed?'<em>已修正</em>':''}</span></div>`;
+      const path=sourceDirectoryPath(decision.sourceName),meta=[path||'根目录',sourceFileTypeLabel(fileName),humanFileSize(decision.file?.size)].filter(Boolean).join(' · ');
+      const hint=sourceListContentHint(decision),reviewText=decision.needsReview?sourceFriendlyReason(decision):'';
+      return `<div class="nmda-classify-file-row${active?' is-selected':''}" data-tone="${escapeHtml(visual.tone)}" data-review="${decision.needsReview?'1':'0'}" data-inspect-source="${escapeHtml(encodeURIComponent(decision.sourceName))}" data-source-row="${escapeHtml(encodeURIComponent(decision.sourceName))}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(fileName)}"><span class="nmda-classify-drag" draggable="true" data-source-drag="${escapeHtml(encodeURIComponent(decision.sourceName))}" title="拖动可快速归类" aria-label="拖动 ${escapeHtml(fileName)} 重新归类">⠿</span><span class="nmda-classify-file-icon">${escapeHtml(icon)}</span><div class="nmda-classify-file-main"><strong>${escapeHtml(fileName)}</strong><small>${escapeHtml(meta)}</small></div><div class="nmda-classify-file-preview"><span>${escapeHtml(hint)}</span>${reviewText?`<small>${escapeHtml(reviewText)}</small>`:''}</div><span class="nmda-classify-purpose-pill" data-tone="${escapeHtml(visual.tone)}"><i>${escapeHtml(visual.icon)}</i>${escapeHtml(visual.label)}</span></div>`;
     }).join('');
   }
 
@@ -1924,16 +1922,13 @@
   }
 
   function sourceInspectorContentHtml(decision) {
-    const items=decision.items||[],indexes=new Set(items.map(item=>item.index)),tasks=(batch.tasks||[]).filter(task=>indexes.has(Number(task.collectionIndex))&&!task.importExcluded),file=decision.file;
-    if(decision.purpose==='mail'&&!decision.needsReview){
-      if(!tasks.length)return `${sourceGenericPreviewHtml(decision)}<div class="nmda-inspector-callout is-warn"><strong>邮件内容还没有读完整</strong><small>如果收件人、主题或正文与原文件不一致，再展开下方“进一步调整”。</small></div>`;
+    const items=decision.items||[],indexes=new Set(items.map(item=>item.index)),tasks=(batch.tasks||[]).filter(task=>indexes.has(Number(task.collectionIndex))&&!task.importExcluded);
+    if(decision.purpose==='mail'&&!decision.needsReview&&tasks.length){
       const task=tasks[0],body=String(task.body||'').replace(/\s+/g,' ').trim();
-      return `<div class="nmda-inspector-preview-block"><div class="nmda-inspector-preview-head"><strong>邮件内容</strong><span>${tasks.length>1?`此文件共 ${tasks.length} 封`:'1 封邮件'}</span></div><div class="nmda-inspector-mail-fields"><div><span>收件人</span><strong>${escapeHtml(task.recipients||'尚未读取')}</strong></div><div><span>主题</span><strong>${escapeHtml(task.subject||'尚未读取')}</strong></div><div class="is-body"><span>正文</span><p>${escapeHtml(body?`${body.slice(0,260)}${body.length>260?'…':''}`:'尚未读取')}</p></div></div></div>`;
+      return `<div class="nmda-inspector-preview-block"><div class="nmda-inspector-preview-head"><strong>邮件内容</strong><span>${tasks.length>1?`共 ${tasks.length} 封`:'1 封邮件'}</span></div><div class="nmda-inspector-mail-fields"><div><span>收件人</span><strong>${escapeHtml(task.recipients||'尚未读取')}</strong></div><div><span>主题</span><strong>${escapeHtml(task.subject||'尚未读取')}</strong></div><div class="is-body"><span>正文</span><p>${escapeHtml(body?`${body.slice(0,520)}${body.length>520?'…':''}`:'尚未读取')}</p></div></div></div>`;
     }
     if(decision.purpose==='roster'&&!decision.needsReview)return sourceRosterPreviewHtml(items);
-    if(decision.purpose==='attachment'&&!decision.needsReview)return `${sourceGenericPreviewHtml(decision)}<div class="nmda-inspector-material-note"><span>↗</span><small>当前作为附件材料使用，不会单独生成邮件。</small></div>`;
-    if(decision.needsReview)return `${sourceGenericPreviewHtml(decision)}<div class="nmda-inspector-callout is-review"><strong>看完内容后选择它的用途</strong><small>这里没有强制推荐；只需判断它是邮件、总名单、附件，还是暂时不使用。</small></div>`;
-    return `${sourceGenericPreviewHtml(decision)}<div class="nmda-inspector-callout"><strong>当前不参与本批次</strong><small>如果后续需要它，可以在下方重新选择用途。</small></div>`;
+    return sourceGenericPreviewHtml(decision);
   }
 
   function renderSourceInspector(decision) {
@@ -1941,18 +1936,20 @@
     if(!decision){empty.hidden=false;card.hidden=true;return;}
     empty.hidden=true;card.hidden=false;
     const visual=sourceRoleVisual(decision.purpose,decision.needsReview),fileName=String(decision.sourceName||'').replace(/\\/g,'/').split('/').pop()||decision.sourceName;
-    const title=$('nmda-source-inspector-title'),overview=$('nmda-source-inspector-overview'),content=$('nmda-source-inspector-content'),actions=$('nmda-source-inspector-actions'),copy=$('nmda-source-inspector-copy');
-    if(title)title.textContent=fileName;
-    if(copy)copy.textContent='只有当内容读取明显不对时才需要展开。';
-    if(overview)overview.innerHTML=`<div class="nmda-inspector-file-title"><span class="nmda-classify-file-icon" data-tone="${escapeHtml(visual.tone)}">${escapeHtml(sourceFileIcon(fileName,decision.purpose,decision.needsReview))}</span><div><strong>${escapeHtml(fileName)}</strong><small>${escapeHtml(sourceFileTypeLabel(fileName))} · ${escapeHtml(sourceDirectoryPath(decision.sourceName)||'根目录')} · ${escapeHtml(humanFileSize(decision.file?.size))}</small></div></div><div class="nmda-inspector-result"><span>当前用途</span><b data-tone="${escapeHtml(visual.tone)}">${escapeHtml(visual.label)}</b>${decision.userConfirmed?'<em>已按你的选择修正</em>':decision.needsReview?'<em>需要你决定</em>':'<em>自动识别</em>'}</div><div class="nmda-inspector-why"><span>判断说明</span><p>${escapeHtml(sourceFriendlyReason(decision))}</p></div>`;
-    if(content)content.innerHTML=sourceInspectorContentHtml(decision);
+    const title=$('nmda-source-inspector-title'),overview=$('nmda-source-inspector-overview'),content=$('nmda-source-inspector-content'),actions=$('nmda-source-inspector-actions');
+    if(title)title.textContent='文件核验';
+    if(overview){
+      const reviewNote=decision.needsReview?`<div class="nmda-inspector-review-note"><span>?</span><div><strong>这个文件需要你决定用途</strong><small>${escapeHtml(sourceFriendlyReason(decision))}</small></div></div>`:'';
+      overview.innerHTML=`<div class="nmda-inspector-file-title"><span class="nmda-classify-file-icon" data-tone="${escapeHtml(visual.tone)}">${escapeHtml(sourceFileIcon(fileName,decision.purpose,decision.needsReview))}</span><div><strong>${escapeHtml(fileName)}</strong><small>${escapeHtml(sourceDirectoryPath(decision.sourceName)||'根目录')} · ${escapeHtml(sourceFileTypeLabel(fileName))} · ${escapeHtml(humanFileSize(decision.file?.size))}</small></div></div>${reviewNote}`;
+    }
     if(actions){
       const selected=decision.needsReview?'review':decision.purpose;
-      actions.innerHTML=`<label class="nmda-inspector-purpose-field"><span><strong>文件用途</strong><small>只有分类不对时才需要修改</small></span><select data-inspector-purpose-select aria-label="修改当前文件用途">${sourcePurposeOptions(selected)}</select></label>`;
+      actions.innerHTML=`<label class="nmda-inspector-purpose-field" data-review="${decision.needsReview?'1':'0'}"><span><strong>${decision.needsReview?'请选择文件用途':'文件用途'}</strong><small>${decision.needsReview?'看过下方内容后选择即可':'分类正确时无需修改'}</small></span><select data-inspector-purpose-select aria-label="修改当前文件用途">${sourcePurposeOptions(selected)}</select></label>`;
       actions.querySelector('[data-inspector-purpose-select]')?.addEventListener('change',event=>{const purpose=event.currentTarget.value;if(purpose==='review')setSourceNeedsReview(decision.sourceName);else setSourcePurpose(decision.sourceName,purpose);});
     }
+    if(content)content.innerHTML=sourceInspectorContentHtml(decision);
     const pending=uniqueFiles(batch.dataset?.sourceFiles||[]).map(sourcePurposeDecision).filter(item=>item.needsReview&&item.sourceName!==decision.sourceName),next=$('nmda-source-next-review');
-    if(next){next.hidden=!pending.length;next.dataset.nextSource=pending[0]?encodeURIComponent(pending[0].sourceName):'';next.textContent=pending.length?`查看下一个待确认（还剩 ${pending.length} 个） →`:'查看下一个待确认 →';}
+    if(next){next.hidden=!pending.length;next.dataset.nextSource=pending[0]?encodeURIComponent(pending[0].sourceName):'';next.textContent=pending.length?`下一个待确认 · 还剩 ${pending.length} 个 →`:'下一个待确认 →';}
   }
 
   function inspectSourceInPreflight(sourceName) {
@@ -1963,7 +1960,7 @@
     collectionSelectEl.innerHTML=items.map(({collection,index})=>{const config=ensureCollectionConfig(index),kind=collectionKind(collection,config?.purpose),detection=config?.detection||Importer.detectHeader(collection.rows||[]),records=Math.max(0,(collection.rows||[]).length-detection.index-1);return `<option value="${index}" ${index===first.index?'selected':''}>${escapeHtml(collection.name)} · ${escapeHtml(kind.label)} · ${records} 条</option>`;}).join('');
     $('nmda-collection-field').hidden=items.length<=1;
     configureCollection(first.index,false);
-    const diagnostics=$('nmda-ingest-diagnostics');if(diagnostics){diagnostics.hidden=false;diagnostics.open=false;}
+    const diagnostics=$('nmda-ingest-diagnostics');if(diagnostics){diagnostics.hidden=true;diagnostics.open=false;}
     renderPreflightSourceRoles();
   }
 
@@ -1976,7 +1973,7 @@
     for(const decision of decisions){if(decision.needsReview)counts.review++;else counts[decision.purpose]=(counts[decision.purpose]||0)+1;}
     const visible=sourceVisibleDecisions(decisions),folder=batch.preflightFolderPath||'',folderName=folder?folder.split('/').pop():'全部文件';
     const searchInput=$('nmda-preflight-source-search');if(searchInput&&searchInput.value!==String(batch.preflightSearch||''))searchInput.value=String(batch.preflightSearch||'');
-    summary.textContent=`${folderName} · ${visible.length} 个文件`;
+    summary.textContent='文件列表';
     const subtitle=$('nmda-preflight-source-routing-subtitle');if(subtitle)subtitle.textContent=counts.review?`有 ${counts.review} 个文件建议快速确认；其余可直接继续。`:'当前分类没有明显疑问，可直接继续或抽查文件。';
     const dirTitle=$('nmda-preflight-directory-title'),dirCount=$('nmda-preflight-directory-count');if(dirTitle)dirTitle.textContent=folderName;if(dirCount)dirCount.textContent=folder?`${visible.length}`:`${decisions.length}`;
     if(chips){
@@ -2072,8 +2069,8 @@
     const sourceDecisions=uniqueFiles(batch.dataset?.sourceFiles||[]).map(sourcePurposeDecision),reviewCount=sourceDecisions.filter(item=>item.needsReview).length,taskCount=(batch.tasks||[]).length;
     const headIcon=overlay.querySelector('.nmda-supplement-head-icon'),kicker=overlay.querySelector('.nmda-supplement-kicker'),title=$('nmda-supplement-title');
     if(headIcon){const attention=!taskCount||reviewCount>0;headIcon.dataset.state=attention?'review':'ok';headIcon.textContent=attention?'!':'✓';}
-    if(kicker)kicker.textContent=reviewCount?`上传完成 · ${reviewCount} 个文件建议确认`:'上传完成 · 快速核验即可继续';
-    if(title)title.textContent='核验自动识别并修正分类';
+    if(kicker)kicker.textContent=reviewCount?`上传完成 · ${reviewCount} 个文件需要确认`:'上传完成 · 分类已整理';
+    if(title)title.textContent='确认文件用途';
     const rosterBox=$('nmda-preflight-roster-box'),attachmentBox=$('nmda-preflight-attachment-box'),supplements=$('nmda-preflight-supplements');
     if(rosterBox)rosterBox.hidden=!taskCount;if(attachmentBox)attachmentBox.hidden=!taskCount;if(supplements)supplements.hidden=!taskCount;
     const completeButton=$('nmda-complete-supplement-preflight');if(completeButton)completeButton.textContent=reviewCount?`确认分类并继续（${reviewCount} 个待确认） →`:'确认分类并继续 →';
@@ -2097,7 +2094,7 @@
     if(aSkip){aSkip.hidden=!!aCount;aSkip.textContent=aState==='skipped'?'已跳过':'暂不添加';}
 
     renderAttachmentAssetViews();renderPreflightSourceRoles();
-    const batchSummary=$('nmda-preflight-batch-summary');if(batchSummary){const fileCount=sourceDecisions.length||1,currentTaskCount=(batch.tasks||[]).length;batchSummary.textContent=currentTaskCount?`已核验 ${fileCount} 个文件 · 当前形成 ${currentTaskCount} 封邮件${reviewCount?` · ${reviewCount} 个待确认`:''}`:`已读取 ${fileCount} 个文件 · 还没有形成邮件，请先调整分类`;}
+    const batchSummary=$('nmda-preflight-batch-summary');if(batchSummary){const currentTaskCount=(batch.tasks||[]).length;batchSummary.textContent=reviewCount?`${reviewCount} 个文件待确认`:currentTaskCount?'分类已确认，可以继续':'还没有识别到邮件，请调整文件用途';}
     if(visible&&!batch.sourceInspectName&&sourceDecisions.length){const first=sourceDecisions.find(item=>item.needsReview)||sourceDecisions[0];requestAnimationFrame(()=>{if(batch.supplementPreflightOpen&&!batch.sourceInspectName)inspectSourceInPreflight(first.sourceName);});}
   }
 
