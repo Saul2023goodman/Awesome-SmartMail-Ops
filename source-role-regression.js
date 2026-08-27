@@ -45,6 +45,24 @@ for (const [name, recordSet, expected] of roleCases) {
   if (!ok) console.dir(result, { depth: 5 });
 }
 
+// Multi-Word aggregation must keep per-file source shadows. The merged set is
+// only the execution view; UI inspection/reclassification must still have one
+// record set per original file, otherwise every file can display the first mail.
+{
+  const a=oneFile('第一批/A教授.docx', `张老师您好！\n\n我是A同学，写信咨询博士申请。\n\n谢谢您的时间。`);
+  const b=oneFile('第二批/B教授.docx', `李老师您好！\n\n我是B同学，希望申请博士并加入您的团队。\n\n期待您的回复。`);
+  a.meta={...a.meta,sourcePurpose:'mail',purposeConfidence:96,purposeReasons:['test']};
+  b.meta={...b.meta,sourcePurpose:'mail',purposeConfidence:96,purposeReasons:['test']};
+  const sets=[a,b];
+  const merged=Importer.mergeWordTaskRecordSets(sets,{source:'multi-word'});
+  const aggregate=sets.find(rs=>rs.meta?.merged);
+  const shadows=sets.filter(rs=>rs.meta?.taskShadow);
+  const ok=merged===true && sets.length===3 && shadows.length===2 && aggregate?.meta?.sourceMembers?.length===2 && shadows[0].source!==shadows[1].source;
+  if(!ok)failed++;
+  console.log(`${ok ? 'PASS' : 'FAIL'} source-isolation | merged=${merged} sets=${sets.length} shadows=${shadows.length} members=${aggregate?.meta?.sourceMembers?.length||0}`);
+  if(!ok)console.dir(sets,{depth:4});
+}
+
 const frameCases = [
   ['无 Subject + 老师您好 + 无此致敬礼', `教授邮箱：zhang@univ.edu\n老师您好！\n我是天津大学硕士生，冒昧来信联系您，希望申请博士。我认真阅读了您的研究工作，对您的研究方向很感兴趣，希望有机会加入贵课题组并在您的指导下开展研究。\n感谢您的时间与阅读，期待您的回复。\n孙浩文`, 'zhang@univ.edu'],
   ['无 Subject + 张教授好', `收件人：li@univ.edu\n张教授好！\n我是某大学硕士生，给您写信希望咨询博士申请。我对您的研究方向非常感兴趣，希望有机会加入您的团队。\n感谢您的时间，期待您的回复。\n李明`, 'li@univ.edu'],
@@ -63,4 +81,4 @@ if (failed) {
   console.error(`\n${failed} regression case(s) failed.`);
   process.exit(1);
 }
-console.log(`\nAll ${roleCases.length + frameCases.length} source-role/mail-frame regression cases passed.`);
+console.log(`\nAll ${roleCases.length + frameCases.length + 1} source-role/mail-frame/source-isolation regression cases passed.`);

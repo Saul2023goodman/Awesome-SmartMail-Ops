@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "1.44.0",
-  "description": "网易邮箱网页版邮件工作台：上传后以“看内容→确认用途→继续”为核心核验文件分类；减少重复字段与操作，放大关键信息，右侧仅保留内容预览和一个用途选择器，并支持目录定位与拖拽快速归类。",
+  "version": "1.45.0",
+  "description": "网易邮箱网页版邮件工作台：修复批量 Word 单文件预览串内容问题，执行集合与单文件核验来源隔离；强化 DOCX/XLSX/PDF 等文件类型图标和邮件/总名单/附件用途视觉区分。",
   "permissions": [
     "storage",
     "scripting"

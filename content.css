@@ -5171,3 +5171,132 @@
   .nmda-classify-workspace { grid-template-columns:148px minmax(0,1fr); }
   .nmda-classify-inspector-pane { width:min(360px,82vw); }
 }
+
+/* ========================================================================== 
+   v1.45 · SOURCE-ISOLATED REVIEW
+   Fix: each source owns its own preview. Visual goal: file type and business
+   purpose must be distinguishable at a glance without adding extra controls.
+   ========================================================================== */
+.nmda-classify-file-row {
+  --nmda-role:#64748b;
+  --nmda-role-soft:#f8fafc;
+  position:relative;
+  border-left:4px solid transparent;
+  padding-left:8px;
+}
+.nmda-classify-file-row[data-tone="mail"] { --nmda-role:#1677d2;--nmda-role-soft:#f3f8ff;border-left-color:#84b8ee; }
+.nmda-classify-file-row[data-tone="roster"] { --nmda-role:#248a45;--nmda-role-soft:#f2fbf5;border-left-color:#8ed0a0; }
+.nmda-classify-file-row[data-tone="attachment"] { --nmda-role:#7a4fc6;--nmda-role-soft:#faf7ff;border-left-color:#bfa4ea; }
+.nmda-classify-file-row[data-tone="review"] { --nmda-role:#c16712;--nmda-role-soft:#fff8f0;border-left-color:#efb06e; }
+.nmda-classify-file-row[data-tone="ignored"] { --nmda-role:#6b7280;--nmda-role-soft:#f7f8fa;border-left-color:#c7cdd4; }
+.nmda-classify-file-row:hover { background:var(--nmda-role-soft); }
+.nmda-classify-file-row.is-selected {
+  background:var(--nmda-role-soft) !important;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nmda-role) 28%,#fff) !important;
+  border-left-color:var(--nmda-role) !important;
+}
+.nmda-classify-file-row[data-review="1"]:not(.is-selected) { background:#fffaf5;box-shadow:none; }
+
+/* File-type icon = format identity. Business-purpose color lives in the pill/row rail. */
+.nmda-classify-file-icon {
+  width:42px !important;
+  height:42px !important;
+  border-radius:10px !important;
+  display:grid !important;
+  grid-template-rows:minmax(0,1fr) auto !important;
+  place-items:center !important;
+  gap:0 !important;
+  padding:4px 3px 3px !important;
+  border:1px solid transparent !important;
+  box-shadow:0 1px 2px rgba(15,23,42,.04) !important;
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif !important;
+}
+.nmda-classify-file-icon b { align-self:end;font:800 15px/1 system-ui,sans-serif;letter-spacing:-.02em; }
+.nmda-classify-file-icon small { align-self:end;font:800 6.5px/1 system-ui,sans-serif;letter-spacing:.035em;opacity:.82; }
+.nmda-classify-file-icon[data-file-kind="word"] { background:#eef4ff !important;border-color:#cbdcf8 !important;color:#2459a6 !important; }
+.nmda-classify-file-icon[data-file-kind="sheet"] { background:#edf9f1 !important;border-color:#c4e6d0 !important;color:#19733a !important; }
+.nmda-classify-file-icon[data-file-kind="pdf"] { background:#fff1f1 !important;border-color:#f1cccc !important;color:#bd3131 !important; }
+.nmda-classify-file-icon[data-file-kind="email"] { background:#eef9fb !important;border-color:#c5e6eb !important;color:#167386 !important; }
+.nmda-classify-file-icon[data-file-kind="archive"] { background:#fff7e8 !important;border-color:#f0ddb6 !important;color:#9a6509 !important; }
+.nmda-classify-file-icon[data-file-kind="image"] { background:#f7f0ff !important;border-color:#dfcef4 !important;color:#7441ae !important; }
+.nmda-classify-file-icon[data-file-kind="file"] { background:#f3f5f7 !important;border-color:#dce1e7 !important;color:#596474 !important; }
+
+.nmda-classify-file-row {
+  min-height:72px;
+  grid-template-columns:18px 42px minmax(180px,.9fr) minmax(220px,1.1fr) auto;
+  gap:10px;
+  padding-top:8px;
+  padding-bottom:8px;
+}
+.nmda-classify-file-main strong { font-size:12.5px; }
+.nmda-classify-file-main small { font-size:10px;color:#8a94a4; }
+.nmda-classify-file-preview span { font-size:11px;line-height:1.45;color:#3f4d60; }
+.nmda-classify-file-preview small { font-size:9.5px; }
+
+/* Purpose pill = workflow role, intentionally stronger than before. */
+.nmda-classify-purpose-pill {
+  min-width:72px;
+  min-height:31px;
+  padding:0 9px 0 6px;
+  border-width:1px;
+  border-radius:999px;
+  gap:6px;
+  font-size:10.5px;
+  font-weight:760;
+}
+.nmda-classify-purpose-pill i {
+  width:19px;
+  height:19px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  color:#fff !important;
+  font:800 9px/1 system-ui,sans-serif !important;
+}
+.nmda-classify-purpose-pill[data-tone="mail"] { border-color:#bdd9f5;background:#f3f8ff;color:#1266ad; }
+.nmda-classify-purpose-pill[data-tone="mail"] i { background:#1677d2; }
+.nmda-classify-purpose-pill[data-tone="roster"] { border-color:#c3e3cc;background:#f2fbf5;color:#24743b; }
+.nmda-classify-purpose-pill[data-tone="roster"] i { background:#2c934d; }
+.nmda-classify-purpose-pill[data-tone="attachment"] { border-color:#dacbf0;background:#faf7ff;color:#6842a7; }
+.nmda-classify-purpose-pill[data-tone="attachment"] i { background:#7a4fc6; }
+.nmda-classify-purpose-pill[data-tone="review"] { border-color:#efc293;background:#fff8f0;color:#a6530c; }
+.nmda-classify-purpose-pill[data-tone="review"] i { background:#cf7218; }
+.nmda-classify-purpose-pill[data-tone="ignored"] { border-color:#d9dee4;background:#f7f8fa;color:#606a77; }
+.nmda-classify-purpose-pill[data-tone="ignored"] i { background:#747d89; }
+
+/* Summary filters get a role-colored top edge so the five states are not five white pills. */
+.nmda-classify-head-summary button { border-top-width:3px; }
+.nmda-classify-head-summary button[data-tone="mail"] { border-top-color:#4f9be0; }
+.nmda-classify-head-summary button[data-tone="roster"] { border-top-color:#59ad6f; }
+.nmda-classify-head-summary button[data-tone="attachment"] { border-top-color:#9a73d3; }
+.nmda-classify-head-summary button[data-tone="review"] { border-top-color:#dc8a3c; }
+.nmda-classify-head-summary button[data-tone="ignored"] { border-top-color:#929aa5; }
+.nmda-classify-head-summary button i { font-weight:850; }
+
+/* Right side starts with the file itself; avoid repeating a generic 'file review' heading. */
+.nmda-source-inspector-card-head { display:none !important; }
+.nmda-source-inspector-overview { padding-top:14px; }
+.nmda-inspector-file-title { grid-template-columns:48px minmax(0,1fr);gap:11px; }
+.nmda-inspector-file-title .nmda-classify-file-icon { width:48px !important;height:48px !important;border-radius:12px !important; }
+.nmda-inspector-file-title .nmda-classify-file-icon b { font-size:17px; }
+.nmda-inspector-file-title .nmda-classify-file-icon small { font-size:7px; }
+.nmda-inspector-file-title strong { font-size:13.5px; }
+.nmda-inspector-file-title small { font-size:10px; }
+.nmda-source-inspector-actions { background:#fbfcfe; }
+.nmda-inspector-purpose-field strong { font-size:12px; }
+.nmda-inspector-purpose-field small { font-size:10px; }
+.nmda-source-inspector-content { padding-top:12px; }
+.nmda-inspector-preview-head strong { font-size:12px; }
+.nmda-inspector-mail-fields span { font-size:10.5px; }
+.nmda-inspector-mail-fields strong,.nmda-inspector-mail-fields p { font-size:11px; }
+
+@media (max-width:1100px) {
+  .nmda-classify-file-row { grid-template-columns:17px 38px minmax(155px,.92fr) minmax(165px,1.08fr) auto;gap:8px; }
+  .nmda-classify-file-icon { width:38px !important;height:38px !important; }
+  .nmda-classify-file-icon b { font-size:13px; }
+  .nmda-classify-file-icon small { font-size:6px; }
+}
+@media (max-width:920px) {
+  .nmda-classify-file-row { grid-template-columns:16px 38px minmax(0,1fr) auto; }
+  .nmda-classify-file-preview { grid-column:3/5; }
+}

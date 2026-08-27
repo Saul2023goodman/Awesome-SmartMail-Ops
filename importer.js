@@ -38,6 +38,30 @@
   function formatLocalDateTime(date){if(!(date instanceof Date)||Number.isNaN(date.getTime()))return'';const p=n=>String(n).padStart(2,'0');return`${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;}
   function parseDateValue(value){return Core.parseDateLoose(value);}
 
+  function sourceIdentity(file){
+    return String(file?._nmdaPath||file?.webkitRelativePath||file?.name||'').replace(/\\/g,'/');
+  }
+
+  function scopeRecordSetToSource(recordSet,file,format,prefix=''){
+    const source=sourceIdentity(file)||String(file?.name||recordSet?.source||'');
+    const originalRows=recordSet?.rows||[];
+    const meta={...(recordSet?.meta||{}),format,sourceLeaf:String(file?.name||''),sourcePath:source};
+    let rows=originalRows;
+    if(meta.wordTaskRows){
+      rows=originalRows.map((row,rowIndex)=>{
+        const copy=[...(row||[])];
+        if(rowIndex>0&&copy.length>8)copy[8]=source;
+        return copy;
+      });
+      if(meta.rowMeta){
+        const next={};
+        for(const [key,value] of Object.entries(meta.rowMeta))next[key]={...(value||{}),sourceFile:source};
+        meta.rowMeta=next;
+      }
+    }
+    return new Core.NormalizedRecordSet({name:`${prefix}${recordSet?.name||file?.name||'内容'}`,rows,source,meta});
+  }
+
   function validPurpose(value){return Object.values(SOURCE_PURPOSES).includes(String(value||''))?String(value):'';}
   function recordSetText(recordSet,limit=24000){return (recordSet?.rows||[]).slice(0,160).flatMap(row=>row||[]).map(v=>String(v??'')).join('\n').slice(0,limit);}
   function containsEmail(value){return /[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i.test(String(value??''));}
@@ -229,8 +253,8 @@
     return dataset;
   }
   function directAttachmentFile(file){return DIRECT_ATTACHMENT_EXT.has(A.extOf(file?.name))&&A.extOf(file?.name)!=='zip';}
-  function attachmentRecordSet(file){return new Core.NormalizedRecordSet({name:`附件候选 · ${file?.name||'未命名文件'}`,rows:[['文件名','用途'],[file?.name||'','附件候选']],source:file?.name||'',meta:{kind:'asset',purposeOverride:SOURCE_PURPOSES.attachment}});}
-  function unreadableRecordSet(file,error){return new Core.NormalizedRecordSet({name:`暂不使用 · ${file?.name||'未命名文件'}`,rows:[['文件名','读取结果'],[file?.name||'',error?.message||'无法读取']],source:file?.name||'',meta:{kind:'unreadable',purposeOverride:SOURCE_PURPOSES.ignored}});}
+  function attachmentRecordSet(file){const source=sourceIdentity(file)||String(file?.name||'');return new Core.NormalizedRecordSet({name:`附件候选 · ${file?.name||'未命名文件'}`,rows:[['文件名','用途'],[file?.name||'','附件候选']],source,meta:{kind:'asset',sourceLeaf:String(file?.name||''),sourcePath:source,purposeOverride:SOURCE_PURPOSES.attachment}});}
+  function unreadableRecordSet(file,error){const source=sourceIdentity(file)||String(file?.name||'');return new Core.NormalizedRecordSet({name:`暂不使用 · ${file?.name||'未命名文件'}`,rows:[['文件名','读取结果'],[file?.name||'',error?.message||'无法读取']],source,meta:{kind:'unreadable',sourceLeaf:String(file?.name||''),sourcePath:source,purposeOverride:SOURCE_PURPOSES.ignored}});}
 
 
   function mergeWordTaskRecordSets(recordSets,{namePrefix='Word文档批次',source='multi-word',packageMode=false}={}){
@@ -251,7 +275,12 @@
         for(const meta of Object.values(rs.meta?.rowMeta||{})){if(Number(meta?.confidence)>0){confidenceTotal+=Number(meta.confidence);confidenceCount++;}}
       }
     }
-    for(let i=recordSets.length-1;i>=0;i--)if(candidates.includes(recordSets[i]))recordSets.splice(i,1);
+    // Keep the per-file record sets as source-specific shadows. The merged set is
+    // the execution view, while shadows remain the authoritative source for
+    // per-file preview/classification. This prevents one merged Word batch from
+    // making every file look like the first file and allows one file to be
+    // reclassified without changing the whole batch.
+    for(const rs of candidates)rs.meta={...(rs.meta||{}),taskShadow:true,mergedInto:source};
     const dataRows=rows.slice(1), mailScan=mailFrameCount?{blocks:scanBlocks,subjects:scanSubjects,salutations:scanSalutations,closings:scanClosings,emails:scanEmails,records:dataRows.length,complete:dataRows.filter(r=>String(r[1]||'').trim()&&String(r[2]||'').trim()&&String(r[3]||'').trim()).length,missingRecipients:dataRows.filter(r=>!String(r[1]||'').trim()).length,averageConfidence:confidenceCount?Math.round(confidenceTotal/confidenceCount):0}:null;
     recordSets.unshift(new Core.NormalizedRecordSet({name:`${namePrefix}（${rows.length-1} 条）`,rows,source,meta:{word:true,merged:true,wordTaskRows:true,preferred:true,package:packageMode,mailFrames:mailFrameCount>0,rowMeta,sourcePurpose:SOURCE_PURPOSES.mail,purposeConfidence:96,purposeReasons:['仅合并已确认为邮件的 Word 来源'],sourceMembers:[...new Set(candidates.flatMap(recordSetSources))],...(mailScan?{mailScan}: {})}}));
     return true;
@@ -283,7 +312,7 @@
         if(directAttachmentFile(file)){sourceFiles.push(file);formats.push('attachment');recordSets.push(attachmentRecordSet(file));continue;}
         try{
           const ds=await this.parseFile(file); formats.push(ds.format); sourceFiles.push(...(ds.sourceFiles||[file])); embeddedFiles.push(...(ds.embeddedFiles||[])); warnings.push(...(ds.warnings||[]));
-          for(const rs of ds.sheets||[]){const prefix=list.length>1?`${file.name} · `:'';recordSets.push(new Core.NormalizedRecordSet({name:`${prefix}${rs.name}`,rows:rs.rows,source:file.name,meta:{...(rs.meta||{}),format:ds.format}}));}
+          for(const rs of ds.sheets||[]){const prefix=list.length>1?`${file.name} · `:'';recordSets.push(scopeRecordSetToSource(rs,file,ds.format,prefix));}
         }catch(error){
           if(MATERIAL_NAME_RE.test(String(file?.name||''))){sourceFiles.push(file);formats.push('attachment');recordSets.push(attachmentRecordSet(file));warnings.push(`${file.name}: 无法解析文档内容，已保守放入附件候选（${error.message}）`);continue;}
           if(ignoreUnsupported||list.length>1){sourceFiles.push(file);formats.push('unreadable');recordSets.push(unreadableRecordSet(file,error));warnings.push(`${file.name}: 读取失败，已隔离为“暂不使用”，不影响其他来源（${error.message}）`);continue;}throw error;
@@ -349,7 +378,7 @@
   function resolveFiles(refs,index){const files=[],missing=[],ambiguous=[],details=[];for(const ref of refs||[]){const d=resolveOneFile(ref,index||buildFileIndex([]));details.push(d);if(d.status==='matched')files.push(d.file);else if(d.status==='missing')missing.push(ref);else ambiguous.push(ref);}return{files,missing,ambiguous,details};}
 
   globalThis.NMDAImporter={
-    version:'1.42.0', engine, UniversalImportEngine,
+    version:'1.45.0', engine, UniversalImportEngine,
     FIELD_DEFS:Core.FIELD_DEFS, normalizeHeader:Core.normalizeHeader, mappingForHeaders:Core.mappingForHeaders,
     detectHeader:Core.detectHeader, detectBestSheet:Core.detectBestSheet, detectBestRecordSet:Core.detectBestRecordSet, parseFile, parseFiles, parseDirectory,
     parseDateValue,formatLocalDateTime,createProfile,loadProfiles,saveProfile,deleteProfile,suggestProfile,
