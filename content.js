@@ -634,7 +634,7 @@
                 <section class="nmda-supplement-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-supplement-title">
                   <div class="nmda-supplement-head">
                     <div class="nmda-supplement-head-icon">✓</div>
-                    <div><span class="nmda-supplement-kicker">邮件已导入</span><h3 id="nmda-supplement-title">补充本批次资料</h3><p>现在一次准备好后续会用到的参考名单和附件；没有的项目可以直接跳过，之后仍可补充。</p></div>
+                    <div><span class="nmda-supplement-kicker">资料读取完成</span><h3 id="nmda-supplement-title">核验并准备本批次</h3><p>先确认系统对每个文件的用途判断，再补充参考总名单与附件。发现不对可在这里直接改，不必回到后续页面找纠错入口。</p></div>
                   </div>
                   <div class="nmda-supplement-grid">
                     <article class="nmda-supplement-box" id="nmda-preflight-roster-box" data-state="pending">
@@ -669,14 +669,43 @@
                         <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-preflight-attachment-skip" type="button">暂不添加</button>
                       </div>
                     </article>
-                    <details class="nmda-preflight-source-routing" id="nmda-preflight-source-routing">
-                      <summary><span><strong>检查资料分类</strong><small id="nmda-preflight-source-routing-summary">系统已区分邮件、总名单和附件</small></span><span class="nmda-preflight-source-routing-toggle">查看</span></summary>
-                      <div class="nmda-preflight-source-routing-list" id="nmda-preflight-source-routing-list"></div>
-                    </details>
+                    <section class="nmda-preflight-source-routing" id="nmda-preflight-source-routing">
+                      <div class="nmda-preflight-routing-head">
+                        <div class="nmda-preflight-routing-title">
+                          <span class="nmda-supplement-box-kicker">先核验自动识别</span>
+                          <strong>系统如何理解这批资料</strong>
+                          <small id="nmda-preflight-source-routing-summary">保留原目录结构，快速确认每个文件将被用于哪里。</small>
+                        </div>
+                        <div class="nmda-preflight-routing-chips" id="nmda-preflight-routing-chips"></div>
+                      </div>
+                      <div class="nmda-preflight-routing-tip"><span>✓</span><small>颜色代表用途；橙色提示表示证据不足或建议人工看一眼。直接改下拉框会立即重新整理本批次。</small></div>
+                      <div class="nmda-preflight-source-routing-list nmda-source-tree" id="nmda-preflight-source-routing-list"></div>
+                      <details class="nmda-source-inspector" id="nmda-ingest-diagnostics" hidden>
+                        <summary><span><strong id="nmda-source-inspector-title">单文件检查</strong><small id="nmda-source-inspector-copy">点击目录树中文件右侧的“检查”，查看解析内容与字段对应。</small></span><span class="nmda-source-inspector-toggle">展开</span></summary>
+                        <div class="nmda-diagnostics-grid">
+                          <div class="nmda-ingest-structure-card" id="nmda-structure-card" hidden>
+                            <div class="nmda-card-subtitle">这个文件被读出了什么</div>
+                            <div class="nmda-field"><span class="nmda-label">文件内内容</span><div id="nmda-collection-list" class="nmda-collection-list"></div></div>
+                            <label class="nmda-field" id="nmda-collection-field"><span class="nmda-label">当前内容</span><select id="nmda-collection-select"></select></label>
+                            <div id="nmda-structure-summary" class="nmda-structure-summary"></div>
+                            <div class="nmda-raw-preview-wrap"><div id="nmda-structure-preview" class="nmda-structure-preview"></div></div>
+                          </div>
+                          <div class="nmda-ingest-mapping-card" id="nmda-mapping-card" hidden>
+                            <div class="nmda-card-subtitle">邮件字段对应</div>
+                            <div id="nmda-header-info" class="nmda-hint nmda-semantic-detection"></div>
+                            <div id="nmda-semantic-summary" class="nmda-semantic-summary"></div>
+                            <div class="nmda-row nmda-wrap nmda-mapping-actions"><button class="nmda-btn nmda-btn-small" id="nmda-apply-profile" type="button" hidden>使用已有设置</button><button class="nmda-btn nmda-btn-small" id="nmda-save-profile" type="button" hidden>保存当前设置</button><button class="nmda-btn nmda-btn-small" id="nmda-toggle-mapping" type="button">调整对应内容</button></div>
+                            <div id="nmda-profile-info" class="nmda-hint"></div>
+                            <div id="nmda-mapping" class="nmda-mapping nmda-semantic-mapping" hidden></div>
+                          </div>
+                        </div>
+                      </details>
+                    </section>
+                    <div class="nmda-preflight-section-label"><span>随后补充批次资料</span><small>自动识别确认无误后，再准备参考总名单与附件。</small></div>
                   </div>
                   <div class="nmda-supplement-foot">
-                    <div><strong id="nmda-preflight-batch-summary">本批次已就绪</strong><small>未补充的资料不会丢失入口；需要时会在对应业务步骤再次提醒。</small></div>
-                    <button class="nmda-btn nmda-btn-primary" id="nmda-complete-supplement-preflight" type="button">完成准备，继续</button>
+                    <div><strong id="nmda-preflight-batch-summary">正在核验本批次</strong><small>确认自动识别即可继续；未补充的总名单或附件之后仍可随时添加。</small></div>
+                    <button class="nmda-btn nmda-btn-primary" id="nmda-complete-supplement-preflight" type="button">确认当前识别，继续</button>
                   </div>
                 </section>
               </div>
@@ -806,26 +835,6 @@
                 <details class="nmda-roster-details"><summary>查看核验详情</summary><div id="nmda-roster-audit-details" class="nmda-roster-audit-details"></div></details>
               </div>
 
-              <details class="nmda-card nmda-ingest-diagnostics" id="nmda-ingest-diagnostics" hidden>
-                <summary><span><strong>识别结果不对？</strong><small>需要时再调整来源和对应内容</small></span><span>展开</span></summary>
-                <div class="nmda-diagnostics-grid">
-                  <div class="nmda-ingest-structure-card" id="nmda-structure-card" hidden>
-                    <div class="nmda-card-subtitle">来源内容</div>
-                    <div class="nmda-field"><span class="nmda-label">本批次内容</span><div id="nmda-collection-list" class="nmda-collection-list"></div></div>
-                    <label class="nmda-field" id="nmda-collection-field"><span class="nmda-label">当前内容</span><select id="nmda-collection-select"></select></label>
-                    <div id="nmda-structure-summary" class="nmda-structure-summary"></div>
-                    <div class="nmda-raw-preview-wrap"><div id="nmda-structure-preview" class="nmda-structure-preview"></div></div>
-                  </div>
-                  <div class="nmda-ingest-mapping-card" id="nmda-mapping-card" hidden>
-                    <div class="nmda-card-subtitle">内容对应</div>
-                    <div id="nmda-header-info" class="nmda-hint nmda-semantic-detection"></div>
-                    <div id="nmda-semantic-summary" class="nmda-semantic-summary"></div>
-                    <div class="nmda-row nmda-wrap nmda-mapping-actions"><button class="nmda-btn nmda-btn-small" id="nmda-apply-profile" type="button" hidden>使用已有设置</button><button class="nmda-btn nmda-btn-small" id="nmda-save-profile" type="button" hidden>保存当前设置</button><button class="nmda-btn nmda-btn-small" id="nmda-toggle-mapping" type="button">调整对应内容</button></div>
-                    <div id="nmda-profile-info" class="nmda-hint"></div>
-                    <div id="nmda-mapping" class="nmda-mapping nmda-semantic-mapping" hidden></div>
-                  </div>
-                </div>
-              </details>
             </div>
 
             <div class="nmda-workflow-stage-separator" aria-hidden="true"></div>
@@ -1441,7 +1450,7 @@
     sessionId: 0, importBusy: false, schedulePlan: null,
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
     roster: emptyRosterState(), duplicateAudit:null,
-    handoffComplete: false, autoAdvancing: false, reviewFilter: 'pending', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, attachmentManagerOpen:false, ignoredAttachmentIdentities:new Set()
+    handoffComplete: false, autoAdvancing: false, reviewFilter: 'pending', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, attachmentManagerOpen:false, sourceInspectName:'', ignoredAttachmentIdentities:new Set()
   };
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), rosterFileEl = $('nmda-roster-file'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
@@ -1586,7 +1595,7 @@
   }
 
   function supplementPreflightNeedsDecision() {
-    return !!batch.dataset && !!(batch.tasks||[]).length && !batch.supplementPreflightDone;
+    return !!batch.dataset && !batch.supplementPreflightDone;
   }
 
   function attachmentRequirementRefs() {
@@ -1631,7 +1640,8 @@
 
   function setSourcePurpose(sourceName,purpose,fileName='') {
     if(!['mail','roster','attachment','ignored'].includes(purpose))return;
-    const related=sourceCollections(sourceName,fileName),primary=related.filter(({collection})=>!collection.meta?.supplemental),targets=primary.length?primary:related;
+    const resolvedFileName=fileName||String(sourceName||'').replace(/\\/g,'/').split('/').pop()||'';
+    const related=sourceCollections(sourceName,resolvedFileName),primary=related.filter(({collection})=>!collection.meta?.supplemental),targets=primary.length?primary:related;
     if(!targets.length)return;
     for(const {collection,index} of targets){
       const config=ensureCollectionConfig(index);if(!config)continue;
@@ -1645,7 +1655,7 @@
     rebuildTasks();
     renderSourceInventory();renderCollectionList();renderPreflightSourceRoles();renderAttachmentAssetViews();renderSupplementPreflight();
     const label={mail:'邮件',roster:'参考总名单',attachment:'附件',ignored:'暂不使用'}[purpose];
-    setImportStatus(`已将 ${fileName||sourceName} 调整为${label}，本批次结果已重新整理。`,'ok');
+    setImportStatus(`已将 ${resolvedFileName||sourceName} 调整为${label}，本批次结果已重新整理。`,'ok');
   }
 
   function sourcePurposeDecision(file) {
@@ -1654,7 +1664,10 @@
     const purpose=purposes.length===1?purposes[0]:'ignored';
     const confidence=Math.max(0,...items.map(({collection})=>Number(collection.meta?.purposeConfidence||0)));
     const reasons=[...new Set(items.flatMap(({collection})=>collection.meta?.purposeReasons||[]))];
-    return{sourceName,purpose,confidence,reasons,items};
+    const autoPurposes=[...new Set(items.map(({collection})=>String(collection.meta?.sourcePurpose||'')).filter(Boolean))];
+    const userConfirmed=items.some(({collection})=>!!collection.meta?.purposeOverride);
+    const needsReview=!userConfirmed&&(autoPurposes.includes('ambiguous')||confidence<70);
+    return{file,sourceName,purpose,confidence,reasons,items,needsReview,userConfirmed};
   }
 
   function roleConfidenceText(score) {
@@ -1666,19 +1679,71 @@
     return options.map(([value,label])=>`<option value="${value}" ${selected===value?'selected':''}>${label}</option>`).join('');
   }
 
+  function sourceRoleVisual(purpose,needsReview=false) {
+    if(needsReview)return{label:'待确认',icon:'?',tone:'review'};
+    return {
+      mail:{label:'邮件',icon:'✉',tone:'mail'},
+      roster:{label:'总名单',icon:'人',tone:'roster'},
+      attachment:{label:'附件',icon:'↗',tone:'attachment'},
+      ignored:{label:'暂不使用',icon:'—',tone:'ignored'}
+    }[purpose]||{label:'待确认',icon:'?',tone:'review'};
+  }
+
+  function buildSourceTree(decisions) {
+    const root={name:'',folders:new Map(),files:[]};
+    for(const decision of decisions){
+      const parts=String(decision.sourceName||'未命名来源').replace(/\\/g,'/').split('/').filter(Boolean);
+      const fileName=parts.pop()||'未命名来源';let node=root;
+      for(const part of parts){if(!node.folders.has(part))node.folders.set(part,{name:part,folders:new Map(),files:[]});node=node.folders.get(part);}
+      node.files.push({...decision,fileName});
+    }
+    return root;
+  }
+
+  function sourceTreeCount(node) {
+    let count=node.files.length;for(const child of node.folders.values())count+=sourceTreeCount(child);return count;
+  }
+
+  function sourceTreeHtml(node,depth=0) {
+    const folders=[...node.folders.values()].sort((a,b)=>a.name.localeCompare(b.name,'zh-CN'));
+    const files=[...node.files].sort((a,b)=>a.fileName.localeCompare(b.fileName,'zh-CN'));
+    const folderHtml=folders.map(folder=>`<details class="nmda-source-tree-folder" ${depth<2?'open':''}><summary><span class="nmda-tree-chevron">›</span><span class="nmda-tree-folder-icon">▰</span><strong title="${escapeHtml(folder.name)}">${escapeHtml(folder.name)}</strong><small>${sourceTreeCount(folder)} 项</small></summary><div class="nmda-source-tree-children">${sourceTreeHtml(folder,depth+1)}</div></details>`).join('');
+    const fileHtml=files.map(decision=>{
+      const visual=sourceRoleVisual(decision.purpose,decision.needsReview),reason=decision.reasons[0]||'未找到足够结构证据，当前未自动使用';
+      const status=decision.userConfirmed?'已人工确认':decision.needsReview?'建议检查':roleConfidenceText(decision.confidence);
+      return `<div class="nmda-preflight-source-role nmda-source-tree-file" data-purpose="${escapeHtml(decision.purpose)}" data-tone="${escapeHtml(visual.tone)}" data-review="${decision.needsReview?'1':'0'}"><span class="nmda-preflight-source-role-icon">${escapeHtml(visual.icon)}</span><button class="nmda-source-tree-file-main" type="button" data-inspect-source="${escapeHtml(encodeURIComponent(decision.sourceName))}" title="检查 ${escapeHtml(decision.sourceName)}"><strong>${escapeHtml(decision.fileName)}</strong><small><span class="nmda-source-status-dot"></span>${escapeHtml(visual.label)} · ${escapeHtml(status)} · ${escapeHtml(reason)}</small></button><label class="nmda-source-role-select"><span class="sr-only">资料用途</span><select data-preflight-source-purpose="${escapeHtml(encodeURIComponent(decision.sourceName))}">${sourcePurposeOptions(decision.purpose)}</select></label><button class="nmda-text-action nmda-source-check-action" type="button" data-inspect-source="${escapeHtml(encodeURIComponent(decision.sourceName))}">检查</button></div>`;
+    }).join('');
+    return folderHtml+fileHtml;
+  }
+
+  function inspectSourceInPreflight(sourceName) {
+    const related=sourceCollections(sourceName,String(sourceName||'').split('/').pop()||''),primary=related.filter(({collection})=>!collection.meta?.supplemental),items=primary.length?primary:related;
+    if(!items.length)return;
+    batch.sourceInspectName=sourceName;
+    const first=items.find(({index})=>ensureCollectionConfig(index)?.purpose==='mail')||items[0];
+    collectionSelectEl.innerHTML=items.map(({collection,index})=>{const config=ensureCollectionConfig(index),kind=collectionKind(collection,config?.purpose),detection=config?.detection||Importer.detectHeader(collection.rows||[]),records=Math.max(0,(collection.rows||[]).length-detection.index-1);return `<option value="${index}" ${index===first.index?'selected':''}>${escapeHtml(collection.name)} · ${escapeHtml(kind.label)} · ${records} 条</option>`;}).join('');
+    $('nmda-collection-field').hidden=items.length<=1;
+    configureCollection(first.index,false);
+    const inspector=$('nmda-ingest-diagnostics'),title=$('nmda-source-inspector-title'),copy=$('nmda-source-inspector-copy');
+    if(title)title.textContent=`单文件检查 · ${String(sourceName||'').split('/').pop()||sourceName}`;
+    if(copy)copy.textContent='这里只检查当前文件：先看读取内容；如果它是邮件，再核对收件人、主题、正文等字段对应。';
+    if(inspector){inspector.hidden=false;inspector.open=true;requestAnimationFrame(()=>inspector.scrollIntoView?.({behavior:'smooth',block:'nearest'}));}
+    renderPreflightSourceRoles();
+  }
+
   function renderPreflightSourceRoles() {
-    const details=$('nmda-preflight-source-routing'),list=$('nmda-preflight-source-routing-list'),summary=$('nmda-preflight-source-routing-summary');
+    const details=$('nmda-preflight-source-routing'),list=$('nmda-preflight-source-routing-list'),summary=$('nmda-preflight-source-routing-summary'),chips=$('nmda-preflight-routing-chips');
     if(!details||!list||!summary)return;
     const files=uniqueFiles(batch.dataset?.sourceFiles||[]),decisions=files.map(sourcePurposeDecision);
-    const counts={mail:0,roster:0,attachment:0,ignored:0};for(const decision of decisions)counts[decision.purpose]=(counts[decision.purpose]||0)+1;
-    const parts=[counts.mail?`${counts.mail} 个邮件来源`:'',counts.roster?`${counts.roster} 个总名单`:'',counts.attachment?`${counts.attachment} 个附件`:'',counts.ignored?`${counts.ignored} 个暂未使用`:''].filter(Boolean);
-    summary.textContent=parts.join(' · ')||'尚无可分类来源';
+    const counts={mail:0,roster:0,attachment:0,ignored:0,review:0};
+    for(const decision of decisions){if(decision.needsReview)counts.review++;else counts[decision.purpose]=(counts[decision.purpose]||0)+1;}
+    const parts=[counts.mail?`${counts.mail} 邮件`:'',counts.roster?`${counts.roster} 总名单`:'',counts.attachment?`${counts.attachment} 附件`:'',counts.ignored?`${counts.ignored} 暂不使用`:''].filter(Boolean);
+    summary.textContent=decisions.length?`${decisions.length} 个来源 · ${parts.join(' · ')||'尚未分类'}${counts.review?` · ${counts.review} 个建议检查`:''}`:'尚无可分类来源';
+    if(chips){const chip=(tone,label,count)=>count?`<span data-tone="${tone}"><i></i>${label} ${count}</span>`:'';chips.innerHTML=chip('mail','邮件',counts.mail)+chip('roster','名单',counts.roster)+chip('attachment','附件',counts.attachment)+chip('ignored','未使用',counts.ignored)+(counts.review?chip('review','待确认',counts.review):'');}
     details.hidden=!decisions.length;
-    list.innerHTML=decisions.map(decision=>{
-      const reason=decision.reasons[0]||'未找到足够结构证据，未自动使用';
-      return `<div class="nmda-preflight-source-role" data-purpose="${escapeHtml(decision.purpose)}"><span class="nmda-preflight-source-role-icon">${decision.purpose==='mail'?'✉':decision.purpose==='roster'?'人':decision.purpose==='attachment'?'↗':'—'}</span><span class="nmda-preflight-source-role-main"><strong title="${escapeHtml(decision.sourceName)}">${escapeHtml(decision.sourceName)}</strong><small>${escapeHtml(roleConfidenceText(decision.confidence))} · ${escapeHtml(reason)}</small></span><label><span class="sr-only">资料用途</span><select data-preflight-source-purpose="${escapeHtml(encodeURIComponent(decision.sourceName))}">${sourcePurposeOptions(decision.purpose)}</select></label></div>`;
-    }).join('');
-    list.querySelectorAll('[data-preflight-source-purpose]').forEach(select=>select.addEventListener('change',()=>setSourcePurpose(decodeURIComponent(select.dataset.preflightSourcePurpose||''),select.value)));
+    list.innerHTML=decisions.length?sourceTreeHtml(buildSourceTree(decisions)):'<div class="nmda-source-tree-empty">没有可核验的来源。</div>';
+    list.querySelectorAll('[data-preflight-source-purpose]').forEach(select=>select.addEventListener('change',event=>{event.stopPropagation();setSourcePurpose(decodeURIComponent(select.dataset.preflightSourcePurpose||''),select.value);}));
+    list.querySelectorAll('[data-inspect-source]').forEach(button=>button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();inspectSourceInPreflight(decodeURIComponent(button.dataset.inspectSource||''));}));
   }
 
   function attachmentAssetRowsHtml(entries,{compact=false}={}) {
@@ -1746,11 +1811,19 @@
 
   function renderSupplementPreflight() {
     const overlay=$('nmda-supplement-preflight');if(!overlay)return;
-    const hasBatch=!!batch.dataset&&!!(batch.tasks||[]).length;
+    const hasBatch=!!batch.dataset;
     const visible=hasBatch&&(!!batch.supplementPreflightOpen||supplementPreflightNeedsDecision());
     overlay.hidden=!visible;overlay.setAttribute('aria-hidden',visible?'false':'true');syncModalState();
     renderBatchPrepStrip();
     if(!hasBatch)return;
+    const sourceDecisions=uniqueFiles(batch.dataset?.sourceFiles||[]).map(sourcePurposeDecision),reviewCount=sourceDecisions.filter(item=>item.needsReview).length,taskCount=(batch.tasks||[]).length;
+    const headIcon=$('nmda-supplement-preflight')?.querySelector('.nmda-supplement-head-icon'),kicker=$('nmda-supplement-preflight')?.querySelector('.nmda-supplement-kicker'),title=$('nmda-supplement-title');
+    if(headIcon){const attention=!taskCount||reviewCount>0;headIcon.dataset.state=attention?'review':'ok';headIcon.textContent=attention?'!':'✓';}
+    if(kicker)kicker.textContent=!taskCount?'需要核验':'资料读取完成';
+    if(title)title.textContent=!taskCount?'先核验自动识别':'核验并准备本批次';
+    const supplementLabel=$('nmda-preflight-source-routing')?.parentElement?.querySelector('.nmda-preflight-section-label'),rosterBox=$('nmda-preflight-roster-box'),attachmentBox=$('nmda-preflight-attachment-box');
+    if(supplementLabel)supplementLabel.hidden=!taskCount;if(rosterBox)rosterBox.hidden=!taskCount;if(attachmentBox)attachmentBox.hidden=!taskCount;
+    const completeButton=$('nmda-complete-supplement-preflight');if(completeButton)completeButton.textContent=!taskCount?(reviewCount?`完成核验（${reviewCount} 个待确认）`:'完成核验'):reviewCount?`确认当前识别，继续（${reviewCount} 个待确认）`:'确认当前识别，继续';
     const rState=rosterContextState(),rCount=referenceRosterCount();
     const rBox=$('nmda-preflight-roster-box'),rTitle=$('nmda-preflight-roster-title'),rCopy=$('nmda-preflight-roster-copy'),rStatus=$('nmda-preflight-roster-status'),rSkip=$('nmda-preflight-roster-skip');
     if(rBox)rBox.dataset.state=rState;
@@ -1771,11 +1844,11 @@
     if(aSkip){aSkip.hidden=!!aCount;aSkip.textContent=aState==='skipped'?'已跳过':'暂不添加';}
     renderAttachmentAssetViews();
     renderPreflightSourceRoles();
-    const batchSummary=$('nmda-preflight-batch-summary');if(batchSummary)batchSummary.textContent=`已导入 ${(batch.tasks||[]).length} 封邮件 · 批次资料可现在一次准备`;
+    const batchSummary=$('nmda-preflight-batch-summary');if(batchSummary){const fileCount=uniqueFiles(batch.dataset?.sourceFiles||[]).length||1,currentTaskCount=(batch.tasks||[]).length,reviewCount=uniqueFiles(batch.dataset?.sourceFiles||[]).map(sourcePurposeDecision).filter(item=>item.needsReview).length;batchSummary.textContent=currentTaskCount?`已读取 ${fileCount} 个文件 · 当前形成 ${currentTaskCount} 封邮件${reviewCount?` · ${reviewCount} 个来源建议检查`:''}`:`已读取 ${fileCount} 个文件 · 当前尚未形成邮件，请先核验自动识别`;}
   }
 
   function openSupplementPreflight() {
-    if(!batch.dataset||!(batch.tasks||[]).length)return;batch.supplementPreflightOpen=true;renderSupplementPreflight();
+    if(!batch.dataset)return;batch.supplementPreflightOpen=true;renderSupplementPreflight();
   }
 
   function completeSupplementPreflight() {
@@ -1786,7 +1859,9 @@
     renderImportLifecycleState();scheduleBatchRender({aux:true,force:true});
     const mailPending=typeof reviewTasks==='function'?reviewTasks().length:0;
     const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{issues:0};
-    setImportStatus(mailPending||stats.issues?'批次资料已准备。现在继续处理邮件与附件待办。':'批次资料已准备，正在进入选择与安排。','ok');
+    const hasTasks=!!(batch.tasks||[]).length;
+    setImportStatus(!hasTasks?'核验已完成，但当前仍没有可创建邮件。可继续调整资料用途或追加邮件资料。':mailPending||stats.issues?'批次资料已准备。现在继续处理邮件与附件待办。':'批次资料已准备，正在进入选择与安排。',!hasTasks?'warn':'ok');
+    if(!hasTasks)return;
     if(mailPending||stats.issues)requestAnimationFrame(()=>$('nmda-ingest-result-card')?.scrollIntoView?.({behavior:'smooth',block:'start'}));
     else setTimeout(()=>void enterSelectionAndSchedule('批次资料已准备'),0);
   }
@@ -2020,7 +2095,9 @@
     const box = $('nmda-collection-list');
     if (!box) return;
     const sets = recordSets();
-    box.innerHTML = sets.map((collection, index) => {
+    const focus=String(batch.sourceInspectName||'');
+    const visible=sets.map((collection,index)=>({collection,index})).filter(({collection})=>!focus||collectionMatchesSource(collection,focus,focus.split('/').pop()||''));
+    box.innerHTML = visible.map(({collection,index}) => {
       const config = ensureCollectionConfig(index);
       const kind = collectionKind(collection,config?.purpose);
       const detection = config?.detection || Importer.detectHeader(collection.rows || []);
@@ -2029,27 +2106,22 @@
       const scan = collection.meta?.mailScan;
       const detail = config?.purpose==='mail'&&collection.meta?.mailFrames && scan
         ? `${kind.label} · ${scan.records || count} 封 · ${scan.complete || 0} 可用 · ${scan.missingRecipients || 0} 待补邮箱`
-        : `${kind.label} · ${count} 条记录${collection.meta?.sourcePurpose==='ambiguous'&&config?.purpose==='ignored'?' · 不影响本批次':''}`;
+        : `${kind.label} · ${count} 条记录${collection.meta?.sourcePurpose==='ambiguous'&&config?.purpose==='ignored'?' · 自动识别未采用':''}`;
       const option=(value,label)=>`<option value="${value}" ${config?.purpose===value?'selected':''}>${label}</option>`;
-      return `<div class="nmda-collection-row ${active ? 'is-active' : ''}" data-purpose="${escapeHtml(config?.purpose||'ignored')}"><span class="nmda-collection-kind">${escapeHtml(kind.icon)}</span><span class="nmda-collection-main"><strong>${escapeHtml(collection.name || `内容 ${index + 1}`)}</strong><small>${escapeHtml(detail)}</small></span><label class="nmda-source-purpose-control"><span class="sr-only">资料用途</span><select data-source-purpose="${index}">${option('mail','作为邮件')}${option('roster','作为总名单')}${option('attachment','作为附件候选')}${option('ignored','暂不使用')}</select></label><button type="button" class="nmda-btn nmda-btn-small" data-inspect-collection="${index}">${active ? '正在查看' : '查看'}</button></div>`;
-    }).join('');
+      const purposeControl=focus?'':`<label class="nmda-source-purpose-control"><span class="sr-only">资料用途</span><select data-source-purpose="${index}">${option('mail','作为邮件')}${option('roster','作为总名单')}${option('attachment','作为附件候选')}${option('ignored','暂不使用')}</select></label>`;
+      return `<div class="nmda-collection-row ${active ? 'is-active' : ''}" data-purpose="${escapeHtml(config?.purpose||'ignored')}"><span class="nmda-collection-kind">${escapeHtml(kind.icon)}</span><span class="nmda-collection-main"><strong>${escapeHtml(collection.name || `内容 ${index + 1}`)}</strong><small>${escapeHtml(detail)}</small></span>${purposeControl}<button type="button" class="nmda-btn nmda-btn-small" data-inspect-collection="${index}">${active ? '正在查看' : '查看'}</button></div>`;
+    }).join('')||'<div class="nmda-empty-inline">这个文件没有可展开的结构化内容。</div>';
     box.querySelectorAll('[data-source-purpose]').forEach(input => input.addEventListener('change', () => {
       const index = Number(input.dataset.sourcePurpose);
       const config = ensureCollectionConfig(index);
       if (!config) return;
       config.purpose=input.value;config.enabled=config.purpose==='mail';
       batch.handoffComplete=false;
-      syncRoutedSources();
-      refreshFileIndex(false);
-      configureCollection(index,false);
-      renderSourceInventory();
-      renderCollectionList();
+      syncRoutedSources();refreshFileIndex(false);configureCollection(index,false);renderSourceInventory();renderCollectionList();renderPreflightSourceRoles();
     }));
-    box.querySelectorAll('[data-inspect-collection]').forEach(button => button.addEventListener('click', async () => {
+    box.querySelectorAll('[data-inspect-collection]').forEach(button => button.addEventListener('click', () => {
       const index = Number(button.dataset.inspectCollection);
-      collectionSelectEl.value = String(index);
-      configureCollection(index, false);
-      renderCollectionList();
+      collectionSelectEl.value = String(index);configureCollection(index, false);renderCollectionList();
     }));
   }
 
@@ -4033,7 +4105,7 @@
     batch.reviewFilter='pending';
     batch.reviewSearch='';
     batch.attachmentAttentionShown=false;
-    batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.attachmentPrepChoice='pending';
+    batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.attachmentPrepChoice='pending';batch.sourceInspectName='';
     closeImportTaskEditor();
     batch.directoryFiles = []; batch.taskFiles = uniqueFiles(dataset?.embeddedFiles || []); batch.routedAttachmentFiles=[]; batch.sharedFiles = []; batch.attachmentOverrides.clear(); batch.ignoredAttachmentIdentities=new Set(); batch.attachmentManagerOpen=false;
     batch.fileIndex = Importer.buildFileIndex(batch.taskFiles);
@@ -4057,7 +4129,7 @@
     $('nmda-collection-field').hidden = sets.length <= 1;
     $('nmda-structure-card').hidden = false;
     $('nmda-mapping-card').hidden = false;
-    $('nmda-ingest-diagnostics').hidden = false;
+    $('nmda-ingest-diagnostics').hidden = true;
     $('nmda-ingest-result-card').hidden = false;
     $('nmda-attachments-card').hidden = false;
     configureCollection(bestIndex, false);
@@ -4073,10 +4145,10 @@
     $('nmda-import-format-info').textContent = `已加入 ${sourceCount} 个文件 · ${batch.tasks.length} 封邮件${referenceRosterCount()?` · 参考名单 ${referenceRosterCount()} 条`:''}`;
     setImportStatus(routedCounts.mail
       ? `邮件已加入本批次。${referenceRosterCount()?'参考总名单已参与核对。':'有参考总名单可现在补充；没有可直接继续。'}`
-      : `没有识别到可创建的邮件。请检查导入内容，或打开“识别结果不对？”调整。`,
+      : `当前没有识别到可创建的邮件。已打开自动识别核验，请在目录树中检查文件用途并直接纠正。`,
       routedCounts.mail?'ok':'warn');
     renderImportLifecycleState();
-    if(routedCounts.mail&&batch.tasks.length){batch.supplementPreflightOpen=true;renderSupplementPreflight();}
+    batch.supplementPreflightOpen=true;renderSupplementPreflight();
     if(!routedCounts.mail||!batch.tasks.length)setBatchStatus('当前没有生成邮件任务；非邮件资料不会占用任务数或阻塞后续流程。','warn');
     else setBatchStatus(`已准备 ${batch.tasks.length} 封邮件。${(batch.tasks||[]).some(taskHasBlockingIssue)?'完成必要待办后会自动进入下一步。':'内容已就绪，正在进入选择与安排。'}`, 'ok');
     if(batch.tasks.length){
@@ -4114,7 +4186,7 @@
     batch.rosterPromptChoice='idle';
     batch.attachmentPromptDeferred=false;
     batch.attachmentPrepChoice='idle';
-    batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;
+    batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.sourceInspectName='';
     batch.fileIndex = Importer.buildFileIndex([]);
     batch.profileSuggestion = null;
     batch.stopRequested = false;

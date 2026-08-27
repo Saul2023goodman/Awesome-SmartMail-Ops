@@ -3985,3 +3985,319 @@
   .nmda-scheduler-policy-row { align-items:stretch; flex-direction:column; }
   .nmda-scheduler-holiday-toggle { flex:1 1 auto; width:100%; }
 }
+
+/* v1.41 · Import Verification — verify automatic source routing where it happens. */
+.nmda-supplement-dialog {
+  width:min(960px,calc(100% - 8px)) !important;
+}
+.nmda-supplement-grid {
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.nmda-preflight-source-routing {
+  grid-column:1 / -1;
+  order:-3;
+  overflow:hidden;
+  border:1px solid #d6e0ec;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(31,35,40,.03);
+}
+.nmda-preflight-section-label {
+  grid-column:1 / -1;
+  order:-2;
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  margin:2px 0 -2px;
+  padding:0 2px;
+}
+.nmda-preflight-section-label > span {
+  color:#24292f;
+  font-size:9.5px;
+  font-weight:780;
+}
+.nmda-preflight-section-label > small {
+  color:#8c959f;
+  font-size:8px;
+}
+.nmda-preflight-routing-head {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  padding:13px 14px 10px;
+  background:linear-gradient(180deg,#fbfdff 0%,#fff 100%);
+}
+.nmda-preflight-routing-title {
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.nmda-preflight-routing-title > strong {
+  color:#1f2328;
+  font-size:11px;
+  line-height:1.4;
+}
+.nmda-preflight-routing-title > small {
+  color:#667085;
+  font-size:8.3px;
+  line-height:1.45;
+}
+.nmda-preflight-routing-chips {
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:5px;
+  flex-wrap:wrap;
+  max-width:46%;
+}
+.nmda-preflight-routing-chips span {
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  min-height:22px;
+  padding:3px 7px;
+  border:1px solid #d8dee6;
+  border-radius:999px;
+  background:#fff;
+  color:#57606a;
+  font-size:7.6px;
+  font-weight:720;
+  white-space:nowrap;
+}
+.nmda-preflight-routing-chips i {
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#8c959f;
+}
+.nmda-preflight-routing-chips span[data-tone="mail"] { border-color:#bfd7f5; background:#f6faff; color:#0969da; }
+.nmda-preflight-routing-chips span[data-tone="mail"] i { background:#0969da; }
+.nmda-preflight-routing-chips span[data-tone="roster"] { border-color:#d7c7f4; background:#fbf9ff; color:#8250df; }
+.nmda-preflight-routing-chips span[data-tone="roster"] i { background:#8250df; }
+.nmda-preflight-routing-chips span[data-tone="attachment"] { border-color:#efd391; background:#fffaf0; color:#8a5b00; }
+.nmda-preflight-routing-chips span[data-tone="attachment"] i { background:#bf8700; }
+.nmda-preflight-routing-chips span[data-tone="ignored"] { background:#f6f8fa; color:#6e7781; }
+.nmda-preflight-routing-chips span[data-tone="ignored"] i { background:#8c959f; }
+.nmda-preflight-routing-chips span[data-tone="review"] { border-color:#f2c69a; background:#fff8f2; color:#bc4c00; }
+.nmda-preflight-routing-chips span[data-tone="review"] i { background:#d97706; }
+.nmda-preflight-routing-tip {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0 12px 9px;
+  padding:6px 8px;
+  border-radius:7px;
+  background:#f6f8fa;
+  color:#667085;
+}
+.nmda-preflight-routing-tip > span {
+  flex:0 0 auto;
+  width:16px;
+  height:16px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#e7f0fb;
+  color:#0969da;
+  font-size:8px;
+  font-weight:850;
+}
+.nmda-preflight-routing-tip small { font-size:7.7px; line-height:1.45; }
+
+/* Preserve the selected folder hierarchy. No inner vertical scrollbar: the dialog owns scrolling. */
+.nmda-preflight-source-routing-list.nmda-source-tree {
+  display:block;
+  border-top:1px solid #edf1f5;
+  background:#fff;
+}
+.nmda-source-tree-folder {
+  border-bottom:1px solid #f0f3f6;
+}
+.nmda-source-tree-folder:last-child { border-bottom:0; }
+.nmda-source-tree-folder > summary {
+  list-style:none;
+  display:grid;
+  grid-template-columns:14px 20px minmax(0,1fr) auto;
+  align-items:center;
+  gap:5px;
+  min-height:34px;
+  padding:5px 10px;
+  cursor:pointer;
+  background:#fbfcfe;
+  user-select:none;
+}
+.nmda-source-tree-folder > summary::-webkit-details-marker { display:none; }
+.nmda-source-tree-folder > summary:hover { background:#f6f9fc; }
+.nmda-tree-chevron {
+  width:14px;
+  color:#8c959f;
+  font-size:13px;
+  line-height:1;
+  text-align:center;
+  transform:rotate(0deg);
+  transition:transform .14s ease;
+}
+.nmda-source-tree-folder[open] > summary .nmda-tree-chevron { transform:rotate(90deg); }
+.nmda-tree-folder-icon {
+  width:20px;
+  height:20px;
+  display:grid;
+  place-items:center;
+  border-radius:5px;
+  background:#edf3fa;
+  color:#57606a;
+  font-size:8px;
+}
+.nmda-source-tree-folder > summary strong {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#3d444d;
+  font-size:8.8px;
+}
+.nmda-source-tree-folder > summary small { color:#8c959f; font-size:7.5px; }
+.nmda-source-tree-children {
+  margin-left:20px;
+  border-left:1px solid #e6ebf0;
+}
+.nmda-source-tree-file {
+  position:relative;
+  grid-template-columns:27px minmax(0,1fr) auto auto;
+  gap:8px;
+  min-height:45px;
+  padding:7px 10px 7px 9px;
+  border-bottom:1px solid #f0f3f6;
+  background:#fff;
+}
+.nmda-source-tree-file:last-child { border-bottom:0; }
+.nmda-source-tree-file:hover { background:#fbfdff; }
+.nmda-source-tree-file[data-review="1"] {
+  background:#fffaf5;
+  box-shadow:inset 3px 0 0 #d97706;
+}
+.nmda-source-tree-file .nmda-preflight-source-role-icon {
+  width:27px;
+  height:27px;
+  border-radius:7px;
+  background:#eef5ff;
+  color:#0969da;
+  font-size:9px;
+}
+.nmda-source-tree-file[data-tone="roster"] .nmda-preflight-source-role-icon { background:#f3edff; color:#8250df; }
+.nmda-source-tree-file[data-tone="attachment"] .nmda-preflight-source-role-icon { background:#fff3d6; color:#8a5b00; }
+.nmda-source-tree-file[data-tone="ignored"] .nmda-preflight-source-role-icon { background:#f1f3f5; color:#6e7781; }
+.nmda-source-tree-file[data-tone="review"] .nmda-preflight-source-role-icon { background:#ffead7; color:#bc4c00; }
+.nmda-source-tree-file-main {
+  min-width:0;
+  display:grid;
+  gap:2px;
+  padding:0;
+  border:0;
+  background:transparent;
+  text-align:left;
+  cursor:pointer;
+}
+.nmda-source-tree-file-main strong,
+.nmda-source-tree-file-main small {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.nmda-source-tree-file-main strong { color:#24292f; font:720 8.9px/1.35 system-ui,sans-serif; }
+.nmda-source-tree-file-main small { color:#7d8590; font:500 7.5px/1.35 system-ui,sans-serif; }
+.nmda-source-status-dot {
+  display:inline-block;
+  width:5px;
+  height:5px;
+  margin-right:4px;
+  border-radius:50%;
+  vertical-align:1px;
+  background:#0969da;
+}
+.nmda-source-tree-file[data-tone="roster"] .nmda-source-status-dot { background:#8250df; }
+.nmda-source-tree-file[data-tone="attachment"] .nmda-source-status-dot { background:#bf8700; }
+.nmda-source-tree-file[data-tone="ignored"] .nmda-source-status-dot { background:#8c959f; }
+.nmda-source-tree-file[data-tone="review"] .nmda-source-status-dot { background:#d97706; }
+.nmda-source-role-select select {
+  height:29px;
+  min-width:92px;
+  max-width:112px;
+  border:1px solid #d0d7de;
+  border-radius:7px;
+  background:#fff;
+  color:#3d444d;
+  padding:0 21px 0 7px;
+  font-size:7.8px;
+}
+.nmda-source-tree-file[data-tone="mail"] .nmda-source-role-select select { border-color:#c8dcf4; }
+.nmda-source-tree-file[data-tone="roster"] .nmda-source-role-select select { border-color:#d9cbf0; }
+.nmda-source-tree-file[data-tone="attachment"] .nmda-source-role-select select { border-color:#ead49c; }
+.nmda-source-tree-file[data-tone="review"] .nmda-source-role-select select { border-color:#efbf8f; }
+.nmda-source-check-action { min-width:34px; }
+.nmda-source-tree-empty { padding:20px; color:#8c959f; font-size:8.5px; text-align:center; }
+
+/* Single-file inspector lives directly under the source tree instead of later in the workflow. */
+.nmda-source-inspector {
+  border-top:1px solid #dfe5ec;
+  background:#fbfcfe;
+}
+.nmda-source-inspector > summary {
+  list-style:none;
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:8px 12px;
+  cursor:pointer;
+  background:#f7f9fc;
+}
+.nmda-source-inspector > summary::-webkit-details-marker { display:none; }
+.nmda-source-inspector > summary > span:first-child { min-width:0; display:grid; gap:2px; }
+.nmda-source-inspector > summary strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#24292f; font-size:9px; }
+.nmda-source-inspector > summary small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#7d8590; font-size:7.7px; }
+.nmda-source-inspector-toggle { color:#0969da; font-size:7.7px; font-weight:720; }
+.nmda-source-inspector[open] .nmda-source-inspector-toggle { font-size:0; }
+.nmda-source-inspector[open] .nmda-source-inspector-toggle::after { content:'收起'; font-size:7.7px; }
+.nmda-source-inspector .nmda-diagnostics-grid {
+  grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);
+  gap:12px;
+  padding:12px;
+  border-top:1px solid #e4e9ef;
+  background:#fff;
+}
+.nmda-source-inspector .nmda-diagnostics-grid > div {
+  min-width:0;
+  padding:0;
+}
+.nmda-source-inspector .nmda-collection-list {
+  max-height:none;
+  overflow:visible;
+}
+.nmda-source-inspector .nmda-structure-preview {
+  max-height:220px;
+  overflow:auto;
+}
+.nmda-source-inspector .nmda-collection-row {
+  grid-template-columns:28px minmax(0,1fr) auto;
+}
+.nmda-source-inspector .nmda-collection-row .nmda-source-purpose-control { display:none; }
+
+.nmda-supplement-head-icon[data-state="review"] { background:#fff0df; color:#bc4c00; }
+.nmda-supplement-head-icon[data-state="ok"] { background:#dafbe1; color:#1a7f37; }
+
+@media (max-width:760px) {
+  .nmda-supplement-grid { grid-template-columns:1fr; }
+  .nmda-preflight-routing-head { display:grid; gap:8px; }
+  .nmda-preflight-routing-chips { max-width:none; justify-content:flex-start; }
+  .nmda-source-tree-file { grid-template-columns:27px minmax(0,1fr) auto; }
+  .nmda-source-role-select { grid-column:2 / 3; }
+  .nmda-source-check-action { grid-column:3; grid-row:1 / span 2; }
+  .nmda-source-inspector .nmda-diagnostics-grid { grid-template-columns:1fr; }
+  .nmda-preflight-section-label { display:grid; gap:2px; }
+}
+.nmda-supplement-box[hidden],
+.nmda-preflight-section-label[hidden] { display:none !important; }
