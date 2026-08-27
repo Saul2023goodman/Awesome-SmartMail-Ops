@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "1.39.0",
-  "description": "网易邮箱网页版草稿工作台：支持资料角色分流、手动附件直接发送、参考总名单交叉核验、同校优先级排程与节假日/周末避让；只保存草稿，不自动发送。",
+  "version": "1.21.0",
+  "description": "网易邮箱网页版草稿工作台：按邮件结构定位收件人、主题、称呼、正文、结束语、署名及尾部资料，减少错位与内容串入；只保存草稿，不自动发送。",
   "permissions": [
     "storage",
     "scripting"

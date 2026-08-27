@@ -315,34 +315,7 @@
   function resolveTarget(base,target){if(String(target||'').startsWith('/'))return String(target).replace(/^\/+/, '');const p=base.split('/');p.pop();for(const part of String(target||'').split('/')){if(!part||part==='.')continue;if(part==='..')p.pop();else p.push(part);}return p.join('/');}
   function columnIndex(ref){const letters=String(ref||'').match(/^[A-Z]+/i)?.[0]?.toUpperCase()||'';let n=0;for(const ch of letters)n=n*26+ch.charCodeAt(0)-64;return Math.max(0,n-1);}
   function parseSharedStrings(doc){return doc?els(doc,'si').map(si=>els(si,'t').map(t=>t.textContent||'').join('')):[];}
-  function parseWorksheet(doc,shared){
-    const rows=[];
-    for(const rowEl of els(doc,'row')){
-      const rn=Number(rowEl.getAttribute('r'))||rows.length+1,row=[];
-      for(const c of els(rowEl,'c')){
-        const col=columnIndex(c.getAttribute('r')),type=c.getAttribute('t')||'',v=first(c,'v')?.textContent??'';let value=v;
-        if(type==='s')value=shared[Number(v)]??'';
-        else if(type==='inlineStr')value=els(c,'t').map(t=>t.textContent||'').join('');
-        else if(type==='b')value=v==='1';
-        else if(type==='n'||!type){const n=Number(v);value=v!==''&&Number.isFinite(n)?n:v;}
-        row[col]=value;
-      }
-      while(rows.length<rn-1)rows.push([]);rows[rn-1]=row;
-    }
-    // Excel stores a merged range's value only in its top-left cell. Vertical
-    // merges are commonly used for one university spanning several supervisors;
-    // expand that hierarchy before semantic detection so downstream logic sees
-    // the institution on every record. Horizontal header merges stay untouched.
-    for(const merge of els(doc,'mergeCell')){
-      const ref=String(merge.getAttribute('ref')||''),parts=ref.split(':');if(parts.length!==2)continue;
-      const a=parts[0].match(/^([A-Z]+)(\d+)$/i),b=parts[1].match(/^([A-Z]+)(\d+)$/i);if(!a||!b)continue;
-      const c1=columnIndex(a[1]),c2=columnIndex(b[1]),r1=Number(a[2])-1,r2=Number(b[2])-1;
-      if(c1!==c2||r2<=r1)continue;
-      const value=rows[r1]?.[c1];if(value==null||String(value).trim()==='')continue;
-      for(let rowIndex=r1+1;rowIndex<=r2;rowIndex++){if(!rows[rowIndex])rows[rowIndex]=[];if(rows[rowIndex][c1]==null||String(rows[rowIndex][c1]).trim()==='')rows[rowIndex][c1]=value;}
-    }
-    return Core.normalizeRows(rows);
-  }
+  function parseWorksheet(doc,shared){const rows=[];for(const rowEl of els(doc,'row')){const rn=Number(rowEl.getAttribute('r'))||rows.length+1,row=[];for(const c of els(rowEl,'c')){const col=columnIndex(c.getAttribute('r')),type=c.getAttribute('t')||'',v=first(c,'v')?.textContent??'';let value=v;if(type==='s')value=shared[Number(v)]??'';else if(type==='inlineStr')value=els(c,'t').map(t=>t.textContent||'').join('');else if(type==='b')value=v==='1';else if(type==='n'||!type){const n=Number(v);value=v!==''&&Number.isFinite(n)?n:v;}row[col]=value;}while(rows.length<rn-1)rows.push([]);rows[rn-1]=row;}return Core.normalizeRows(rows);}
   function xmlEntry(entries,path,required=true){const bytes=entries.get(path.replace(/^\/+/,''));if(!bytes){if(!required)return null;throw new Error(`文件缺少：${path}`);}return xmlFromBytes(bytes,path);}
   async function parseXlsx(buffer){const entries=await unzip(buffer), wb=xmlEntry(entries,'xl/workbook.xml'), rels=xmlEntry(entries,'xl/_rels/workbook.xml.rels'), shared=parseSharedStrings(xmlEntry(entries,'xl/sharedStrings.xml',false)), relMap=new Map();for(const rel of els(rels,'Relationship'))relMap.set(rel.getAttribute('Id'),rel.getAttribute('Target'));const sheets=[];for(const sh of els(wb,'sheet')){const name=sh.getAttribute('name')||`Sheet${sheets.length+1}`,rid=sh.getAttribute('r:id')||attrLocal(sh,'id'),target=relMap.get(rid);if(!target)continue;const path=resolveTarget('xl/workbook.xml',target);sheets.push({name,rows:parseWorksheet(xmlEntry(entries,path),shared)});}if(!sheets.length)throw new Error('XLSX 中没有可读取的工作表。');return {sheets,entries};}
   async function parseOdsZip(buffer){const entries=await unzip(buffer), content=entries.get('content.xml');if(!content)throw new Error('ODS 缺少 content.xml。');return {sheets:parseOdsDocument(xmlFromBytes(content,'ODS content.xml')),entries};}

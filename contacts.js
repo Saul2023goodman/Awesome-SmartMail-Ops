@@ -57,7 +57,7 @@
     const text = String(raw || '');
     const results = [];
     const seen = new Set();
-    const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}(?![A-Z0-9.-])/ig;
+    const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig;
     let match;
     while ((match = emailRegex.exec(text))) {
       const email = normalizeEmail(match[0]);

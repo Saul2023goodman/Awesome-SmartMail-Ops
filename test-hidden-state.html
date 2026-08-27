@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="content.css">
+<div id="nmda-panel" style="position:static;width:900px;height:auto;">
+  <div id="test-card" class="nmda-card nmda-batch-empty" hidden>SHOULD_BE_HIDDEN</div>
+  <div id="test-visible" class="nmda-card">VISIBLE</div>
+</div>
+<script>
+const hiddenDisplay=getComputedStyle(document.getElementById('test-card')).display;
+document.getElementById('test-card').removeAttribute('hidden');
+const shownDisplay=getComputedStyle(document.getElementById('test-card')).display;
+document.body.setAttribute('data-result',hiddenDisplay+'|'+shownDisplay);
+document.body.insertAdjacentHTML('beforeend','<pre id="result">'+hiddenDisplay+'|'+shownDisplay+'</pre>');
+</script>
