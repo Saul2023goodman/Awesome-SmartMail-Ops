@@ -731,9 +731,9 @@
             <div class="nmda-batch-empty" id="nmda-batch-empty" hidden><button id="nmda-go-import" type="button" hidden>回到准备区</button></div>
 
             <div class="nmda-card nmda-list-card" id="nmda-preview-card" hidden>
-              <div class="nmda-card-head nmda-list-head"><div><div><div class="nmda-card-title">选择邮件</div><div class="nmda-card-desc">勾选本次要创建的邮件；时间可在表格中直接修改。</div></div></div><div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div></div>
+              <div class="nmda-card-head nmda-list-head"><div><div><div class="nmda-card-title">选择邮件</div><div class="nmda-card-desc">确认本次要创建的草稿和发送时间。</div></div></div><div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div></div>
               <div class="nmda-task-toolbar">
-                <label class="nmda-search-field"><input id="nmda-batch-search" type="search" placeholder="搜索收件人、学校或主题"></label>
+                <label class="nmda-search-field"><input id="nmda-batch-search" type="search" placeholder="搜索收件人或主题"></label>
                 <label class="nmda-compact-select"><span>联系状态</span><select id="nmda-batch-stage-filter"><option value="">全部</option><option value="未联系">未联系</option><option value="已发送">已发送</option><option value="已回复">已回复</option></select></label>
                 <button class="nmda-btn nmda-btn-small" id="nmda-bulk-enable" type="button">选择当前结果</button>
                 <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-clear-selection" type="button">清空选择</button>
@@ -745,10 +745,11 @@
                 <summary><span><strong>自动安排时间</strong><small id="nmda-schedule-summary"></small></span><span id="nmda-scheduler-toggle-label">收起</span></summary>
                 <div class="nmda-scheduler-grid">
                   <label class="nmda-field"><span class="nmda-label">开始时间</span><input id="nmda-rule-start-at" type="datetime-local"></label>
-                  <label class="nmda-field"><span class="nmda-label">同校每轮最多</span><input id="nmda-rule-max-school" type="number" min="1" max="20" step="1" value="1"></label>
+                  <label class="nmda-field"><span class="nmda-label">每所院校每轮最多</span><input id="nmda-rule-max-school" type="number" min="1" max="20" step="1" value="1"></label>
                   <label class="nmda-field"><span class="nmda-label">间隔</span><div class="nmda-input-suffix"><input id="nmda-rule-interval-days" type="number" min="1" max="365" step="1" value="7"><span>天</span></div></label>
                   <label class="nmda-check-card"><input id="nmda-rule-preserve-existing" type="checkbox" checked><span><strong>保留已有时间</strong></span></label>
                 </div>
+                <div class="nmda-scheduler-purpose-note">院校信息只用于避免同校联系过于集中；识别不到时会自动保守错峰，不影响邮件内容。</div>
                 <div class="nmda-scheduler-actions">
                   <div id="nmda-schedule-rule-preview" class="nmda-schedule-rule-preview">同校每 7 天最多 1 位。</div>
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-clear-auto-schedule" type="button">清除自动时间</button>
@@ -756,7 +757,7 @@
                 </div>
               </details>
 
-              <div class="nmda-table-wrap nmda-batch-table-wrap"><table class="nmda-table nmda-batch-table"><thead><tr><th>选择</th><th>收件人</th><th>学校</th><th>主题</th><th>时间</th><th>状态</th></tr></thead><tbody id="nmda-preview-body"></tbody></table></div>
+              <div class="nmda-table-wrap nmda-batch-table-wrap"><table class="nmda-table nmda-batch-table"><thead><tr><th>选择</th><th>收件人</th><th>主题</th><th>发送时间</th><th>结果</th></tr></thead><tbody id="nmda-preview-body"></tbody></table></div>
             </div>
 
             <div class="nmda-card nmda-run-card" id="nmda-run-card" hidden>
@@ -1379,14 +1380,6 @@
       renderScheduleCenter();
       // Only rebuild visible rows if an active search could depend on "未选择/可执行".
       if(String(batchSearchEl?.value||'').trim())scheduleBatchRender({aux:false});
-      return;
-    }
-    if(input.dataset.taskSchool){
-      const task=batch.tasks.find(item=>item.editKey===input.dataset.taskSchool);if(!task)return;
-      setTaskEdit(task,{school:input.value});
-      // School affects roster matching and auto-schedule grouping, so this is a
-      // real structural change rather than a cosmetic table edit.
-      rebuildTasks();
       return;
     }
     if(input.dataset.taskSchedule){
@@ -2581,11 +2574,14 @@
       task.rosterReference=match.entry?{...match.entry}:null;
       task.rosterEmailCandidate=match.emailCandidate||'';
       task.rosterIssues=[];
+      if(match.status==='conflict'&&match.entry?.school){
+        task.scheduleGroupNotice=`院校信息不一致，排程已使用总名单中的“${match.entry.school}”`;
+        if(state.autoSchool){task.school=match.entry.school;task.schoolSource='roster';}
+      }
       if(match.schoolSupplement && state.autoSchool && match.entry?.school && !task.school){
         task.school=match.entry.school;task.schoolSource='roster';task.rosterSchoolSupplemented=true;
       }
       if(!edit.rosterConfirmed){
-        if(match.status==='conflict')task.rosterIssues.push(`总名单院校冲突：当前“${task.school||'未填写'}” / 总名单“${match.entry?.school||'未填写'}”`);
         if(match.status==='ambiguous')task.rosterIssues.push('总名单中找到多条相似记录，请检查联系人');
         if(match.status==='off-roster' && state.strict)task.rosterIssues.push('当前邮件未在总套磁名单中找到对应导师');
       }
@@ -2629,18 +2625,20 @@
       return;
     }
     const x=audit.summary;
-    if(summary)summary.innerHTML=`<div class="nmda-import-metric"><strong>${x.roster}</strong><span>总名单</span></div><div class="nmda-import-metric"><strong>${x.tasks}</strong><span>当前邮件</span></div><div class="nmda-import-metric"><strong>${x.matched}</strong><span>已匹配</span></div><div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>尚未撰写</span></div><div class="nmda-import-metric ${x.offRoster?'is-warn':''}"><strong>${x.offRoster}</strong><span>名单外</span></div><div class="nmda-import-metric ${(x.ambiguous+x.conflicts+x.duplicates)?'is-warn':''}"><strong>${x.ambiguous+x.conflicts+x.duplicates}</strong><span>待核对</span></div>`;
-    if(note)note.innerHTML=`已补充 <strong>${x.schoolSupplements}</strong> 条学校信息${x.emailCandidates?`，并为 <strong>${x.emailCandidates}</strong> 封缺邮箱邮件找到候选地址`:''}。总名单中尚未撰写的联系人不会影响本批次。`;
+    if(summary)summary.innerHTML=`<div class="nmda-import-metric"><strong>${x.roster}</strong><span>总名单</span></div><div class="nmda-import-metric"><strong>${x.tasks}</strong><span>当前邮件</span></div><div class="nmda-import-metric"><strong>${x.matched}</strong><span>已匹配</span></div><div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>尚未撰写</span></div><div class="nmda-import-metric ${x.offRoster?'is-warn':''}"><strong>${x.offRoster}</strong><span>名单外</span></div><div class="nmda-import-metric ${(x.ambiguous+x.duplicates)?'is-warn':''}"><strong>${x.ambiguous+x.duplicates}</strong><span>待核对</span></div>`;
+    if(note)note.innerHTML=`已为排程补充 <strong>${x.schoolSupplements}</strong> 条院校信息${x.conflicts?`，${x.conflicts} 条院校差异已使用总名单`:''}${x.emailCandidates?`，并为 <strong>${x.emailCandidates}</strong> 封缺邮箱邮件找到候选地址`:''}。院校只影响自动错峰，不影响邮件内容或草稿创建。`;
     if(details){
       const off=(audit.matches||[]).filter(m=>m.status==='off-roster').slice(0,12);
-      const conflicts=(audit.matches||[]).filter(m=>m.status==='conflict'||m.status==='ambiguous').slice(0,12);
+      const ambiguities=(audit.matches||[]).filter(m=>m.status==='ambiguous').slice(0,12);
+      const scheduleDiffs=(audit.matches||[]).filter(m=>m.status==='conflict').slice(0,12);
       const unwritten=(audit.unwritten||[]).slice(0,12);
       const dups=(audit.duplicateMatches||[]).slice(0,8);
       const section=(title,items,render,more=0)=>`<div class="nmda-roster-diff-section"><strong>${escapeHtml(title)}</strong>${items.length?`<div>${items.map(render).join('')}</div>`:'<small>无</small>'}${more>items.length?`<small>另有 ${more-items.length} 条未展开</small>`:''}</div>`;
       details.innerHTML=
         section('尚未加入本批次',unwritten,e=>`<span>${escapeHtml(rosterEntryLabel(e))}${e.batch?` · ${escapeHtml(e.batch)}`:''}</span>`,audit.unwritten?.length||0)+
         section('不在总名单',off,m=>`<span>${escapeHtml(m.task?.id||m.task?.recipients||'邮件')} · ${escapeHtml(m.task?.recipients||'')}</span>`,(audit.matches||[]).filter(m=>m.status==='off-roster').length)+
-        section('需要核对',conflicts,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → ${escapeHtml(m.status==='ambiguous'?'多个总名单候选':rosterEntryLabel(m.entry))}</span>`,(audit.matches||[]).filter(m=>m.status==='conflict'||m.status==='ambiguous').length)+
+        section('需要核对',ambiguities,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → 多个总名单候选</span>`,(audit.matches||[]).filter(m=>m.status==='ambiguous').length)+
+        section('排程参考（不影响邮件）',scheduleDiffs,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → ${escapeHtml(rosterEntryLabel(m.entry))}</span>`,(audit.matches||[]).filter(m=>m.status==='conflict').length)+
         section('可能重复',dups,d=>`<span>${escapeHtml(rosterEntryLabel(d.entry))} · ${d.matches?.length||0} 封邮件</span>`,audit.duplicateMatches?.length||0);
     }
   }
@@ -2694,7 +2692,7 @@
         if (edit.importExcluded === true) continue;
         const rowMeta = collection.meta?.rowMeta?.[rowIndex] || null;
         const sourceRecipients = String(getValue(row, 'recipients') ?? '').trim();
-        const sourceSchool = String(getValue(row, 'school') ?? rowMeta?.school ?? '').trim();
+        const sourceSchoolRaw = String(getValue(row, 'school') ?? rowMeta?.school ?? '').trim();
         const sourceSubject = String(getValue(row, 'subject') ?? '').trim();
         const sourceBodyRaw = String(getValue(row, 'body') ?? '');
         const sourceBody = collection.meta?.mailFrames&&MailRecognizer?.sanitizeRecognizedBody
@@ -2704,7 +2702,10 @@
         const sourceScheduleRaw = getValue(row, 'scheduleAt');
         const sourceTags = getValue(row, 'tags');
         const recipients = String(edit.recipients != null ? edit.recipients : sourceRecipients).trim();
-        const school = String(edit.school != null ? edit.school : sourceSchool).trim();
+        const schoolSource=edit.school!=null?'manual':(sourceSchoolRaw?(collection.meta?.mailFrames?'recognized':'imported'):'');
+        const schoolRaw=String(edit.school != null ? edit.school : sourceSchoolRaw).trim();
+        const schoolEvidence=Scheduler?.institutionEvidence?.(schoolRaw,recipients,schoolSource)||{valid:!!schoolRaw&&!/^[A-Z0-9]$/i.test(schoolRaw),value:schoolRaw};
+        const school=schoolEvidence.valid?String(schoolEvidence.value||schoolRaw).trim():'';
         const subject = String(edit.subject != null ? edit.subject : sourceSubject).trim();
         const body = String(edit.body != null ? edit.body : sourceBody);
         const attachmentRaw = edit.attachments != null ? edit.attachments : sourceAttachmentRaw;
@@ -2761,7 +2762,7 @@
         ].join(' '));
         tasks.push({
           id, rowIndex, collectionIndex, collectionName: collection.name || `内容 ${collectionIndex + 1}`, sourceFile: rowMeta?.sourceFile || collection.source || '',
-          editKey, sourceRow: rowIndex + 1, recipients, school, schoolSource: edit.school != null ? 'manual' : (sourceSchool ? (collection.meta?.mailFrames ? 'recognized' : 'imported') : ''), subject, body, attachmentRefs,
+          editKey, sourceRow: rowIndex + 1, recipients, school, schoolSource:school?schoolSource:'', ignoredSchool:schoolRaw&&!school?schoolRaw:'', subject, body, attachmentRefs,
           tags: importedTags,
           enabled: policyBlocked ? false : edit.enabled !== false,
           policyBlocked, policyReasons: gate.reasons,
@@ -2903,11 +2904,11 @@
     const rules=batch.scheduleRules||freshScheduleRules();
     const audit=Scheduler.audit?.(selected,rules)||{conflicts:[]};
     const conflictCount=audit.conflicts?.length||0;
-    if(scheduleSummaryEl)scheduleSummaryEl.innerHTML=`<strong>${selected.length}</strong> 已选 · <strong>${groups.size}</strong> 组 · 自动 ${auto} · 已有 ${protectedCount} · 待排 ${unscheduled}${conflictCount?` · <span class="nmda-danger">冲突 ${conflictCount}</span>`:''}`;
+    if(scheduleSummaryEl)scheduleSummaryEl.innerHTML=`<strong>${selected.length}</strong> 已选 · 自动 ${auto} · 已有 ${protectedCount} · 待排 ${unscheduled}${conflictCount?` · <span class="nmda-danger">时间冲突 ${conflictCount}</span>`:''}`;
     if(scheduleRulePreviewEl){
       const fallbackText='';
       const conflictText=conflictCount?` · ${conflictCount} 个时间冲突需要调整`:'';
-      scheduleRulePreviewEl.textContent=`当前规则：同校每轮最多 ${rules.maxPerGroupPerRound||1} 位 · 间隔 ${rules.intervalDays||7} 天${conflictText}`;
+      scheduleRulePreviewEl.textContent=`当前规则：每所院校每轮最多 ${rules.maxPerGroupPerRound||1} 位 · 间隔 ${rules.intervalDays||7} 天${conflictText}`;
     }
     if(scheduleApplyEl){scheduleApplyEl.disabled=batch.running||!selected.length;scheduleApplyEl.textContent=auto||unscheduled?'应用安排':'重新安排';}
     if(scheduleClearEl)scheduleClearEl.disabled=batch.running||!tasks.some(t=>t.scheduleSource==='auto'&&t.scheduleAt);
@@ -2925,9 +2926,9 @@
       batch.schedulePlan=plan;
       rebuildTasks();
       const s=plan.summary, audit=Scheduler.audit?.(batch.tasks||[],rules)||{conflicts:[]};
-      const fallback=s.fallbackGroups?`；${s.fallbackGroups} 个分组未识别学校，已按邮箱分组`:'';
+      const fallback=s.fallbackGroups?`；${s.fallbackGroups} 封未确认院校的邮件已保守错峰，不需要补填`:'';
       const conflict=audit.conflicts?.length?`；保留的已有时间仍有 ${audit.conflicts.length} 个规则冲突，请手工调整或关闭“保留已有定时”后重排`:'';
-      setBatchStatus(`时间已安排：${s.selected} 封任务，${s.groups} 个学校/分组，自动安排 ${s.auto} 封，保留已有 ${s.preserved} 封，共 ${s.rounds} 轮${fallback}${conflict}。`,audit.conflicts?.length?'warn':'ok');
+      setBatchStatus(`时间已安排：${s.selected} 封邮件，自动安排 ${s.auto} 封，保留已有 ${s.preserved} 封，共 ${s.rounds} 轮${fallback}${conflict}。`,audit.conflicts?.length?'warn':'ok');
     }catch(error){setBatchStatus(`安排时间失败：${error.message}`,'error');}
   }
 
@@ -2986,7 +2987,6 @@
     const snapshot=renderBatchSummaryControls(tasks);
     previewBodyEl.innerHTML=matched.slice(0,150).map(task=>{
       const contactState=taskContactSnapshot(task).state;
-      const schoolHtml=`<input class="nmda-table-school-input" data-task-school="${escapeHtml(task.editKey)}" value="${escapeHtml(task.school||'')}" placeholder="学校 / 机构" ${batch.running?'disabled':''}>`;
       const sourceLabel=scheduleSourceLabel(task);
       const scheduleHtml=`<div class="nmda-schedule-edit-cell"><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}" ${batch.running?'disabled':''}><small>${escapeHtml(sourceLabel)}</small></div>`;
       const statusText=statusLabel(task);
@@ -2994,14 +2994,13 @@
       return `<tr data-task-row="${escapeHtml(task.editKey)}" data-status="${task.status}" data-enabled="${task.enabled?'1':'0'}">
         <td><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''} ${batch.running||task.policyBlocked||task.status==='running'||task.status==='done'?'disabled':''} title="${escapeHtml(task.policyBlocked?statusLabel(task):'')}"></td>
         <td class="nmda-recipient-cell" title="${escapeHtml(task.recipients)}"><strong>${escapeHtml(task.recipients||'—')}</strong><small>${escapeHtml(contactState.stage||'')}</small></td>
-        <td>${schoolHtml}</td>
         <td class="nmda-subject-cell" title="${escapeHtml(task.subject)}">${escapeHtml(task.subject||'—')}</td>
         <td>${scheduleHtml}</td>
         <td class="nmda-task-state-cell" title="${escapeHtml(statusText)}">${escapeHtml(statusText)}${fileText}</td>
       </tr>`;
     }).join('');
-    if(!matched.length)previewBodyEl.innerHTML='<tr><td colspan="6">没有匹配的邮件。调整搜索条件后再试。</td></tr>';
-    else if(matched.length>150)previewBodyEl.insertAdjacentHTML('beforeend',`<tr><td colspan="6">当前只显示前 150 封，共 ${matched.length} 封。</td></tr>`);
+    if(!matched.length)previewBodyEl.innerHTML='<tr><td colspan="5">没有匹配的邮件。调整搜索条件后再试。</td></tr>';
+    else if(matched.length>150)previewBodyEl.insertAdjacentHTML('beforeend',`<tr><td colspan="5">当前只显示前 150 封，共 ${matched.length} 封。</td></tr>`);
 
     const hasTasks=batch.handoffComplete&&tasks.length>0;
     const emptyCard=$('nmda-batch-empty');

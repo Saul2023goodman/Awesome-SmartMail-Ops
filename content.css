@@ -1489,6 +1489,23 @@
 .nmda-review-load-more { width:calc(100% - 16px); margin:8px; min-height:30px; border:1px solid #dbe4f0; border-radius:8px; background:#f8fafc; color:#64748b; font:700 8.5px/1 system-ui,sans-serif; cursor:pointer; }
 .nmda-review-load-more:hover { background:#f1f5f9; color:#334155; }
 
+/* v1.23 — keep the decision table focused on user actions; institution is schedule metadata. */
+.nmda-scheduler-purpose-note {
+  margin:7px 0 0;
+  padding:7px 9px;
+  border-radius:8px;
+  background:#f8fafc;
+  color:#64748b;
+  font-size:8px;
+  line-height:1.45;
+}
+.nmda-batch-table { min-width:820px; table-layout:fixed; }
+.nmda-batch-table th:nth-child(1),.nmda-batch-table td:nth-child(1) { width:46px; text-align:center; }
+.nmda-batch-table th:nth-child(2),.nmda-batch-table td:nth-child(2) { width:225px; }
+.nmda-batch-table th:nth-child(3),.nmda-batch-table td:nth-child(3) { width:auto; }
+.nmda-batch-table th:nth-child(4),.nmda-batch-table td:nth-child(4) { width:190px; }
+.nmda-batch-table th:nth-child(5),.nmda-batch-table td:nth-child(5) { width:125px; }
+
 
 /* v1.17 — full-content review + context-aware assistance */
 /* The mail itself is the content: avoid nested viewport-sized scrolling inside review. */

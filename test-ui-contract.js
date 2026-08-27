@@ -30,14 +30,16 @@ const schedulerStart=batchHtml.indexOf('id="nmda-scheduler-card"');
 const previewCardEnd=batchHtml.indexOf('id="nmda-run-card"');
 if(!(previewCardStart>=0 && schedulerStart>previewCardStart && schedulerStart<previewCardEnd)) throw new Error('automatic scheduling must be folded into selection card');
 if(!batchHtml.includes('id="nmda-scheduler-card" hidden open')) throw new Error('automatic scheduling should default open when selection stage becomes available');
-if(!batchHtml.includes('<th>选择</th><th>收件人</th><th>学校</th><th>主题</th><th>时间</th><th>状态</th>')) throw new Error('batch table should use the compact six-column decision layout');
+if(!batchHtml.includes('<th>选择</th><th>收件人</th><th>主题</th><th>发送时间</th><th>结果</th>')) throw new Error('batch table should use the five-column user decision layout');
+if(batchHtml.includes('<th>学校</th>')||js.includes('data-task-school')) throw new Error('institution is schedule metadata and must not remain a primary editable table column');
+if(!batchHtml.includes('院校信息只用于避免同校联系过于集中')) throw new Error('schedule purpose should be explained in user-facing language');
 
 for(const tech of ['质量门','自动复核','机器先','人工确认','EXCEPTION REVIEW','MAILBOX STATE','CONTACT BOOK','识别诊断与高级映射']) {
   if(html.includes(tech)) throw new Error(`technical / internal copy leaked into primary UI: ${tech}`);
 }
 
 if(!/\.nmda-bulk-workbench > \.nmda-process-guide[\s\S]*?position:sticky/.test(css)) throw new Error('right sticky workflow rail missing');
-if(!/\.nmda-batch-table\s*\{[^}]*min-width:930px/.test(css)) throw new Error('compact batch table width contract missing');
+if(!/v1\.23[\s\S]*?\.nmda-batch-table\s*\{[^}]*min-width:820px/.test(css)) throw new Error('five-column batch table width contract missing');
 if(!/\.nmda-run-card\s*\{[\s\S]*?position:static\s*!important/.test(css)) throw new Error('final action card must not overlap content as a sticky layer');
 if(!/v1\.19[\s\S]*?\.nmda-review-edit-pane[\s\S]*?grid-row:1\s*!important/.test(css)) throw new Error('editable mail must be the primary review pane');
 if(!/\.nmda-review-core-fields textarea[\s\S]*?overflow:hidden/.test(css)) throw new Error('review body should auto-grow instead of adding nested scrolling');
