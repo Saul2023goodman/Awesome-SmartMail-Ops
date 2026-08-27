@@ -3894,3 +3894,16 @@
   .nmda-supplement-foot,.nmda-attachment-manager-foot { align-items:stretch; flex-direction:column; }
   #nmda-complete-supplement-preflight { width:100%; }
 }
+
+/* v1.36 · Default-to-all scope and exception-only filtering. */
+.nmda-scope-tools { margin:0 12px 9px; border:1px solid #d8dee4; border-radius:9px; background:#f8fafc; overflow:hidden; }
+.nmda-scope-tools > summary { min-height:42px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; cursor:pointer; list-style:none; }
+.nmda-scope-tools > summary::-webkit-details-marker { display:none; }
+.nmda-scope-tools > summary > span:first-child { min-width:0; display:grid; gap:2px; }
+.nmda-scope-tools > summary strong { color:#3d444d; font-size:9.5px; }
+.nmda-scope-tools > summary small { color:#6e7781; font-size:8px; line-height:1.4; }
+.nmda-scope-toggle { color:#0969da; font-size:8.5px; font-weight:750; }
+.nmda-scope-tools[open] .nmda-scope-toggle { font-size:0; }
+.nmda-scope-tools[open] .nmda-scope-toggle::after { content:'收起'; font-size:8.5px; }
+.nmda-scope-tools .nmda-task-toolbar { padding:9px 10px 10px; border-top:1px solid #eaeef2; background:#fff; }
+.nmda-list-card > .nmda-card-head { padding-bottom:9px; }

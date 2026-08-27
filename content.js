@@ -826,18 +826,21 @@
 
             <div class="nmda-workflow-stage-separator" aria-hidden="true"></div>
             <div class="nmda-workflow-stage-head" id="nmda-stage-execute" hidden>
-              <span class="nmda-stage-number">03</span><div><strong>选择与安排</strong><small>勾选本次要创建的邮件；需要时自动安排时间。</small></div>
+              <span class="nmda-stage-number">03</span><div><strong>确认与安排</strong><small>默认创建全部可用邮件；需要时再筛选或排除。</small></div>
             </div>
             <div class="nmda-batch-empty" id="nmda-batch-empty" hidden><button id="nmda-go-import" type="button" hidden>回到准备区</button></div>
 
             <div class="nmda-card nmda-list-card" id="nmda-preview-card" hidden>
-              <div class="nmda-card-head nmda-list-head"><div><div><div class="nmda-card-title">选择邮件</div><div class="nmda-card-desc">确认本次要创建的草稿和发送时间。</div></div></div><div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div></div>
-              <div class="nmda-task-toolbar">
+              <div class="nmda-card-head nmda-list-head"><div><div><div class="nmda-card-title">确认本次邮件</div><div class="nmda-card-desc">可创建邮件已默认纳入；只需检查排期，或排除暂不处理的邮件。</div></div></div><div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div></div>
+              <details class="nmda-scope-tools" id="nmda-scope-tools">
+                <summary><span><strong>筛选与排除</strong><small>仅在分批创建、查找或跳过个别邮件时使用</small></span><span class="nmda-scope-toggle">展开</span></summary>
+                <div class="nmda-task-toolbar">
                 <label class="nmda-search-field"><input id="nmda-batch-search" type="search" placeholder="搜索收件人或主题"></label>
                 <label class="nmda-compact-select"><span>联系状态</span><select id="nmda-batch-stage-filter"><option value="">全部</option><option value="未联系">未联系</option><option value="已发送">已发送</option><option value="已回复">已回复</option></select></label>
-                <button class="nmda-btn nmda-btn-small" id="nmda-bulk-enable" type="button">选择当前结果</button>
-                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-clear-selection" type="button">清空选择</button>
-              </div>
+                  <button class="nmda-btn nmda-btn-small" id="nmda-bulk-enable" type="button">纳入筛选结果</button>
+                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-clear-selection" type="button">排除全部</button>
+                </div>
+              </details>
               <input id="nmda-batch-tag-include" type="hidden"><button id="nmda-clear-tag-filter" type="button" hidden></button><div id="nmda-batch-tag-chips" hidden></div>
               <input id="nmda-bulk-tag-value" type="hidden"><button id="nmda-bulk-add-tag" type="button" hidden></button><button id="nmda-bulk-remove-tag" type="button" hidden></button><button id="nmda-bulk-disable" type="button" hidden></button>
 
@@ -1328,8 +1331,8 @@
         if(!small) return;
         if(step===1) small.textContent=!hasSource?'先导入邮件':contextPending?'补总名单 / 附件':'批次资料已准备';
         if(step===2) small.textContent=!hasSource?'添加资料后处理':contextPending?'先完成批次准备':blockers?`${blockers} 项待办`:'待办已完成';
-        if(step===3) small.textContent=blockers?'先完成待办':selected?`已选 ${selected} 封${scheduled?` · 定时 ${scheduled}`:''}`:'选择本次邮件';
-        if(step===4) small.textContent=creating?`${completed} 封已开始处理`:!unlocked?'选择邮件后可创建':`已可创建 ${selected} 封`;
+        if(step===3) small.textContent=blockers?'先完成待办':selected?`已纳入 ${selected} 封${scheduled?` · 定时 ${scheduled}`:''}`:'暂无可创建邮件';
+        if(step===4) small.textContent=creating?`${completed} 封已开始处理`:!unlocked?'确认邮件后可创建':`已可创建 ${selected} 封`;
       });
     });
   }
@@ -3243,6 +3246,18 @@
     return { files: uniqueFiles(files), missing, ambiguous, details };
   }
 
+  function actionableAttachmentRefs(refs) {
+    const nonRequirements=/^(?:https?:\/\/|www\.|source|sources|reference|references|profile|homepage|website|link|url|来源|参考资料|导师主页|教授主页|学校主页|网页链接)$/iu;
+    return (refs||[]).map(ref=>String(ref||'').trim()).filter(ref=>{
+      if(!ref||nonRequirements.test(ref))return false;
+      if(/^(?:https?:\/\/|www\.)/iu.test(ref)){
+        const clean=ref.split(/[?#]/)[0];
+        return /\.(?:pdf|docx?|xlsx?|pptx?|zip|rar)$/iu.test(clean);
+      }
+      return true;
+    });
+  }
+
   function emptyRosterState(overrides={}) {
     return {dataset:null,entries:[],manualEntries:[],routedEntries:[],audit:null,warnings:[],manualWarnings:[],routedWarnings:[],enabled:true,autoSchool:true,strict:false,sourceNames:[],manualSourceNames:[],routedSourceNames:[],...overrides};
   }
@@ -3524,7 +3539,8 @@
         const subject = String(edit.subject != null ? edit.subject : sourceSubject).trim();
         const body = String(edit.body != null ? edit.body : sourceBody);
         const attachmentRaw = edit.attachments != null ? edit.attachments : sourceAttachmentRaw;
-        const attachmentRefs = Importer.splitAttachments(attachmentRaw);
+        const rawAttachmentRefs = Importer.splitAttachments(attachmentRaw);
+        const attachmentRefs = actionableAttachmentRefs(rawAttachmentRefs);
         const scheduleRaw = edit.scheduleAt != null ? edit.scheduleAt : sourceScheduleRaw;
         const scheduleSource = String(edit.scheduleSource || (String(sourceScheduleRaw ?? '').trim() ? 'imported' : '')).trim();
         const importedTags = parseTaskClassifications(edit.tags != null ? edit.tags : sourceTags);
@@ -3577,7 +3593,7 @@
         ].join(' '));
         tasks.push({
           id, rowIndex, collectionIndex, collectionName: collection.name || `内容 ${collectionIndex + 1}`, sourceFile: rowMeta?.sourceFile || collection.source || '',
-          editKey, sourceRow: rowIndex + 1, recipients, school, schoolSource:school?schoolSource:'', ignoredSchool:schoolRaw&&!school?schoolRaw:'', subject, body, attachmentRefs,
+          editKey, sourceRow: rowIndex + 1, recipients, school, schoolSource:school?schoolSource:'', ignoredSchool:schoolRaw&&!school?schoolRaw:'', subject, body, attachmentRefs, ignoredAttachmentRefs:rawAttachmentRefs.filter(ref=>!attachmentRefs.includes(ref)),
           tags: importedTags,
           enabled: policyBlocked ? false : edit.enabled !== false,
           policyBlocked, policyReasons: gate.reasons,
@@ -3774,7 +3790,7 @@
   }
 
   function renderBatchSummaryControls(tasks = batch.tasks || [], snapshot = batchSummarySnapshot(tasks)) {
-    const summaryParts=[`共 <strong>${tasks.length}</strong> 封`,`已选 <strong>${snapshot.selectedTotal}</strong>`,`可创建 <strong>${snapshot.selectedReady}</strong>`];
+    const summaryParts=[`共 <strong>${tasks.length}</strong> 封`,`本次 <strong>${snapshot.selectedTotal}</strong>`,`可创建 <strong>${snapshot.selectedReady}</strong>`];
     if(snapshot.selectedScheduled)summaryParts.push(`定时 ${snapshot.selectedScheduled}`);
     if(snapshot.errors)summaryParts.push(`<span class="nmda-danger">异常 ${snapshot.errors}</span>`);
     if(snapshot.done)summaryParts.push(`已完成 ${snapshot.done}`);
@@ -3786,7 +3802,7 @@
       const selected=(tasks||[]).filter(task=>task.enabled&&task.status==='ready');
       const fileCount=selected.reduce((sum,task)=>sum+(task.files?.length||0),0);
       const excluded=typeof excludedImportCount==='function'?excludedImportCount():0;
-      const facts=[`已选 ${snapshot.selectedReady} 封`,snapshot.selectedScheduled?`定时 ${snapshot.selectedScheduled} 封`:'普通草稿',fileCount?`附件 ${fileCount} 份`:'无附件',excluded?`已排除 ${excluded} 封`:''].filter(Boolean);
+      const facts=[`本次 ${snapshot.selectedReady} 封`,snapshot.selectedScheduled?`定时 ${snapshot.selectedScheduled} 封`:'普通草稿',fileCount?`附件 ${fileCount} 份`:'无附件',excluded?`已排除 ${excluded} 封`:''].filter(Boolean);
       preflight.innerHTML=`<span>${facts.map(item=>`<em>${escapeHtml(item)}</em>`).join('')}</span>${fileCount?'<button class="nmda-text-action" type="button" data-open-attachment-manager>查看附件</button>':''}<strong>只创建 / 保存草稿，不自动发送</strong>`;
     }
     return snapshot;
@@ -4421,7 +4437,7 @@
         setTaskEdit(task, { tags: parseTaskClassifications(task.tags || []).filter(tag => !remove.has(tag.toLocaleLowerCase('zh-CN'))) }); affected++;
       }
     }
-    const actionText = { enable: '选择当前结果', disable: '取消当前结果', addTag: `添加标记“${tagsText(parsed)}”`, removeTag: `移除标记“${tagsText(parsed)}”` }[kind];
+    const actionText = { enable: '纳入筛选结果', disable: '排除筛选结果', addTag: `添加标记“${tagsText(parsed)}”`, removeTag: `移除标记“${tagsText(parsed)}”` }[kind];
     const skippedText = blockedSkipped ? `；另有 ${blockedSkipped} 封受联系策略拦截，无法选择` : '';
     setBatchStatus(`已对 ${affected} 封任务执行：${actionText}${skippedText}。`, blockedSkipped ? 'warn' : 'ok');
     scheduleBatchRender({aux:false});
@@ -4437,7 +4453,7 @@
       if (task.status === 'running' || task.status === 'done' || !task.enabled) continue;
       setTaskEdit(task, { enabled: false }); affected++;
     }
-    setBatchStatus(`已清空选择：取消 ${affected} 封任务。`, 'ok');
+    setBatchStatus(`已排除 ${affected} 封任务；可逐封重新纳入，或使用“纳入筛选结果”。`, 'ok');
     scheduleBatchRender({aux:false});
   });
   $('nmda-clear-tag-filter').addEventListener('click', () => {
