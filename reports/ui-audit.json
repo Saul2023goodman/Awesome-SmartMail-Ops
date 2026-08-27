@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "static": {
     "ok": true,
     "checks": [
@@ -75,6 +75,7 @@
     "import_ok": true,
     "vault_api_ok": true,
     "routing_summary": "邮件 / 总名单 / 附件",
+    "flow_ok": true,
     "page_errors": []
   },
   "viewports": [
@@ -105,16 +106,27 @@
           "bottom": 900
         },
         "dialog": {
-          "x": 107.5,
-          "y": 8,
-          "w": 1210,
-          "h": 884,
-          "right": 1317.5,
-          "bottom": 892
+          "x": 92.5,
+          "y": 18,
+          "w": 1240,
+          "h": 864,
+          "right": 1332.5,
+          "bottom": 882
         },
         "outsideControls": [],
-        "scrollOwners": [],
+        "scrollOwners": [
+          {
+            "id": "nmda-preflight-attachment-assets",
+            "cls": "nmda-attachment-assets nmda-attachment-assets-inline",
+            "scrollHeight": 81,
+            "clientHeight": 81,
+            "scrollWidth": 110,
+            "clientWidth": 95
+          }
+        ],
         "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
         "issues": []
       }
     },
@@ -145,16 +157,27 @@
           "bottom": 800
         },
         "dialog": {
-          "x": 27.5,
-          "y": 8,
-          "w": 1210,
-          "h": 784,
-          "right": 1237.5,
-          "bottom": 792
+          "x": 18,
+          "y": 18,
+          "w": 1240,
+          "h": 764,
+          "right": 1258,
+          "bottom": 782
         },
         "outsideControls": [],
-        "scrollOwners": [],
+        "scrollOwners": [
+          {
+            "id": "nmda-preflight-attachment-assets",
+            "cls": "nmda-attachment-assets nmda-attachment-assets-inline",
+            "scrollHeight": 81,
+            "clientHeight": 81,
+            "scrollWidth": 110,
+            "clientWidth": 95
+          }
+        ],
         "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
         "issues": []
       }
     },
@@ -185,16 +208,27 @@
           "bottom": 760
         },
         "dialog": {
-          "x": 8,
-          "y": 8,
-          "w": 1084,
-          "h": 744,
-          "right": 1092,
-          "bottom": 752
+          "x": 18,
+          "y": 18,
+          "w": 1064,
+          "h": 724,
+          "right": 1082,
+          "bottom": 742
         },
         "outsideControls": [],
-        "scrollOwners": [],
+        "scrollOwners": [
+          {
+            "id": "nmda-preflight-attachment-assets",
+            "cls": "nmda-attachment-assets nmda-attachment-assets-inline",
+            "scrollHeight": 97,
+            "clientHeight": 88,
+            "scrollWidth": 110,
+            "clientWidth": 80
+          }
+        ],
         "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
         "issues": []
       }
     },
@@ -225,16 +259,27 @@
           "bottom": 720
         },
         "dialog": {
-          "x": 8,
-          "y": 8,
-          "w": 904,
-          "h": 704,
-          "right": 912,
-          "bottom": 712
+          "x": 18,
+          "y": 18,
+          "w": 884,
+          "h": 684,
+          "right": 902,
+          "bottom": 702
         },
         "outsideControls": [],
-        "scrollOwners": [],
+        "scrollOwners": [
+          {
+            "id": "nmda-preflight-attachment-assets",
+            "cls": "nmda-attachment-assets nmda-attachment-assets-inline",
+            "scrollHeight": 97,
+            "clientHeight": 88,
+            "scrollWidth": 110,
+            "clientWidth": 65
+          }
+        ],
         "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
         "issues": []
       }
     },
@@ -265,23 +310,417 @@
           "bottom": 700
         },
         "dialog": {
-          "x": 8,
-          "y": 8,
-          "w": 804,
-          "h": 684,
-          "right": 812,
-          "bottom": 692
+          "x": 10.5,
+          "y": 18,
+          "w": 784,
+          "h": 664,
+          "right": 794.5,
+          "bottom": 682
+        },
+        "outsideControls": [],
+        "scrollOwners": [
+          {
+            "id": "nmda-preflight-attachment-assets",
+            "cls": "nmda-attachment-assets nmda-attachment-assets-inline",
+            "scrollHeight": 144,
+            "clientHeight": 88,
+            "scrollWidth": 110,
+            "clientWidth": 33
+          },
+          {
+            "id": "",
+            "cls": "nmda-classify-inspector-pane",
+            "scrollHeight": 404,
+            "clientHeight": 367,
+            "scrollWidth": 653,
+            "clientWidth": 653
+          }
+        ],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    }
+  ],
+  "task_views": [
+    {
+      "width": 1440,
+      "height": 900,
+      "label": "planning-desktop",
+      "screenshot": "qa/screenshots/v2-planning-desktop-1440x900.png",
+      "audit": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 820,
+      "height": 700,
+      "label": "planning-minimum",
+      "screenshot": "qa/screenshots/v2-planning-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [
+          {
+            "id": "nmda-preview-card",
+            "cls": "nmda-card nmda-list-card",
+            "scrollHeight": 719,
+            "clientHeight": 513,
+            "scrollWidth": 719,
+            "clientWidth": 719
+          },
+          {
+            "id": "",
+            "cls": "nmda-table-wrap nmda-batch-table-wrap",
+            "scrollHeight": 188,
+            "clientHeight": 188,
+            "scrollWidth": 760,
+            "clientWidth": 674
+          }
+        ],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "label": "create-desktop",
+      "screenshot": "qa/screenshots/v2-create-desktop-1440x900.png",
+      "audit": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 820,
+      "height": 700,
+      "label": "create-minimum",
+      "screenshot": "qa/screenshots/v2-create-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
         },
         "outsideControls": [],
         "scrollOwners": [
           {
             "id": "",
-            "cls": "nmda-classify-inspector-pane",
-            "scrollHeight": 388,
-            "clientHeight": 311
+            "cls": "nmda-table-wrap nmda-batch-table-wrap",
+            "scrollHeight": 270,
+            "clientHeight": 270,
+            "scrollWidth": 760,
+            "clientWidth": 689
           }
         ],
         "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "label": "single-desktop",
+      "screenshot": "qa/screenshots/v2-single-desktop-1440x900.png",
+      "audit": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 820,
+      "height": 700,
+      "label": "single-minimum",
+      "screenshot": "qa/screenshots/v2-single-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "label": "contacts-desktop",
+      "screenshot": "qa/screenshots/v2-contacts-desktop-1440x900.png",
+      "audit": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [
+          {
+            "id": "",
+            "cls": "nmda-table-wrap nmda-contact-table-wrap",
+            "scrollHeight": 439,
+            "clientHeight": 439,
+            "scrollWidth": 1313,
+            "clientWidth": 1164
+          }
+        ],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 820,
+      "height": 700,
+      "label": "contacts-minimum",
+      "screenshot": "qa/screenshots/v2-contacts-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [
+          {
+            "id": "",
+            "cls": "nmda-table-wrap nmda-contact-table-wrap",
+            "scrollHeight": 250,
+            "clientHeight": 181,
+            "scrollWidth": 1313,
+            "clientWidth": 704
+          }
+        ],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
         "issues": []
       }
     }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone-workspace UI/runtime QA for NetEase Mail Draft Assistant v2.0.
+"""Standalone-workspace UI/runtime QA for NetEase Mail Draft Assistant v2.1.
 
 This runner serves the real extension app files in Chromium, stubs only Chrome-extension
 transport APIs, drives the production import stack, and captures responsive screenshots.
@@ -36,7 +36,7 @@ def static_checks():
     checks.append({'name':'source-role regression','ok':p.returncode==0,'output':(p.stdout+p.stderr).strip()})
     try:
         manifest=json.loads((ROOT/'manifest.json').read_text(encoding='utf-8'))
-        arch_ok=manifest.get('version')=='2.0.0' and manifest.get('action') and manifest.get('content_scripts',[{}])[0].get('js')==['executor.js']
+        arch_ok=manifest.get('version') in {'2.0.0','2.1.0'} and manifest.get('action') and manifest.get('content_scripts',[{}])[0].get('js')==['executor.js']
         checks.append({'name':'manifest standalone architecture','ok':bool(arch_ok),'output':json.dumps(manifest.get('content_scripts'),ensure_ascii=False)})
     except Exception as e: checks.append({'name':'manifest standalone architecture','ok':False,'output':str(e)})
     return {'ok':all(x['ok'] for x in checks),'checks':checks}
@@ -72,9 +72,11 @@ def audit_dom(page):
       const outside=e=>{const r=e.getBoundingClientRect();return r.left<-1||r.top<-1||r.right>V.w+1||r.bottom>V.h+1};
       const panel=document.querySelector('#nmda-panel'),launcher=document.querySelector('#nmda-launcher'),overlay=document.querySelector('#nmda-supplement-preflight'),dialog=document.querySelector('.nmda-classify-dialog');
       const controls=[...document.querySelectorAll('#nmda-panel button,#nmda-panel input,#nmda-panel select,#nmda-panel textarea,#nmda-panel label.nmda-btn')].filter(vis);
-      const outsideControls=controls.filter(outside).map(e=>({tag:e.tagName,id:e.id,rect:rect(e),text:(e.innerText||e.value||'').trim().slice(0,50)}));
-      const scrollOwners=[...document.querySelectorAll('#nmda-panel *')].filter(e=>{if(!vis(e))return false;const s=getComputedStyle(e);return /(auto|scroll)/.test(s.overflowY)&&e.scrollHeight>e.clientHeight+3}).map(e=>({id:e.id,cls:e.className,scrollHeight:e.scrollHeight,clientHeight:e.clientHeight}));
-      const nested=[]; const owners=[...document.querySelectorAll('#nmda-panel *')].filter(e=>{if(!vis(e))return false;const s=getComputedStyle(e);return /(auto|scroll)/.test(s.overflowY)&&e.scrollHeight>e.clientHeight+3});
+      const hasScrollAncestor=e=>{let p=e.parentElement;while(p&&p!==panel){const s=getComputedStyle(p),vertical=/(auto|scroll)/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+3,horizontal=/(auto|scroll)/.test(s.overflowX)&&p.scrollWidth>p.clientWidth+3;if(vertical||horizontal)return true;p=p.parentElement;}return false;};
+      const outsideControls=controls.filter(e=>outside(e)&&!hasScrollAncestor(e)).map(e=>({tag:e.tagName,id:e.id,rect:rect(e),text:(e.innerText||e.value||'').trim().slice(0,50)}));
+      const scrollOwnerEls=[...document.querySelectorAll('#nmda-panel *')].filter(e=>{if(!vis(e))return false;const s=getComputedStyle(e);return (/(auto|scroll)/.test(s.overflowY)&&e.scrollHeight>e.clientHeight+3)||(/(auto|scroll)/.test(s.overflowX)&&e.scrollWidth>e.clientWidth+3)});
+      const scrollOwners=scrollOwnerEls.map(e=>({id:e.id,cls:e.className,scrollHeight:e.scrollHeight,clientHeight:e.clientHeight,scrollWidth:e.scrollWidth,clientWidth:e.clientWidth}));
+      const nested=[]; const owners=scrollOwnerEls.filter(e=>{const s=getComputedStyle(e);return /(auto|scroll)/.test(s.overflowY)&&e.scrollHeight>e.clientHeight+3});
       for(let i=0;i<owners.length;i++)for(let j=0;j<owners.length;j++)if(i!==j&&owners[i].contains(owners[j]))nested.push({outer:owners[i].id||owners[i].className,inner:owners[j].id||owners[j].className});
       const pr=panel?.getBoundingClientRect(),or=overlay?.getBoundingClientRect(),dr=dialog?.getBoundingClientRect();
       const issues=[];
@@ -85,16 +87,25 @@ def audit_dom(page):
       if(dialog&&vis(dialog)&&outside(dialog))issues.push({severity:'P0',code:'dialog-outside-viewport',message:'来源核验弹窗超出视口。'});
       if(outsideControls.length)issues.push({severity:'P0',code:'controls-outside-viewport',message:`${outsideControls.length} 个可交互控件超出视口。`});
       if(nested.length)issues.push({severity:'P1',code:'nested-scroll',message:`检测到 ${nested.length} 组纵向嵌套滚动。`});
-      return {viewport:V,panel:rect(panel),overlay:rect(overlay),dialog:rect(dialog),outsideControls,scrollOwners,nested,issues};
+      const collapsedOwners=scrollOwnerEls.filter(e=>e.scrollHeight>e.clientHeight+40&&e.clientHeight<40);
+      if(collapsedOwners.length)issues.push({severity:'P0',code:'collapsed-scroll-owner',message:`${collapsedOwners.length} 个滚动模块高度异常，内容几乎不可见。`});
+      const pageScroll=[...document.querySelectorAll('.nmda-page')].filter(e=>vis(e)&&/(auto|scroll)/.test(getComputedStyle(e).overflowY)&&e.scrollHeight>e.clientHeight+3);
+      if(pageScroll.length)issues.push({severity:'P1',code:'outer-page-scroll',message:'主页面仍承担纵向滚动；应由当前任务模块独立滚动。'});
+      const tinyControls=controls.filter(e=>parseFloat(getComputedStyle(e).fontSize)<9).map(e=>({id:e.id,tag:e.tagName,size:getComputedStyle(e).fontSize}));
+      if(tinyControls.length)issues.push({severity:'P1',code:'tiny-control-text',message:`${tinyControls.length} 个可交互控件字号低于 9px。`});
+      return {viewport:V,panel:rect(panel),overlay:rect(overlay),dialog:rect(dialog),outsideControls,scrollOwners,nested,pageScroll:pageScroll.map(e=>e.id||e.className),tinyControls,issues};
     }""")
 
 def render_md(report):
-    lines=['# NetEase Mail Draft Assistant v2.0 · Standalone UI QA','',f"- Static / architecture checks: **{'PASS' if report['static']['ok'] else 'FAIL'}**",f"- Standalone runtime load: **{'PASS' if report['runtime']['loaded'] else 'FAIL'}**",f"- Real import flow: **{'PASS' if report['runtime']['import_ok'] else 'FAIL'}**",f"- IndexedDB attachment vault: **{'PASS' if report['runtime']['vault_ok'] else 'FAIL'}**",'', '## Responsive screenshots','', '| Viewport | P0 | P1 | Screenshot |','|---|---:|---:|---|']
+    lines=['# NetEase Mail Draft Assistant v2.1 · Standalone UI QA','',f"- Static / architecture checks: **{'PASS' if report['static']['ok'] else 'FAIL'}**",f"- Standalone runtime load: **{'PASS' if report['runtime']['loaded'] else 'FAIL'}**",f"- Real import flow: **{'PASS' if report['runtime']['import_ok'] else 'FAIL'}**",f"- Stage navigation / isolation: **{'PASS' if report['runtime'].get('flow_ok') else 'FAIL'}**",f"- IndexedDB attachment vault: **{'PASS' if report['runtime']['vault_ok'] else 'FAIL'}**",'', '## Responsive screenshots','', '| Viewport | P0 | P1 | Screenshot |','|---|---:|---:|---|']
     for x in report['viewports']:
+        p0=sum(i['severity']=='P0' for i in x['audit']['issues']);p1=sum(i['severity']=='P1' for i in x['audit']['issues']);lines.append(f"| {x['label']} {x['width']}×{x['height']} | {p0} | {p1} | `{x['screenshot']}` |")
+    lines+=['','## Stage / module screenshots','', '| View | P0 | P1 | Screenshot |','|---|---:|---:|---|']
+    for x in report.get('task_views',[]):
         p0=sum(i['severity']=='P0' for i in x['audit']['issues']);p1=sum(i['severity']=='P1' for i in x['audit']['issues']);lines.append(f"| {x['label']} {x['width']}×{x['height']} | {p0} | {p1} | `{x['screenshot']}` |")
     lines+=['','## Findings','']
     found=False
-    for x in report['viewports']:
+    for x in [*report['viewports'],*report.get('task_views',[])]:
         for i in x['audit']['issues']:
             found=True;lines.append(f"- **{i['severity']} · {x['label']}** `{i['code']}` — {i['message']}")
     if not found:lines.append('- 自动布局检查未发现 P0/P1 问题。')
@@ -105,7 +116,7 @@ def main():
     ap=argparse.ArgumentParser();ap.add_argument('--baseline');args=ap.parse_args()
     SHOTS.mkdir(parents=True,exist_ok=True);REPORTS.mkdir(parents=True,exist_ok=True)
     static=static_checks()
-    runtime={'loaded':False,'import_ok':False,'vault_api_ok':False,'routing_summary':''};viewports=[]
+    runtime={'loaded':False,'import_ok':False,'vault_api_ok':False,'routing_summary':'','flow_ok':False};viewports=[];task_views=[]
     with sync_playwright() as p:
         browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
         page=browser.new_page(viewport={'width':1440,'height':900})
@@ -116,7 +127,7 @@ def main():
         page.add_script_tag(content=chrome_stub()+r"""
           Object.defineProperty(window,'localStorage',{value:(()=>{const s={};return {getItem:k=>Object.prototype.hasOwnProperty.call(s,k)?s[k]:null,setItem:(k,v)=>{s[k]=String(v)},removeItem:k=>delete s[k],clear:()=>{for(const k of Object.keys(s))delete s[k]}}})(),configurable:true});
         """)
-        page.add_style_tag(path=str(ROOT/'app.css'));page.add_style_tag(path=str(ROOT/'app-shell.css'))
+        page.add_style_tag(path=str(ROOT/'app.css'));page.add_style_tag(path=str(ROOT/'app-shell.css'));page.add_style_tag(path=str(ROOT/'ui-system.css'))
         for name in ['import-core.js','mail-recognizer.js','import-adapters.js','importer.js','contacts.js','scheduler.js','roster.js','file-vault.js','app.js']:
             page.add_script_tag(path=str(ROOT/name))
         page.wait_for_selector('#nmda-panel:not([hidden])',timeout=15000)
@@ -134,16 +145,38 @@ def main():
             page.set_viewport_size({'width':w,'height':h});page.wait_for_timeout(180)
             shot=SHOTS/f'v2-preflight-{label}-{w}x{h}.png';page.screenshot(path=str(shot),full_page=False)
             viewports.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
+
+        # Continue through the real forward flow and verify the stage-isolated workspace.
+        page.set_viewport_size({'width':1440,'height':900});page.wait_for_timeout(120)
+        page.locator('#nmda-complete-supplement-preflight').click();page.wait_for_timeout(700)
+        runtime['flow_ok']=page.locator('.nmda-bulk-workbench').get_attribute('data-view-step')=='3' and page.locator('#nmda-preview-card').is_visible()
+        for w,h,label in [(1440,900,'planning-desktop'),(820,700,'planning-minimum')]:
+            page.set_viewport_size({'width':w,'height':h});page.wait_for_timeout(160)
+            shot=SHOTS/f'v2-{label}-{w}x{h}.png';page.screenshot(path=str(shot),full_page=False)
+            task_views.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
+        page.set_viewport_size({'width':1440,'height':900});page.locator('[data-flow-step="4"]').click();page.wait_for_timeout(180)
+        runtime['flow_ok']=runtime['flow_ok'] and page.locator('.nmda-bulk-workbench').get_attribute('data-view-step')=='4' and page.locator('#nmda-run-card').is_visible()
+        for w,h,label in [(1440,900,'create-desktop'),(820,700,'create-minimum')]:
+            page.set_viewport_size({'width':w,'height':h});page.wait_for_timeout(160)
+            shot=SHOTS/f'v2-{label}-{w}x{h}.png';page.screenshot(path=str(shot),full_page=False)
+            task_views.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
+
+        # Other primary modules must not resurrect hidden batch UI or require page-level scrolling.
+        for tab in ['single','contacts']:
+            for w,h,label in [(1440,900,f'{tab}-desktop'),(820,700,f'{tab}-minimum')]:
+                page.set_viewport_size({'width':w,'height':h});page.locator(f'[data-tab="{tab}"]').click();page.wait_for_timeout(160)
+                shot=SHOTS/f'v2-{label}-{w}x{h}.png';page.screenshot(path=str(shot),full_page=False)
+                task_views.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
         runtime['page_errors']=errors
         browser.close()
-    report={'version':'2.0.0','static':static,'runtime':runtime,'viewports':viewports}
+    report={'version':'2.1.0','static':static,'runtime':runtime,'viewports':viewports,'task_views':task_views}
     # Build report text with the API-level distinction explicit.
     md=render_md({**report,'runtime':{**runtime,'vault_ok':runtime['vault_api_ok']}})
     md=md.replace('IndexedDB attachment vault: **PASS**','Attachment-vault API loaded: **PASS** (real IndexedDB storage requires extension origin; this sandbox blocks navigable local origins)')
     (REPORTS/'ui-audit.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     (REPORTS/'ui-audit.md').write_text(md,encoding='utf-8')
     print(md)
-    p0=sum(1 for x in viewports for i in x['audit']['issues'] if i['severity']=='P0')
-    if not static['ok'] or not runtime['loaded'] or not runtime['import_ok'] or not runtime['vault_api_ok'] or p0: raise SystemExit(1)
+    p0=sum(1 for x in [*viewports,*task_views] for i in x['audit']['issues'] if i['severity']=='P0')
+    if not static['ok'] or not runtime['loaded'] or not runtime['import_ok'] or not runtime['vault_api_ok'] or not runtime['flow_ok'] or p0: raise SystemExit(1)
 
 if __name__=='__main__':main()
