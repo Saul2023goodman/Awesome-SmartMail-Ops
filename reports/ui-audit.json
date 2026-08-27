@@ -1,0 +1,2186 @@
+{
+  "version": "1.47.0",
+  "static": {
+    "checks": [
+      {
+        "name": "node --check background.js",
+        "ok": true,
+        "output": ""
+      },
+      {
+        "name": "node --check import-core.js",
+        "ok": true,
+        "output": ""
+      },
+      {
+        "name": "node --check mail-recognizer.js",
+        "ok": true,
+        "output": ""
+      },
+      {
+        "name": "node --check import-adapters.js",
+        "ok": true,
+        "output": ""
+      },
+      {
+        "name": "node --check importer.js",
+        "ok": true,
+        "output": ""
+      },
+      {
+        "name": "node --check contacts.js",
+        "ok": true,
+        "output": ""
+      },
+      {
+        "name": "node --check scheduler.js",
+        "ok": true,
+        "output": ""
+      },
+      {
+        "name": "node --check roster.js",
+        "ok": true,
+        "output": ""
+      },
+      {
+        "name": "node --check content.js",
+        "ok": true,
+        "output": ""
+      },
+      {
+        "name": "source-role regression",
+        "ok": true,
+        "output": "PASS role | 中文邮件：正文含 CV 类词汇 | got=mail 94 | expected=mail\nPASS role | 中文邮件：教授您好 | got=mail 84 | expected=mail\nPASS role | 中文邮件：张教授好 | got=mail 84 | expected=mail\nPASS role | 中文邮件：带材料小标题 | got=mail 97 | expected=mail\nPASS role | 英文邮件：原有能力不回归 | got=mail 94 | expected=mail\nPASS role | CV：无 CV 文件名但有章节结构 | got=attachment 96 | expected=attachment\nPASS role | 研究计划：章节结构 | got=attachment 96 | expected=attachment\nPASS role | 个人陈述：文件名优先 | got=attachment 94 | expected=attachment\nPASS role | 推荐信：文件名优先 | got=attachment 94 | expected=attachment\nPASS role | 只有申请材料词汇：不自动吞成附件 | got=ambiguous 66 | expected=ambiguous\nPASS role | 总名单：身份表合同不回归 | got=roster 100 | expected=roster\nPASS role | 名单文件名 + 导师结构：补充名单自动识别 | got=roster 100 | expected=roster\nPASS role | 导师名单 + 单身份字段 + 研究字段：结构互证 | got=roster 97 | expected=roster\nPASS role | 附件清单：文件名不能误导成总名单 | got=ambiguous 35 | expected=ambiguous\nPASS role | 普通名单：无联系人结构不自动归类 | got=ambiguous 35 | expected=ambiguous\nPASS role | 发送清单：邮件结构优先于文件名 | got=mail 100 | expected=mail\nPASS source-isolation | merged=true sets=3 shadows=2 members=2\nPASS frame | 无 Subject + 老师您好 + 无此致敬礼 | records=1 confidence=76 recipient=zhang@univ.edu\nPASS frame | 无 Subject + 张教授好 | records=1 confidence=70 recipient=li@univ.edu\nPASS frame | 新主题标签：邮件题目 | records=1 confidence=74 recipient=wang@univ.edu\n\nAll 20 source-role/mail-frame/source-isolation regression cases passed."
+      }
+    ],
+    "ok": true
+  },
+  "runtime": {
+    "import_ok": true,
+    "file_rows": 3,
+    "routing_summary": "✉ · 邮件 · 1 · 名 · 总名单 · 1 · 附 · 附件 · 1 · ! · 待确认 · 0 · × · 暂不使用 · 0",
+    "console_errors": [],
+    "page_errors": []
+  },
+  "viewports": [
+    {
+      "label": "desktop-wide",
+      "width": 1440,
+      "height": 900,
+      "screenshot": "10-preflight-desktop-wide-1440x900.png",
+      "audit": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "key": {
+          "panel": {
+            "visible": true,
+            "rect": {
+              "x": 68,
+              "y": 12,
+              "w": 1360,
+              "h": 876,
+              "right": 1428,
+              "bottom": 888
+            },
+            "scrollWidth": 1358,
+            "clientWidth": 1358,
+            "scrollHeight": 874,
+            "clientHeight": 874,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": false
+          },
+          "overlay": {
+            "visible": true,
+            "rect": {
+              "x": 231,
+              "y": 131,
+              "w": 1165,
+              "h": 756,
+              "right": 1396,
+              "bottom": 887
+            },
+            "scrollWidth": 1254,
+            "clientWidth": 1150,
+            "scrollHeight": 810,
+            "clientHeight": 756,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": false
+          },
+          "dialog": {
+            "visible": true,
+            "rect": {
+              "x": 253,
+              "y": 176,
+              "w": 1210,
+              "h": 720,
+              "right": 1463,
+              "bottom": 896
+            },
+            "scrollWidth": 1208,
+            "clientWidth": 1208,
+            "scrollHeight": 718,
+            "clientHeight": 718,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": true
+          },
+          "footer": {
+            "visible": true,
+            "rect": {
+              "x": 254,
+              "y": 833,
+              "w": 1208,
+              "h": 62,
+              "right": 1462,
+              "bottom": 895
+            },
+            "scrollWidth": 1208,
+            "clientWidth": 1208,
+            "scrollHeight": 61,
+            "clientHeight": 61,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          },
+          "chips": {
+            "visible": true,
+            "rect": {
+              "x": 1032.2,
+              "y": 200.5,
+              "w": 411.8,
+              "h": 38,
+              "right": 1444,
+              "bottom": 238.5
+            },
+            "scrollWidth": 412,
+            "clientWidth": 412,
+            "scrollHeight": 38,
+            "clientHeight": 38,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          },
+          "main": {
+            "visible": true,
+            "rect": {
+              "x": 444,
+              "y": 263,
+              "w": 658,
+              "h": 570,
+              "right": 1102,
+              "bottom": 833
+            },
+            "scrollWidth": 658,
+            "clientWidth": 658,
+            "scrollHeight": 570,
+            "clientHeight": 570,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": false
+          },
+          "list": {
+            "visible": true,
+            "rect": {
+              "x": 444,
+              "y": 317,
+              "w": 658,
+              "h": 516,
+              "right": 1102,
+              "bottom": 833
+            },
+            "scrollWidth": 658,
+            "clientWidth": 658,
+            "scrollHeight": 515,
+            "clientHeight": 515,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": false
+          },
+          "inspector": {
+            "visible": true,
+            "rect": {
+              "x": 1102,
+              "y": 263,
+              "w": 360,
+              "h": 570,
+              "right": 1462,
+              "bottom": 833
+            },
+            "scrollWidth": 359,
+            "clientWidth": 359,
+            "scrollHeight": 570,
+            "clientHeight": 570,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": true
+          },
+          "sidebar": {
+            "visible": true,
+            "rect": {
+              "x": 254,
+              "y": 263,
+              "w": 190,
+              "h": 570,
+              "right": 444,
+              "bottom": 833
+            },
+            "scrollWidth": 189,
+            "clientWidth": 189,
+            "scrollHeight": 570,
+            "clientHeight": 570,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": false
+          }
+        },
+        "overlayNotViewport": true,
+        "dialogWiderThanBackdrop": true,
+        "containingAncestors": [
+          {
+            "name": "section.nmda-tabpane.nmda-page.nmda-ingest-page",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          },
+          {
+            "name": "main.nmda-main",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          },
+          {
+            "name": "section#nmda-panel.has-modal",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          }
+        ],
+        "issues": [
+          {
+            "severity": "P0",
+            "code": "fixed-modal-contained-by-layout",
+            "message": "fixed 遮罩没有以视口为包含块；祖先布局隔离使其被限制在工作区内（section.nmda-tabpane.nmda-page.nmda-ingest-page contain=layout style）。"
+          },
+          {
+            "severity": "P0",
+            "code": "dialog-wider-than-backdrop",
+            "message": "分类弹窗宽度 1208px 大于遮罩可用宽度 1150px。"
+          },
+          {
+            "severity": "P0",
+            "code": "dialog-outside-viewport",
+            "message": "分类弹窗超出视口。"
+          },
+          {
+            "severity": "P0",
+            "code": "footer-outside-viewport",
+            "message": "分类弹窗底部操作区超出视口。"
+          },
+          {
+            "severity": "P0",
+            "code": "control-outside-viewport",
+            "message": "3 个可交互控件超出视口。"
+          },
+          {
+            "severity": "P2",
+            "code": "dense-small-text",
+            "message": "当前弹窗有 16 处小于 9px 的直接文本，阅读密度偏高。"
+          },
+          {
+            "severity": "P2",
+            "code": "small-hit-target",
+            "message": "当前弹窗有 2 个交互目标小于 28×26px。"
+          }
+        ],
+        "scrollOwners": [],
+        "nestedScroll": [],
+        "outsideControls": [
+          {
+            "name": "button",
+            "text": "×\n暂不使用\n0",
+            "rect": {
+              "x": 1353.6,
+              "y": 200.5,
+              "w": 90.4,
+              "h": 38,
+              "right": 1444,
+              "bottom": 238.5
+            }
+          },
+          {
+            "name": "select",
+            "text": "邮件\n总名单\n附件\n待确认\n暂不使用",
+            "rect": {
+              "x": 1303,
+              "y": 347,
+              "w": 146,
+              "h": 36,
+              "right": 1449,
+              "bottom": 383
+            }
+          },
+          {
+            "name": "button#nmda-complete-supplement-preflight.nmda-btn.nmda-btn-primary",
+            "text": "确认分类并继续 →",
+            "rect": {
+              "x": 1287,
+              "y": 846.5,
+              "w": 160,
+              "h": 36,
+              "right": 1447,
+              "bottom": 882.5
+            }
+          }
+        ],
+        "overlaps": [],
+        "suspiciousClip": [],
+        "smallTextCount": 16,
+        "smallText": [
+          {
+            "name": "span.nmda-classify-folder-icon",
+            "px": 8,
+            "text": "▦"
+          },
+          {
+            "name": "small",
+            "px": 8.5,
+            "text": "可选资料直接在这里添加"
+          },
+          {
+            "name": "small#nmda-preflight-roster-copy",
+            "px": 8.2,
+            "text": "已用于联系人核对和院校信息补充；仍可继续追加。"
+          },
+          {
+            "name": "div#nmda-preflight-roster-status.nmda-supplement-status",
+            "px": 8,
+            "text": "已加入 3 条"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "px": 8.5,
+            "text": "上传名单"
+          },
+          {
+            "name": "small#nmda-preflight-attachment-copy",
+            "px": 8.2,
+            "text": "当前没有明确附件要求；需要发送附件时再添加即可。"
+          },
+          {
+            "name": "div#nmda-preflight-attachment-status.nmda-supplement-status",
+            "px": 8,
+            "text": "已加入 1 个文件"
+          },
+          {
+            "name": "strong",
+            "px": 8.5,
+            "text": "已加入附件"
+          },
+          {
+            "name": "span#nmda-preflight-attachment-assets-count",
+            "px": 8,
+            "text": "1 个"
+          },
+          {
+            "name": "button.nmda-text-action.nmda-attachment-remove",
+            "px": 8.5,
+            "text": "移除"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "px": 8.5,
+            "text": "添加文件"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small",
+            "px": 8.5,
+            "text": "附件目录"
+          },
+          {
+            "name": "small",
+            "px": 6.5,
+            "text": "DOCX"
+          },
+          {
+            "name": "small",
+            "px": 6.5,
+            "text": "XLSX"
+          },
+          {
+            "name": "small",
+            "px": 6.5,
+            "text": "PDF"
+          },
+          {
+            "name": "small",
+            "px": 7,
+            "text": "DOCX"
+          }
+        ],
+        "tinyTargets": [
+          {
+            "name": "select",
+            "rect": {
+              "x": 361,
+              "y": 733,
+              "w": 24,
+              "h": 36,
+              "right": 385,
+              "bottom": 769
+            },
+            "text": "作为附件\n改为邮件\n改为总名单\n暂不使用"
+          },
+          {
+            "name": "button.nmda-text-action.nmda-attachment-remove",
+            "rect": {
+              "x": 389,
+              "y": 739,
+              "w": 27,
+              "h": 24,
+              "right": 416,
+              "bottom": 763
+            },
+            "text": "移除"
+          }
+        ]
+      }
+    },
+    {
+      "label": "desktop",
+      "width": 1280,
+      "height": 800,
+      "screenshot": "10-preflight-desktop-1280x800.png",
+      "audit": {
+        "viewport": {
+          "w": 1280,
+          "h": 800
+        },
+        "key": {
+          "panel": {
+            "visible": true,
+            "rect": {
+              "x": 12,
+              "y": 12,
+              "w": 1256,
+              "h": 776,
+              "right": 1268,
+              "bottom": 788
+            },
+            "scrollWidth": 1254,
+            "clientWidth": 1254,
+            "scrollHeight": 774,
+            "clientHeight": 774,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": false
+          },
+          "overlay": {
+            "visible": true,
+            "rect": {
+              "x": 175,
+              "y": 131,
+              "w": 1061,
+              "h": 656,
+              "right": 1236,
+              "bottom": 787
+            },
+            "scrollWidth": 1254,
+            "clientWidth": 1046,
+            "scrollHeight": 804,
+            "clientHeight": 656,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": false
+          },
+          "dialog": {
+            "visible": true,
+            "rect": {
+              "x": 197,
+              "y": 173,
+              "w": 1210,
+              "h": 720,
+              "right": 1407,
+              "bottom": 893
+            },
+            "scrollWidth": 1208,
+            "clientWidth": 1208,
+            "scrollHeight": 718,
+            "clientHeight": 718,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": true
+          },
+          "footer": {
+            "visible": true,
+            "rect": {
+              "x": 198,
+              "y": 830,
+              "w": 1208,
+              "h": 62,
+              "right": 1406,
+              "bottom": 892
+            },
+            "scrollWidth": 1208,
+            "clientWidth": 1208,
+            "scrollHeight": 61,
+            "clientHeight": 61,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          },
+          "chips": {
+            "visible": true,
+            "rect": {
+              "x": 976.2,
+              "y": 197.5,
+              "w": 411.8,
+              "h": 38,
+              "right": 1388,
+              "bottom": 235.5
+            },
+            "scrollWidth": 412,
+            "clientWidth": 412,
+            "scrollHeight": 38,
+            "clientHeight": 38,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          },
+          "main": {
+            "visible": true,
+            "rect": {
+              "x": 388,
+              "y": 260,
+              "w": 658,
+              "h": 570,
+              "right": 1046,
+              "bottom": 830
+            },
+            "scrollWidth": 658,
+            "clientWidth": 658,
+            "scrollHeight": 570,
+            "clientHeight": 570,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": true
+          },
+          "list": {
+            "visible": true,
+            "rect": {
+              "x": 388,
+              "y": 314,
+              "w": 658,
+              "h": 516,
+              "right": 1046,
+              "bottom": 830
+            },
+            "scrollWidth": 658,
+            "clientWidth": 658,
+            "scrollHeight": 515,
+            "clientHeight": 515,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": true
+          },
+          "inspector": {
+            "visible": true,
+            "rect": {
+              "x": 1046,
+              "y": 260,
+              "w": 360,
+              "h": 570,
+              "right": 1406,
+              "bottom": 830
+            },
+            "scrollWidth": 359,
+            "clientWidth": 359,
+            "scrollHeight": 570,
+            "clientHeight": 570,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": true
+          },
+          "sidebar": {
+            "visible": true,
+            "rect": {
+              "x": 198,
+              "y": 260,
+              "w": 190,
+              "h": 570,
+              "right": 388,
+              "bottom": 830
+            },
+            "scrollWidth": 189,
+            "clientWidth": 189,
+            "scrollHeight": 570,
+            "clientHeight": 570,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          }
+        },
+        "overlayNotViewport": true,
+        "dialogWiderThanBackdrop": true,
+        "containingAncestors": [
+          {
+            "name": "section.nmda-tabpane.nmda-page.nmda-ingest-page",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          },
+          {
+            "name": "main.nmda-main",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          },
+          {
+            "name": "section#nmda-panel.has-modal",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          }
+        ],
+        "issues": [
+          {
+            "severity": "P0",
+            "code": "fixed-modal-contained-by-layout",
+            "message": "fixed 遮罩没有以视口为包含块；祖先布局隔离使其被限制在工作区内（section.nmda-tabpane.nmda-page.nmda-ingest-page contain=layout style）。"
+          },
+          {
+            "severity": "P0",
+            "code": "dialog-wider-than-backdrop",
+            "message": "分类弹窗宽度 1208px 大于遮罩可用宽度 1046px。"
+          },
+          {
+            "severity": "P0",
+            "code": "dialog-outside-viewport",
+            "message": "分类弹窗超出视口。"
+          },
+          {
+            "severity": "P0",
+            "code": "footer-outside-viewport",
+            "message": "分类弹窗底部操作区超出视口。"
+          },
+          {
+            "severity": "P0",
+            "code": "control-outside-viewport",
+            "message": "7 个可交互控件超出视口。"
+          },
+          {
+            "severity": "P2",
+            "code": "dense-small-text",
+            "message": "当前弹窗有 16 处小于 9px 的直接文本，阅读密度偏高。"
+          },
+          {
+            "severity": "P2",
+            "code": "small-hit-target",
+            "message": "当前弹窗有 2 个交互目标小于 28×26px。"
+          }
+        ],
+        "scrollOwners": [],
+        "nestedScroll": [],
+        "outsideControls": [
+          {
+            "name": "button",
+            "text": "!\n待确认\n0",
+            "rect": {
+              "x": 1212.3,
+              "y": 197.5,
+              "w": 80.4,
+              "h": 38,
+              "right": 1292.6,
+              "bottom": 235.5
+            }
+          },
+          {
+            "name": "button",
+            "text": "×\n暂不使用\n0",
+            "rect": {
+              "x": 1297.6,
+              "y": 197.5,
+              "w": 90.4,
+              "h": 38,
+              "right": 1388,
+              "bottom": 235.5
+            }
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "text": "添加文件",
+            "rect": {
+              "x": 252,
+              "y": 783,
+              "w": 52,
+              "h": 28,
+              "right": 304,
+              "bottom": 811
+            }
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small",
+            "text": "附件目录",
+            "rect": {
+              "x": 309,
+              "y": 783,
+              "w": 52,
+              "h": 28,
+              "right": 361,
+              "bottom": 811
+            }
+          },
+          {
+            "name": "select",
+            "text": "邮件\n总名单\n附件\n待确认\n暂不使用",
+            "rect": {
+              "x": 1247,
+              "y": 344,
+              "w": 146,
+              "h": 36,
+              "right": 1393,
+              "bottom": 380
+            }
+          },
+          {
+            "name": "button#nmda-close-supplement-preflight.nmda-btn.nmda-btn-quiet",
+            "text": "返回上传",
+            "rect": {
+              "x": 213,
+              "y": 843.5,
+              "w": 66,
+              "h": 36,
+              "right": 279,
+              "bottom": 879.5
+            }
+          },
+          {
+            "name": "button#nmda-complete-supplement-preflight.nmda-btn.nmda-btn-primary",
+            "text": "确认分类并继续 →",
+            "rect": {
+              "x": 1231,
+              "y": 843.5,
+              "w": 160,
+              "h": 36,
+              "right": 1391,
+              "bottom": 879.5
+            }
+          }
+        ],
+        "overlaps": [],
+        "suspiciousClip": [],
+        "smallTextCount": 16,
+        "smallText": [
+          {
+            "name": "span.nmda-classify-folder-icon",
+            "px": 8,
+            "text": "▦"
+          },
+          {
+            "name": "small",
+            "px": 8.5,
+            "text": "可选资料直接在这里添加"
+          },
+          {
+            "name": "small#nmda-preflight-roster-copy",
+            "px": 8.2,
+            "text": "已用于联系人核对和院校信息补充；仍可继续追加。"
+          },
+          {
+            "name": "div#nmda-preflight-roster-status.nmda-supplement-status",
+            "px": 8,
+            "text": "已加入 3 条"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "px": 8.5,
+            "text": "上传名单"
+          },
+          {
+            "name": "small#nmda-preflight-attachment-copy",
+            "px": 8.2,
+            "text": "当前没有明确附件要求；需要发送附件时再添加即可。"
+          },
+          {
+            "name": "div#nmda-preflight-attachment-status.nmda-supplement-status",
+            "px": 8,
+            "text": "已加入 1 个文件"
+          },
+          {
+            "name": "strong",
+            "px": 8.5,
+            "text": "已加入附件"
+          },
+          {
+            "name": "span#nmda-preflight-attachment-assets-count",
+            "px": 8,
+            "text": "1 个"
+          },
+          {
+            "name": "button.nmda-text-action.nmda-attachment-remove",
+            "px": 8.5,
+            "text": "移除"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "px": 8.5,
+            "text": "添加文件"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small",
+            "px": 8.5,
+            "text": "附件目录"
+          },
+          {
+            "name": "small",
+            "px": 6.5,
+            "text": "DOCX"
+          },
+          {
+            "name": "small",
+            "px": 6.5,
+            "text": "XLSX"
+          },
+          {
+            "name": "small",
+            "px": 6.5,
+            "text": "PDF"
+          },
+          {
+            "name": "small",
+            "px": 7,
+            "text": "DOCX"
+          }
+        ],
+        "tinyTargets": [
+          {
+            "name": "select",
+            "rect": {
+              "x": 305,
+              "y": 730,
+              "w": 24,
+              "h": 36,
+              "right": 329,
+              "bottom": 766
+            },
+            "text": "作为附件\n改为邮件\n改为总名单\n暂不使用"
+          },
+          {
+            "name": "button.nmda-text-action.nmda-attachment-remove",
+            "rect": {
+              "x": 333,
+              "y": 736,
+              "w": 27,
+              "h": 24,
+              "right": 360,
+              "bottom": 760
+            },
+            "text": "移除"
+          }
+        ]
+      }
+    },
+    {
+      "label": "compact",
+      "width": 1100,
+      "height": 760,
+      "screenshot": "10-preflight-compact-1100x760.png",
+      "audit": {
+        "viewport": {
+          "w": 1100,
+          "h": 760
+        },
+        "key": {
+          "panel": {
+            "visible": true,
+            "rect": {
+              "x": 12,
+              "y": 12,
+              "w": 1076,
+              "h": 736,
+              "right": 1088,
+              "bottom": 748
+            },
+            "scrollWidth": 1074,
+            "clientWidth": 1074,
+            "scrollHeight": 734,
+            "clientHeight": 734,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": false
+          },
+          "overlay": {
+            "visible": true,
+            "rect": {
+              "x": 165,
+              "y": 131,
+              "w": 891,
+              "h": 616,
+              "right": 1056,
+              "bottom": 747
+            },
+            "scrollWidth": 1112,
+            "clientWidth": 876,
+            "scrollHeight": 802,
+            "clientHeight": 616,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": false
+          },
+          "dialog": {
+            "visible": true,
+            "rect": {
+              "x": 187,
+              "y": 171.8,
+              "w": 1068,
+              "h": 720,
+              "right": 1255,
+              "bottom": 891.8
+            },
+            "scrollWidth": 1066,
+            "clientWidth": 1066,
+            "scrollHeight": 718,
+            "clientHeight": 718,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": true
+          },
+          "footer": {
+            "visible": true,
+            "rect": {
+              "x": 188,
+              "y": 828.8,
+              "w": 1066,
+              "h": 62,
+              "right": 1254,
+              "bottom": 890.8
+            },
+            "scrollWidth": 1066,
+            "clientWidth": 1066,
+            "scrollHeight": 61,
+            "clientHeight": 61,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          },
+          "chips": {
+            "visible": true,
+            "rect": {
+              "x": 926,
+              "y": 196.3,
+              "w": 310,
+              "h": 38,
+              "right": 1236,
+              "bottom": 234.3
+            },
+            "scrollWidth": 310,
+            "clientWidth": 310,
+            "scrollHeight": 38,
+            "clientHeight": 38,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          },
+          "main": {
+            "visible": true,
+            "rect": {
+              "x": 364,
+              "y": 258.8,
+              "w": 570,
+              "h": 570,
+              "right": 934,
+              "bottom": 828.8
+            },
+            "scrollWidth": 570,
+            "clientWidth": 570,
+            "scrollHeight": 570,
+            "clientHeight": 570,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": true
+          },
+          "list": {
+            "visible": true,
+            "rect": {
+              "x": 364,
+              "y": 312.8,
+              "w": 570,
+              "h": 516,
+              "right": 934,
+              "bottom": 828.8
+            },
+            "scrollWidth": 570,
+            "clientWidth": 570,
+            "scrollHeight": 515,
+            "clientHeight": 515,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": true
+          },
+          "inspector": {
+            "visible": true,
+            "rect": {
+              "x": 934,
+              "y": 258.8,
+              "w": 320,
+              "h": 570,
+              "right": 1254,
+              "bottom": 828.8
+            },
+            "scrollWidth": 319,
+            "clientWidth": 319,
+            "scrollHeight": 570,
+            "clientHeight": 570,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": true
+          },
+          "sidebar": {
+            "visible": true,
+            "rect": {
+              "x": 188,
+              "y": 258.8,
+              "w": 176,
+              "h": 570,
+              "right": 364,
+              "bottom": 828.8
+            },
+            "scrollWidth": 175,
+            "clientWidth": 175,
+            "scrollHeight": 570,
+            "clientHeight": 570,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          }
+        },
+        "overlayNotViewport": true,
+        "dialogWiderThanBackdrop": true,
+        "containingAncestors": [
+          {
+            "name": "section.nmda-tabpane.nmda-page.nmda-ingest-page",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          },
+          {
+            "name": "main.nmda-main",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          },
+          {
+            "name": "section#nmda-panel.has-modal",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          }
+        ],
+        "issues": [
+          {
+            "severity": "P0",
+            "code": "fixed-modal-contained-by-layout",
+            "message": "fixed 遮罩没有以视口为包含块；祖先布局隔离使其被限制在工作区内（section.nmda-tabpane.nmda-page.nmda-ingest-page contain=layout style）。"
+          },
+          {
+            "severity": "P0",
+            "code": "dialog-wider-than-backdrop",
+            "message": "分类弹窗宽度 1066px 大于遮罩可用宽度 876px。"
+          },
+          {
+            "severity": "P0",
+            "code": "dialog-outside-viewport",
+            "message": "分类弹窗超出视口。"
+          },
+          {
+            "severity": "P0",
+            "code": "footer-outside-viewport",
+            "message": "分类弹窗底部操作区超出视口。"
+          },
+          {
+            "severity": "P0",
+            "code": "control-outside-viewport",
+            "message": "8 个可交互控件超出视口。"
+          },
+          {
+            "severity": "P2",
+            "code": "dense-small-text",
+            "message": "当前弹窗有 14 处小于 9px 的直接文本，阅读密度偏高。"
+          },
+          {
+            "severity": "P2",
+            "code": "small-hit-target",
+            "message": "当前弹窗有 2 个交互目标小于 28×26px。"
+          }
+        ],
+        "scrollOwners": [],
+        "nestedScroll": [],
+        "outsideControls": [
+          {
+            "name": "button",
+            "text": "附\n1",
+            "rect": {
+              "x": 1052,
+              "y": 196.3,
+              "w": 58,
+              "h": 38,
+              "right": 1110,
+              "bottom": 234.3
+            }
+          },
+          {
+            "name": "button",
+            "text": "!\n0",
+            "rect": {
+              "x": 1115,
+              "y": 196.3,
+              "w": 58,
+              "h": 38,
+              "right": 1173,
+              "bottom": 234.3
+            }
+          },
+          {
+            "name": "button",
+            "text": "×\n0",
+            "rect": {
+              "x": 1178,
+              "y": 196.3,
+              "w": 58,
+              "h": 38,
+              "right": 1236,
+              "bottom": 234.3
+            }
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "text": "添加文件",
+            "rect": {
+              "x": 242,
+              "y": 750.8,
+              "w": 52,
+              "h": 28,
+              "right": 294,
+              "bottom": 778.8
+            }
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small",
+            "text": "附件目录",
+            "rect": {
+              "x": 242,
+              "y": 783.8,
+              "w": 52,
+              "h": 28,
+              "right": 294,
+              "bottom": 811.8
+            }
+          },
+          {
+            "name": "select",
+            "text": "邮件\n总名单\n附件\n待确认\n暂不使用",
+            "rect": {
+              "x": 1095,
+              "y": 342.8,
+              "w": 146,
+              "h": 36,
+              "right": 1241,
+              "bottom": 378.8
+            }
+          },
+          {
+            "name": "button#nmda-close-supplement-preflight.nmda-btn.nmda-btn-quiet",
+            "text": "返回上传",
+            "rect": {
+              "x": 203,
+              "y": 842.3,
+              "w": 66,
+              "h": 36,
+              "right": 269,
+              "bottom": 878.3
+            }
+          },
+          {
+            "name": "button#nmda-complete-supplement-preflight.nmda-btn.nmda-btn-primary",
+            "text": "确认分类并继续 →",
+            "rect": {
+              "x": 1079,
+              "y": 842.3,
+              "w": 160,
+              "h": 36,
+              "right": 1239,
+              "bottom": 878.3
+            }
+          }
+        ],
+        "overlaps": [],
+        "suspiciousClip": [],
+        "smallTextCount": 14,
+        "smallText": [
+          {
+            "name": "span.nmda-classify-folder-icon",
+            "px": 8,
+            "text": "▦"
+          },
+          {
+            "name": "small",
+            "px": 8.5,
+            "text": "可选资料直接在这里添加"
+          },
+          {
+            "name": "div#nmda-preflight-roster-status.nmda-supplement-status",
+            "px": 8,
+            "text": "已加入 3 条"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "px": 8.5,
+            "text": "上传名单"
+          },
+          {
+            "name": "div#nmda-preflight-attachment-status.nmda-supplement-status",
+            "px": 8,
+            "text": "已加入 1 个文件"
+          },
+          {
+            "name": "strong",
+            "px": 8.5,
+            "text": "已加入附件"
+          },
+          {
+            "name": "span#nmda-preflight-attachment-assets-count",
+            "px": 8,
+            "text": "1 个"
+          },
+          {
+            "name": "button.nmda-text-action.nmda-attachment-remove",
+            "px": 8.5,
+            "text": "移除"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "px": 8.5,
+            "text": "添加文件"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small",
+            "px": 8.5,
+            "text": "附件目录"
+          },
+          {
+            "name": "small",
+            "px": 6,
+            "text": "DOCX"
+          },
+          {
+            "name": "small",
+            "px": 6,
+            "text": "XLSX"
+          },
+          {
+            "name": "small",
+            "px": 6,
+            "text": "PDF"
+          },
+          {
+            "name": "small",
+            "px": 7,
+            "text": "DOCX"
+          }
+        ],
+        "tinyTargets": [
+          {
+            "name": "select",
+            "rect": {
+              "x": 295,
+              "y": 699.8,
+              "w": 22,
+              "h": 36,
+              "right": 317,
+              "bottom": 735.8
+            },
+            "text": "作为附件\n改为邮件\n改为总名单\n暂不使用"
+          },
+          {
+            "name": "button.nmda-text-action.nmda-attachment-remove",
+            "rect": {
+              "x": 321,
+              "y": 705.8,
+              "w": 27,
+              "h": 24,
+              "right": 348,
+              "bottom": 729.8
+            },
+            "text": "移除"
+          }
+        ]
+      }
+    },
+    {
+      "label": "narrow",
+      "width": 920,
+      "height": 720,
+      "screenshot": "10-preflight-narrow-920x720.png",
+      "audit": {
+        "viewport": {
+          "w": 920,
+          "h": 720
+        },
+        "key": {
+          "panel": {
+            "visible": true,
+            "rect": {
+              "x": 12,
+              "y": 12,
+              "w": 896,
+              "h": 696,
+              "right": 908,
+              "bottom": 708
+            },
+            "scrollWidth": 894,
+            "clientWidth": 894,
+            "scrollHeight": 694,
+            "clientHeight": 694,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": false
+          },
+          "overlay": {
+            "visible": true,
+            "rect": {
+              "x": 165,
+              "y": 131,
+              "w": 711,
+              "h": 576,
+              "right": 876,
+              "bottom": 707
+            },
+            "scrollWidth": 932,
+            "clientWidth": 696,
+            "scrollHeight": 775,
+            "clientHeight": 576,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": false
+          },
+          "dialog": {
+            "visible": true,
+            "rect": {
+              "x": 187,
+              "y": 170.6,
+              "w": 888,
+              "h": 696,
+              "right": 1075,
+              "bottom": 866.6
+            },
+            "scrollWidth": 886,
+            "clientWidth": 886,
+            "scrollHeight": 694,
+            "clientHeight": 694,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": true
+          },
+          "footer": {
+            "visible": true,
+            "rect": {
+              "x": 188,
+              "y": 803.6,
+              "w": 886,
+              "h": 62,
+              "right": 1074,
+              "bottom": 865.6
+            },
+            "scrollWidth": 886,
+            "clientWidth": 886,
+            "scrollHeight": 61,
+            "clientHeight": 61,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          },
+          "chips": {
+            "visible": true,
+            "rect": {
+              "x": 746,
+              "y": 195.1,
+              "w": 310,
+              "h": 38,
+              "right": 1056,
+              "bottom": 233.1
+            },
+            "scrollWidth": 310,
+            "clientWidth": 310,
+            "scrollHeight": 38,
+            "clientHeight": 38,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          },
+          "main": {
+            "visible": true,
+            "rect": {
+              "x": 348,
+              "y": 257.6,
+              "w": 434,
+              "h": 546,
+              "right": 782,
+              "bottom": 803.6
+            },
+            "scrollWidth": 434,
+            "clientWidth": 434,
+            "scrollHeight": 546,
+            "clientHeight": 546,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": true
+          },
+          "list": {
+            "visible": true,
+            "rect": {
+              "x": 348,
+              "y": 311.6,
+              "w": 434,
+              "h": 492,
+              "right": 782,
+              "bottom": 803.6
+            },
+            "scrollWidth": 434,
+            "clientWidth": 434,
+            "scrollHeight": 491,
+            "clientHeight": 491,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": true
+          },
+          "inspector": {
+            "visible": true,
+            "rect": {
+              "x": 782,
+              "y": 257.6,
+              "w": 292,
+              "h": 546,
+              "right": 1074,
+              "bottom": 803.6
+            },
+            "scrollWidth": 291,
+            "clientWidth": 291,
+            "scrollHeight": 546,
+            "clientHeight": 546,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": true
+          },
+          "sidebar": {
+            "visible": true,
+            "rect": {
+              "x": 188,
+              "y": 257.6,
+              "w": 160,
+              "h": 546,
+              "right": 348,
+              "bottom": 803.6
+            },
+            "scrollWidth": 159,
+            "clientWidth": 159,
+            "scrollHeight": 546,
+            "clientHeight": 546,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          }
+        },
+        "overlayNotViewport": true,
+        "dialogWiderThanBackdrop": true,
+        "containingAncestors": [
+          {
+            "name": "section.nmda-tabpane.nmda-page.nmda-ingest-page",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          },
+          {
+            "name": "main.nmda-main",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          },
+          {
+            "name": "section#nmda-panel.has-modal",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          }
+        ],
+        "issues": [
+          {
+            "severity": "P0",
+            "code": "fixed-modal-contained-by-layout",
+            "message": "fixed 遮罩没有以视口为包含块；祖先布局隔离使其被限制在工作区内（section.nmda-tabpane.nmda-page.nmda-ingest-page contain=layout style）。"
+          },
+          {
+            "severity": "P0",
+            "code": "dialog-wider-than-backdrop",
+            "message": "分类弹窗宽度 886px 大于遮罩可用宽度 696px。"
+          },
+          {
+            "severity": "P0",
+            "code": "dialog-outside-viewport",
+            "message": "分类弹窗超出视口。"
+          },
+          {
+            "severity": "P0",
+            "code": "footer-outside-viewport",
+            "message": "分类弹窗底部操作区超出视口。"
+          },
+          {
+            "severity": "P0",
+            "code": "control-outside-viewport",
+            "message": "8 个可交互控件超出视口。"
+          },
+          {
+            "severity": "P2",
+            "code": "dense-small-text",
+            "message": "当前弹窗有 14 处小于 9px 的直接文本，阅读密度偏高。"
+          },
+          {
+            "severity": "P2",
+            "code": "small-hit-target",
+            "message": "当前弹窗有 2 个交互目标小于 28×26px。"
+          }
+        ],
+        "scrollOwners": [],
+        "nestedScroll": [],
+        "outsideControls": [
+          {
+            "name": "button",
+            "text": "附\n1",
+            "rect": {
+              "x": 872,
+              "y": 195.1,
+              "w": 58,
+              "h": 38,
+              "right": 930,
+              "bottom": 233.1
+            }
+          },
+          {
+            "name": "button",
+            "text": "!\n0",
+            "rect": {
+              "x": 935,
+              "y": 195.1,
+              "w": 58,
+              "h": 38,
+              "right": 993,
+              "bottom": 233.1
+            }
+          },
+          {
+            "name": "button",
+            "text": "×\n0",
+            "rect": {
+              "x": 998,
+              "y": 195.1,
+              "w": 58,
+              "h": 38,
+              "right": 1056,
+              "bottom": 233.1
+            }
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "text": "添加文件",
+            "rect": {
+              "x": 242,
+              "y": 725.6,
+              "w": 52,
+              "h": 28,
+              "right": 294,
+              "bottom": 753.6
+            }
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small",
+            "text": "附件目录",
+            "rect": {
+              "x": 242,
+              "y": 758.6,
+              "w": 52,
+              "h": 28,
+              "right": 294,
+              "bottom": 786.6
+            }
+          },
+          {
+            "name": "select",
+            "text": "邮件\n总名单\n附件\n待确认\n暂不使用",
+            "rect": {
+              "x": 915,
+              "y": 341.6,
+              "w": 146,
+              "h": 36,
+              "right": 1061,
+              "bottom": 377.6
+            }
+          },
+          {
+            "name": "button#nmda-close-supplement-preflight.nmda-btn.nmda-btn-quiet",
+            "text": "返回上传",
+            "rect": {
+              "x": 203,
+              "y": 817.1,
+              "w": 66,
+              "h": 36,
+              "right": 269,
+              "bottom": 853.1
+            }
+          },
+          {
+            "name": "button#nmda-complete-supplement-preflight.nmda-btn.nmda-btn-primary",
+            "text": "确认分类并继续 →",
+            "rect": {
+              "x": 899,
+              "y": 817.1,
+              "w": 160,
+              "h": 36,
+              "right": 1059,
+              "bottom": 853.1
+            }
+          }
+        ],
+        "overlaps": [],
+        "suspiciousClip": [],
+        "smallTextCount": 14,
+        "smallText": [
+          {
+            "name": "span.nmda-classify-folder-icon",
+            "px": 8,
+            "text": "▦"
+          },
+          {
+            "name": "small",
+            "px": 8.5,
+            "text": "可选资料直接在这里添加"
+          },
+          {
+            "name": "div#nmda-preflight-roster-status.nmda-supplement-status",
+            "px": 8,
+            "text": "已加入 3 条"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "px": 8.5,
+            "text": "上传名单"
+          },
+          {
+            "name": "div#nmda-preflight-attachment-status.nmda-supplement-status",
+            "px": 8,
+            "text": "已加入 1 个文件"
+          },
+          {
+            "name": "strong",
+            "px": 8.5,
+            "text": "已加入附件"
+          },
+          {
+            "name": "span#nmda-preflight-attachment-assets-count",
+            "px": 8,
+            "text": "1 个"
+          },
+          {
+            "name": "button.nmda-text-action.nmda-attachment-remove",
+            "px": 8.5,
+            "text": "移除"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "px": 8.5,
+            "text": "添加文件"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small",
+            "px": 8.5,
+            "text": "附件目录"
+          },
+          {
+            "name": "small",
+            "px": 6,
+            "text": "DOCX"
+          },
+          {
+            "name": "small",
+            "px": 6,
+            "text": "XLSX"
+          },
+          {
+            "name": "small",
+            "px": 6,
+            "text": "PDF"
+          },
+          {
+            "name": "small",
+            "px": 7,
+            "text": "DOCX"
+          }
+        ],
+        "tinyTargets": [
+          {
+            "name": "select",
+            "rect": {
+              "x": 295,
+              "y": 674.6,
+              "w": 22,
+              "h": 36,
+              "right": 317,
+              "bottom": 710.6
+            },
+            "text": "作为附件\n改为邮件\n改为总名单\n暂不使用"
+          },
+          {
+            "name": "button.nmda-text-action.nmda-attachment-remove",
+            "rect": {
+              "x": 321,
+              "y": 680.6,
+              "w": 27,
+              "h": 24,
+              "right": 348,
+              "bottom": 704.6
+            },
+            "text": "移除"
+          }
+        ]
+      }
+    },
+    {
+      "label": "minimum",
+      "width": 820,
+      "height": 700,
+      "screenshot": "10-preflight-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "key": {
+          "panel": {
+            "visible": true,
+            "rect": {
+              "x": 8,
+              "y": 8,
+              "w": 804,
+              "h": 684,
+              "right": 812,
+              "bottom": 692
+            },
+            "scrollWidth": 802,
+            "clientWidth": 802,
+            "scrollHeight": 682,
+            "clientHeight": 682,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": false
+          },
+          "overlay": {
+            "visible": true,
+            "rect": {
+              "x": 161,
+              "y": 127,
+              "w": 619,
+              "h": 564,
+              "right": 780,
+              "bottom": 691
+            },
+            "scrollWidth": 804,
+            "clientWidth": 604,
+            "scrollHeight": 742,
+            "clientHeight": 564,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": false
+          },
+          "dialog": {
+            "visible": true,
+            "rect": {
+              "x": 169,
+              "y": 156,
+              "w": 788,
+              "h": 684,
+              "right": 957,
+              "bottom": 840
+            },
+            "scrollWidth": 786,
+            "clientWidth": 786,
+            "scrollHeight": 682,
+            "clientHeight": 682,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": true
+          },
+          "footer": {
+            "visible": true,
+            "rect": {
+              "x": 170,
+              "y": 777,
+              "w": 786,
+              "h": 62,
+              "right": 956,
+              "bottom": 839
+            },
+            "scrollWidth": 786,
+            "clientWidth": 786,
+            "scrollHeight": 61,
+            "clientHeight": 61,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          },
+          "chips": {
+            "visible": true,
+            "rect": {
+              "x": 188,
+              "y": 244,
+              "w": 514,
+              "h": 38,
+              "right": 702,
+              "bottom": 282
+            },
+            "scrollWidth": 514,
+            "clientWidth": 514,
+            "scrollHeight": 38,
+            "clientHeight": 38,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": false
+          },
+          "main": {
+            "visible": true,
+            "rect": {
+              "x": 318,
+              "y": 297,
+              "w": 638,
+              "h": 480,
+              "right": 956,
+              "bottom": 777
+            },
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 480,
+            "clientHeight": 480,
+            "overflowX": "hidden",
+            "overflowY": "hidden",
+            "outside": true
+          },
+          "list": {
+            "visible": true,
+            "rect": {
+              "x": 318,
+              "y": 351,
+              "w": 638,
+              "h": 426,
+              "right": 956,
+              "bottom": 777
+            },
+            "scrollWidth": 638,
+            "clientWidth": 638,
+            "scrollHeight": 425,
+            "clientHeight": 425,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": true
+          },
+          "inspector": {
+            "visible": true,
+            "rect": {
+              "x": 588,
+              "y": 402,
+              "w": 360,
+              "h": 313,
+              "right": 948,
+              "bottom": 715
+            },
+            "scrollWidth": 358,
+            "clientWidth": 358,
+            "scrollHeight": 388,
+            "clientHeight": 311,
+            "overflowX": "auto",
+            "overflowY": "auto",
+            "outside": true
+          },
+          "sidebar": {
+            "visible": true,
+            "rect": {
+              "x": 170,
+              "y": 297,
+              "w": 148,
+              "h": 480,
+              "right": 318,
+              "bottom": 777
+            },
+            "scrollWidth": 147,
+            "clientWidth": 147,
+            "scrollHeight": 480,
+            "clientHeight": 480,
+            "overflowX": "visible",
+            "overflowY": "visible",
+            "outside": true
+          }
+        },
+        "overlayNotViewport": true,
+        "dialogWiderThanBackdrop": true,
+        "containingAncestors": [
+          {
+            "name": "section.nmda-tabpane.nmda-page.nmda-ingest-page",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          },
+          {
+            "name": "main.nmda-main",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          },
+          {
+            "name": "section#nmda-panel.has-modal",
+            "contain": "layout style",
+            "transform": "none",
+            "filter": "none",
+            "perspective": "none"
+          }
+        ],
+        "issues": [
+          {
+            "severity": "P0",
+            "code": "fixed-modal-contained-by-layout",
+            "message": "fixed 遮罩没有以视口为包含块；祖先布局隔离使其被限制在工作区内（section.nmda-tabpane.nmda-page.nmda-ingest-page contain=layout style）。"
+          },
+          {
+            "severity": "P0",
+            "code": "dialog-wider-than-backdrop",
+            "message": "分类弹窗宽度 786px 大于遮罩可用宽度 604px。"
+          },
+          {
+            "severity": "P0",
+            "code": "dialog-outside-viewport",
+            "message": "分类弹窗超出视口。"
+          },
+          {
+            "severity": "P0",
+            "code": "footer-outside-viewport",
+            "message": "分类弹窗底部操作区超出视口。"
+          },
+          {
+            "severity": "P0",
+            "code": "control-outside-viewport",
+            "message": "6 个可交互控件超出视口。"
+          },
+          {
+            "severity": "P2",
+            "code": "dense-small-text",
+            "message": "当前弹窗有 11 处小于 9px 的直接文本，阅读密度偏高。"
+          },
+          {
+            "severity": "P2",
+            "code": "small-hit-target",
+            "message": "当前弹窗有 2 个交互目标小于 28×26px。"
+          }
+        ],
+        "scrollOwners": [
+          {
+            "name": "aside.nmda-classify-inspector-pane",
+            "rect": {
+              "x": 588,
+              "y": 402,
+              "w": 360,
+              "h": 313,
+              "right": 948,
+              "bottom": 715
+            },
+            "scrollHeight": 388,
+            "clientHeight": 311
+          }
+        ],
+        "nestedScroll": [],
+        "outsideControls": [
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "text": "添加文件",
+            "rect": {
+              "x": 224,
+              "y": 699,
+              "w": 52,
+              "h": 28,
+              "right": 276,
+              "bottom": 727
+            }
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small",
+            "text": "附件目录",
+            "rect": {
+              "x": 224,
+              "y": 732,
+              "w": 52,
+              "h": 28,
+              "right": 276,
+              "bottom": 760
+            }
+          },
+          {
+            "name": "input#nmda-preflight-source-search",
+            "text": "",
+            "rect": {
+              "x": 784,
+              "y": 307.5,
+              "w": 151,
+              "h": 36,
+              "right": 935,
+              "bottom": 343.5
+            }
+          },
+          {
+            "name": "select",
+            "text": "邮件\n总名单\n附件\n待确认\n暂不使用",
+            "rect": {
+              "x": 788,
+              "y": 487,
+              "w": 146,
+              "h": 36,
+              "right": 934,
+              "bottom": 523
+            }
+          },
+          {
+            "name": "button#nmda-close-supplement-preflight.nmda-btn.nmda-btn-quiet",
+            "text": "返回上传",
+            "rect": {
+              "x": 185,
+              "y": 790.5,
+              "w": 66,
+              "h": 36,
+              "right": 251,
+              "bottom": 826.5
+            }
+          },
+          {
+            "name": "button#nmda-complete-supplement-preflight.nmda-btn.nmda-btn-primary",
+            "text": "确认分类并继续 →",
+            "rect": {
+              "x": 781,
+              "y": 790.5,
+              "w": 160,
+              "h": 36,
+              "right": 941,
+              "bottom": 826.5
+            }
+          }
+        ],
+        "overlaps": [],
+        "suspiciousClip": [],
+        "smallTextCount": 11,
+        "smallText": [
+          {
+            "name": "span.nmda-classify-folder-icon",
+            "px": 8,
+            "text": "▦"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "px": 8.5,
+            "text": "上传名单"
+          },
+          {
+            "name": "strong",
+            "px": 8.5,
+            "text": "已加入附件"
+          },
+          {
+            "name": "span#nmda-preflight-attachment-assets-count",
+            "px": 8,
+            "text": "1 个"
+          },
+          {
+            "name": "button.nmda-text-action.nmda-attachment-remove",
+            "px": 8.5,
+            "text": "移除"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small.nmda-btn-primary",
+            "px": 8.5,
+            "text": "添加文件"
+          },
+          {
+            "name": "label.nmda-btn.nmda-btn-small",
+            "px": 8.5,
+            "text": "附件目录"
+          },
+          {
+            "name": "small",
+            "px": 6,
+            "text": "DOCX"
+          },
+          {
+            "name": "small",
+            "px": 6,
+            "text": "XLSX"
+          },
+          {
+            "name": "small",
+            "px": 6,
+            "text": "PDF"
+          },
+          {
+            "name": "small",
+            "px": 7,
+            "text": "DOCX"
+          }
+        ],
+        "tinyTargets": [
+          {
+            "name": "select",
+            "rect": {
+              "x": 277,
+              "y": 648,
+              "w": 22,
+              "h": 36,
+              "right": 299,
+              "bottom": 684
+            },
+            "text": "作为附件\n改为邮件\n改为总名单\n暂不使用"
+          },
+          {
+            "name": "button.nmda-text-action.nmda-attachment-remove",
+            "rect": {
+              "x": 303,
+              "y": 654,
+              "w": 27,
+              "h": 24,
+              "right": 330,
+              "bottom": 678
+            },
+            "text": "移除"
+          }
+        ]
+      }
+    }
+  ],
+  "visual_diffs": []
+}
