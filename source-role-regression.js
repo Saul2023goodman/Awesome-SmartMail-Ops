@@ -33,7 +33,12 @@ const roleCases = [
   ['个人陈述：文件名优先', oneFile('个人陈述.docx', `尊敬的招生委员会：\n\n您好！我希望申请贵校项目，并介绍我的教育背景和科研经历。感谢您的阅读，期待有机会加入贵校。`), 'attachment'],
   ['推荐信：文件名优先', oneFile('推荐信.docx', `尊敬的招生委员会：\n\n我很高兴推荐张同学申请贵校项目。感谢您的审阅。`), 'attachment'],
   ['只有申请材料词汇：不自动吞成附件', oneFile('notes.docx', `本文总结教育背景、科研经历、论文发表与技能培养之间的关系。内容用于内部整理，不针对任何收件人，也没有发送意图。`), 'ambiguous'],
-  ['总名单：身份表合同不回归', new Core.NormalizedRecordSet({ name:'Sheet1', source:'名单.xlsx', rows:[['学校','导师姓名','导师邮箱','优先级'],['A大学','张三','zhang@a.edu',1],['A大学','李四','li@a.edu',2]] }), 'roster']
+  ['总名单：身份表合同不回归', new Core.NormalizedRecordSet({ name:'Sheet1', source:'名单.xlsx', rows:[['学校','导师姓名','导师邮箱','优先级'],['A大学','张三','zhang@a.edu',1],['A大学','李四','li@a.edu',2]] }), 'roster'],
+  ['名单文件名 + 导师结构：补充名单自动识别', new Core.NormalizedRecordSet({ name:'Sheet1', source:'北京985211补充名单.xlsx', meta:{format:'xlsx'}, rows:[['学校','导师','导师链接','研究方向'],['北京航空航天大学','聂玮','https://example.edu/nie','数字司法'],['北京航空航天大学','赵卫球','https://example.edu/zhao','民商法']] }), 'roster'],
+  ['导师名单 + 单身份字段 + 研究字段：结构互证', new Core.NormalizedRecordSet({ name:'Sheet1', source:'第二批导师名单.xlsx', meta:{format:'xlsx'}, rows:[['导师','研究方向'],['张三','人工智能'],['李四','计算机视觉']] }), 'roster'],
+  ['附件清单：文件名不能误导成总名单', new Core.NormalizedRecordSet({ name:'Sheet1', source:'附件清单.xlsx', meta:{format:'xlsx'}, rows:[['文件名','状态','备注'],['CV.pdf','已准备',''],['RP.pdf','待补','']] }), 'ambiguous'],
+  ['普通名单：无联系人结构不自动归类', new Core.NormalizedRecordSet({ name:'Sheet1', source:'名单.xlsx', meta:{format:'xlsx'}, rows:[['设备','数量','价格'],['电脑',2,10000],['显示器',3,6000]] }), 'ambiguous'],
+  ['发送清单：邮件结构优先于文件名', new Core.NormalizedRecordSet({ name:'Sheet1', source:'发送清单.xlsx', meta:{format:'xlsx'}, rows:[['收件人','主题','正文'],['a@example.edu','PhD inquiry','Dear Professor...']] }), 'mail']
 ];
 
 let failed = 0;

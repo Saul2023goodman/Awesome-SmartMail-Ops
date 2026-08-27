@@ -711,6 +711,7 @@
                       </div>
 
                       <div class="nmda-preflight-routing-tip" hidden><span>↕</span><small>拖动文件时会出现快速归类区域。</small></div>
+                      <div class="nmda-classify-list-head" aria-hidden="true"><span></span><span>文件</span><span>快速核验</span><span>用途</span></div>
                       <div class="nmda-preflight-source-routing-list nmda-classify-file-list" id="nmda-preflight-source-routing-list"></div>
                     </section>
 
@@ -1728,13 +1729,35 @@
 
   function sourcePurposeDecision(file) {
     const sourceName=sourceFileName(file),related=sourceCollections(sourceName,file?.name),primary=related.filter(({collection})=>!collection.meta?.supplemental),items=primary.length?primary:related;
-    const purposes=[...new Set(items.map(({index})=>ensureCollectionConfig(index)?.purpose||'ignored'))];
-    const purpose=purposes.length===1?purposes[0]:'ignored';
-    const confidence=Math.max(0,...items.map(({collection})=>Number(collection.meta?.purposeConfidence||0)));
-    const reasons=[...new Set(items.flatMap(({collection})=>collection.meta?.purposeReasons||[]))];
-    const autoPurposes=[...new Set(items.map(({collection})=>String(collection.meta?.sourcePurpose||'')).filter(Boolean))];
     const userConfirmed=items.some(({collection})=>!!collection.meta?.purposeOverride);
-    const needsReview=!userConfirmed&&(autoPurposes.includes('ambiguous')||confidence<70);
+    const configPurposes=[...new Set(items.map(({index})=>ensureCollectionConfig(index)?.purpose||'ignored'))];
+    const evidence=items.map(({collection,index})=>({
+      purpose:String(collection.meta?.sourcePurpose||'ambiguous'),
+      confidence:Number(collection.meta?.purposeConfidence||0),
+      reasons:collection.meta?.purposeReasons||[],index
+    }));
+    const scoreByPurpose=new Map();
+    for(const item of evidence){
+      if(!['mail','roster','attachment','ignored'].includes(item.purpose))continue;
+      scoreByPurpose.set(item.purpose,Math.max(Number(scoreByPurpose.get(item.purpose)||0),item.confidence));
+    }
+    const ranked=[...scoreByPurpose.entries()].map(([purpose,confidence])=>({purpose,confidence})).sort((a,b)=>b.confidence-a.confidence);
+    const top=ranked[0]||null,runner=ranked[1]||null;
+    // A workbook can legitimately contain one useful roster sheet plus empty/helper
+    // sheets. Do not make the whole file “待确认” merely because an auxiliary sheet
+    // is ambiguous. Promote a single high-confidence source role only when it clearly
+    // dominates every competing non-ambiguous role.
+    const dominant=!userConfirmed&&top&&top.confidence>=85&&(!runner||runner.confidence<70||top.confidence-runner.confidence>=12)?top:null;
+    let purpose='ignored';
+    if(userConfirmed)purpose=configPurposes.length===1?configPurposes[0]:(configPurposes.find(value=>value!=='ignored')||configPurposes[0]||'ignored');
+    else if(dominant)purpose=dominant.purpose;
+    else if(configPurposes.length===1)purpose=configPurposes[0];
+    const confidence=dominant?dominant.confidence:Math.max(0,...evidence.map(item=>item.confidence));
+    const reasonSource=dominant?evidence.filter(item=>item.purpose===dominant.purpose):evidence;
+    const reasons=[...new Set(reasonSource.flatMap(item=>item.reasons||[]))];
+    const hasAmbiguous=evidence.some(item=>item.purpose==='ambiguous');
+    const strongConflict=!!runner&&runner.confidence>=70&&(!top||top.confidence-runner.confidence<12);
+    const needsReview=!userConfirmed&&!dominant&&(hasAmbiguous||confidence<70||strongConflict||!items.length);
     return{file,sourceName,purpose,confidence,reasons,items,needsReview,userConfirmed};
   }
 
@@ -1826,8 +1849,16 @@
   }
 
   function sourcePrimaryCollection(decision) {
-    const items=decision?.items||[];
-    return items.find(({collection})=>!collection?.meta?.supplemental&&Array.isArray(collection?.rows)&&collection.rows.length)
+    const items=decision?.items||[],purpose=String(decision?.purpose||'');
+    // When one workbook contains several sheets, preview the sheet that actually
+    // supports the file-level decision instead of blindly taking the first sheet.
+    const matchesPurpose=({collection,index})=>{
+      const auto=String(collection?.meta?.sourcePurpose||''),configured=String(ensureCollectionConfig(index)?.purpose||'');
+      return purpose&&purpose!=='ignored'&&(auto===purpose||configured===purpose);
+    };
+    return items.find(item=>matchesPurpose(item)&&!item.collection?.meta?.supplemental&&Array.isArray(item.collection?.rows)&&item.collection.rows.length)
+      ||items.find(item=>matchesPurpose(item)&&Array.isArray(item.collection?.rows)&&item.collection.rows.length)
+      ||items.find(({collection})=>!collection?.meta?.supplemental&&Array.isArray(collection?.rows)&&collection.rows.length)
       ||items.find(({collection})=>Array.isArray(collection?.rows)&&collection.rows.length)
       ||items[0]||null;
   }
@@ -1863,19 +1894,43 @@
     return (batch.tasks||[]).filter(task=>indexes.has(Number(task.collectionIndex))&&!task.importExcluded);
   }
 
-  function sourceListContentHint(decision) {
-    const tasks=sourceTasksForDecision(decision);
-    if(tasks.length){
-      const task=tasks[0],subject=String(task.subject||'').trim(),recipient=String(task.recipients||'').trim();
-      if(subject||recipient)return [subject?`主题：${subject}`:'',recipient?`收件人：${recipient}`:''].filter(Boolean).join(' · ');
-    }
+  function sourceRosterListHint(decision) {
     const item=sourcePrimaryCollection(decision),rows=item?.collection?.rows||[];
-    if(decision.purpose==='roster'&&!decision.needsReview&&rows.length>1){
-      const detection=Importer.detectHeader(rows),headers=(detection.headers||rows[Math.max(0,Number(detection.index||0))]||[]).map(v=>String(v??'').trim()).filter(Boolean).slice(0,4);
-      const records=Math.max(0,rows.length-Math.max(0,Number(detection.index||0))-1);
-      return `${records} 条记录${headers.length?` · ${headers.join(' / ')}`:''}`;
+    if(rows.length<2)return'';
+    const rosterDetection=typeof Importer.detectRosterHeader==='function'?Importer.detectRosterHeader(item.collection):null;
+    const fallback=Importer.detectHeader(rows),headerIndex=rosterDetection&&Number(rosterDetection.index)>=0?Number(rosterDetection.index):Math.max(0,Number(fallback.index||0)),headers=(rows[headerIndex]||fallback.headers||[]).map(v=>String(v??'').trim());
+    const records=Math.max(0,rows.length-headerIndex-1),sample=(rows[headerIndex+1]||[]).map(v=>String(v??'').replace(/\s+/g,' ').trim()).filter(Boolean);
+    const usefulHeaders=headers.filter(Boolean).filter(h=>/学校|院校|大学|导师|教授|姓名|邮箱|方向|研究|联系人|university|school|supervisor|professor|name|email|research/i.test(h));
+    const headerSummary=usefulHeaders.slice(0,3).join(' / ');
+    const sampleSummary=sample.slice(0,2).join(' / ');
+    return `${records} 条${headerSummary?` · ${headerSummary}`:''}${sampleSummary?` · 示例：${sampleSummary}`:''}`;
+  }
+
+  function sourceListContentHint(decision) {
+    // The middle column exists only to answer “do I need to correct this file?”.
+    // It intentionally shows a role-specific verification cue instead of dumping
+    // raw headers/content that the user can inspect in the right pane.
+    const tasks=sourceTasksForDecision(decision);
+    if(decision.purpose==='mail'&&!decision.needsReview&&tasks.length){
+      const task=tasks[0],subject=String(task.subject||'').replace(/\s+/g,' ').trim(),recipient=String(task.recipients||'').trim();
+      if(recipient&&subject)return `${recipient} · ${subject}`;
+      if(recipient)return `收件人 ${recipient}`;
+      if(subject)return `主题 ${subject}`;
     }
-    return sourceCollectionSnippet(decision)||'点击查看文件内容';
+    if(decision.purpose==='roster'&&!decision.needsReview){
+      const rosterHint=sourceRosterListHint(decision);if(rosterHint)return rosterHint;
+    }
+    if(decision.needsReview){
+      const rosterHint=sourceRosterListHint(decision);
+      if(rosterHint)return `待确认 · ${rosterHint}`;
+      return sourceFriendlyReason(decision);
+    }
+    const primary=sourcePrimaryCollection(decision),snippet=sourceCollectionSnippet(decision,72);
+    if(decision.purpose==='attachment'){
+      if(primary?.collection?.meta?.kind==='asset')return'—';
+      return snippet?snippet:'—';
+    }
+    return snippet||'点击查看内容';
   }
 
   function sourceDecisionStateText(decision) {
@@ -1906,8 +1961,8 @@
       const visual=sourceRoleVisual(decision.purpose,decision.needsReview),fileName=String(decision.sourceName||'').replace(/\\/g,'/').split('/').pop()||'未命名来源';
       const active=batch.sourceInspectName===decision.sourceName;
       const path=sourceDirectoryPath(decision.sourceName),meta=[path||'根目录',humanFileSize(decision.file?.size)].filter(Boolean).join(' · ');
-      const hint=sourceListContentHint(decision),reviewText=decision.needsReview?sourceFriendlyReason(decision):'';
-      return `<div class="nmda-classify-file-row${active?' is-selected':''}" data-tone="${escapeHtml(visual.tone)}" data-review="${decision.needsReview?'1':'0'}" data-inspect-source="${escapeHtml(encodeURIComponent(decision.sourceName))}" data-source-row="${escapeHtml(encodeURIComponent(decision.sourceName))}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(fileName)}"><span class="nmda-classify-drag" draggable="true" data-source-drag="${escapeHtml(encodeURIComponent(decision.sourceName))}" title="拖动可快速归类" aria-label="拖动 ${escapeHtml(fileName)} 重新归类">⠿</span>${sourceFileIconHtml(fileName)}<div class="nmda-classify-file-main"><strong>${escapeHtml(fileName)}</strong><small>${escapeHtml(meta)}</small></div><div class="nmda-classify-file-preview"><span>${escapeHtml(hint)}</span>${reviewText?`<small>${escapeHtml(reviewText)}</small>`:''}</div><span class="nmda-classify-purpose-pill" data-tone="${escapeHtml(visual.tone)}"><i>${escapeHtml(visual.icon)}</i><span>${escapeHtml(visual.label)}</span></span></div>`;
+      const hint=sourceListContentHint(decision);
+      return `<div class="nmda-classify-file-row${active?' is-selected':''}" data-tone="${escapeHtml(visual.tone)}" data-review="${decision.needsReview?'1':'0'}" data-inspect-source="${escapeHtml(encodeURIComponent(decision.sourceName))}" data-source-row="${escapeHtml(encodeURIComponent(decision.sourceName))}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(fileName)}"><span class="nmda-classify-drag" draggable="true" data-source-drag="${escapeHtml(encodeURIComponent(decision.sourceName))}" title="拖动可快速归类" aria-label="拖动 ${escapeHtml(fileName)} 重新归类">⠿</span>${sourceFileIconHtml(fileName)}<div class="nmda-classify-file-main"><strong>${escapeHtml(fileName)}</strong><small>${escapeHtml(meta)}</small></div><div class="nmda-classify-file-preview"><span>${escapeHtml(hint)}</span></div><span class="nmda-classify-purpose-pill" data-tone="${escapeHtml(visual.tone)}"><i>${escapeHtml(visual.icon)}</i><span>${escapeHtml(visual.label)}</span></span></div>`;
     }).join('');
   }
 
@@ -1925,10 +1980,10 @@
     setImportStatus(`已将 ${resolvedFileName||sourceName} 标记为待确认。`,'ok');
   }
 
-  function sourceRosterPreviewHtml(items) {
-    const first=items[0];if(!first)return'';
-    const collection=first.collection,config=ensureCollectionConfig(first.index),detection=config?.detection||Importer.detectHeader(collection.rows||[]),headerIndex=Math.max(0,Number(detection.index||0));
-    const headers=(detection.headers||collection.rows?.[headerIndex]||[]).slice(0,4).map(value=>String(value||'').trim()||'字段');
+  function sourceRosterPreviewHtml(decision) {
+    const first=sourcePrimaryCollection(decision);if(!first)return'';
+    const collection=first.collection,config=ensureCollectionConfig(first.index),rosterDetection=typeof Importer.detectRosterHeader==='function'?Importer.detectRosterHeader(collection):null,detection=config?.detection||Importer.detectHeader(collection.rows||[]),headerIndex=rosterDetection&&Number(rosterDetection.index)>=0?Number(rosterDetection.index):Math.max(0,Number(detection.index||0));
+    const headers=(collection.rows?.[headerIndex]||detection.headers||[]).slice(0,4).map(value=>String(value||'').trim()||'字段');
     const rows=(collection.rows||[]).slice(headerIndex+1,headerIndex+4).map(row=>headers.map((_,i)=>String(row?.[i]??'').trim()));
     if(!headers.length||!rows.length)return'<div class="nmda-inspector-empty-preview">已识别为名单资料，暂无适合快速预览的表格内容。</div>';
     return `<div class="nmda-inspector-preview-block"><div class="nmda-inspector-preview-head"><strong>内容预览</strong><span>约 ${Math.max(0,(collection.rows||[]).length-headerIndex-1)} 条</span></div><div class="nmda-inspector-mini-table"><div class="nmda-inspector-mini-row is-head">${headers.map(h=>`<span>${escapeHtml(h)}</span>`).join('')}</div>${rows.map(row=>`<div class="nmda-inspector-mini-row">${row.map(v=>`<span title="${escapeHtml(v)}">${escapeHtml(v||'—')}</span>`).join('')}</div>`).join('')}</div></div>`;
@@ -1957,7 +2012,7 @@
       const task=tasks[0],body=String(task.body||'').replace(/\s+/g,' ').trim();
       return `<div class="nmda-inspector-preview-block"><div class="nmda-inspector-preview-head"><strong>邮件内容</strong><span>${tasks.length>1?`共 ${tasks.length} 封`:'1 封邮件'}</span></div><div class="nmda-inspector-mail-fields"><div><span>收件人</span><strong>${escapeHtml(task.recipients||'尚未读取')}</strong></div><div><span>主题</span><strong>${escapeHtml(task.subject||'尚未读取')}</strong></div><div class="is-body"><span>正文</span><p>${escapeHtml(body?`${body.slice(0,520)}${body.length>520?'…':''}`:'尚未读取')}</p></div></div></div>`;
     }
-    if(decision.purpose==='roster'&&!decision.needsReview)return sourceRosterPreviewHtml(items);
+    if(decision.purpose==='roster'&&!decision.needsReview)return sourceRosterPreviewHtml(decision);
     return sourceGenericPreviewHtml(decision);
   }
 
@@ -2004,7 +2059,7 @@
     const visible=sourceVisibleDecisions(decisions),folder=batch.preflightFolderPath||'',folderName=folder?folder.split('/').pop():'全部文件';
     const searchInput=$('nmda-preflight-source-search');if(searchInput&&searchInput.value!==String(batch.preflightSearch||''))searchInput.value=String(batch.preflightSearch||'');
     summary.textContent='文件列表';
-    const subtitle=$('nmda-preflight-source-routing-subtitle');if(subtitle)subtitle.textContent=counts.review?`有 ${counts.review} 个文件建议快速确认；其余可直接继续。`:'当前分类没有明显疑问，可直接继续或抽查文件。';
+    const subtitle=$('nmda-preflight-source-routing-subtitle');if(subtitle)subtitle.textContent=counts.review?`有 ${counts.review} 个待确认；中间只保留快速核验信息，完整内容在右侧。`:'中间只保留快速核验信息；分类正确可直接继续。';
     const dirTitle=$('nmda-preflight-directory-title'),dirCount=$('nmda-preflight-directory-count');if(dirTitle)dirTitle.textContent=folderName;if(dirCount)dirCount.textContent=folder?`${visible.length}`:`${decisions.length}`;
     if(chips){
       const chip=(tone,label,count,icon)=>`<button type="button" data-preflight-filter="${tone}" data-tone="${tone}" class="${batch.preflightPurposeFilter===tone?'is-active':''}"><i>${icon}</i><span>${label}</span><b>${count}</b></button>`;

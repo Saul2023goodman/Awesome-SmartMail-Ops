@@ -12,8 +12,18 @@
     email:/^(?:邮箱|邮箱地址|导师邮箱|教授邮箱|联系邮箱|email|emailaddress|mail|contactemail)$/i,
     name:/^(?:导师|导师姓名|教授|教授姓名|姓名|老师|联系人|supervisor|professor|faculty|name|contactname)$/i,
     school:/^(?:学校|院校|大学|高校|所属学校|所属院校|机构|单位|university|school|institution|organisation|organization|affiliation)$/i,
-    workflow:/^(?:批次|轮次|第几批|联系批次|发送批次|状态|联系状态|套磁状态|申请状态|优先级|排序|等级|分类|标签|分组|方向|备注|batch|round|wave|status|contactstatus|priority|rank|tier|tag|tags|category|group|notes?|remarks?)$/i
+    workflow:/^(?:批次|轮次|第几批|联系批次|发送批次|状态|联系状态|套磁状态|申请状态|优先级|排序|等级|分类|标签|分组|备注|batch|round|wave|status|contactstatus|priority|rank|tier|tag|tags|category|group|notes?|remarks?)$/i,
+    profile:/^(?:导师链接|教授链接|个人主页|主页|链接|网址|profile|profileurl|homepage|url|website)$/i,
+    research:/^(?:研究方向|研究领域|研究兴趣|方向|领域|researchinterest|researchinterests|researcharea|researchareas|researchfocus|field)$/i,
+    contact:/^(?:电话|手机号|手机|微信|wechat|phone|mobile|telephone)$/i
   };
+  // Filename cues are deliberately domain-specific. Generic words such as “清单”
+  // are not enough to auto-route a file because they are also common in attachment
+  // inventories and checklists. A roster-like filename becomes decisive only when
+  // the spreadsheet content independently exposes contact/supervisor structure.
+  const ROSTER_NAME_STRONG_RE=/(?:总名单|补充名单|导师(?:名单|名册|清单|筛选|推荐|汇总)|教授(?:名单|名册|清单|筛选|推荐|汇总)|联系人(?:名单|名册|清单)?|院校(?:名单|名册|汇总)|学校(?:名单|名册|汇总)|套磁(?:名单|清单)|外联(?:名单|清单)|联系(?:名单|清单)|推荐名单|筛选名单|faculty\s*(?:list|roster)|supervisor\s*(?:list|roster)|professor\s*(?:list|roster)|contact\s*(?:list|roster)|contactlist)/i;
+  const ROSTER_NAME_GENERIC_RE=/(?:名单|名册|通讯录|roster|directory)/i;
+  const ROSTER_NAME_NEGATIVE_RE=/(?:附件|材料|文件|文档|提交|发送|检查|任务|资产|物资|采购|设备|证件)(?:名单|名册|清单)|(?:attachment|material|file|document|check|task|asset)\s*(?:list|roster)/i;
   const MATERIAL_NAME_RE=/(?:^|[^a-z])(?:cv|resume)(?:[^a-z]|$)|curriculum\s+vitae|transcript|research\s+proposal|research\s+statement|teaching\s+statement|writing\s+sample|personal\s+statement|statement\s+of\s+purpose|letter\s+of\s+recommendation|recommendation\s+letter|cover\s+letter|简历|履历|成绩单|研究计划|研究陈述|教学陈述|个人陈述|目的陈述|推荐信|写作样本/i;
   const MAIL_NAME_RE=/(?:邮件|套磁(?:信|邮件)?|联系邮件|联系信|导师联系|教授联系|outreach\s*(?:mail|email)?|cold\s*email|email\s*draft|mail\s*draft)/i;
   const MATERIAL_TEXT_CUES=[/curriculum\s+vitae|\bresume\b|个人简历|学术简历/i,/education|academic\s+background|教育经历|教育背景/i,/work\s+experience|employment|工作经历/i,/research\s+experience|科研经历/i,/publications?|论文发表|代表性论文/i,/skills?|awards?|honou?rs?|技能|获奖/i,/transcript|成绩单/i,/research\s+proposal|研究计划/i];
@@ -85,6 +95,11 @@
     for(const raw of headers||[]){const header=Core.normalizeHeader(raw);for(const [field,re] of Object.entries(ROSTER_HEADER_PATTERNS))if(re.test(header))found.add(field);}
     return found;
   }
+  function rosterFileNameEvidence(sourceName=''){
+    const normalized=String(sourceName||'').replace(/\\/g,'/').split('/').pop().replace(/\.[^.]+$/,'').replace(/[（(]\d+[）)]\s*$/,'').trim();
+    if(!normalized||ROSTER_NAME_NEGATIVE_RE.test(normalized))return{strong:false,generic:false,name:normalized};
+    return{strong:ROSTER_NAME_STRONG_RE.test(normalized),generic:ROSTER_NAME_GENERIC_RE.test(normalized),name:normalized};
+  }
   function detectRosterHeader(recordSet){
     const rows=recordSet?.rows||[];let best={index:-1,fields:new Set(),score:0};
     for(let index=0;index<Math.min(rows.length,50);index++){
@@ -153,7 +168,10 @@
     const materialName=MATERIAL_NAME_RE.test(sourceName),mailName=MAIL_NAME_RE.test(sourceName),materialCues=MATERIAL_TEXT_CUES.filter(re=>re.test(bodyText)).length;
     const materialStructure=analyzeMaterialStructure(bodyText),mailDiscourse=analyzeMailDiscourse(bodyText);
     const rosterFields=rosterHeader.fields.size?rosterHeader.fields:rosterHeaderEvidence(headers),identityCount=['email','name','school'].filter(key=>rosterFields.has(key)).length;
-    const shape=recordSetShape(recordSet,identityCount>=2&&rosterHeader.index>=0?{index:rosterHeader.index}:detection);
+    const rosterSupportCount=['workflow','profile','research','contact'].filter(key=>rosterFields.has(key)).length;
+    const rosterName=rosterFileNameEvidence(recordSet?.source||recordSet?.name||''),sourceExt=String(recordSet?.source||'').split('.').pop().toLowerCase();
+    const spreadsheetSource=['xls','xlsx','ods','fods','csv','tsv','psv'].includes(sourceExt)||/spreadsheet|xlsx|ods|delimited/i.test(String(meta.format||''));
+    const shape=recordSetShape(recordSet,identityCount>=1&&rosterHeader.index>=0?{index:rosterHeader.index}:detection);
     const scan=meta.mailScan||{},frameSignals=['subjects','salutations','closings','emails'].filter(key=>Number(scan[key]||0)>0).length;
     const frameConfidence=Number(scan.averageConfidence||0),verifiedFrames=!!meta.mailFrames&&Number(scan.records||0)>0&&frameSignals>=2&&frameConfidence>=55;
     const candidates={
@@ -187,6 +205,15 @@
     if(identityCount>=3)add('roster',98,`表头包含姓名、邮箱和院校，形成联系人表`);
     else if(identityCount===2)add('roster',94,`表头包含 ${[rosterFields.has('name')?'姓名':'',rosterFields.has('email')?'邮箱':'',rosterFields.has('school')?'院校':''].filter(Boolean).join('、')}`);
     else if(identityCount===1&&rosterFields.has('workflow'))add('roster',74,'包含联系人身份字段和批次/状态字段');
+    // Filename is corroborating evidence, never a standalone contract. This catches
+    // practical files such as “北京985211补充名单.xlsx” while keeping “附件清单.xlsx”
+    // and a bare “名单.xlsx” with unrelated columns out of automatic routing.
+    if(spreadsheetSource&&shape.rows>=2&&!hasSubject&&!hasBody){
+      if(rosterName.strong&&identityCount>=2)add('roster',100,'文件名明确为名单，且表格包含多个联系人身份字段');
+      else if(rosterName.strong&&identityCount>=1&&rosterSupportCount>=1)add('roster',97,'文件名明确为名单，且表格结构与导师/联系人记录一致');
+      else if(rosterName.generic&&identityCount>=2)add('roster',98,'文件名包含名单意图，且表格身份字段完整');
+      else if(rosterName.strong&&identityCount===0&&rosterSupportCount>=2)add('roster',68,'文件名像名单且有名单辅助字段，但缺少联系人身份字段，仅作为提示');
+    }
     if(identityCount>=2&&shape.rows>=2){add('roster',Math.min(100,candidates.roster.score+2),`包含 ${shape.rows} 条重复联系人记录`);}
     if(identityCount>=2&&shape.emailRatio>=.5){add('roster',Math.min(100,candidates.roster.score+1),'多数记录包含联系人邮箱');}
     if(hasSubject||hasBody)candidates.roster.score=Math.max(0,candidates.roster.score-(hasSubject&&hasBody?38:22));
@@ -205,7 +232,7 @@
 
     if(meta.supplemental)add('ignored',100,'已有更可靠的邮件识别结果，原始结构仅作解析依据');
     else if(meta.oneFileTask&&!candidates.mail.score&&!candidates.attachment.score)add('ignored',45,'普通文档缺少可验证的邮件、名单或附件结构');
-    return{candidates,mailFields,mailHeader,hasRecipient,hasSubject,hasBody,generatedEnvelope,rosterFields,rosterHeader,identityCount,materialName,mailName,materialCues,materialStructure,mailDiscourse,verifiedFrames,shape};
+    return{candidates,mailFields,mailHeader,hasRecipient,hasSubject,hasBody,generatedEnvelope,rosterFields,rosterHeader,identityCount,rosterSupportCount,rosterName,spreadsheetSource,materialName,mailName,materialCues,materialStructure,mailDiscourse,verifiedFrames,shape};
   }
   function classifyRecordSet(recordSet,{forcedPurpose=''}={}){
     const meta=recordSet?.meta||{},forced=validPurpose(forcedPurpose||meta.purposeOverride);
@@ -219,7 +246,10 @@
     const explicitMail=!meta.oneFileTask&&(evidence.generatedEnvelope
       ? evidence.hasSubject&&(evidence.hasRecipient||evidence.hasBody)
       : evidence.hasRecipient&&(evidence.hasSubject||evidence.hasBody));
-    const explicitRoster=evidence.identityCount>=2&&!evidence.hasSubject&&!evidence.hasBody;
+    const explicitRoster=!evidence.hasSubject&&!evidence.hasBody&&(
+      evidence.identityCount>=2 ||
+      (evidence.spreadsheetSource&&evidence.rosterName?.strong&&evidence.identityCount>=1&&evidence.rosterSupportCount>=1&&evidence.shape.rows>=2)
+    );
     const explicitAttachment=evidence.materialName&&!evidence.mailName&&!explicitMail;
     let selected=top;
     if(meta.supplemental)selected={purpose:SOURCE_PURPOSES.ignored,...evidence.candidates.ignored};
@@ -378,7 +408,7 @@
   function resolveFiles(refs,index){const files=[],missing=[],ambiguous=[],details=[];for(const ref of refs||[]){const d=resolveOneFile(ref,index||buildFileIndex([]));details.push(d);if(d.status==='matched')files.push(d.file);else if(d.status==='missing')missing.push(ref);else ambiguous.push(ref);}return{files,missing,ambiguous,details};}
 
   globalThis.NMDAImporter={
-    version:'1.45.0', engine, UniversalImportEngine,
+    version:'1.46.0', engine, UniversalImportEngine,
     FIELD_DEFS:Core.FIELD_DEFS, normalizeHeader:Core.normalizeHeader, mappingForHeaders:Core.mappingForHeaders,
     detectHeader:Core.detectHeader, detectBestSheet:Core.detectBestSheet, detectBestRecordSet:Core.detectBestRecordSet, parseFile, parseFiles, parseDirectory,
     parseDateValue,formatLocalDateTime,createProfile,loadProfiles,saveProfile,deleteProfile,suggestProfile,

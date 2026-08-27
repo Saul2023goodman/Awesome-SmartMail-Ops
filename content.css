@@ -5300,3 +5300,42 @@
   .nmda-classify-file-row { grid-template-columns:16px 38px minmax(0,1fr) auto; }
   .nmda-classify-file-preview { grid-column:3/5; }
 }
+
+/* v1.46 — decision-first file list. The center column is no longer a raw data
+   dump; it is a compact verification summary aligned to the user's next action. */
+.nmda-classify-list-head {
+  display:grid;
+  grid-template-columns:70px minmax(180px,.9fr) minmax(220px,1.1fr) auto;
+  align-items:center;
+  gap:10px;
+  min-height:28px;
+  padding:0 11px;
+  border-top:1px solid #edf1f5;
+  border-bottom:1px solid #e6ebf1;
+  background:#f8fafc;
+  color:#8994a3;
+  font:650 10px/1 system-ui,sans-serif;
+  letter-spacing:.01em;
+}
+.nmda-classify-list-head span:nth-child(4) { min-width:72px;text-align:center; }
+.nmda-classify-file-preview {
+  min-width:0;
+  display:flex;
+  align-items:center;
+  border-left:0 !important;
+  padding-left:0 !important;
+}
+.nmda-classify-file-preview span {
+  color:#435166;
+  font-weight:620;
+}
+.nmda-classify-file-row[data-tone="roster"] .nmda-classify-file-preview span { color:#2d6840; }
+.nmda-classify-file-row[data-tone="mail"] .nmda-classify-file-preview span { color:#365f86; }
+.nmda-classify-file-row[data-tone="attachment"] .nmda-classify-file-preview span { color:#65517f; }
+.nmda-classify-file-row[data-review="1"] .nmda-classify-file-preview span { color:#9a570f; }
+@media (max-width:1100px) {
+  .nmda-classify-list-head { grid-template-columns:63px minmax(155px,.92fr) minmax(165px,1.08fr) auto;gap:8px; }
+}
+@media (max-width:920px) {
+  .nmda-classify-list-head { display:none; }
+}
