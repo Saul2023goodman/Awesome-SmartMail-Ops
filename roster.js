@@ -5,9 +5,10 @@
     email:['邮箱','邮箱地址','导师邮箱','教授邮箱','联系邮箱','email','email address','mail','contact email'],
     name:['导师','导师姓名','教授','教授姓名','姓名','老师','联系人','supervisor','professor','faculty','name','contact name'],
     school:['学校','院校','大学','高校','所属学校','所属院校','机构','单位','university','school','institution','organisation','organization','affiliation'],
+    country:['国家','国家地区','国家/地区','地区','所在国家','country','country/region','country region','region'],
     batch:['批次','轮次','第几批','联系批次','发送批次','batch','round','wave'],
     status:['状态','联系状态','套磁状态','申请状态','status','contact status'],
-    priority:['优先级','优先度','排序','等级','priority','rank','tier'],
+    priority:['套磁顺序','联系顺序','发送顺序','优先级','优先度','排序','顺序','等级','priority','rank','tier','order','sequence','contact order','outreach order'],
     tags:['分类','标签','分组','类别','方向','tag','tags','category','group'],
     notes:['备注','说明','comment','comments','note','notes','remark','remarks']
   };
@@ -24,6 +25,13 @@
     return out;
   }
   function splitTags(v){return String(v??'').split(/[;；|,，\n]+/).map(clean).filter(Boolean);}
+  function parsePriorityOrder(v){
+    const raw=clean(v);if(!raw)return null;
+    const scheduler=globalThis.NMDAScheduler;
+    const parsed=scheduler?.parsePriority?.(raw);
+    if(parsed?.has&&Number.isFinite(parsed.rank))return parsed.rank;
+    const m=raw.match(/(?:第\s*)?(\d+(?:\.\d+)?)/);return m?Number(m[1]):null;
+  }
   function normalizeName(v){
     return clean(v).toLowerCase()
       .replace(/^\s*(?:prof(?:essor)?|dr|mr|mrs|ms)\.?\s+/i,'')
@@ -141,10 +149,10 @@
         let school=explicitSchool||(d.map.school?inheritedSchool:likelySchool(row,used));
         if(!d.map.school&&school)inheritedSchool=school;
         if(!hasIdentityHeader && !email && !(name&&school)) continue;
-        const batch=clean(get('batch')),status=clean(get('status')),priority=clean(get('priority')),tags=splitTags(get('tags')),notes=clean(get('notes'));
+        const country=clean(get('country')),batch=clean(get('batch')),status=clean(get('status')),priority=clean(get('priority')),priorityOrder=parsePriorityOrder(priority),tags=splitTags(get('tags')),notes=clean(get('notes'));
         if(!email&&!name&&!school)continue;
         entries.push({
-          key:`r${entries.length+1}`,email,name,school,batch,status,priority,tags,notes,
+          key:`r${entries.length+1}`,email,name,school,country,batch,status,priority,priorityOrder,tags,notes,
           source:set.source||set.name||'',collection:set.name||'',sourceRow:r+1,
           nameKey:normalizeName(name),nameKeys:nameKeys(name),schoolKey:schoolKey(school),schoolInherited:!explicitSchool&&!!school
         });
@@ -284,5 +292,5 @@
     };
   }
 
-  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,nameKeys,taskName,taskNameCandidates,schoolKey,sameSchool,parseDataset,auditTaskDuplicates,crossCheck,matchOne,buildMatchIndex};
+  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,nameKeys,taskName,taskNameCandidates,schoolKey,sameSchool,parsePriorityOrder,parseDataset,auditTaskDuplicates,crossCheck,matchOne,buildMatchIndex};
 })();

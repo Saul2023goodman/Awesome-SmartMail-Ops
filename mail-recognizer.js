@@ -2,9 +2,9 @@
   'use strict';
 
   const EMAIL_RE = /\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}(?![A-Z0-9.\-])/ig;
-  const SUBJECT_LABEL_RE = /^(?:\*{0,2})\s*(?:subject|e-?mail\s+subject|主题|邮件主题|邮件标题)\s*(?:\*{0,2})\s*[:：]\s*(?:\*{0,2})?\s*/iu;
+  const SUBJECT_LABEL_RE = /^(?:\*{0,2})\s*(?:subject|e-?mail\s+subject|主题|邮件主题|邮件标题|标题|邮件题目|邮件题名|信件主题|套磁主题)\s*(?:\*{0,2})\s*[:：]\s*(?:\*{0,2})?\s*/iu;
   const EN_SALUTATION_RE = /^(?:dear|hello|hi)\s+(?:(?:prof(?:essor)?|dr|mr|mrs|ms)\.?\s+)?[^,，:：\n]{1,90}(?:[,，:：]|$)/iu;
-  const CN_SALUTATION_RE = /^(?:(?:尊敬的|敬爱的)[^，,：:\n]{1,60}[，,：:]?|[\p{L}·•]{1,30}(?:教授|老师|博士)[，,]?\s*您好[！!，,：:]?|您好[！!，,：:])/iu;
+  const CN_SALUTATION_RE = /^(?:(?:尊敬的|敬爱的)\s*[^，,：:\n]{1,60}[，,：:]?\s*(?:您好|好)?[！!，,：:]?|(?:[\p{L}·•]{1,30})?(?:教授|老师|博士|先生|女士)[，,：:]?\s*(?:您好|好)[！!，,：:]?|(?:各位)?(?:老师|教授)(?:们)?[，,：:]?\s*(?:您好|好)[！!，,：:]?|您好[！!，,：:])/iu;
   const HARD_NOISE_RE = /^\s*(?:[-—_]{3,}|#{1,6}\s+|\*{0,2}(?:完整套磁信|改写点标注|改写说明|契合点|备注|说明)\s*[:：]?|✏️|📝|📌|(?:剩下的发|好的，我来|第一部分|第二部分|发送计划))/i;
   const NUMBER_ONLY_RE = /^\s*(?:\d{1,4}|[一二三四五六七八九十百]+)[\.、)）:]?\s*$/;
   const POSTSCRIPT_RE = /^\s*(?:p\.?\s*s\.?|postscript|附言|又及)\s*[:：.]/iu;
@@ -513,6 +513,21 @@
     return{text:parsed.text,excludedBlocks:parsed.excludedBlocks};
   }
 
+  function mailDiscourseEvidence(value) {
+    const text=cleanBlockText(value),recipientMentions=(text.match(/您|贵(?:课题组|团队|实验室|院系|校)|\byou(?:r)?\b/giu)||[]).length;
+    const salutation=!!salutationAnchor(text);
+    const directedPatterns=[
+      /(?:冒昧|特此)?(?:来信|写信|致信|联系您|给您写信)|向您(?:咨询|申请)|希望(?:申请|加入|攻读|有机会加入|有机会在)|申请(?:博士|硕士|研究生|ph\.?d)|在您(?:的)?指导下|对您(?:的)?(?:研究|课题|方向|工作)|您的(?:研究|课题|论文|团队)|贵(?:课题组|团队|实验室|院系|校)/iu,
+      /(?:感谢您(?:的)?(?:时间|阅读|考虑|回复)|期待(?:您的回复|与您交流|有机会|进一步交流)|盼复|敬候佳音|祝(?:您)?(?:工作顺利|一切顺利|身体健康))/iu,
+      /\b(?:i\s+am\s+writing|i['’]?m\s+writing|writing\s+to\s+(?:express|ask|inquire)|interested\s+in\s+(?:pursuing|joining|working)|under\s+your\s+supervision|your\s+(?:research|work|group|lab)|thank\s+you\s+for\s+your|look(?:ing)?\s+forward\s+to)\b/iu
+    ];
+    const directed=directedPatterns.filter(re=>re.test(text)).length;
+    const selfIntro=/(?:^|[。！？!?.\n])\s*(?:我(?:叫|是|目前|现为|本科|硕士|博士)|本人)|\bmy\s+name\s+is\b|\bi\s+am\s+(?:a|an|currently)\b/iu.test(text);
+    const courtesy=/(?:感谢您|谢谢您|期待|盼复|敬候佳音|祝(?:您)?|thank\s+you|look(?:ing)?\s+forward)/iu.test(text);
+    let score=0;if(salutation)score+=3;score+=Math.min(4,directed*2);if(recipientMentions>=2)score+=2;else if(recipientMentions===1)score+=1;if(selfIntro)score+=1;if(courtesy)score+=1;if(text.length>=100)score+=1;
+    return{score,salutation,directed,recipientMentions,selfIntro,courtesy,strong:score>=8&&text.length>=80&&(salutation||recipientMentions>=2)&&directed>=1,moderate:score>=6&&text.length>=60&&(salutation||recipientMentions>=1)&&directed>=1};
+  }
+
   function scoreFrame(frame) {
     let score=0;
     if (frame.subject) score+=30;
@@ -520,6 +535,7 @@
     if (frame.closing) score+=20;
     if (frame.body && frame.body.length>=80) score+=11;else if (frame.body) score+=5;
     if (frame.recipients) score+=15;
+    if(frame.discourseEvidence?.strong)score+=26;else if(frame.discourseEvidence?.moderate)score+=16;
     if(frame.recipientAmbiguous)score-=12;
     return Math.max(0,Math.min(100,score));
   }
@@ -553,6 +569,7 @@
       const structure={subjectBlock,salutationBlock,bodyStartBlock:salutationBlock>=0?salutationBlock:subjectBlock+1,closeStartBlock:closeInfo?.startBlock??-1,closeEndBlock:closeInfo?.endBlock??-1,signatureStartBlock:(body.signatureBlocks||[])[0]??-1,signatureEndBlock:(body.signatureBlocks||[]).slice(-1)[0]??-1,mailStartBlock:subjectBlock,mailEndBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock};
       const frame={id:deriveId(heading,ordinal),recipients,school:institutionFromHeading(heading?.text||''),subject,body:body.text,attachments:sidecar.attachments,scheduleAt:sidecar.scheduleAt,tags:'',sourceFile,salutation:salutInfo?.text||'',closing:closeInfo?.text||'',startBlock:subjectBlock,endBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock,heading:heading?.text||'',excludedBlocks:[...(body.excludedBlocks||[])],sourceReferences:[...sidecar.sources],structure,recipientEvidence:recipientContext.selected||null,recipientAmbiguous:recipientContext.ambiguous,recipientCandidates:(recipientContext.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),evidence:['subject',...(salutInfo?['salutation']:[]),...(closeInfo?['closing']:[]),...((body.signatureBlocks||[]).length?['signature']:[]),...(body.text.length>=80?['body']:[]),...(recipients?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],issues};
       frame.blockRoles=buildBlockRoles(blocks,{subjectBlock,salutationBlock,salutInfo,closeInfo,body,heading,recipientEvidence:recipientContext.selected,recipientCandidates:recipientContext.candidates});
+      frame.discourseEvidence=mailDiscourseEvidence(`${frame.salutation||''}\n${frame.body||''}`);
       frame.confidence=scoreFrame(frame);
       if(recipientContext.ambiguous)frame.issues.push('收件人存在多个相近候选');
       if(!recipients)frame.issues.push('未定位收件人邮箱');
@@ -574,11 +591,17 @@
       const salut=salutationAnchor(blocks[i].text);if(!salut)continue;
       const nextSubject=subjectBlocks.find(x=>x>i)??blocks.length;let fallbackBoundary=Math.min(nextSubject,i+80);
       for(let j=i+1;j<fallbackBoundary;j++){if(salutationAnchor(blocks[j].text)){fallbackBoundary=j;break;}}
-      const closeInfo=findClosingSpan(blocks,i,fallbackBoundary);if(!closeInfo)continue;
-      const body=bodyText(blocks,i,closeInfo,nextSubject,salut),prevEnd=records.filter(r=>r.endBlock<i).sort((a,b)=>(b.consumedEndBlock??b.endBlock)-(a.consumedEndBlock??a.endBlock))[0]?.consumedEndBlock??-1;
+      const closeInfo=findClosingSpan(blocks,i,fallbackBoundary);
+      const body=closeInfo?bodyText(blocks,i,closeInfo,nextSubject,salut):bodyTextOpenEnded(blocks,i,fallbackBoundary,salut);
+      const discourseEvidence=mailDiscourseEvidence(`${salut.text||''}\n${body.text||''}`);
+      // A large share of real Chinese outreach mail ends with “感谢/期待回复/祝好” plus a name,
+      // without a formal “此致敬礼”. Keep it as a mail frame only when recipient-directed discourse
+      // is strong enough; a bare salutation in an essay or statement is not sufficient.
+      if(!closeInfo&&!discourseEvidence.moderate)continue;
+      const prevEnd=records.filter(r=>r.endBlock<i).sort((a,b)=>(b.consumedEndBlock??b.endBlock)-(a.consumedEndBlock??a.endBlock))[0]?.consumedEndBlock??-1;
       const rc=nearestRecipientContext(blocks,prevEnd+1,i,salut.text),heading=headingContext(blocks,prevEnd+1,i),sidecar=sidecarFromExcluded(body.excludedBlocks||[]);
-      const structure={subjectBlock:-1,salutationBlock:i,bodyStartBlock:i,closeStartBlock:closeInfo.startBlock,closeEndBlock:closeInfo.endBlock,signatureStartBlock:(body.signatureBlocks||[])[0]??-1,signatureEndBlock:(body.signatureBlocks||[]).slice(-1)[0]??-1,mailStartBlock:i,mailEndBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock};
-      const frame={id:deriveId(heading,records.length+1),recipients:rc.selected?.email||'',school:institutionFromHeading(heading?.text||''),subject:'',body:body.text,attachments:sidecar.attachments,scheduleAt:sidecar.scheduleAt,tags:'',sourceFile,salutation:salut.text,closing:closeInfo.text,startBlock:i,endBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock,heading:heading?.text||'',recipientEvidence:rc.selected||null,recipientAmbiguous:rc.ambiguous,recipientCandidates:(rc.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),excludedBlocks:[...(body.excludedBlocks||[])],sourceReferences:[...sidecar.sources],structure,evidence:['salutation','closing',...((body.signatureBlocks||[]).length?['signature']:[]),...(body.text.length>=80?['body']:[]),...(rc.selected?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],issues:['未找到 Subject 标记',...((body.excludedBlocks||[]).some(item=>item.role==='ambiguous-tail')?['邮件落款后存在未归类内容，已从正文隔离']:[])]};
+      const structure={subjectBlock:-1,salutationBlock:i,bodyStartBlock:i,closeStartBlock:closeInfo?.startBlock??-1,closeEndBlock:closeInfo?.endBlock??-1,signatureStartBlock:(body.signatureBlocks||[])[0]??-1,signatureEndBlock:(body.signatureBlocks||[]).slice(-1)[0]??-1,mailStartBlock:i,mailEndBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock};
+      const frame={id:deriveId(heading,records.length+1),recipients:rc.selected?.email||'',school:institutionFromHeading(heading?.text||''),subject:'',body:body.text,attachments:sidecar.attachments,scheduleAt:sidecar.scheduleAt,tags:'',sourceFile,salutation:salut.text,closing:closeInfo?.text||'',startBlock:i,endBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock,heading:heading?.text||'',recipientEvidence:rc.selected||null,recipientAmbiguous:rc.ambiguous,recipientCandidates:(rc.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),excludedBlocks:[...(body.excludedBlocks||[])],sourceReferences:[...sidecar.sources],structure,discourseEvidence,evidence:['salutation',...(closeInfo?['closing']:['recipient-directed-discourse']),...((body.signatureBlocks||[]).length?['signature']:[]),...(body.text.length>=80?['body']:[]),...(rc.selected?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],issues:['未找到 Subject 标记',...(!closeInfo?['未找到标准邮件落款，已按收件人导向语篇保留']:[]),...((body.excludedBlocks||[]).some(item=>item.role==='ambiguous-tail')?['邮件落款后存在未归类内容，已从正文隔离']:[])]};
       frame.blockRoles=buildBlockRoles(blocks,{subjectBlock:-1,salutationBlock:i,salutInfo:salut,closeInfo,body,heading,recipientEvidence:rc.selected,recipientCandidates:rc.candidates});frame.confidence=scoreFrame(frame);
       if(rc.ambiguous)frame.issues.push('收件人存在多个相近候选');if(!frame.recipients)frame.issues.push('未定位收件人邮箱');if(frame.confidence<70)frame.issues.push('邮件边界识别置信度较低');
       if(includeWeak||frame.confidence>=minConfidence)records.push(frame);
@@ -605,5 +628,5 @@
     return meta;
   }
 
-  globalThis.NMDAMailRecognizer={EMAIL_RE,extractEmails,isNoiseBlock,subjectAnchor,salutationAnchor,closeAnchor,metadataAnchor,isLikelySignatureLine,classifyBoundaryBlock,sanitizeRecognizedBody,resolveRecipientContext:nearestRecipientContext,recognizeMailFrames,recognizeMailText,recordsToRows,rowMetaFromRecords,cleanInlineMarkup,institutionFromHeading};
+  globalThis.NMDAMailRecognizer={EMAIL_RE,extractEmails,isNoiseBlock,subjectAnchor,salutationAnchor,closeAnchor,metadataAnchor,isLikelySignatureLine,classifyBoundaryBlock,mailDiscourseEvidence,sanitizeRecognizedBody,resolveRecipientContext:nearestRecipientContext,recognizeMailFrames,recognizeMailText,recordsToRows,rowMetaFromRecords,cleanInlineMarkup,institutionFromHeading};
 })();

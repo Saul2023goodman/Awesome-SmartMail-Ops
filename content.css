@@ -3955,3 +3955,33 @@
 .nmda-scope-tools[open] .nmda-scope-toggle::after { content:'收起'; font-size:8.5px; }
 .nmda-scope-tools .nmda-task-toolbar { padding:9px 10px 10px; border-top:1px solid #eaeef2; background:#fff; }
 .nmda-list-card > .nmda-card-head { padding-bottom:9px; }
+
+/* v1.38 — holiday-aware scheduling + roster priority */
+.nmda-scheduler-policy-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.nmda-scheduler-policy-row > span { min-width:0; }
+.nmda-scheduler-holiday-toggle {
+  flex:0 0 min(320px,42%);
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:7px;
+  padding:5px 7px;
+  border:1px solid #dbe3ed;
+  border-radius:7px;
+  background:#fff;
+  cursor:pointer;
+}
+.nmda-scheduler-holiday-toggle input { margin:0; }
+.nmda-scheduler-holiday-toggle strong,
+.nmda-scheduler-holiday-toggle small { display:block; }
+.nmda-scheduler-holiday-toggle strong { color:#334155; font-size:8.3px; }
+.nmda-scheduler-holiday-toggle small { margin-top:1px; color:#8793a3; font-size:7.3px; line-height:1.35; }
+@media (max-width:900px) {
+  .nmda-scheduler-policy-row { align-items:stretch; flex-direction:column; }
+  .nmda-scheduler-holiday-toggle { flex:1 1 auto; width:100%; }
+}
