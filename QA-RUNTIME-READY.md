@@ -1,13 +1,11 @@
-# QA Runtime Ready · v1.47.0
+# QA Runtime Ready · v2.0.0
 
-This package now includes a Chromium-based automated UI QA harness under `qa/`.
+当前包已切换到独立 Chrome 工作台 QA。
 
-Run:
+- 可重复运行真实 app UI + 导入解析栈。
+- 可自动导入 Word / Excel / PDF 测试资料。
+- 可自动截图五档窗口。
+- 可自动检查工作台视口占用、fixed modal containment、交互控件越界和嵌套纵向滚动。
+- 当前自动基线 P0 = 0，P1 = 0。
 
-```bash
-python3 qa/ui_audit.py
-```
-
-The runner executes the production import stack and stylesheet, imports representative Word/Excel/PDF fixtures, opens the real classification workflow, captures responsive screenshots, and writes structural UI warnings to `qa/reports/`.
-
-Current baseline result: parsing/source-role regression passes and the runtime import successfully routes the three fixtures to Mail / Roster / Attachment. The baseline UI audit also detects the existing classification-modal containment/overflow problem, which is intentionally left unfixed so it can serve as a before-redesign reference.
+运行：`python3 qa/ui_audit.py`
