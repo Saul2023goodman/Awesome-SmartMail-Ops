@@ -1,0 +1,16 @@
+const fs=require('fs');
+const js=fs.readFileSync(__dirname+'/content.js','utf8');
+const css=fs.readFileSync(__dirname+'/content.css','utf8');
+const must=(x,m)=>{if(!x)throw new Error(m)};
+must(js.includes('邮件资料已导入'),'loaded import state must say mail data is imported');
+must(js.includes('补充本批次资料'),'post-import dialog title missing');
+must(js.includes('参考总名单'),'roster box missing');
+must(js.includes('附件资料'),'attachment box missing');
+must(js.includes('function attachmentRequirementRefs'),'attachment requirement preview missing');
+must(js.includes("batch.attachmentPrepChoice='skipped'"),'attachment explicit skip state missing');
+must(js.includes("batch.supplementPreflightDone=true"),'preflight completion state missing');
+must(js.includes('renderBatchPrepStrip'),'persistent preparation status missing');
+must(css.includes('.nmda-supplement-grid'),'supplement dialog layout missing');
+must(css.includes('.nmda-batch-prep-strip'),'persistent prep strip styling missing');
+must(css.includes('#nmda-roster-context-cue { display:none !important; }'),'legacy inline roster cue should not compete with the new dialog');
+console.log('import preflight contract OK: mail import and batch supplementation are separated; roster and attachments remain explicit, persistent business objects');

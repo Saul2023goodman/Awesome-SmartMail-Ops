@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const EMAIL_RE = /\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b/ig;
+  const EMAIL_RE = /\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}(?![A-Z0-9.\-])/ig;
   const SUBJECT_LABEL_RE = /^(?:\*{0,2})\s*(?:subject|e-?mail\s+subject|主题|邮件主题|邮件标题)\s*(?:\*{0,2})\s*[:：]\s*(?:\*{0,2})?\s*/iu;
   const EN_SALUTATION_RE = /^(?:dear|hello|hi)\s+(?:(?:prof(?:essor)?|dr|mr|mrs|ms)\.?\s+)?[^,，:：\n]{1,90}(?:[,，:：]|$)/iu;
   const CN_SALUTATION_RE = /^(?:(?:尊敬的|敬爱的)[^，,：:\n]{1,60}[，,：:]?|[\p{L}·•]{1,30}(?:教授|老师|博士)[，,]?\s*您好[！!，,：:]?|您好[！!，,：:])/iu;
@@ -223,7 +223,11 @@
       const heading=def.heading.exec(text);
       if(heading)return{field:def.field,label:def.label,value:'',text,headingOnly:true};
     }
-    if(/^📧\s*[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\s*$/iu.test(cleanBlockText(value)))return{field:'recipient',label:'收件人',value:extractEmails(value)[0]||'',text,headingOnly:false};
+    const directEmails=extractEmails(value);
+    // A leading mail icon is an explicit recipient marker even when the source appends a human
+    // note such as “（请以官网为准）”. Requiring the whole block to be only an email caused these
+    // high-quality recipient lines to fall back to generic prose classification.
+    if(/^\s*📧/u.test(cleanBlockText(value))&&directEmails.length)return{field:'recipient',label:'收件人',value:directEmails[0],text,headingOnly:false};
     return null;
   }
 
@@ -246,9 +250,12 @@
     const metadata=metadataAnchor(text);
     if(metadata)return{role:'metadata',hard:true,label:metadata.label,metadata};
     if(subjectAnchor(text))return{role:'subject',hard:true,label:'下一主题'};
-    if(HARD_NOISE_RE.test(text))return{role:'annotation',hard:true,label:'说明'};
     if(NUMBER_ONLY_RE.test(text))return{role:'record-marker',hard:true,label:'下一记录'};
+    // Identity headings may themselves be Markdown headings (e.g. “### 1. Name — mail@uni.edu”).
+    // Detect their semantic role before the generic Markdown/noise rule, otherwise the previous
+    // record can consume the next record's identity line and hide its embedded email.
     if(phase!=='body'&&RECORD_HEADING_RE.test(cleanInlineMarkup(text)))return{role:'record-heading',hard:true,label:'下一记录'};
+    if(HARD_NOISE_RE.test(text))return{role:'annotation',hard:true,label:'说明'};
     if(salutationAnchor(text))return{role:'salutation',hard:phase!=='body',label:'称呼'};
     if(closeAnchor(text))return{role:'closing',hard:false,label:'结束语'};
     if(POSTSCRIPT_RE.test(text))return{role:'postscript',hard:false,label:'附言'};
@@ -265,6 +272,17 @@
     return{role:'metadata-continuation',hard:true,label,metadata:{field,label,value:clean}};
   }
 
+  // Recipient is a leading field of the *next* mail frame, never a post-body sidecar of the
+  // completed frame. v1.21 introduced consumedEndBlock to stop source/notes metadata leaking
+  // into the next record, but it also consumed a next-record recipient when the source order was
+  // `previous signature -> notes -> 📧 next@... -> record marker/heading -> Subject`. That made
+  // previousConsumedEnd jump past the real recipient before nearestRecipientContext could see it.
+  // Keep source/attachment/schedule/notes tail ownership, but stop ownership immediately before
+  // a recipient header so the next frame can resolve it from its own preamble.
+  function isRecipientBoundary(classification) {
+    return classification?.role==='metadata' && classification.metadata?.field==='recipient';
+  }
+
   function sidecarFromExcluded(items) {
     const attachments=[],sources=[],schedules=[];
     for(const item of items||[]){
@@ -276,8 +294,9 @@
     return{attachments:[...new Set(attachments)].join('; '),scheduleAt:schedules[0]||'',sources:[...new Set(sources)]};
   }
 
-  function nearestRecipientContext(blocks, start, end, salutationText='') {
+  function nearestRecipientContext(blocks, start, end, salutationText='', options={}) {
     const candidates = [];
+    const indexOffset=Number(options?.indexOffset||0);
     const salutation=String(salutationText||'').replace(/[,，:：！!]/g,' ').trim();
     const surname=salutation.split(/\s+/).filter(Boolean).pop()?.toLowerCase()||'';
     for (let i=Math.max(0,start); i<=Math.min(end,blocks.length-1); i++) {
@@ -290,7 +309,7 @@
         if (surname && text.toLowerCase().includes(surname)) score += 14;
         if (/\b(?:from|my email|sender)\b/i.test(text)) score -= 30;
         if(metadata&&metadata.field!=='recipient')score-=80;else if(explicitRecipient)score+=24;
-        candidates.push({email,index:i,score,text,explicitRecipient});
+        candidates.push({email,index:i+indexOffset,score,text,explicitRecipient});
       }
     }
     const deduped=new Map();
@@ -368,7 +387,7 @@
       const classification=classifyBoundaryBlock(raw,{phase:'post-close'});
       if(classification.role==='formatting')continue;
       if(boundaryMode){
-        if(['subject','salutation','record-heading','record-marker'].includes(classification.role))break;
+        if(['subject','salutation','record-heading','record-marker'].includes(classification.role)||isRecipientBoundary(classification))break;
         if(classification.role==='metadata'){
           activeField=classification.metadata?.field||'';activeLabel=classification.label;
           excludedBlocks.push(excludedBlock(candidate,i,classification));consumedEndBlock=Math.max(consumedEndBlock,i);continue;
@@ -377,6 +396,7 @@
         const continuation=activeField?continuationClassification(activeField,activeLabel,raw):{role:'ambiguous-tail',hard:true,label:'未归类尾部'};
         excludedBlocks.push(excludedBlock(candidate,i,continuation));consumedEndBlock=Math.max(consumedEndBlock,i);continue;
       }
+      if(isRecipientBoundary(classification))break;
       if(classification.hard){
         excludedBlocks.push(excludedBlock(candidate,i,classification));consumedEndBlock=Math.max(consumedEndBlock,i);boundaryMode=true;
         activeField=classification.metadata?.field||'';activeLabel=classification.label||'';continue;
@@ -414,6 +434,7 @@
       for(const segment of raw.split(/\n+/).map(x=>x.trim()).filter(Boolean)){
         const classification=classifyBoundaryBlock(segment,{phase:'open-ended'});
         const isInitialSalutation=i===startBlock&&!parts.length&&!local.length&&classification.role==='salutation';
+        if(isRecipientBoundary(classification)&&!isInitialSalutation)break scanBlocks;
         if(boundaryMode){
           if(['subject','salutation','record-heading','record-marker'].includes(classification.role))break scanBlocks;
           if(classification.role==='metadata'){
@@ -584,5 +605,5 @@
     return meta;
   }
 
-  globalThis.NMDAMailRecognizer={EMAIL_RE,extractEmails,isNoiseBlock,subjectAnchor,salutationAnchor,closeAnchor,metadataAnchor,isLikelySignatureLine,classifyBoundaryBlock,sanitizeRecognizedBody,recognizeMailFrames,recognizeMailText,recordsToRows,rowMetaFromRecords,cleanInlineMarkup,institutionFromHeading};
+  globalThis.NMDAMailRecognizer={EMAIL_RE,extractEmails,isNoiseBlock,subjectAnchor,salutationAnchor,closeAnchor,metadataAnchor,isLikelySignatureLine,classifyBoundaryBlock,sanitizeRecognizedBody,resolveRecipientContext:nearestRecipientContext,recognizeMailFrames,recognizeMailText,recordsToRows,rowMetaFromRecords,cleanInlineMarkup,institutionFromHeading};
 })();

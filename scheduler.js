@@ -24,7 +24,7 @@
     const d=new Date(now.getTime()+60*60*1000); d.setMinutes(0,0,0); return formatLocalDateTime(d);
   }
   function recipientDomain(recipients){
-    const m=String(recipients||'').match(/@([A-Z0-9.-]+\.[A-Z]{2,})/i); if(!m)return'';
+    const m=String(recipients||'').match(/@([A-Z0-9.-]+\.[A-Z]{2,})(?![A-Z0-9.-])/i); if(!m)return'';
     const raw=m[1].toLowerCase().replace(/^mail\./,'');
     const labels=raw.split('.').filter(Boolean); if(labels.length<2)return raw;
     const academicSuffixes=new Set(['edu.au','edu.hk','ac.uk','ac.nz','ac.jp','ac.kr','ac.in','edu.sg','edu.cn','edu.my','edu.tw','edu.ph','ac.za']);
@@ -57,8 +57,10 @@
   function groupForTask(task){
     const evidence=institutionEvidence(task?.school||'',task?.recipients||'',task?.schoolSource||''),school=evidence.valid?evidence.value:'', domain=recipientDomain(task?.recipients||'');
     const generic=new Set(['gmail.com','googlemail.com','outlook.com','hotmail.com','live.com','yahoo.com','qq.com','163.com','126.com','icloud.com','proton.me','protonmail.com']);
-    if(domain&&!generic.has(domain)) return { key:`domain:${domain}`, label:school||`邮箱域名 · ${domain}`, source:school?(task?.schoolSource||'school'):'domain', domain };
+    // A roster/manual institution is the business grouping. Domain is only a
+    // fallback: one university may use several faculty subdomains or aliases.
     if(school) return { key:`school:${normalizeInstitutionKey(school)}`, label:school, source:task?.schoolSource||'school', domain };
+    if(domain&&!generic.has(domain)) return { key:`domain:${domain}`, label:`邮箱域名 · ${domain}`, source:'domain', domain };
     if(domain) return { key:`task:${task?.editKey||task?.id||domain}`, label:`未识别学校 · ${domain}`, source:'unknown', domain };
     return { key:`task:${task?.editKey||task?.id||Math.random()}`, label:'未识别学校', source:'unknown' };
   }
@@ -103,9 +105,9 @@
       groups.get(group.key).tasks.push(task);
     }
 
-    const assignments=[], preserved=[]; let maxRound=0, fallbackGroups=0;
+    const assignments=[], preserved=[]; let maxRound=0, fallbackGroups=0, fallbackTasks=0;
     for(const group of groups.values()){
-      if(group.source==='domain'||group.source==='unknown') fallbackGroups++;
+      if(group.source==='domain'||group.source==='unknown'){fallbackGroups++;fallbackTasks+=group.tasks.length;}
       const occupancy=new Map();
       const autoQueue=[];
       for(const task of group.tasks){
@@ -137,7 +139,7 @@
     }
     return {
       rules, assignments, preserved,
-      summary:{selected:candidates.length,groups:groups.size,auto:assignments.length,preserved:preserved.length,rounds:maxRound+1,fallbackGroups}
+      summary:{selected:candidates.length,groups:groups.size,auto:assignments.length,preserved:preserved.length,rounds:maxRound+1,fallbackGroups,fallbackTasks}
     };
   }
 

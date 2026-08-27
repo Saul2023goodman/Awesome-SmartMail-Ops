@@ -59,6 +59,7 @@ if(sandbox.taskNeedsImportReview(attachment))throw new Error('missing attachment
 if(!sandbox.taskHasBlockingIssue(attachment))throw new Error('missing attachment must still block handoff');
 
 if(!js.includes("warnings.push(`原定时时间无法识别：${scheduleRaw}；请在自动安排时间中重新选择`)"))throw new Error('invalid imported schedule should defer to scheduling step instead of hard-blocking');
-if(!js.includes('<span>附件待加</span>'))throw new Error('attachment summary category missing');
-if(!js.includes('data-issue-action="attachments"'))throw new Error('attachment guidance action missing');
+if(!js.includes('<span>附件待补</span>'))throw new Error('attachment summary category missing');
+if(!js.includes("openNextBlockingIssue('attachments')"))throw new Error('attachment fallback must route through the unified next-action resolver');
+if(!js.includes('建议先处理邮件内容'))throw new Error('blocked guidance must express the business-priority task order');
 console.log('business-state regression OK: current facts clear stale subject review state; true ambiguity and attachment blockers remain explicit');

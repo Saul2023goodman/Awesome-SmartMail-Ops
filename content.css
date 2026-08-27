@@ -1721,3 +1721,2176 @@
   .nmda-review-core-fields textarea { min-height:300px !important; }
   .nmda-review-source-context { max-height:360px; }
 }
+
+/* v1.26 — product UI pass: readable productive density, fewer visual containers, state-aware layout */
+#nmda-root {
+  --nmda-bg:#f6f8fa;
+  --nmda-surface:#ffffff;
+  --nmda-surface-soft:#f6f8fa;
+  --nmda-border:#d8dee4;
+  --nmda-border-strong:#afb8c1;
+  --nmda-text:#1f2328;
+  --nmda-muted:#636c76;
+  --nmda-blue:#0969da;
+  --nmda-blue-dark:#0550ae;
+  --nmda-blue-soft:#ddf4ff;
+  --nmda-shadow:0 18px 48px rgba(31,35,40,.18),0 2px 8px rgba(31,35,40,.08);
+}
+#nmda-panel {
+  width:min(1380px,96vw);
+  height:min(920px,94vh);
+  grid-template-columns:146px minmax(0,1fr);
+  grid-template-rows:58px minmax(0,1fr);
+  border-radius:16px;
+  font-size:13px;
+  line-height:1.5;
+}
+#nmda-panel.is-maximized { inset:10px; border-radius:14px; }
+.nmda-head { padding:0 14px 0 16px; }
+.nmda-brand-mark { box-shadow:none; }
+.nmda-title { font-size:14px; font-weight:760; }
+.nmda-subtitle { font-size:10px; color:#6e7781; }
+.nmda-safe-badge { min-height:25px; display:inline-flex; align-items:center; font-size:9.5px; }
+.nmda-icon-btn { width:32px; height:32px; border-radius:8px; }
+
+/* Navigation: keep it compact, but never miniature. */
+.nmda-tabs { padding:12px 8px; gap:4px; background:#f6f8fa; }
+.nmda-nav-label { padding:0 8px 5px; font-size:9px; letter-spacing:.08em; }
+.nmda-tab { min-height:52px; grid-template-columns:28px minmax(0,1fr); gap:8px; padding:8px; border-radius:9px; }
+.nmda-tab-icon { width:28px; height:28px; border-radius:7px; }
+.nmda-tab strong { font-size:11.5px; }
+.nmda-tab small { margin-top:1px; font-size:9px; line-height:1.3; }
+.nmda-tab.is-active { border-color:#b6d7fe; background:#eaf2ff; box-shadow:inset 3px 0 0 var(--nmda-blue); }
+
+/* Page hierarchy: one title, one task surface, then secondary detail. */
+.nmda-page-head { min-height:60px; padding:10px 18px 9px; background:#f6f8fa; }
+.nmda-page-head h2 { font-size:17px; font-weight:760; }
+.nmda-page-head p { margin-top:3px; font-size:10.5px; color:#6e7781; }
+.nmda-page-head-meta { display:none !important; }
+.nmda-page { padding:14px 16px 28px; }
+.nmda-card,.nmda-import-card {
+  gap:11px;
+  padding:14px;
+  border-color:#d8dee4;
+  border-radius:11px;
+  box-shadow:none;
+}
+.nmda-card-title { font-size:13px; font-weight:760; }
+.nmda-card-desc { margin-top:2px; font-size:10px; line-height:1.45; color:#6e7781; }
+.nmda-label { font-size:11px; font-weight:700; }
+.nmda-hint { font-size:9.5px; line-height:1.45; }
+#nmda-panel input[type="text"],#nmda-panel input[type="search"],#nmda-panel input[type="datetime-local"],#nmda-panel input[type="file"],#nmda-panel textarea,#nmda-panel select {
+  min-height:36px;
+  border-radius:7px;
+  padding:7px 10px;
+}
+.nmda-btn { min-height:36px; border-radius:7px; font-size:11px; }
+.nmda-btn-small { min-height:31px; font-size:10px; }
+.nmda-btn-primary { box-shadow:0 1px 0 rgba(31,35,40,.08); }
+#nmda-panel button:focus-visible,#nmda-panel input:focus-visible,#nmda-panel textarea:focus-visible,#nmda-panel select:focus-visible,#nmda-panel summary:focus-visible {
+  outline:2px solid #0969da;
+  outline-offset:2px;
+}
+
+/* Batch: preserve the requested right-side process rail, but make it clearer and less noisy. */
+.nmda-bulk-workbench { grid-template-columns:minmax(0,1fr) 160px; column-gap:14px; padding-bottom:36px; }
+.nmda-process-guide { top:10px; padding:9px; border-radius:11px; border-color:#d0d7de; box-shadow:0 4px 14px rgba(31,35,40,.06); }
+.nmda-process-guide-title { display:flex; align-items:baseline; justify-content:space-between; gap:6px; padding:2px 4px 8px; margin-bottom:5px; }
+.nmda-process-guide-title small { order:1; display:block; color:#8c959f; font-size:8.5px; font-weight:650; }
+.nmda-process-guide-title strong { order:2; font-size:10px; font-weight:760; color:#57606a; }
+.nmda-process-guide button { grid-template-columns:29px minmax(0,1fr); column-gap:8px; padding:8px 7px; border-radius:8px; }
+.nmda-process-guide button > span { width:29px; height:29px; border-radius:7px; font-size:9px; }
+.nmda-process-guide button strong { font-size:10px; line-height:1.25; }
+.nmda-process-guide button small { margin-top:2px; font-size:8.5px; line-height:1.35; }
+.nmda-process-guide > i { height:10px; margin-left:14px; background:#d8dee4; }
+.nmda-process-guide button[data-state="active"] { border-color:#b6d7fe; background:#eaf2ff; }
+.nmda-process-guide button[data-state="done"] { opacity:.82; }
+.nmda-process-guide button[data-state="locked"] { opacity:.38; }
+
+/* The stage header duplicated the page title + process rail. Keep only the actual transition stage. */
+#nmda-stage-prepare { display:none !important; }
+.nmda-workflow-stage-separator { margin:14px 2px 12px; }
+.nmda-workflow-stage-head { margin:0 0 8px; }
+.nmda-workflow-stage-head strong { font-size:12.5px; }
+.nmda-workflow-stage-head small { font-size:9px; }
+.nmda-stage-number { width:28px; height:28px; font-size:8.5px; }
+
+/* Empty state: one calm focal area rather than a tiny card at the top of a blank page. */
+.nmda-bulk-workbench[data-phase="empty"] #nmda-import-card {
+  width:min(820px,100%);
+  margin:50px auto 0;
+  padding:22px;
+  border-color:#c6d1dc;
+  box-shadow:0 8px 26px rgba(31,35,40,.05);
+}
+.nmda-bulk-workbench[data-phase="empty"] #nmda-import-card .nmda-card-title { font-size:16px; }
+.nmda-bulk-workbench[data-phase="empty"] #nmda-import-card .nmda-card-desc { max-width:600px; font-size:11px; }
+.nmda-bulk-workbench[data-phase="empty"] .nmda-source-action-grid { gap:9px; margin-top:4px; }
+.nmda-bulk-workbench[data-phase="empty"] .nmda-source-action { min-height:78px; padding:12px; grid-template-columns:32px minmax(0,1fr); border-radius:9px; }
+.nmda-bulk-workbench[data-phase="empty"] .nmda-source-action-icon { width:32px; height:32px; }
+.nmda-bulk-workbench[data-phase="empty"] .nmda-source-action strong { font-size:11px; }
+.nmda-bulk-workbench[data-phase="empty"] .nmda-source-action small { font-size:9px; }
+.nmda-bulk-workbench[data-phase="empty"] #nmda-import-status { margin-top:1px; background:transparent; padding:0; color:#8c959f; }
+
+/* Loaded state: importing becomes a toolbar; the user's attention moves to exceptions/results. */
+#nmda-import-card[data-loaded="1"] { padding:12px 13px; }
+#nmda-import-card[data-loaded="1"] .nmda-card-desc { font-size:9.5px; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action-grid { gap:6px; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action { min-height:44px; padding:6px 9px; grid-template-columns:24px minmax(0,1fr); border-radius:8px; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action-icon { width:24px; height:24px; font-size:11px; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action strong { font-size:9.8px; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action small { display:none; }
+#nmda-import-card[data-loaded="1"] .nmda-ingest-source-tools { min-height:30px; }
+#nmda-import-card[data-loaded="1"] .nmda-compact-options > summary { min-height:31px; }
+.nmda-import-status { min-height:31px; font-size:9.5px; padding:6px 9px; }
+.nmda-source-inventory { gap:6px; }
+.nmda-source-inventory-head strong { font-size:10.5px; }
+.nmda-source-inventory-head span { font-size:9px; }
+.nmda-source-item { border-radius:8px !important; }
+
+/* Results: status is a summary row, not four equal hero cards. */
+.nmda-ingest-result-card { border-color:#c6d1dc; background:#fff; }
+.nmda-ingest-health { display:flex; flex-wrap:wrap; gap:6px; }
+.nmda-health-metric { min-width:125px; flex:0 1 160px; grid-template-columns:auto 1fr; align-items:baseline; gap:6px; padding:8px 10px; border-radius:8px; }
+.nmda-health-metric strong { font-size:16px; }
+.nmda-health-metric span { font-size:9px; }
+.nmda-review-guidance { min-height:34px; padding:7px 9px; font-size:9.5px; border-radius:8px; background:#f6f8fa; }
+.nmda-guidance-action { min-height:30px; padding:4px 9px; }
+.nmda-import-handoff-card { margin-top:2px; padding-top:9px; }
+.nmda-roster-audit-card { padding:11px 13px; border-color:#d8dee4; background:#fff; }
+.nmda-roster-audit-card .nmda-ingest-health { margin-top:-1px; }
+.nmda-roster-details > summary { font-size:9.5px; }
+.nmda-ingest-diagnostics { border-style:dashed; background:#fbfcfd; }
+.nmda-ingest-diagnostics > summary { min-height:38px; padding:8px 11px; }
+.nmda-ingest-diagnostics > summary strong { font-size:10px; }
+.nmda-ingest-diagnostics > summary small { font-size:8.5px; }
+
+/* Review: editable mail is the hero; evidence remains progressive disclosure. */
+.nmda-inline-review { border-color:#c6d1dc; }
+.nmda-inline-review-top { padding:12px 13px 2px; }
+.nmda-inline-review-top .nmda-card-title { font-size:13px; }
+.nmda-review-viewbar { min-height:39px; margin:0 12px; padding:5px 7px; }
+.nmda-review-filter button { min-height:28px; font-size:9px; }
+.nmda-review-layout { grid-template-columns:196px minmax(0,1fr) !important; }
+.nmda-review-queue-pane { max-height:calc(94vh - 126px); }
+.nmda-review-pane-title { min-height:40px; padding:8px 10px; }
+.nmda-review-pane-title strong { font-size:10.5px; }
+.nmda-review-pane-title small { font-size:8.5px; }
+.nmda-review-queue-main strong { font-size:9.5px; }
+.nmda-review-queue-main small,.nmda-review-queue-main em { font-size:8px; }
+.nmda-review-edit-pane > .nmda-import-editor-grid,.nmda-review-feedback { margin-left:12px; margin-right:12px; }
+.nmda-review-core-fields textarea { min-height:330px !important; font-size:11px; line-height:1.7; }
+.nmda-review-core-fields input { min-height:36px; font-size:11px; }
+.nmda-review-actions { margin-top:10px; padding:10px 12px; }
+.nmda-review-evidence-pane > summary { padding:10px 12px; }
+.nmda-review-source-meta,.nmda-review-candidates,.nmda-review-source-context { margin-left:12px; margin-right:12px; }
+
+/* Selection/scheduling: reduce stacked card feeling and keep actions near the table. */
+.nmda-list-card { gap:9px; }
+.nmda-task-toolbar { grid-template-columns:minmax(220px,1fr) 150px auto auto; gap:7px; }
+.nmda-search-field input { min-height:34px; font-size:10px; }
+.nmda-compact-select { min-height:34px; font-size:9px; }
+.nmda-compact-select select { font-size:9.5px; }
+.nmda-inline-scheduler { border-radius:8px; }
+.nmda-inline-scheduler > summary { min-height:38px; padding:8px 10px; }
+.nmda-inline-scheduler > summary strong { font-size:10.5px; }
+.nmda-inline-scheduler > summary small { font-size:8.5px; }
+.nmda-batch-table-wrap { max-height:390px; border-radius:8px; }
+.nmda-table th { font-size:9px; }
+.nmda-table td { font-size:9.5px; }
+.nmda-run-card { padding:12px 13px; border-color:#b6d7fe; background:#f6faff; }
+
+/* Single draft: one content canvas + one options card + one action card. */
+.nmda-single-grid { grid-template-columns:minmax(0,1.7fr) minmax(300px,.68fr); gap:14px; }
+.nmda-compose-card { padding:15px; }
+.nmda-side-stack { gap:10px; }
+.nmda-single-options-card { gap:10px; }
+.nmda-option-divider { height:1px; background:#eaeef2; }
+.nmda-file-field input[type="file"] { padding:4px 6px !important; }
+.nmda-file-field input[type="file"]::file-selector-button {
+  min-height:28px;
+  margin-right:9px;
+  padding:0 10px;
+  border:1px solid #afb8c1;
+  border-radius:6px;
+  background:#f6f8fa;
+  color:#24292f;
+  font:700 10px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+.nmda-action-card { position:sticky; top:0; padding:12px; }
+.nmda-action-card .nmda-hint { padding:1px 1px 0; }
+#nmda-body-text { min-height:320px !important; font-size:11px; line-height:1.65; }
+
+/* Contacts: list is primary; sync/export become a compact command bar. */
+.nmda-crm-top-grid { display:block; margin-bottom:10px; }
+.nmda-contact-command-card { gap:8px; padding:11px 13px; }
+.nmda-contact-command-card > .nmda-card-head { align-items:center; }
+.nmda-contact-command-actions { justify-content:flex-end; }
+.nmda-contact-sync-line { display:grid; grid-template-columns:minmax(180px,.72fr) minmax(260px,1.28fr); gap:8px; align-items:center; }
+.nmda-contact-sync-line .nmda-read-meta,#nmda-contact-status { min-height:30px; display:flex; align-items:center; padding:6px 9px; margin:0; border-radius:7px; font-size:9.5px; }
+.nmda-maintenance-details { padding-top:4px; }
+.nmda-maintenance-details > summary { font-size:9px; }
+.nmda-contact-list-card {
+  min-height:0 !important;
+  align-content:start;
+  grid-template-rows:auto auto auto minmax(260px,1fr);
+  gap:9px;
+  padding:13px;
+}
+.nmda-contact-toolbar-unified { grid-template-columns:minmax(260px,1.15fr) minmax(260px,.85fr); gap:8px; align-items:center; }
+.nmda-contact-toolbar-unified input { height:36px !important; min-height:36px !important; }
+.nmda-class-chip-bar { min-height:0; padding-top:0; }
+.nmda-contact-table-wrap { max-height:500px; min-height:260px; border-radius:8px; }
+.nmda-contact-table th { position:sticky; top:0; z-index:1; background:#f6f8fa; }
+.nmda-contact-table td:first-child small { font-size:9px; }
+
+@media (max-width:1100px) {
+  #nmda-panel { grid-template-columns:136px minmax(0,1fr); }
+  .nmda-bulk-workbench { grid-template-columns:minmax(0,1fr) 138px; column-gap:10px; }
+  .nmda-process-guide button small { display:none; }
+  .nmda-process-guide-title small { display:none; }
+  .nmda-single-grid { grid-template-columns:minmax(0,1.55fr) minmax(280px,.75fr); }
+}
+@media (max-width:900px) {
+  .nmda-bulk-workbench { grid-template-columns:minmax(0,1fr) 58px; }
+  .nmda-process-guide-title { justify-content:center; }
+  .nmda-process-guide-title strong { font-size:8px; }
+  .nmda-process-guide button strong,.nmda-process-guide button small { display:none; }
+  .nmda-process-guide button { grid-template-columns:1fr; justify-items:center; }
+  .nmda-single-grid { grid-template-columns:1fr; }
+  .nmda-action-card { position:static; }
+  .nmda-contact-sync-line { grid-template-columns:1fr; }
+}
+@media (max-width:760px) {
+  #nmda-panel { inset:4px; width:auto; height:auto; grid-template-columns:58px minmax(0,1fr); }
+  .nmda-tabs { padding-left:5px; padding-right:5px; }
+  .nmda-nav-label,.nmda-tab strong,.nmda-tab small { display:none; }
+  .nmda-tab { grid-template-columns:1fr; justify-items:center; padding:6px; }
+  .nmda-bulk-workbench[data-phase="empty"] #nmda-import-card { margin-top:18px; padding:16px; }
+  .nmda-source-action-grid { grid-template-columns:1fr !important; }
+  .nmda-task-toolbar,.nmda-contact-toolbar-unified { grid-template-columns:1fr; }
+}
+.nmda-file-picker { display:flex; align-items:center; gap:9px; min-height:36px; }
+.nmda-file-picker .nmda-btn { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+.nmda-file-picker .nmda-hint { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-field-assist { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:1px; color:#6e7781; font-size:9.5px; }
+.nmda-field-assist[hidden] { display:none !important; }
+.nmda-field-assist button { min-height:27px; padding:3px 8px; border:1px solid #b6d7fe; border-radius:6px; background:#eaf2ff; color:#0969da; font:700 9.5px/1 system-ui,sans-serif; cursor:pointer; }
+.nmda-field-assist button:hover { background:#ddf4ff; border-color:#80bfff; }
+
+/* v1.27 · Duplicate decision: treat duplicates as one business decision, not N repeated confirmations. */
+.nmda-duplicate-decision {
+  margin:10px 12px 12px;
+  border:1px solid #d8b4a0;
+  border-radius:10px;
+  background:#fffaf7;
+  overflow:hidden;
+}
+.nmda-duplicate-decision[hidden] { display:none !important; }
+.nmda-duplicate-decision-head {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:11px 12px 9px;
+  border-bottom:1px solid #f0ddd2;
+}
+.nmda-duplicate-decision-head > div { min-width:0; display:grid; gap:3px; }
+.nmda-duplicate-decision-head strong { font-size:11.5px; line-height:1.35; color:#4a2f24; }
+.nmda-duplicate-decision-head small { font-size:9.5px; line-height:1.5; color:#7a5a4d; }
+.nmda-duplicate-kind {
+  flex:0 0 auto;
+  min-height:22px;
+  display:inline-flex;
+  align-items:center;
+  padding:3px 7px;
+  border-radius:999px;
+  background:#fbe9df;
+  color:#8a3f20;
+  font:700 8.5px/1 system-ui,sans-serif;
+}
+.nmda-duplicate-kind[data-tone="soft"] { background:#fff1c7; color:#7a5310; }
+.nmda-duplicate-candidates { display:grid; gap:0; }
+.nmda-duplicate-candidate {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  padding:9px 11px;
+  border-bottom:1px solid #f2e3da;
+  background:#fff;
+}
+.nmda-duplicate-candidate:last-child { border-bottom:0; }
+.nmda-duplicate-candidate.is-selected { background:#fff5ee; box-shadow:inset 3px 0 0 #bc5a2a; }
+.nmda-duplicate-candidate.is-current .nmda-duplicate-candidate-main { color:#24292f; }
+.nmda-duplicate-candidate > label {
+  min-width:0;
+  display:grid;
+  grid-template-columns:18px minmax(0,1fr);
+  align-items:flex-start;
+  gap:8px;
+  cursor:pointer;
+}
+.nmda-duplicate-candidate input[type="checkbox"] { margin:3px 0 0; accent-color:#9a4a26; }
+.nmda-duplicate-candidate-main { min-width:0; display:grid; gap:3px; }
+.nmda-duplicate-candidate-title { min-width:0; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.nmda-duplicate-candidate-title strong {
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:10.5px;
+}
+.nmda-duplicate-candidate-title em {
+  padding:2px 5px;
+  border-radius:999px;
+  background:#dafbe1;
+  color:#1a7f37;
+  font:700 8px/1 system-ui,sans-serif;
+  font-style:normal;
+}
+.nmda-duplicate-candidate-title small { color:#57606a; font-size:8px; }
+.nmda-duplicate-candidate-meta { color:#7d6a60; font-size:8.5px; line-height:1.35; }
+.nmda-duplicate-candidate-snippet {
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  color:#57606a;
+  font-size:9px;
+  line-height:1.45;
+}
+.nmda-duplicate-actions {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 11px;
+  border-top:1px solid #f0ddd2;
+  background:#fffaf7;
+}
+.nmda-duplicate-actions .nmda-hint { max-width:62%; color:#7a5a4d; }
+.nmda-duplicate-actions .nmda-btn-primary { background:#9a4a26; border-color:#9a4a26; }
+.nmda-duplicate-actions .nmda-btn-primary:hover { background:#833d1f; border-color:#833d1f; }
+@media (max-width:900px) {
+  .nmda-duplicate-candidate { grid-template-columns:1fr; }
+  .nmda-duplicate-candidate > .nmda-btn { justify-self:start; margin-left:26px; }
+  .nmda-duplicate-actions { align-items:flex-start; flex-direction:column; }
+  .nmda-duplicate-actions .nmda-hint { max-width:none; }
+}
+
+/* v1.28 · Guided workflow — optimize for complex batches, one next action, stable review context. */
+.nmda-review-guidance[data-state="pending"] {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 11px;
+  border-color:#f0cf8a;
+  background:#fffaf0;
+}
+.nmda-review-guidance[data-state="ready"] { background:#f0fff4; border-color:#b7e4c7; }
+.nmda-guidance-main { min-width:0; display:grid; gap:2px; }
+.nmda-guidance-main strong { color:#3b4654; font-size:10.5px; }
+.nmda-guidance-main small { color:#6e7781; font-size:9px; line-height:1.45; }
+
+/* Keep the user's task context visible even when the current mail is long. */
+.nmda-inline-review-top {
+  position:sticky;
+  top:0;
+  z-index:12;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px !important;
+  border-bottom:1px solid #eaeef2;
+  background:#fff;
+  box-shadow:0 3px 10px rgba(31,35,40,.05);
+}
+.nmda-inline-review-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0; }
+.nmda-inline-review-actions .nmda-review-page-summary { flex:0 1 auto; }
+#nmda-review-next-pending { flex:0 0 auto; }
+.nmda-review-edit-pane { overflow-anchor:none; }
+.nmda-review-core-fields textarea {
+  min-height:210px !important;
+  max-height:38vh !important;
+  overflow-y:auto !important;
+  resize:vertical;
+}
+.nmda-review-workbench.has-duplicate-decision .nmda-review-core-fields textarea {
+  min-height:150px !important;
+  max-height:24vh !important;
+}
+.nmda-review-actions {
+  position:sticky !important;
+  bottom:0 !important;
+  z-index:10 !important;
+  margin-top:8px !important;
+  border-top:1px solid #d8dee4 !important;
+  background:#fff !important;
+  box-shadow:0 -7px 18px rgba(31,35,40,.07);
+}
+.nmda-review-queue-main em { color:#9a6700; font-weight:760; }
+.nmda-review-queue-row.is-active .nmda-review-queue-main em { color:#825000; }
+
+/* Attachments are a step-2 todo, not a reason to pull the user back into step 1. */
+#nmda-attachments-card[data-issue="1"] > summary { background:#fffaf0; }
+#nmda-attachments-card[data-issue="1"] > summary strong { color:#7d4e00; }
+
+/* Ready-to-create is distinct from actively creating: avoid making step 4 look current too early. */
+.nmda-process-guide button[data-state="ready"] {
+  border-color:#b6d7fe;
+  background:#f6faff;
+  opacity:1;
+}
+.nmda-process-guide button[data-state="ready"] > span { background:#ddf4ff; color:#0969da; }
+.nmda-process-guide button[data-state="ready"] strong { color:#0550ae; }
+
+/* Long selection tables must not hide the only consequential action. */
+.nmda-run-card {
+  position:sticky !important;
+  bottom:0 !important;
+  z-index:14 !important;
+  box-shadow:0 -8px 22px rgba(31,35,40,.09) !important;
+}
+.nmda-page { scroll-padding-top:64px; }
+
+@media (max-width:900px) {
+  .nmda-inline-review-top { align-items:flex-start; }
+  .nmda-inline-review-actions { align-items:flex-end; flex-direction:column; }
+  .nmda-review-core-fields textarea { max-height:34vh !important; }
+}
+.nmda-review-workbench.has-duplicate-decision .nmda-review-actions { display:none !important; }
+/* v1.28.1 · Duplicate decisions keep their consequential action in view while comparing long groups. */
+.nmda-duplicate-decision { overflow:visible; }
+.nmda-duplicate-decision-head { border-radius:10px 10px 0 0; background:#fffaf7; }
+.nmda-duplicate-actions {
+  position:sticky;
+  bottom:0;
+  z-index:11;
+  border-radius:0 0 10px 10px;
+  box-shadow:0 -6px 16px rgba(74,47,36,.08);
+}
+/* v1.28.2 · Review focus mode: while resolving mail todos, unrelated stages leave the scroll path. */
+.nmda-bulk-workbench.is-review-focus #nmda-stage-prepare,
+.nmda-bulk-workbench.is-review-focus #nmda-import-card,
+.nmda-bulk-workbench.is-review-focus #nmda-ingest-result-card,
+.nmda-bulk-workbench.is-review-focus #nmda-roster-audit-card,
+.nmda-bulk-workbench.is-review-focus #nmda-ingest-diagnostics,
+.nmda-bulk-workbench.is-review-focus > .nmda-workflow-stage-separator,
+.nmda-bulk-workbench.is-review-focus > #nmda-stage-execute,
+.nmda-bulk-workbench.is-review-focus > #nmda-batch-empty,
+.nmda-bulk-workbench.is-review-focus > #nmda-preview-card,
+.nmda-bulk-workbench.is-review-focus > #nmda-run-card { display:none !important; }
+.nmda-bulk-workbench.is-review-focus .nmda-inline-review { margin-top:0; }
+
+/* v1.29 · Review canvas — destructive actions stay contextual; no floating bar covers the mail. */
+.nmda-bulk-workbench.is-review-page-focus {
+  overflow:hidden !important;
+  padding-top:14px !important;
+  padding-bottom:14px !important;
+  grid-template-rows:minmax(0,1fr);
+  align-items:stretch;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-inline-review {
+  height:100%;
+  min-height:0;
+  overflow:hidden !important;
+  grid-template-rows:auto auto auto auto minmax(0,1fr);
+  align-self:stretch;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-workbench {
+  min-height:0;
+  height:100%;
+  overflow:hidden;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-layout {
+  min-height:0 !important;
+  height:100%;
+  max-height:none !important;
+  overflow:hidden !important;
+  align-items:stretch;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-queue-pane {
+  position:static !important;
+  top:auto !important;
+  max-height:none !important;
+  height:100%;
+  overflow:auto !important;
+  scrollbar-gutter:stable;
+}
+.nmda-review-edit-pane {
+  min-height:0;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden !important;
+  padding-bottom:0 !important;
+  background:#fff !important;
+}
+.nmda-review-mail-toolbar {
+  position:relative !important;
+  z-index:6;
+  display:flex !important;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:48px;
+  padding:8px 12px !important;
+  background:#fff !important;
+}
+.nmda-review-mail-heading { min-width:0; display:grid; gap:2px; }
+.nmda-review-mail-heading strong { font-size:11px; }
+.nmda-review-mail-heading small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-review-more-menu { position:relative; flex:0 0 auto; }
+.nmda-review-more-menu > summary {
+  list-style:none;
+  min-height:30px;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 9px;
+  border:1px solid #d0d7de;
+  border-radius:7px;
+  background:#fff;
+  color:#57606a;
+  font-size:10px;
+  font-weight:700;
+  cursor:pointer;
+  user-select:none;
+}
+.nmda-review-more-menu > summary::-webkit-details-marker { display:none; }
+.nmda-review-more-menu > summary::after { content:'▾'; color:#8c959f; font-size:8px; }
+.nmda-review-more-menu[open] > summary { background:#f6f8fa; border-color:#afb8c1; color:#24292f; }
+.nmda-review-more-popover {
+  position:absolute;
+  top:calc(100% + 6px);
+  right:0;
+  z-index:30;
+  width:230px;
+  padding:6px;
+  border:1px solid #d0d7de;
+  border-radius:9px;
+  background:#fff;
+  box-shadow:0 10px 28px rgba(31,35,40,.14),0 2px 6px rgba(31,35,40,.08);
+}
+.nmda-review-menu-danger {
+  width:100%;
+  display:grid;
+  gap:2px;
+  padding:8px 9px;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:#cf222e;
+  text-align:left;
+  cursor:pointer;
+}
+.nmda-review-menu-danger:hover { background:#fff1f1; }
+.nmda-review-menu-danger strong { font-size:10.5px; font-weight:720; }
+.nmda-review-menu-danger small { color:#6e7781; font-size:8.5px; line-height:1.4; }
+.nmda-review-edit-scroll {
+  min-height:0;
+  overflow:auto;
+  padding:0 0 10px;
+  scrollbar-gutter:stable;
+  overscroll-behavior:contain;
+}
+.nmda-review-edit-scroll > .nmda-import-editor-grid,
+.nmda-review-edit-scroll > .nmda-review-feedback { margin-left:12px; margin-right:12px; }
+.nmda-review-edit-scroll > .nmda-review-core-fields { margin-top:12px; }
+.nmda-review-edit-scroll > .nmda-review-evidence-pane {
+  display:block;
+  margin:12px 12px 2px;
+  overflow:hidden !important;
+  border:1px solid #d8dee4 !important;
+  border-radius:9px !important;
+  background:#f6f8fa !important;
+}
+.nmda-review-edit-scroll > .nmda-review-evidence-pane > summary {
+  padding:9px 10px !important;
+  background:#f6f8fa !important;
+}
+.nmda-review-edit-scroll .nmda-review-source-context { max-height:360px; }
+.nmda-review-actions {
+  position:static !important;
+  bottom:auto !important;
+  z-index:auto !important;
+  min-height:54px;
+  margin:0 !important;
+  padding:9px 12px !important;
+  border-top:1px solid #d8dee4 !important;
+  border-radius:0 !important;
+  background:#f6f8fa !important;
+  box-shadow:none !important;
+  justify-content:space-between;
+}
+.nmda-review-actions[hidden] { display:none !important; }
+.nmda-review-action-copy { color:#6e7781; font-size:9px; line-height:1.4; }
+.nmda-review-workbench.has-duplicate-decision .nmda-review-actions { display:none !important; }
+.nmda-review-workbench.has-duplicate-decision .nmda-review-edit-scroll { overflow:auto; }
+.nmda-review-workbench.has-duplicate-decision .nmda-duplicate-actions {
+  position:static !important;
+  bottom:auto !important;
+  box-shadow:none !important;
+}
+.nmda-review-core-fields textarea {
+  min-height:260px !important;
+  max-height:56vh !important;
+}
+.nmda-inline-review-actions { flex-wrap:wrap; }
+#nmda-import-editor-cancel { white-space:nowrap; }
+
+@media (max-width:900px) {
+  .nmda-bulk-workbench.is-review-page-focus { overflow:auto !important; }
+  .nmda-bulk-workbench.is-review-page-focus .nmda-inline-review,
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-workbench,
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-layout { height:auto; overflow:visible !important; }
+  .nmda-review-edit-pane { overflow:visible !important; }
+  .nmda-review-edit-scroll { overflow:visible; }
+  .nmda-review-more-popover { width:min(230px,70vw); }
+}
+
+/* v1.29 · Review canvas refinement — the email is the viewport, actions stay in context. */
+.nmda-page-head.nmda-review-head-hidden { display:none !important; }
+.nmda-bulk-workbench.is-review-page-focus {
+  padding:10px 14px 12px !important;
+  grid-template-rows:minmax(0,1fr) !important;
+  align-items:stretch !important;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-inline-review {
+  min-height:0;
+  height:100%;
+  display:grid;
+  grid-template-rows:auto auto minmax(0,1fr) !important;
+  gap:0 !important;
+  overflow:hidden !important;
+  border:1px solid #c9d3df !important;
+  border-radius:11px !important;
+  background:#fff;
+  box-shadow:0 5px 18px rgba(31,35,40,.055);
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-inline-review-top {
+  position:static !important;
+  min-height:50px;
+  padding:9px 11px !important;
+  border-bottom:1px solid #e6ebf0;
+  box-shadow:none !important;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-inline-review-top .nmda-card-title {
+  font-size:12.5px;
+  line-height:1.25;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-inline-review-top .nmda-card-desc {
+  margin-top:2px;
+  font-size:9px;
+  line-height:1.35;
+  color:#6e7781;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-page-summary {
+  gap:4px;
+  flex-wrap:nowrap;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-page-summary span {
+  min-height:28px;
+  padding:4px 8px;
+  border:1px solid #d8dee4;
+  border-radius:7px;
+  background:#fff;
+  white-space:nowrap;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-page-summary strong { font-size:10px; }
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-page-summary span { font-size:8.5px; }
+.nmda-bulk-workbench.is-review-page-focus #nmda-review-next-pending { display:none !important; }
+.nmda-bulk-workbench.is-review-page-focus #nmda-import-editor-cancel {
+  min-height:30px;
+  padding:5px 9px;
+}
+
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-workbench {
+  min-height:0;
+  height:100%;
+  display:grid;
+  grid-template-rows:minmax(0,1fr) !important;
+  overflow:hidden;
+  border:0 !important;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-layout {
+  min-height:0 !important;
+  height:100%;
+  display:grid;
+  grid-template-columns:220px minmax(0,1fr) !important;
+  overflow:hidden !important;
+  border:0 !important;
+}
+
+/* The queue is a navigation rail: search/filter stay fixed, only rows scroll. */
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-queue-pane {
+  min-height:0;
+  height:100%;
+  display:grid;
+  grid-template-rows:auto auto auto minmax(0,1fr);
+  overflow:hidden !important;
+  border-right:1px solid #dfe5eb;
+  background:#f8fafc;
+}
+.nmda-review-queue-titlebar {
+  position:static !important;
+  min-height:45px !important;
+  padding:8px 10px !important;
+  background:#f8fafc !important;
+  border-bottom:0 !important;
+}
+.nmda-review-queue-titlebar strong { font-size:10.5px !important; }
+.nmda-review-queue-titlebar small { font-size:8.5px !important; color:#7d8590 !important; }
+.nmda-review-queue-tools {
+  display:grid;
+  gap:6px;
+  padding:0 8px 8px;
+  border-bottom:1px solid #e6ebf0;
+}
+.nmda-review-search {
+  min-height:32px;
+  display:grid;
+  grid-template-columns:20px minmax(0,1fr);
+  align-items:center;
+  gap:2px;
+  padding:0 7px;
+  border:1px solid #d0d7de;
+  border-radius:7px;
+  background:#fff;
+  color:#8c959f;
+}
+.nmda-review-search:focus-within {
+  border-color:#54aeff;
+  box-shadow:0 0 0 2px rgba(9,105,218,.12);
+}
+.nmda-review-search span { font-size:13px; line-height:1; text-align:center; }
+.nmda-review-search input {
+  width:100%;
+  min-width:0;
+  height:30px;
+  padding:0;
+  border:0 !important;
+  outline:0;
+  background:transparent;
+  color:#24292f;
+  font:500 9.5px/1.2 system-ui,sans-serif;
+}
+.nmda-review-search input::placeholder { color:#9aa3ad; }
+.nmda-review-filter {
+  min-height:28px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:3px;
+  padding:2px;
+  border:1px solid #d8dee4;
+  border-radius:7px;
+  background:#eef2f6;
+}
+.nmda-review-filter[hidden] { display:none !important; }
+.nmda-review-filter button {
+  min-height:24px;
+  padding:3px 5px;
+  border:0;
+  border-radius:5px;
+  background:transparent;
+  color:#57606a;
+  font:700 8.5px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+.nmda-review-filter button.is-active { background:#fff; color:#0969da; box-shadow:0 1px 2px rgba(31,35,40,.08); }
+.nmda-review-bulk-entry { width:100%; justify-content:center; }
+.nmda-review-batchbar {
+  margin:0 !important;
+  padding:7px 8px !important;
+  border:0 !important;
+  border-bottom:1px solid #dbe4ee !important;
+  border-radius:0 !important;
+  background:#eef6ff !important;
+  box-shadow:none !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  gap:6px !important;
+}
+.nmda-review-batchbar[hidden] { display:none !important; }
+.nmda-review-batchbar > div:first-child { display:grid; gap:1px; }
+.nmda-review-batchbar .nmda-row { justify-content:flex-start; }
+.nmda-review-queue {
+  min-height:0;
+  overflow:auto;
+  padding:8px;
+  gap:6px;
+  scrollbar-gutter:stable;
+  overscroll-behavior:contain;
+}
+.nmda-review-queue-row {
+  min-height:54px;
+  border-color:#dfe5eb;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:none;
+}
+.nmda-review-queue-row:hover { border-color:#a8c7fa; background:#fbfdff; }
+.nmda-review-queue-row.is-active {
+  border-color:#54aeff;
+  background:#eef6ff;
+  box-shadow:inset 3px 0 0 #0969da;
+}
+.nmda-review-queue-item { padding:7px 8px !important; gap:7px !important; }
+.nmda-review-queue-index {
+  width:22px;
+  height:22px;
+  border-radius:6px;
+  background:#eef2ff;
+  color:#4f46e5;
+  font-size:8.5px;
+}
+.nmda-review-queue-main { gap:2px; }
+.nmda-review-queue-main strong { font-size:9.5px !important; line-height:1.25; }
+.nmda-review-queue-main small { font-size:8px !important; line-height:1.25; }
+.nmda-review-queue-main em { font-size:8px !important; line-height:1.2; }
+
+/* The editor is a stable canvas. No action overlays the body. */
+.nmda-review-edit-pane {
+  min-height:0;
+  height:100%;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto !important;
+  overflow:hidden !important;
+  background:#fff !important;
+}
+.nmda-review-mail-toolbar {
+  position:static !important;
+  min-height:46px !important;
+  display:flex !important;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:7px 10px !important;
+  border-bottom:1px solid #e6ebf0 !important;
+  background:#fff !important;
+  box-shadow:none !important;
+}
+.nmda-review-mail-heading { min-width:0; display:grid; gap:1px; }
+.nmda-review-mail-heading strong {
+  max-width:420px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11px !important;
+  line-height:1.25;
+  color:#24292f;
+}
+.nmda-review-mail-heading small {
+  max-width:520px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:8.5px !important;
+  line-height:1.3;
+  color:#6e7781;
+}
+.nmda-review-mail-actions { flex:0 0 auto; display:flex; align-items:center; gap:6px; }
+.nmda-review-pager {
+  height:31px;
+  display:grid;
+  grid-template-columns:30px minmax(48px,auto) 30px;
+  align-items:center;
+  overflow:hidden;
+  border:1px solid #d0d7de;
+  border-radius:7px;
+  background:#fff;
+}
+.nmda-review-pager button {
+  width:30px;
+  height:30px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  background:#fff;
+  color:#57606a;
+  font:700 18px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+.nmda-review-pager button:hover:not(:disabled) { background:#f6f8fa; color:#0969da; }
+.nmda-review-pager button:disabled { color:#c7cdd4; cursor:default; }
+.nmda-review-pager span {
+  min-width:50px;
+  padding:0 6px;
+  border-left:1px solid #eaeef2;
+  border-right:1px solid #eaeef2;
+  color:#57606a;
+  text-align:center;
+  font:700 8.5px/30px system-ui,sans-serif;
+  white-space:nowrap;
+}
+.nmda-review-more-menu > summary {
+  min-height:31px !important;
+  padding:5px 9px !important;
+  border-radius:7px !important;
+  font-size:9px !important;
+}
+.nmda-review-more-popover { width:218px !important; }
+.nmda-review-menu-danger strong { font-size:10px !important; }
+.nmda-review-menu-danger small { font-size:8.5px !important; }
+.nmda-review-edit-scroll {
+  min-height:0;
+  overflow:auto;
+  padding:0 0 10px;
+  scrollbar-gutter:stable;
+  overscroll-behavior:contain;
+  background:#fff;
+}
+.nmda-review-edit-scroll > .nmda-import-editor-grid,
+.nmda-review-edit-scroll > .nmda-review-feedback { margin-left:12px; margin-right:12px; }
+.nmda-review-edit-scroll > .nmda-review-core-fields { margin-top:10px; }
+.nmda-review-core-fields input { min-height:36px !important; font-size:11px !important; }
+.nmda-review-core-fields textarea {
+  min-height:210px !important;
+  max-height:52vh !important;
+  font-size:11px !important;
+  line-height:1.65 !important;
+}
+.nmda-review-edit-scroll > .nmda-review-evidence-pane {
+  margin:10px 12px 2px !important;
+}
+
+/* Explicit confirmation is a real footer row, not a floating layer. */
+.nmda-review-actions {
+  position:static !important;
+  inset:auto !important;
+  z-index:auto !important;
+  min-height:52px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:0 !important;
+  padding:8px 10px !important;
+  border:0 !important;
+  border-top:1px solid #dfe5eb !important;
+  border-radius:0 !important;
+  background:#f8fafc !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+}
+.nmda-review-actions[hidden] { display:none !important; }
+.nmda-review-action-copy { max-width:48%; color:#6e7781; font-size:8.5px; line-height:1.4; }
+.nmda-review-actions .nmda-row { flex:0 0 auto; }
+
+/* Duplicate decisions remain inside the document flow as the current task. */
+.nmda-review-workbench.has-duplicate-decision .nmda-duplicate-actions {
+  position:static !important;
+  inset:auto !important;
+  box-shadow:none !important;
+}
+
+@media (max-width:1180px) {
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-layout { grid-template-columns:198px minmax(0,1fr) !important; }
+  .nmda-review-mail-heading strong { max-width:300px; }
+  .nmda-review-mail-heading small { max-width:360px; }
+}
+@media (max-width:900px) {
+  .nmda-page-head.nmda-review-head-hidden { display:none !important; }
+  .nmda-bulk-workbench.is-review-page-focus { overflow:auto !important; padding:8px !important; }
+  .nmda-bulk-workbench.is-review-page-focus .nmda-inline-review,
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-workbench,
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-layout { height:auto; overflow:visible !important; }
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-layout { grid-template-columns:1fr !important; }
+  .nmda-bulk-workbench.is-review-page-focus .nmda-review-queue-pane { max-height:330px; border-right:0; border-bottom:1px solid #dfe5eb; }
+  .nmda-review-edit-pane,.nmda-review-edit-scroll { overflow:visible !important; }
+  .nmda-review-mail-heading strong,.nmda-review-mail-heading small { max-width:48vw; }
+}
+
+/* v1.29 · cancel legacy two-row review placement now that evidence lives inside the editor. */
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-layout {
+  grid-template-rows:minmax(0,1fr) !important;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-queue-pane {
+  grid-column:1 !important;
+  grid-row:1 !important;
+  align-self:stretch !important;
+}
+.nmda-bulk-workbench.is-review-page-focus .nmda-review-edit-pane {
+  grid-column:2 !important;
+  grid-row:1 !important;
+  align-self:stretch !important;
+  padding-bottom:0 !important;
+  border-bottom:0 !important;
+}
+
+/* v1.30 · Decision Canvas — core actions stay visible; comparison decisions stay side-by-side. */
+.nmda-review-exclude-direct {
+  min-height:31px;
+  padding:5px 10px;
+  border:1px solid #f1b8b2;
+  border-radius:7px;
+  background:#fff;
+  color:#b42318;
+  font:700 9px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.nmda-review-exclude-direct:hover {
+  border-color:#e47b70;
+  background:#fff5f4;
+  color:#912018;
+}
+.nmda-review-exclude-direct:focus-visible { outline:2px solid #0969da; outline-offset:2px; }
+
+/* Comparison is the primary duplicate decision surface, not a list of snippets. */
+.nmda-duplicate-decision {
+  margin:10px 12px 12px !important;
+  border:1px solid #e9c3ad !important;
+  border-radius:12px !important;
+  overflow:hidden !important;
+  background:#fff !important;
+}
+.nmda-duplicate-decision-head {
+  padding:11px 12px !important;
+  border-bottom:1px solid #f0d8ca !important;
+  background:#fffaf7 !important;
+}
+.nmda-duplicate-decision-head strong { font-size:12px !important; }
+.nmda-duplicate-decision-head small { font-size:9px !important; line-height:1.45 !important; }
+.nmda-duplicate-candidates {
+  display:grid !important;
+  gap:10px !important;
+  padding:10px !important;
+  background:#f7f9fb !important;
+  align-items:stretch !important;
+}
+.nmda-duplicate-candidates[data-count="2"] { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+.nmda-duplicate-candidates[data-count="3"] { grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
+.nmda-duplicate-candidates:not([data-count="2"]):not([data-count="3"]) {
+  grid-auto-flow:column !important;
+  grid-auto-columns:minmax(260px,31%) !important;
+  overflow-x:auto !important;
+  overscroll-behavior-inline:contain;
+  scroll-snap-type:x proximity;
+}
+.nmda-duplicate-candidate {
+  min-width:0 !important;
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  grid-template-rows:auto auto minmax(128px,1fr) auto !important;
+  gap:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  border:1px solid #d8dee4 !important;
+  border-radius:9px !important;
+  background:#fff !important;
+  box-shadow:none !important;
+  scroll-snap-align:start;
+}
+.nmda-duplicate-candidate.is-selected {
+  border-color:#d36b39 !important;
+  background:#fff !important;
+  box-shadow:0 0 0 2px rgba(188,90,42,.10) !important;
+}
+.nmda-duplicate-candidate.is-current { outline:1px solid #9aa7b5; outline-offset:-1px; }
+.nmda-duplicate-pick-line {
+  min-width:0;
+  display:flex !important;
+  align-items:flex-start !important;
+  gap:8px !important;
+  padding:8px 9px !important;
+  border-bottom:1px solid #edf0f2;
+  background:#fbfcfd;
+  cursor:pointer;
+}
+.nmda-duplicate-candidate.is-selected .nmda-duplicate-pick-line { background:#fff5ee; }
+.nmda-duplicate-pick-line input[type="checkbox"] { margin:2px 0 0 !important; accent-color:#b45126; }
+.nmda-duplicate-pick-line > span { min-width:0; display:grid; gap:2px; }
+.nmda-duplicate-pick-line strong { color:#24292f; font-size:9.5px; line-height:1.3; }
+.nmda-duplicate-pick-line small { color:#7a6a61; font-size:7.8px; line-height:1.35; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-duplicate-preview-head { min-width:0; padding:9px 9px 8px; border-bottom:1px solid #edf0f2; }
+.nmda-duplicate-candidate-title { display:flex !important; align-items:center; gap:5px !important; flex-wrap:wrap; }
+.nmda-duplicate-candidate-title strong {
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#24292f !important;
+  font-size:10px !important;
+  line-height:1.35;
+}
+.nmda-duplicate-candidate-title em {
+  padding:2px 5px !important;
+  border-radius:999px !important;
+  background:#edf7ed !important;
+  color:#237a3b !important;
+  font-size:7.5px !important;
+  font-style:normal;
+  font-weight:700;
+}
+.nmda-duplicate-candidate-title small { color:#57606a !important; font-size:7.5px !important; }
+.nmda-duplicate-preview-recipient {
+  display:block;
+  margin-top:4px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#57606a;
+  font-size:8px;
+  line-height:1.35;
+}
+.nmda-duplicate-preview-body {
+  min-height:128px;
+  max-height:205px;
+  overflow:auto;
+  padding:9px;
+  background:#fff;
+  scrollbar-gutter:stable;
+}
+.nmda-duplicate-preview-body pre {
+  margin:0;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  color:#39414a;
+  font:400 8.3px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+.nmda-duplicate-edit {
+  justify-self:stretch !important;
+  margin:0 !important;
+  min-height:30px !important;
+  border:0 !important;
+  border-top:1px solid #edf0f2 !important;
+  border-radius:0 !important;
+  background:#fbfcfd !important;
+  color:#57606a !important;
+}
+.nmda-duplicate-edit:hover { background:#f3f6f9 !important; color:#0969da !important; }
+.nmda-duplicate-actions {
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:10px !important;
+  padding:9px 10px !important;
+  border-top:1px solid #f0d8ca !important;
+  background:#fffaf7 !important;
+}
+.nmda-duplicate-actions .nmda-hint { max-width:60%; font-size:8px !important; line-height:1.4; color:#7a5a4d; }
+
+/* Candidate recipients are choices, not evidence. Keep all reasonable options beside the field. */
+.nmda-field-assist:not([hidden]) { display:flex !important; align-items:center; gap:5px; flex-wrap:wrap; }
+.nmda-field-assist > span { color:#57606a; font-size:8px; }
+.nmda-field-assist button[data-recipient-suggestion] {
+  min-height:25px;
+  max-width:100%;
+  padding:3px 7px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  border:1px solid #b6d0f5;
+  border-radius:6px;
+  background:#f6f9fe;
+  color:#145db2;
+  font:600 8px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;
+  cursor:pointer;
+}
+.nmda-field-assist button[data-recipient-suggestion]:hover { background:#eaf3ff; border-color:#78a9e8; }
+
+@media (max-width:1120px) {
+  .nmda-duplicate-candidates[data-count="3"] {
+    grid-template-columns:none !important;
+    grid-auto-flow:column !important;
+    grid-auto-columns:minmax(250px,47%) !important;
+    overflow-x:auto !important;
+  }
+}
+@media (max-width:760px) {
+  .nmda-duplicate-candidates[data-count="2"],
+  .nmda-duplicate-candidates[data-count="3"] {
+    grid-template-columns:none !important;
+    grid-auto-flow:column !important;
+    grid-auto-columns:minmax(250px,88%) !important;
+    overflow-x:auto !important;
+  }
+  .nmda-duplicate-actions { align-items:flex-start !important; flex-direction:column; }
+  .nmda-duplicate-actions .nmda-hint { max-width:none; }
+}
+
+/* v1.31 · Context preflight — ask for useful context at the moment it can prevent rework. */
+.nmda-context-cue {
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  margin-top:9px;
+  padding:10px 11px;
+  border:1px solid #d8dee4;
+  border-radius:9px;
+  background:#f8fafc;
+}
+.nmda-context-cue[hidden] { display:none !important; }
+.nmda-context-cue-icon {
+  width:30px;height:30px;border-radius:8px;
+  display:grid;place-items:center;
+  background:#eaf2ff;color:#0969da;
+  font-size:13px;font-weight:800;
+}
+.nmda-context-cue-main { min-width:0; display:grid; gap:2px; }
+.nmda-context-eyebrow { font-size:8px; line-height:1.2; font-weight:800; color:#57606a; letter-spacing:.02em; }
+.nmda-context-cue-main > strong { font-size:10.5px; line-height:1.35; color:#24292f; }
+.nmda-context-cue-main > small { max-width:720px; font-size:8.7px; line-height:1.5; color:#667085; }
+.nmda-context-cue-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex-wrap:wrap; }
+.nmda-context-benefits { display:flex; flex-wrap:wrap; gap:4px; margin-top:3px; }
+.nmda-context-benefits[hidden] { display:none !important; }
+.nmda-context-benefits span {
+  padding:2px 6px;border-radius:999px;background:#eef2f6;color:#57606a;
+  font-size:7.7px;font-weight:700;white-space:nowrap;
+}
+.nmda-context-status { margin-top:2px; font-size:8px; color:#8c959f; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-roster-context-cue[data-state="pending"] { border-color:#e7c66b; background:#fffaf0; }
+.nmda-roster-context-cue[data-state="pending"] .nmda-context-cue-icon { background:#fff1c2; color:#8a5b00; }
+.nmda-roster-context-cue[data-state="added"] { border-color:#b7e4c7; background:#f6fff8; }
+.nmda-roster-context-cue[data-state="added"] .nmda-context-cue-icon { background:#dafbe1; color:#1a7f37; }
+.nmda-roster-context-cue[data-state="skipped"] { background:#f6f8fa; border-style:dashed; }
+.nmda-roster-context-cue[data-state="skipped"] .nmda-context-cue-icon { background:#eaeef2; color:#57606a; }
+#nmda-import-card[data-loaded="1"] .nmda-context-cue { margin-top:7px; padding:8px 9px; grid-template-columns:26px minmax(0,1fr) auto; }
+#nmda-import-card[data-loaded="1"] .nmda-context-cue-icon { width:26px;height:26px;border-radius:7px;font-size:11px; }
+#nmda-import-card[data-loaded="1"] .nmda-context-cue-main > strong { font-size:9.8px; }
+#nmda-import-card[data-loaded="1"] .nmda-context-cue-main > small { font-size:8.2px; }
+#nmda-import-card[data-loaded="1"] .nmda-context-benefits span { font-size:7.3px; }
+
+.nmda-context-cue-compact { margin:8px 0 0; padding:9px 10px; }
+.nmda-attachment-context-cue { border-color:#d7c684; background:#fffdf5; }
+.nmda-attachment-context-cue .nmda-context-cue-icon { background:#fff1c2;color:#8a5b00; }
+
+.nmda-stage-preflight {
+  display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:center;
+  margin:8px 9px 0;padding:8px 9px;border:1px solid #dbeafe;border-radius:8px;background:#f6faff;
+}
+.nmda-stage-preflight-icon { width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:#ddf4ff;color:#0969da;font-size:11px;font-weight:800; }
+.nmda-stage-preflight div { min-width:0;display:grid;gap:2px; }
+.nmda-stage-preflight strong { font-size:9px;color:#334155; }
+.nmda-stage-preflight small { font-size:8px;line-height:1.45;color:#667085; }
+
+.nmda-create-preflight { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:5px; }
+.nmda-create-preflight > span { display:flex; flex-wrap:wrap; gap:4px; }
+.nmda-create-preflight em { font-style:normal;padding:2px 6px;border-radius:999px;background:#eaf2ff;color:#365b88;font-size:7.8px;font-weight:720; }
+.nmda-create-preflight > strong { font-size:8.3px;color:#1a7f37; }
+
+@media (max-width:900px) {
+  .nmda-context-cue { grid-template-columns:30px minmax(0,1fr); align-items:start; }
+  .nmda-context-cue-actions { grid-column:1 / -1; justify-content:flex-start; padding-left:40px; }
+  #nmda-import-card[data-loaded="1"] .nmda-context-cue { grid-template-columns:26px minmax(0,1fr); }
+  #nmda-import-card[data-loaded="1"] .nmda-context-cue-actions { padding-left:34px; }
+}
+.nmda-review-guidance[data-state="context"] { border-color:#b6d7fe; background:#f6faff; }
+/* When a review stage is complete, the handoff to the next business step is a core action, not a hidden secondary control. */
+.nmda-bulk-workbench.is-review-page-focus #nmda-review-next-pending[data-mode="continue"] { display:inline-flex !important; }
+
+/* v1.32 · Task hierarchy — show business blockers, compress completed/system detail. */
+#nmda-import-card[data-loaded="1"] {
+  padding:10px 12px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-card-head {
+  align-items:center;
+  margin-bottom:6px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-card-title { font-size:12px; }
+#nmda-import-card[data-loaded="1"] .nmda-card-desc { font-size:8.8px; color:#7a8492; }
+#nmda-import-card[data-loaded="1"] .nmda-source-action-grid {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:0;
+}
+#nmda-import-card[data-loaded="1"] .nmda-source-action {
+  width:auto;
+  min-height:34px;
+  flex:0 0 auto;
+  grid-template-columns:20px auto;
+  grid-template-rows:1fr;
+  align-items:center;
+  gap:6px;
+  padding:0 9px;
+  border-radius:7px;
+  background:#fff;
+}
+#nmda-import-card[data-loaded="1"] .nmda-source-action-icon {
+  grid-row:auto;
+  width:20px;
+  height:20px;
+  border-radius:6px;
+  font-size:9px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-source-action strong {
+  font-size:9.2px;
+  align-self:center;
+}
+#nmda-import-card[data-loaded="1"] .nmda-source-action small { display:none !important; }
+#nmda-import-card[data-loaded="1"] .nmda-ingest-source-tools {
+  min-height:24px;
+  margin-top:2px;
+}
+#nmda-import-card[data-loaded="1"] #nmda-import-format-info {
+  color:#57606a;
+  font-size:8.6px;
+}
+#nmda-import-card[data-loaded="1"] #nmda-import-status[data-kind="ok"] {
+  min-height:0;
+  margin-top:2px;
+  padding:3px 0 !important;
+  border:0;
+  background:transparent;
+  color:#57606a;
+  font-size:8.5px;
+}
+
+/* Reference roster is optional context, not a warning/blocker. */
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue {
+  margin-top:5px;
+  padding:7px 8px;
+  grid-template-columns:24px minmax(0,1fr) auto;
+  gap:7px;
+  border-color:#dbe5ef;
+  background:#f8fbff;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="pending"] {
+  border-color:#cfe0f4;
+  background:#f7faff;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="pending"] .nmda-context-cue-icon {
+  background:#eaf2ff;
+  color:#0969da;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="added"] {
+  border-color:#d5e8dc;
+  background:#f8fcf9;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="skipped"] {
+  border-color:#e1e6eb;
+  background:#fafbfc;
+  border-style:solid;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-cue-icon {
+  width:24px;
+  height:24px;
+  border-radius:6px;
+  font-size:10px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-eyebrow {
+  font-size:7.3px;
+  color:#6e7781;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-cue-main > strong {
+  font-size:9.4px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-cue-main > small {
+  font-size:7.9px;
+  line-height:1.35;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-cue-actions {
+  gap:5px;
+  flex-wrap:nowrap;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-btn-small {
+  min-height:28px;
+  padding:0 8px;
+  font-size:9px;
+}
+
+/* Import/source routing is audit detail. Keep it available, but out of the primary flow. */
+.nmda-source-inventory { padding-top:0; gap:0; }
+.nmda-source-inventory-details {
+  border-top:1px solid #eef1f4;
+  margin-top:3px;
+  padding-top:2px;
+}
+.nmda-source-inventory-details > summary {
+  min-height:30px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:4px 1px;
+  cursor:pointer;
+  list-style:none;
+  color:#57606a;
+}
+.nmda-source-inventory-details > summary::-webkit-details-marker { display:none; }
+.nmda-source-inventory-details > summary > span:first-child {
+  min-width:0;
+  display:flex;
+  align-items:baseline;
+  gap:7px;
+}
+.nmda-source-inventory-details > summary strong { font-size:9px; color:#3d444d; }
+.nmda-source-inventory-details > summary small {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:8px;
+  color:#8c959f;
+}
+.nmda-source-inventory-open { font-size:8px; color:#0969da; font-weight:700; }
+.nmda-source-inventory-details[open] .nmda-source-inventory-open { font-size:0; }
+.nmda-source-inventory-details[open] .nmda-source-inventory-open::after { content:'收起'; font-size:8px; }
+.nmda-source-inventory-details .nmda-source-list { margin-top:5px; }
+.nmda-source-detail-note { margin-top:6px; font-size:8px; color:#667085; }
+.nmda-source-inventory-details .nmda-ingest-warnings {
+  margin-top:6px;
+  border-color:#e1e6eb;
+  background:#fafbfc;
+  color:#57606a;
+}
+
+/* Attachment shortage is a blocking todo, so it gets the strongest step-2 treatment. */
+.nmda-attachment-context-cue {
+  margin:0 0 9px !important;
+  padding:11px 12px !important;
+  grid-template-columns:34px minmax(0,1fr) auto !important;
+  gap:10px !important;
+  border:1px solid #e6a43b !important;
+  border-left-width:4px !important;
+  background:#fffaf0 !important;
+  box-shadow:0 3px 12px rgba(154,103,0,.06);
+}
+.nmda-attachment-context-cue .nmda-context-cue-icon {
+  width:34px;
+  height:34px;
+  border-radius:8px;
+  background:#fff1c2 !important;
+  color:#8a5b00 !important;
+  font-size:13px;
+}
+.nmda-attachment-context-cue .nmda-context-eyebrow {
+  color:#8a5b00;
+  font-size:7.8px;
+}
+.nmda-attachment-context-cue .nmda-context-cue-main > strong {
+  font-size:11.2px;
+  color:#5d3a00;
+}
+.nmda-attachment-context-cue .nmda-context-cue-main > small {
+  font-size:8.7px;
+  color:#715726;
+  line-height:1.45;
+}
+.nmda-attachment-context-cue .nmda-context-cue-actions {
+  gap:6px;
+  flex-wrap:nowrap;
+}
+.nmda-attachment-context-cue .nmda-btn-small { min-height:31px; }
+.nmda-health-metric.is-attachment {
+  border-color:#f1c56e;
+  background:#fff8e7;
+}
+.nmda-health-metric.is-attachment strong,
+.nmda-health-metric.is-attachment span { color:#825000; }
+
+/* Todo center starts visually closer to the user's current step. */
+.nmda-ingest-result-card {
+  border-color:#bcc9d6;
+  box-shadow:0 4px 14px rgba(31,35,40,.035);
+}
+.nmda-ingest-result-card .nmda-card-desc { color:#667085; }
+.nmda-review-guidance[data-state="pending"] {
+  border-color:#dbe5ef;
+  background:#f7f9fb;
+  color:#3d444d;
+}
+
+@media (max-width:1040px) {
+  #nmda-import-card[data-loaded="1"] .nmda-roster-context-cue,
+  .nmda-attachment-context-cue {
+    grid-template-columns:28px minmax(0,1fr) !important;
+    align-items:start;
+  }
+  #nmda-import-card[data-loaded="1"] .nmda-roster-context-cue .nmda-context-cue-actions,
+  .nmda-attachment-context-cue .nmda-context-cue-actions {
+    grid-column:2;
+    justify-content:flex-start;
+    padding-left:0;
+    flex-wrap:wrap;
+  }
+}
+
+/* v1.32 refinement: completed import feedback does not compete with the current todo. */
+#nmda-import-card[data-loaded="1"] #nmda-import-status[data-kind="ok"] { display:none !important; }
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="added"],
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="skipped"] {
+  padding-top:6px;
+  padding-bottom:6px;
+}
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="added"] .nmda-context-cue-main > small,
+#nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="skipped"] .nmda-context-cue-main > small {
+  color:#7a8492;
+}
+#nmda-attachments-card {
+  margin-top:7px;
+  border:1px solid #e1e6eb;
+  background:#fbfcfd;
+}
+#nmda-attachments-card > summary {
+  min-height:34px;
+  padding:7px 9px;
+  background:#fbfcfd !important;
+}
+#nmda-attachments-card[data-issue="1"] > summary strong { color:#57606a !important; }
+#nmda-attachments-card[data-issue="1"] > summary small { color:#8c959f !important; }
+
+/* v1.33 · Import preflight — mail first, then one explicit batch-preparation dialog. */
+#nmda-roster-context-cue { display:none !important; }
+
+/* The import surface owns one job: get mail content into the batch. */
+#nmda-import-card:not([data-loaded="1"]) {
+  padding:18px 18px 15px !important;
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-card-title {
+  font-size:15px !important;
+  letter-spacing:-.01em;
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-card-desc {
+  max-width:620px;
+  margin-top:3px;
+  color:#667085;
+  font-size:10.5px !important;
+  line-height:1.55;
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-source-action-grid {
+  margin-top:14px;
+  gap:9px;
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-source-action {
+  min-height:72px;
+  padding:12px 13px;
+  border-color:#d8dee7;
+  border-radius:11px;
+  background:#fff;
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-source-action:hover {
+  border-color:#9bbcf7;
+  background:#f8fbff;
+  box-shadow:0 3px 10px rgba(9,105,218,.06);
+}
+#nmda-import-card:not([data-loaded="1"]) .nmda-source-action strong { font-size:11px; }
+#nmda-import-card:not([data-loaded="1"]) .nmda-source-action small { margin-top:2px; color:#7a8492; font-size:8.8px; }
+#nmda-import-card:not([data-loaded="1"]) .nmda-ingest-source-tools {
+  margin-top:8px;
+  padding-top:8px;
+  border-top:1px solid #eef1f4;
+}
+
+/* Once mail exists, import becomes a maintenance toolbar. */
+#nmda-import-card[data-loaded="1"] {
+  padding:11px 12px 10px !important;
+  border-color:#d8dee7;
+  background:#fff;
+}
+#nmda-import-card[data-loaded="1"] .nmda-card-head { margin-bottom:6px; }
+#nmda-import-card[data-loaded="1"] .nmda-card-title { font-size:11.2px !important; }
+#nmda-import-card[data-loaded="1"] .nmda-card-desc { color:#7a8492; font-size:8.6px !important; }
+#nmda-open-supplement-preflight { border-color:#c7d7f2; color:#0969da; background:#f6f9ff; }
+
+/* Persistent preparation summary: attachment never disappears from the workflow. */
+.nmda-batch-prep-strip {
+  display:grid;
+  grid-template-columns:minmax(150px,1.25fr) minmax(132px,.8fr) minmax(132px,.8fr) auto;
+  align-items:center;
+  gap:8px;
+  margin-top:7px;
+  padding:8px 9px;
+  border:1px solid #dbe3ed;
+  border-radius:9px;
+  background:#f8fafc;
+}
+.nmda-batch-prep-strip[hidden] { display:none !important; }
+.nmda-batch-prep-label { min-width:0; display:grid; gap:1px; }
+.nmda-batch-prep-label span { color:#24292f; font-size:9.6px; font-weight:760; }
+.nmda-batch-prep-label small { color:#8c959f; font-size:7.8px; line-height:1.35; }
+.nmda-batch-prep-item {
+  min-width:0;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:6px;
+  min-height:30px;
+  padding:5px 8px;
+  border:1px solid #e1e6eb;
+  border-radius:7px;
+  background:#fff;
+}
+.nmda-batch-prep-item span { color:#6e7781; font-size:7.8px; }
+.nmda-batch-prep-item strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#3d444d; font-size:8.8px; }
+.nmda-batch-prep-item[data-state="added"] { border-color:#cfe5d5; background:#f5fbf7; }
+.nmda-batch-prep-item[data-state="added"] strong { color:#1a7f37; }
+.nmda-batch-prep-item[data-state="pending"] { border-color:#f0d08b; background:#fffaf0; }
+.nmda-batch-prep-item[data-state="pending"] strong { color:#8a5b00; }
+.nmda-batch-prep-item[data-state="skipped"] { background:#fafbfc; }
+
+/* Import-complete preparation dialog. */
+.nmda-supplement-preflight {
+  position:fixed;
+  inset:0;
+  z-index:1000008;
+  display:grid;
+  place-items:center;
+  padding:28px;
+  background:rgba(17,24,39,.34);
+}
+.nmda-supplement-preflight[hidden] { display:none !important; }
+.nmda-supplement-dialog {
+  width:min(820px,calc(100vw - 56px));
+  max-height:min(620px,calc(100vh - 56px));
+  overflow:auto;
+  border:1px solid #d0d7de;
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 24px 64px rgba(31,35,40,.22),0 4px 12px rgba(31,35,40,.1);
+}
+.nmda-supplement-head {
+  display:grid;
+  grid-template-columns:38px minmax(0,1fr);
+  gap:12px;
+  align-items:start;
+  padding:18px 20px 14px;
+  border-bottom:1px solid #eaeef2;
+}
+.nmda-supplement-head-icon {
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+  background:#dafbe1;
+  color:#1a7f37;
+  font-size:15px;
+  font-weight:800;
+}
+.nmda-supplement-kicker {
+  display:block;
+  margin-bottom:2px;
+  color:#1a7f37;
+  font-size:8px;
+  font-weight:760;
+  letter-spacing:.04em;
+}
+.nmda-supplement-head h3 {
+  margin:0;
+  color:#1f2328;
+  font-size:16px;
+  line-height:1.35;
+  letter-spacing:-.015em;
+}
+.nmda-supplement-head p {
+  margin:4px 0 0;
+  max-width:650px;
+  color:#667085;
+  font-size:9.5px;
+  line-height:1.55;
+}
+.nmda-supplement-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  padding:16px 20px;
+  background:#fbfcfe;
+}
+.nmda-supplement-box {
+  min-width:0;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  grid-template-rows:auto auto;
+  gap:9px 10px;
+  align-content:start;
+  padding:14px;
+  border:1px solid #dbe3ed;
+  border-radius:12px;
+  background:#fff;
+}
+.nmda-supplement-box[data-state="added"] { border-color:#bfddc8; background:#fbfefc; }
+.nmda-supplement-box[data-state="skipped"] { border-color:#e1e6eb; background:#fbfcfd; }
+.nmda-supplement-box-icon {
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  background:#eaf2ff;
+  color:#0969da;
+  font-size:13px;
+  font-weight:800;
+}
+.nmda-supplement-box-attachment .nmda-supplement-box-icon { background:#fff1c2; color:#8a5b00; }
+.nmda-supplement-box[data-state="added"] .nmda-supplement-box-icon { background:#dafbe1; color:#1a7f37; }
+.nmda-supplement-box-main { min-width:0; display:grid; gap:3px; }
+.nmda-supplement-box-kicker { color:#6e7781; font-size:7.5px; font-weight:730; }
+.nmda-supplement-box-main > strong { color:#24292f; font-size:11.2px; line-height:1.4; }
+.nmda-supplement-box-main > small { min-height:38px; color:#667085; font-size:8.7px; line-height:1.5; }
+.nmda-supplement-status {
+  width:max-content;
+  max-width:100%;
+  margin-top:3px;
+  padding:4px 7px;
+  border-radius:6px;
+  background:#f6f8fa;
+  color:#57606a;
+  font-size:8px;
+  font-weight:650;
+}
+.nmda-supplement-box[data-state="added"] .nmda-supplement-status { background:#eaf8ee; color:#1a7f37; }
+.nmda-supplement-box[data-state="skipped"] .nmda-supplement-status { background:#f0f2f4; color:#6e7781; }
+.nmda-attachment-requirements {
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  margin-top:3px;
+}
+.nmda-attachment-requirements[hidden] { display:none !important; }
+.nmda-attachment-requirements span {
+  max-width:160px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  padding:3px 6px;
+  border:1px solid #f1d28d;
+  border-radius:999px;
+  background:#fffaf0;
+  color:#7d4e00;
+  font-size:7.4px;
+}
+.nmda-supplement-actions {
+  grid-column:1 / -1;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+  padding-top:3px;
+}
+.nmda-supplement-actions .nmda-btn-small { min-height:31px; }
+.nmda-supplement-foot {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:13px 20px 15px;
+  border-top:1px solid #eaeef2;
+  background:#fff;
+}
+.nmda-supplement-foot > div { min-width:0; display:grid; gap:2px; }
+.nmda-supplement-foot strong { color:#3d444d; font-size:9px; }
+.nmda-supplement-foot small { color:#8c959f; font-size:7.8px; line-height:1.4; }
+#nmda-complete-supplement-preflight { min-height:36px; white-space:nowrap; }
+
+/* Avoid showing step-2 attachment UI underneath an unfinished import preflight. */
+.nmda-bulk-workbench:has(#nmda-supplement-preflight:not([hidden])) #nmda-ingest-result-card {
+  filter:none;
+}
+
+@media (max-width:900px) {
+  .nmda-supplement-preflight { padding:16px; }
+  .nmda-supplement-dialog { width:min(700px,calc(100vw - 32px)); max-height:calc(100vh - 32px); }
+  .nmda-supplement-grid { grid-template-columns:1fr; }
+  .nmda-batch-prep-strip { grid-template-columns:1fr 1fr; }
+  .nmda-batch-prep-label { grid-column:1 / -1; }
+  .nmda-batch-prep-strip > .nmda-btn { grid-column:1 / -1; justify-self:start; }
+}
+
+/* v1.34 · Attachment Library — one visible, editable batch asset source across the workflow. */
+.nmda-btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  vertical-align:middle;
+  line-height:1.2;
+}
+
+.nmda-batch-prep-attachment {
+  grid-template-columns:minmax(0,1fr) auto !important;
+  align-items:center;
+  gap:8px !important;
+}
+.nmda-batch-prep-attachment > div { min-width:0; display:grid; gap:2px; }
+.nmda-text-action {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:24px;
+  padding:2px 5px;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:#0969da;
+  font:700 8.5px/1.2 system-ui,sans-serif;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.nmda-text-action:hover { background:#eef5ff; color:#0550ae; }
+
+/* Keep the dialog's elevation outside the scrolling surface so the shadow is complete. */
+.nmda-supplement-preflight {
+  padding:34px 40px 42px;
+}
+.nmda-supplement-dialog {
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+  max-height:min(630px,calc(100vh - 76px));
+  box-shadow:0 30px 80px rgba(15,23,42,.30),0 10px 28px rgba(15,23,42,.16),0 0 0 1px rgba(15,23,42,.035);
+}
+.nmda-supplement-grid {
+  min-height:0;
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.nmda-supplement-foot {
+  position:relative;
+  z-index:2;
+  min-height:62px;
+  box-shadow:0 -1px 0 #eaeef2,0 -10px 22px rgba(255,255,255,.82);
+}
+.nmda-supplement-actions {
+  min-height:34px;
+  align-items:center;
+}
+.nmda-supplement-actions .nmda-btn-small,
+.nmda-supplement-actions label.nmda-btn-small {
+  height:32px;
+  min-height:32px;
+  padding:0 10px;
+}
+
+/* Attachment file list shown directly inside import preflight. */
+.nmda-attachment-assets {
+  min-width:0;
+  border:1px solid #e1e7ee;
+  border-radius:9px;
+  background:#fff;
+}
+.nmda-attachment-assets[hidden] { display:none !important; }
+.nmda-attachment-assets-inline { margin-top:5px; overflow:hidden; }
+.nmda-attachment-assets-head {
+  min-height:29px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:6px 8px;
+  border-bottom:1px solid #edf1f5;
+  background:#fafbfc;
+}
+.nmda-attachment-assets-head strong { color:#3d444d; font-size:8.5px; }
+.nmda-attachment-assets-head span { color:#6e7781; font-size:8px; }
+.nmda-attachment-assets-list { display:grid; }
+.nmda-attachment-asset-row {
+  min-width:0;
+  display:grid;
+  grid-template-columns:28px minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  min-height:48px;
+  padding:7px 9px;
+  border-bottom:1px solid #edf1f5;
+}
+.nmda-attachment-asset-row:last-child { border-bottom:0; }
+.nmda-attachment-asset-row.is-compact { min-height:42px; padding:6px 8px; }
+.nmda-attachment-file-icon {
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:7px;
+  background:#fff7df;
+  color:#8a5b00;
+  font-size:11px;
+  font-weight:800;
+}
+.nmda-attachment-file-main { min-width:0; display:grid; gap:2px; }
+.nmda-attachment-file-main strong {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#24292f;
+  font-size:9px;
+  font-weight:720;
+}
+.nmda-attachment-file-main small {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#8c959f;
+  font-size:7.7px;
+}
+.nmda-attachment-remove { color:#cf222e; }
+.nmda-attachment-remove:hover { background:#fff1f2; color:#a40e26; }
+.nmda-attachment-assets-more {
+  width:100%;
+  min-height:30px;
+  border:0;
+  border-top:1px solid #edf1f5;
+  background:#fafbfc;
+  color:#0969da;
+  font:700 8px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+.nmda-attachment-assets-more:hover { background:#f1f6fd; }
+
+/* Reusable attachment manager. It can be opened from import, todos, or create preflight. */
+.nmda-attachment-manager-overlay {
+  position:fixed;
+  inset:0;
+  z-index:1000012;
+  display:grid;
+  place-items:center;
+  padding:42px;
+  background:rgba(17,24,39,.38);
+}
+.nmda-attachment-manager-overlay[hidden] { display:none !important; }
+.nmda-attachment-manager {
+  width:min(690px,calc(100vw - 84px));
+  max-height:min(650px,calc(100vh - 84px));
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+  border:1px solid #d0d7de;
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 30px 84px rgba(15,23,42,.32),0 12px 32px rgba(15,23,42,.16),0 0 0 1px rgba(15,23,42,.035);
+}
+.nmda-attachment-manager-head {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  padding:18px 20px 15px;
+  border-bottom:1px solid #eaeef2;
+}
+.nmda-attachment-manager-head > div:first-child { min-width:0; }
+.nmda-attachment-manager-head h3 { margin:0; color:#1f2328; font-size:16px; line-height:1.3; }
+.nmda-attachment-manager-head p { margin:4px 0 0; color:#667085; font-size:9px; line-height:1.55; }
+.nmda-attachment-manager-body {
+  min-height:0;
+  overflow:auto;
+  padding:14px 20px 18px;
+  background:#fbfcfe;
+}
+.nmda-attachment-manager-summary {
+  margin-bottom:9px;
+  color:#57606a;
+  font-size:9px;
+}
+.nmda-attachment-manager-summary strong { color:#24292f; }
+.nmda-attachment-manager-summary em { color:#9a6700; font-style:normal; font-weight:700; }
+.nmda-attachment-manager-assets { overflow:hidden; }
+.nmda-attachment-assets-empty {
+  padding:28px 18px;
+  color:#8c959f;
+  font-size:9px;
+  line-height:1.6;
+  text-align:center;
+}
+.nmda-attachment-manager-foot {
+  min-height:66px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:13px 20px;
+  border-top:1px solid #eaeef2;
+  background:#fff;
+  box-shadow:0 -8px 20px rgba(255,255,255,.82);
+}
+.nmda-create-preflight .nmda-text-action { min-height:20px; padding:1px 4px; }
+
+@media (max-width:900px) {
+  .nmda-supplement-preflight { padding:22px 24px 28px; }
+  .nmda-supplement-dialog { width:min(700px,calc(100vw - 48px)); max-height:calc(100vh - 50px); }
+  .nmda-attachment-manager-overlay { padding:24px; }
+  .nmda-attachment-manager { width:calc(100vw - 48px); max-height:calc(100vh - 48px); }
+}
+.nmda-supplement-grid { align-items:start; }
+.nmda-supplement-box { align-self:start; }
+.nmda-attachment-library-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:48px;
+  margin-bottom:8px;
+  padding:8px 10px;
+  border:1px solid #dce6f2;
+  border-radius:9px;
+  background:#fbfdff;
+}
+.nmda-attachment-library-bar[hidden] { display:none !important; }
+.nmda-attachment-library-bar-main { min-width:0; display:flex; align-items:center; gap:8px; }
+.nmda-attachment-library-bar-icon { flex:0 0 auto; width:28px; height:28px; display:grid; place-items:center; border-radius:7px; background:#fff4d8; color:#8a5b00; font-weight:800; }
+.nmda-attachment-library-bar-main > div { min-width:0; display:grid; gap:1px; }
+.nmda-attachment-library-bar-main strong { color:#24292f; font-size:9.5px; }
+.nmda-attachment-library-bar-main small { color:#667085; font-size:8px; line-height:1.45; }
+
+/* v1.35 · Single-scroll workspace + right-side create command. */
+#nmda-panel {
+  width:min(1360px,calc(100vw - 24px));
+  height:min(920px,calc(100dvh - 24px));
+  inset:12px 12px 12px auto;
+}
+.nmda-page {
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  scroll-padding:12px 0 24px;
+}
+.nmda-bulk-workbench {
+  grid-template-columns:minmax(0,1fr) 190px !important;
+  column-gap:14px !important;
+}
+.nmda-bulk-workbench > .nmda-process-guide {
+  grid-column:2 !important;
+  grid-row:1 / span 30 !important;
+  top:10px !important;
+}
+.nmda-process-guide {
+  max-height:none;
+  overflow:visible;
+  padding:10px !important;
+  border-color:#d0d7de;
+  border-radius:13px !important;
+  box-shadow:0 8px 24px rgba(31,35,40,.075) !important;
+}
+.nmda-process-guide > button[data-flow-step] {
+  min-height:48px;
+  grid-template-columns:30px minmax(0,1fr) !important;
+  column-gap:9px !important;
+  padding:8px !important;
+}
+.nmda-process-guide > button[data-flow-step] > span { width:30px !important; height:30px !important; }
+.nmda-process-guide > button[data-flow-step] strong { display:block !important; font-size:10px !important; }
+.nmda-process-guide > button[data-flow-step] small { display:block !important; font-size:8px !important; }
+.nmda-process-guide > i { margin-left:15px !important; height:8px !important; }
+
+.nmda-rail-create-card {
+  position:static !important;
+  bottom:auto !important;
+  z-index:auto !important;
+  display:grid;
+  grid-template-columns:1fr !important;
+  gap:8px !important;
+  min-height:0 !important;
+  margin:10px 0 0;
+  padding:11px !important;
+  overflow:hidden;
+  border:1px solid #b6d7fe !important;
+  border-radius:10px !important;
+  background:linear-gradient(180deg,#f8fbff 0%,#eef6ff 100%) !important;
+  box-shadow:0 1px 2px rgba(31,35,40,.04) !important;
+  transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+.nmda-rail-create-card.is-attention { border-color:#0969da !important; box-shadow:0 0 0 3px rgba(9,105,218,.12) !important; transform:translateY(-1px); }
+.nmda-rail-create-card .nmda-run-left { display:block; }
+.nmda-rail-create-card .nmda-card-title { color:#1f2328; font-size:11px !important; }
+.nmda-rail-create-card .nmda-run-status {
+  margin-top:3px;
+  color:#57606a;
+  font-size:8px;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+.nmda-rail-create-card .nmda-create-preflight { display:grid; gap:5px; margin-top:7px; }
+.nmda-rail-create-card .nmda-create-preflight > span { display:flex; gap:4px; flex-wrap:wrap; }
+.nmda-rail-create-card .nmda-create-preflight em { padding:3px 5px; font-size:7.3px; }
+.nmda-rail-create-card .nmda-create-preflight > strong { font-size:7.5px; line-height:1.4; }
+.nmda-rail-create-card .nmda-run-controls { display:grid; grid-template-columns:1fr; gap:6px; width:100%; }
+.nmda-process-guide .nmda-rail-create-card button {
+  width:100%;
+  min-height:34px;
+  display:inline-flex;
+  grid-template-columns:none;
+  align-items:center;
+  justify-content:center;
+  padding:7px 8px;
+  border:1px solid var(--nmda-border-strong);
+  border-radius:8px;
+  text-align:center;
+  font-size:8.5px;
+  font-weight:760;
+}
+.nmda-process-guide .nmda-rail-create-card .nmda-btn-primary { border-color:#0969da; background:#0969da; color:#fff; }
+.nmda-process-guide .nmda-rail-create-card .nmda-btn-primary:hover { background:#0550ae; }
+.nmda-process-guide .nmda-rail-create-card #nmda-batch-stop:disabled { display:none; }
+
+/* The task list grows with the page. It must not create a second vertical scrollbar. */
+.nmda-batch-table-wrap {
+  max-height:none !important;
+  overflow:visible !important;
+  contain:layout !important;
+}
+.nmda-batch-table { width:100%; table-layout:fixed; }
+
+/* Modal scroll ownership: the backdrop is the sole scroll surface. */
+#nmda-panel.has-modal .nmda-page { overflow:hidden !important; }
+.nmda-supplement-preflight,
+.nmda-attachment-manager-overlay {
+  align-items:flex-start !important;
+  justify-items:center !important;
+  overflow:auto !important;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  padding:0 18px !important;
+}
+.nmda-supplement-dialog,
+.nmda-attachment-manager {
+  width:min(820px,calc(100% - 8px)) !important;
+  max-height:none !important;
+  grid-template-rows:auto auto auto !important;
+  overflow:visible !important;
+  margin:clamp(12px,3vh,28px) 0;
+  flex:0 0 auto;
+}
+.nmda-supplement-grid,
+.nmda-attachment-manager-body {
+  min-height:auto !important;
+  overflow:visible !important;
+  scrollbar-gutter:auto !important;
+}
+.nmda-supplement-foot,
+.nmda-attachment-manager-foot {
+  position:static !important;
+  box-shadow:0 -1px 0 #eaeef2 !important;
+}
+.nmda-supplement-box-main > small { min-height:0; }
+
+@media (max-width:1100px) {
+  .nmda-bulk-workbench { grid-template-columns:minmax(0,1fr) 174px !important; column-gap:10px !important; }
+  .nmda-process-guide > button[data-flow-step] { grid-template-columns:28px minmax(0,1fr) !important; column-gap:7px !important; padding:7px 6px !important; }
+  .nmda-process-guide > button[data-flow-step] > span { width:28px !important; height:28px !important; }
+}
+@media (max-width:820px) {
+  #nmda-panel { inset:8px; width:auto; height:auto; }
+  .nmda-bulk-workbench { grid-template-columns:1fr !important; }
+  .nmda-bulk-workbench > .nmda-process-guide {
+    grid-column:1 !important;
+    grid-row:auto !important;
+    position:relative !important;
+    top:auto !important;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:5px;
+  }
+  .nmda-process-guide-title,.nmda-process-guide > i { display:none !important; }
+  .nmda-process-guide > button[data-flow-step] { min-height:42px; grid-template-columns:1fr !important; justify-items:center; text-align:center; }
+  .nmda-process-guide > button[data-flow-step] > span { grid-row:auto; }
+  .nmda-process-guide > button[data-flow-step] strong,.nmda-process-guide > button[data-flow-step] small { display:none !important; }
+  .nmda-rail-create-card { grid-column:1 / -1; grid-template-columns:minmax(0,1fr) minmax(180px,.75fr) !important; align-items:center; }
+  .nmda-rail-create-card .nmda-run-controls { align-self:center; }
+  .nmda-batch-table-wrap { overflow-x:auto !important; overflow-y:hidden !important; }
+  .nmda-batch-table { min-width:760px; }
+  .nmda-supplement-grid { grid-template-columns:1fr !important; }
+}
+@media (max-width:620px) {
+  .nmda-rail-create-card { grid-template-columns:1fr !important; }
+  .nmda-supplement-foot,.nmda-attachment-manager-foot { align-items:stretch; flex-direction:column; }
+  #nmda-complete-supplement-preflight { width:100%; }
+}
