@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "2.5.0",
-  "description": "独立 Chrome 工作台：邮件状态板快速审阅整批邮件，异常邮件按需进入单封处理弹窗；支持排期、附件、联系人与网易邮箱草稿执行。",
+  "version": "2.6.0",
+  "description": "独立 Chrome 工作台：邮件卡片快速标记自动识别状态；点击即进入只读完整邮件审阅，重点核对开头、结尾与边界，只有发现错误才进入修正。支持排期、附件、联系人与网易邮箱草稿执行。",
   "permissions": [
     "storage",
     "scripting",

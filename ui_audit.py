@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone-workspace UI/runtime QA for NetEase Mail Draft Assistant v2.5.
+"""Standalone-workspace UI/runtime QA for NetEase Mail Draft Assistant v2.6.
 
 This runner serves the real extension app files in Chromium, stubs only Chrome-extension
 transport APIs, drives the production import stack, and captures responsive screenshots.
@@ -36,7 +36,7 @@ def static_checks():
     checks.append({'name':'source-role regression','ok':p.returncode==0,'output':(p.stdout+p.stderr).strip()})
     try:
         manifest=json.loads((ROOT/'manifest.json').read_text(encoding='utf-8'))
-        arch_ok=manifest.get('version') in {'2.5.0'} and manifest.get('action') and manifest.get('content_scripts',[{}])[0].get('js')==['executor.js']
+        arch_ok=manifest.get('version') in {'2.6.0'} and manifest.get('action') and manifest.get('content_scripts',[{}])[0].get('js')==['executor.js']
         checks.append({'name':'manifest standalone architecture','ok':bool(arch_ok),'output':json.dumps(manifest.get('content_scripts'),ensure_ascii=False)})
     except Exception as e: checks.append({'name':'manifest standalone architecture','ok':False,'output':str(e)})
     app_text=(ROOT/'app.js').read_text(encoding='utf-8')
@@ -105,7 +105,7 @@ def audit_dom(page):
     }""")
 
 def render_md(report):
-    lines=['# NetEase Mail Draft Assistant v2.5 · Dialog Workflow UI QA','',f"- Static / architecture checks: **{'PASS' if report['static']['ok'] else 'FAIL'}**",f"- Standalone runtime load: **{'PASS' if report['runtime']['loaded'] else 'FAIL'}**",f"- Real import flow: **{'PASS' if report['runtime']['import_ok'] else 'FAIL'}**",f"- Stage navigation / isolation: **{'PASS' if report['runtime'].get('flow_ok') else 'FAIL'}**",f"- Import stage content isolation: **{'PASS' if report['runtime'].get('stage1_isolation_ok') else 'FAIL'}**",f"- IndexedDB attachment vault: **{'PASS' if report['runtime']['vault_ok'] else 'FAIL'}**",'', '## Responsive screenshots','', '| Viewport | P0 | P1 | Screenshot |','|---|---:|---:|---|']
+    lines=['# NetEase Mail Draft Assistant v2.6 · Review-first Audit UI QA','',f"- Static / architecture checks: **{'PASS' if report['static']['ok'] else 'FAIL'}**",f"- Standalone runtime load: **{'PASS' if report['runtime']['loaded'] else 'FAIL'}**",f"- Real import flow: **{'PASS' if report['runtime']['import_ok'] else 'FAIL'}**",f"- Stage navigation / isolation: **{'PASS' if report['runtime'].get('flow_ok') else 'FAIL'}**",f"- Import stage content isolation: **{'PASS' if report['runtime'].get('stage1_isolation_ok') else 'FAIL'}**",f"- IndexedDB attachment vault: **{'PASS' if report['runtime']['vault_ok'] else 'FAIL'}**",'', '## Responsive screenshots','', '| Viewport | P0 | P1 | Screenshot |','|---|---:|---:|---|']
     for x in report['viewports']:
         p0=sum(i['severity']=='P0' for i in x['audit']['issues']);p1=sum(i['severity']=='P1' for i in x['audit']['issues']);lines.append(f"| {x['label']} {x['width']}×{x['height']} | {p0} | {p1} | `{x['screenshot']}` |")
     lines+=['','## Stage / module screenshots','', '| View | P0 | P1 | Screenshot |','|---|---:|---:|---|']
@@ -184,26 +184,52 @@ def main():
             page.set_viewport_size({'width':w,'height':h});page.wait_for_timeout(160)
             shot=SHOTS/f'v2-{label}-{w}x{h}.png';page.screenshot(path=str(shot),full_page=False)
             task_views.append({'width':w,'height':h,'label':label,'screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
-        # Planning review is now a card-based page; only one mail opens as a focused modal.
+        # Planning review is a fixed card board; one click opens a read-first single-mail audit modal.
         page.set_viewport_size({'width':1366,'height':611});page.locator('#nmda-open-review-from-planning').click();page.wait_for_timeout(150)
         review_return_ok=page.locator('#nmda-inline-review').is_visible() and page.locator('.nmda-bulk-workbench').get_attribute('data-view-step')=='3' and not page.locator('#nmda-import-editor-overlay').is_visible()
         review_return_ok=review_return_ok and page.locator('.nmda-mail-review-card').count()>0
-        shot=SHOTS/'v25-review-board-short-desktop-1366x611.png';page.screenshot(path=str(shot),full_page=False)
+        shot=SHOTS/'v26-review-board-short-desktop-1366x611.png';page.screenshot(path=str(shot),full_page=False)
         task_views.append({'width':1366,'height':611,'label':'review-board-short-desktop','screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
+        # Stress the actual card CSS with 12 cards and assert that card boxes never overlap.
+        runtime['review_card_collision_ok']=page.evaluate("""() => {
+          const q=document.querySelector('#nmda-review-queue'),first=q?.querySelector('.nmda-mail-review-card');
+          if(!q||!first)return false;
+          window.__nmdaQaBoardHtml=q.innerHTML;
+          const states=['action','auto','decision','confirmed'];
+          for(let i=1;i<12;i++){
+            const c=first.cloneNode(true);const state=states[i%states.length];c.dataset.state=state;c.dataset.reviewRow='qa-'+i;c.classList.remove('is-active','is-selected');
+            const index=c.querySelector('.nmda-mail-card-index');if(index)index.textContent=String(i+1).padStart(2,'0');
+            const name=c.querySelector('.nmda-mail-card-copy > strong');if(name)name.textContent='QA Review Mail '+(i+1);
+            const mail=c.querySelector('.nmda-mail-card-copy > small');if(mail)mail.textContent='qa'+(i+1)+'@example.edu';
+            const status=c.querySelector('.nmda-mail-card-status strong');if(status)status.textContent=state==='action'?'需处理':state==='decision'?'冲突/重复':state==='confirmed'?'已确认':'自动通过';
+            q.appendChild(c);
+          }
+          const rects=[...q.querySelectorAll('.nmda-mail-review-card')].map(e=>e.getBoundingClientRect());
+          for(let i=0;i<rects.length;i++)for(let j=i+1;j<rects.length;j++){
+            const a=rects[i],b=rects[j];const x=Math.min(a.right,b.right)-Math.max(a.left,b.left),y=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);if(x>1&&y>1)return false;
+          }
+          return true;
+        }""")
+        shot=SHOTS/'v26-review-board-stress-1366x611.png';page.screenshot(path=str(shot),full_page=False)
+        task_views.append({'width':1366,'height':611,'label':'review-board-stress','screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
+        page.evaluate("""() => {const q=document.querySelector('#nmda-review-queue');if(q&&window.__nmdaQaBoardHtml!=null){q.innerHTML=window.__nmdaQaBoardHtml;delete window.__nmdaQaBoardHtml;}}""")
         page.set_viewport_size({'width':820,'height':700});page.wait_for_timeout(100)
-        shot=SHOTS/'v25-review-board-minimum-820x700.png';page.screenshot(path=str(shot),full_page=False)
+        shot=SHOTS/'v26-review-board-minimum-820x700.png';page.screenshot(path=str(shot),full_page=False)
         task_views.append({'width':820,'height':700,'label':'review-board-minimum','screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
         page.set_viewport_size({'width':1366,'height':611});page.wait_for_timeout(80)
         # Open one mail explicitly to verify the intervention dialog is scoped to a single mail.
         if page.locator('.nmda-mail-review-card').count():
-            page.locator('.nmda-mail-review-card [data-review-preview]').first.click();page.wait_for_timeout(60)
-            if page.locator('.nmda-mail-review-card [data-review-key]:visible').count():
-                page.locator('.nmda-mail-review-card [data-review-key]:visible').first.click();page.wait_for_timeout(120)
-            review_return_ok=review_return_ok and page.locator('#nmda-import-editor-overlay').is_visible()
-            shot=SHOTS/'v25-review-detail-short-desktop-1366x611.png';page.screenshot(path=str(shot),full_page=False)
+            page.locator('.nmda-mail-review-card [data-review-key]').first.click();page.wait_for_timeout(140)
+            review_return_ok=review_return_ok and page.locator('#nmda-import-editor-overlay').is_visible() and page.locator('#nmda-review-audit-view').is_visible() and not page.locator('#nmda-review-correction-panel').is_visible()
+            shot=SHOTS/'v26-review-audit-short-desktop-1366x611.png';page.screenshot(path=str(shot),full_page=False)
             task_views.append({'width':1366,'height':611,'label':'review-detail-short-desktop','screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
+            page.locator('#nmda-review-correct').click();page.wait_for_timeout(100)
+            review_return_ok=review_return_ok and page.locator('#nmda-review-correction-panel').is_visible() and not page.locator('#nmda-review-audit-view').is_visible()
+            shot=SHOTS/'v26-review-correction-short-desktop-1366x611.png';page.screenshot(path=str(shot),full_page=False)
+            task_views.append({'width':1366,'height':611,'label':'review-correction-short-desktop','screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
+            page.locator('#nmda-review-back-audit').click();page.wait_for_timeout(100)
             page.set_viewport_size({'width':820,'height':700});page.wait_for_timeout(100)
-            shot=SHOTS/'v25-review-detail-minimum-820x700.png';page.screenshot(path=str(shot),full_page=False)
+            shot=SHOTS/'v26-review-audit-minimum-820x700.png';page.screenshot(path=str(shot),full_page=False)
             task_views.append({'width':820,'height':700,'label':'review-detail-minimum','screenshot':str(shot.relative_to(ROOT)),'audit':audit_dom(page)})
             page.set_viewport_size({'width':1366,'height':611});page.wait_for_timeout(60)
             page.locator('#nmda-import-editor-close').click();page.wait_for_timeout(80)
@@ -235,7 +261,7 @@ def main():
             page.locator('#nmda-close-contact-modal').click();page.wait_for_timeout(60)
         runtime['page_errors']=errors
         browser.close()
-    report={'version':'2.5.0','static':static,'runtime':runtime,'viewports':viewports,'task_views':task_views}
+    report={'version':'2.6.0','static':static,'runtime':runtime,'viewports':viewports,'task_views':task_views}
     # Build report text with the API-level distinction explicit.
     md=render_md({**report,'runtime':{**runtime,'vault_ok':runtime['vault_api_ok']}})
     md=md.replace('IndexedDB attachment vault: **PASS**','Attachment-vault API loaded: **PASS** (real IndexedDB storage requires extension origin; this sandbox blocks navigable local origins)')
@@ -243,6 +269,6 @@ def main():
     (REPORTS/'ui-audit.md').write_text(md,encoding='utf-8')
     print(md)
     p0=sum(1 for x in [*viewports,*task_views] for i in x['audit']['issues'] if i['severity']=='P0')
-    if not static['ok'] or not runtime['loaded'] or not runtime['import_ok'] or not runtime['vault_api_ok'] or not runtime['flow_ok'] or p0: raise SystemExit(1)
+    if not static['ok'] or not runtime['loaded'] or not runtime['import_ok'] or not runtime['vault_api_ok'] or not runtime['flow_ok'] or not runtime.get('review_card_collision_ok') or p0: raise SystemExit(1)
 
 if __name__=='__main__':main()

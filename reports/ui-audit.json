@@ -1,5 +1,5 @@
 {
-  "version": "2.5.0",
+  "version": "2.6.0",
   "static": {
     "ok": true,
     "checks": [
@@ -82,6 +82,7 @@
     "routing_summary": "邮件 / 总名单 / 附件",
     "flow_ok": true,
     "stage1_isolation_ok": true,
+    "review_card_collision_ok": true,
     "page_errors": []
   },
   "viewports": [
@@ -730,7 +731,7 @@
       "width": 1366,
       "height": 611,
       "label": "review-board-short-desktop",
-      "screenshot": "qa/screenshots/v25-review-board-short-desktop-1366x611.png",
+      "screenshot": "qa/screenshots/v26-review-board-short-desktop-1366x611.png",
       "audit": {
         "viewport": {
           "w": 1366,
@@ -769,10 +770,61 @@
       }
     },
     {
+      "width": 1366,
+      "height": 611,
+      "label": "review-board-stress",
+      "screenshot": "qa/screenshots/v26-review-board-stress-1366x611.png",
+      "audit": {
+        "viewport": {
+          "w": 1366,
+          "h": 611
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1366,
+          "h": 611,
+          "right": 1366,
+          "bottom": 611
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [
+          {
+            "id": "nmda-review-queue",
+            "cls": "nmda-review-queue nmda-review-mail-grid",
+            "scrollHeight": 484,
+            "clientHeight": 414,
+            "scrollWidth": 1255,
+            "clientWidth": 1255
+          }
+        ],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
       "width": 820,
       "height": 700,
       "label": "review-board-minimum",
-      "screenshot": "qa/screenshots/v25-review-board-minimum-820x700.png",
+      "screenshot": "qa/screenshots/v26-review-board-minimum-820x700.png",
       "audit": {
         "viewport": {
           "w": 820,
@@ -814,7 +866,7 @@
       "width": 1366,
       "height": 611,
       "label": "review-detail-short-desktop",
-      "screenshot": "qa/screenshots/v25-review-detail-short-desktop-1366x611.png",
+      "screenshot": "qa/screenshots/v26-review-audit-short-desktop-1366x611.png",
       "audit": {
         "viewport": {
           "w": 1366,
@@ -845,7 +897,67 @@
           "bottom": 0
         },
         "outsideControls": [],
-        "scrollOwners": [],
+        "scrollOwners": [
+          {
+            "id": "",
+            "cls": "nmda-review-edit-scroll",
+            "scrollHeight": 580,
+            "clientHeight": 450,
+            "scrollWidth": 1023,
+            "clientWidth": 1023
+          }
+        ],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 1366,
+      "height": 611,
+      "label": "review-correction-short-desktop",
+      "screenshot": "qa/screenshots/v26-review-correction-short-desktop-1366x611.png",
+      "audit": {
+        "viewport": {
+          "w": 1366,
+          "h": 611
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1366,
+          "h": 611,
+          "right": 1366,
+          "bottom": 611
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [
+          {
+            "id": "",
+            "cls": "nmda-review-edit-scroll",
+            "scrollHeight": 525,
+            "clientHeight": 450,
+            "scrollWidth": 1023,
+            "clientWidth": 1023
+          }
+        ],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],
@@ -856,7 +968,7 @@
       "width": 820,
       "height": 700,
       "label": "review-detail-minimum",
-      "screenshot": "qa/screenshots/v25-review-detail-minimum-820x700.png",
+      "screenshot": "qa/screenshots/v26-review-audit-minimum-820x700.png",
       "audit": {
         "viewport": {
           "w": 820,
@@ -887,7 +999,16 @@
           "bottom": 0
         },
         "outsideControls": [],
-        "scrollOwners": [],
+        "scrollOwners": [
+          {
+            "id": "",
+            "cls": "nmda-review-edit-scroll",
+            "scrollHeight": 584,
+            "clientHeight": 510,
+            "scrollWidth": 765,
+            "clientWidth": 765
+          }
+        ],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],
