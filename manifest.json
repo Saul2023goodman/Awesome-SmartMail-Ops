@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "2.3.0",
-  "description": "独立 Chrome 工作台：压缩固定导航与顶栏，按任务画布拆分导入、核验、排期规则、邮件时间与草稿创建；仅内容区按需滚动。",
+  "version": "2.4.0",
+  "description": "独立 Chrome 工作台：主页面负责总览与选择，复杂审阅、排期设置和联系人编辑通过任务弹窗完成；列表空间优先。",
   "permissions": [
     "storage",
     "scripting",

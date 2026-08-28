@@ -1,11 +1,18 @@
-# QA Runtime Ready · v2.0.0
+# v2.4 QA Runtime Ready
 
-当前包已切换到独立 Chrome 工作台 QA。
+- Version: `2.4.0`
+- UI architecture: Dialog Workflow
+- Standalone workspace load: PASS
+- Real import: PASS
+- Stage navigation/isolation: PASS
+- Planning → review modal → return to planning: PASS
+- Schedule settings modal: PASS
+- Contacts compact list + detail modal: PASS
+- Responsive baselines: 1440×900 / 1280×800 / 1100×760 / 920×720 / 820×700 / 1366×611
+- Automated layout result: P0 = 0 / P1 = 0
 
-- 可重复运行真实 app UI + 导入解析栈。
-- 可自动导入 Word / Excel / PDF 测试资料。
-- 可自动截图五档窗口。
-- 可自动检查工作台视口占用、fixed modal containment、交互控件越界和嵌套纵向滚动。
-- 当前自动基线 P0 = 0，P1 = 0。
+Run:
 
-运行：`python3 qa/ui_audit.py`
+```bash
+python3 qa/ui_audit.py
+```
