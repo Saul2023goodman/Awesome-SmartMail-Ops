@@ -1,4 +1,4 @@
-# NetEase Mail Draft Assistant v2.4 · Dialog Workflow UI QA
+# NetEase Mail Draft Assistant v2.5 · Dialog Workflow UI QA
 
 - Static / architecture checks: **PASS**
 - Standalone runtime load: **PASS**
@@ -31,7 +31,10 @@
 | planning-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-planning-desktop-1440x900.png` |
 | planning-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-planning-minimum-820x700.png` |
 | planning-short-desktop 1366×611 | 0 | 0 | `qa/screenshots/v2-planning-short-desktop-1366x611.png` |
-| review-modal-short-desktop 1366×611 | 0 | 0 | `qa/screenshots/v2-review-modal-short-desktop-1366x611.png` |
+| review-board-short-desktop 1366×611 | 0 | 0 | `qa/screenshots/v25-review-board-short-desktop-1366x611.png` |
+| review-board-minimum 820×700 | 0 | 0 | `qa/screenshots/v25-review-board-minimum-820x700.png` |
+| review-detail-short-desktop 1366×611 | 0 | 0 | `qa/screenshots/v25-review-detail-short-desktop-1366x611.png` |
+| review-detail-minimum 820×700 | 0 | 0 | `qa/screenshots/v25-review-detail-minimum-820x700.png` |
 | schedule-modal-short-desktop 1366×611 | 0 | 0 | `qa/screenshots/v2-schedule-modal-short-desktop-1366x611.png` |
 | create-desktop 1440×900 | 0 | 0 | `qa/screenshots/v2-create-desktop-1440x900.png` |
 | create-minimum 820×700 | 0 | 0 | `qa/screenshots/v2-create-minimum-820x700.png` |

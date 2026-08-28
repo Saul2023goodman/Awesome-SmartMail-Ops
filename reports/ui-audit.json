@@ -1,5 +1,5 @@
 {
-  "version": "2.4.0",
+  "version": "2.5.0",
   "static": {
     "ok": true,
     "checks": [
@@ -729,8 +729,8 @@
     {
       "width": 1366,
       "height": 611,
-      "label": "review-modal-short-desktop",
-      "screenshot": "qa/screenshots/v2-review-modal-short-desktop-1366x611.png",
+      "label": "review-board-short-desktop",
+      "screenshot": "qa/screenshots/v25-review-board-short-desktop-1366x611.png",
       "audit": {
         "viewport": {
           "w": 1366,
@@ -761,16 +761,133 @@
           "bottom": 0
         },
         "outsideControls": [],
-        "scrollOwners": [
-          {
-            "id": "nmda-import-edit-body",
-            "cls": "",
-            "scrollHeight": 216,
-            "clientHeight": 188,
-            "scrollWidth": 1049,
-            "clientWidth": 1049
-          }
-        ],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 820,
+      "height": 700,
+      "label": "review-board-minimum",
+      "screenshot": "qa/screenshots/v25-review-board-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 1366,
+      "height": 611,
+      "label": "review-detail-short-desktop",
+      "screenshot": "qa/screenshots/v25-review-detail-short-desktop-1366x611.png",
+      "audit": {
+        "viewport": {
+          "w": 1366,
+          "h": 611
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 1366,
+          "h": 611,
+          "right": 1366,
+          "bottom": 611
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
+        "nested": [],
+        "pageScroll": [],
+        "tinyControls": [],
+        "issues": []
+      }
+    },
+    {
+      "width": 820,
+      "height": 700,
+      "label": "review-detail-minimum",
+      "screenshot": "qa/screenshots/v25-review-detail-minimum-820x700.png",
+      "audit": {
+        "viewport": {
+          "w": 820,
+          "h": 700
+        },
+        "panel": {
+          "x": 0,
+          "y": 0,
+          "w": 820,
+          "h": 700,
+          "right": 820,
+          "bottom": 700
+        },
+        "overlay": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "outsideControls": [],
+        "scrollOwners": [],
         "nested": [],
         "pageScroll": [],
         "tinyControls": [],

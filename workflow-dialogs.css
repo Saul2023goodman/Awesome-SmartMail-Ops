@@ -512,3 +512,384 @@
   transform:none !important;
   margin:0 !important;
 }
+
+/* ========================================================================== */
+/* v2.5 · Mail Status Board                                                   */
+/* The review surface is a page of mail blocks. Only a single mail decision   */
+/* escalates into a dialog. This intentionally overrides v2.4 portal review.  */
+/* ========================================================================== */
+#nmda-root.nmda-standalone .nmda-inline-review:not([hidden]) {
+  position:relative !important;
+  inset:auto !important;
+  z-index:auto !important;
+  width:100% !important;
+  height:100% !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  display:grid !important;
+  grid-template-rows:auto auto auto minmax(0,1fr) !important;
+  gap:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  border:1px solid #d9e1e8 !important;
+  border-radius:14px !important;
+  background:#f7f9fb !important;
+  box-shadow:0 5px 20px rgba(26,38,52,.055) !important;
+}
+#nmda-root.nmda-standalone .nmda-inline-review-top {
+  min-height:62px !important;
+  padding:10px 14px !important;
+  border-bottom:1px solid #e5eaef !important;
+  background:#fff !important;
+}
+#nmda-root.nmda-standalone .nmda-inline-review-top .nmda-card-title {
+  font-size:15px !important;
+  font-weight:800 !important;
+  letter-spacing:-.01em;
+}
+#nmda-root.nmda-standalone .nmda-inline-review-top .nmda-card-desc {
+  display:block !important;
+  margin-top:3px;
+  font-size:10px !important;
+  color:#6b7785 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-page-summary span[data-tone="warn"] {
+  border-color:#f1c78b !important;
+  background:#fff8eb !important;
+  color:#8a4b08 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-page-summary span[data-tone="ok"] {
+  border-color:#b9dfc7 !important;
+  background:#f1fbf5 !important;
+  color:#17643a !important;
+}
+
+.nmda-review-boardbar {
+  min-width:0;
+  min-height:58px;
+  display:grid;
+  grid-template-columns:minmax(150px,.7fr) minmax(310px,1.2fr) minmax(360px,1.5fr);
+  align-items:center;
+  gap:12px;
+  padding:8px 12px;
+  border-bottom:1px solid #e4e9ee;
+  background:#fbfcfd;
+}
+.nmda-review-board-copy { min-width:0; display:grid; gap:2px; }
+.nmda-review-board-copy > strong { color:#273444; font-size:10.5px; font-weight:800; }
+.nmda-review-board-copy > small { color:#788493; font-size:8.6px; line-height:1.35; }
+.nmda-review-legend { min-width:0; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.nmda-review-legend > span {
+  min-height:26px;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:3px 7px;
+  border:1px solid #dde4ea;
+  border-radius:999px;
+  background:#fff;
+  color:#52606d;
+  font-size:8px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.nmda-review-legend i { width:15px; height:15px; display:grid; place-items:center; font-style:normal; font-size:8px; font-weight:900; }
+.nmda-review-legend [data-tone="auto"] i { border-radius:50%; background:#dff4e7; color:#1d7a45; }
+.nmda-review-legend [data-tone="confirmed"] i { border-radius:4px; background:#e4efff; color:#2463c7; }
+.nmda-review-legend [data-tone="action"] i { clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); background:#ffedd1; color:#a45406; }
+.nmda-review-legend [data-tone="decision"] i { clip-path:polygon(25% 5%,75% 5%,100% 50%,75% 95%,25% 95%,0 50%); background:#efe5ff; color:#7047a3; font-size:6px; }
+#nmda-root.nmda-standalone .nmda-review-boardbar .nmda-review-queue-tools {
+  min-width:0;
+  display:grid !important;
+  grid-template-columns:minmax(170px,1fr) auto auto;
+  align-items:center;
+  gap:7px;
+  padding:0 !important;
+  border:0 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-boardbar .nmda-review-search { min-height:32px; }
+#nmda-root.nmda-standalone .nmda-review-boardbar .nmda-review-filter { white-space:nowrap; }
+
+#nmda-root.nmda-standalone .nmda-inline-review > .nmda-review-batchbar {
+  margin:0;
+  border:0;
+  border-bottom:1px solid #edd8af;
+  border-radius:0;
+  background:#fff9ed;
+}
+#nmda-root.nmda-standalone .nmda-inline-review > .nmda-review-page-empty { margin:12px; }
+
+#nmda-root.nmda-standalone .nmda-review-mail-grid {
+  min-width:0;
+  min-height:0;
+  display:grid !important;
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  align-content:start;
+  gap:10px !important;
+  padding:12px !important;
+  overflow:auto !important;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  background:#f7f9fb;
+}
+.nmda-mail-review-card {
+  position:relative;
+  min-width:0;
+  align-self:start;
+  overflow:hidden;
+  border:1px solid #dce3e9;
+  border-radius:13px;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(20,33,48,.035);
+  transition:border-color .14s ease,box-shadow .14s ease,transform .14s ease;
+}
+.nmda-mail-review-card:hover { border-color:#c3ced8; box-shadow:0 4px 14px rgba(22,37,53,.075); transform:translateY(-1px); }
+.nmda-mail-review-card.is-selected { box-shadow:0 0 0 2px rgba(58,111,184,.12),0 5px 16px rgba(22,37,53,.07); }
+.nmda-mail-review-card::before { content:""; position:absolute; inset:0 auto 0 0; width:4px; background:#64a87c; }
+.nmda-mail-review-card[data-state="confirmed"]::before { background:#5b8fdc; }
+.nmda-mail-review-card[data-state="action"]::before,
+.nmda-mail-review-card[data-state="review"]::before { width:5px; background:#e8a23a; }
+.nmda-mail-review-card[data-state="decision"]::before { width:5px; background:#8e69bd; }
+.nmda-mail-review-card[data-state="action"],
+.nmda-mail-review-card[data-state="review"] { border-color:#efcf9d; background:linear-gradient(180deg,#fffaf2 0,#fff 76px); }
+.nmda-mail-review-card[data-state="decision"] { border-color:#d5c4e8; background:linear-gradient(180deg,#fbf7ff 0,#fff 76px); }
+
+.nmda-mail-card-status {
+  min-height:42px;
+  display:grid;
+  grid-template-columns:28px minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px 5px 12px;
+}
+.nmda-mail-card-status > span:nth-child(2) { min-width:0; display:grid; gap:1px; }
+.nmda-mail-card-status strong { font-size:9.4px; font-weight:800; color:#344250; }
+.nmda-mail-card-status small { overflow:hidden; color:#778493; font-size:7.7px; line-height:1.25; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-mail-state-shape {
+  width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
+  background:#dff3e6;
+  color:#1f7847;
+  border-radius:50%;
+  font-size:10px;
+  font-weight:900;
+}
+[data-state="confirmed"] .nmda-mail-state-shape { border-radius:6px; background:#e3eeff; color:#285fae; }
+[data-state="action"] .nmda-mail-state-shape,
+[data-state="review"] .nmda-mail-state-shape { border-radius:0; clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); background:#ffead0; color:#a45305; }
+[data-state="decision"] .nmda-mail-state-shape { border-radius:0; clip-path:polygon(25% 5%,75% 5%,100% 50%,75% 95%,25% 95%,0 50%); background:#eee3fb; color:#6e459c; font-size:8px; }
+.nmda-mail-card-select { position:relative; width:24px; height:24px; display:grid; place-items:center; cursor:pointer; }
+.nmda-mail-card-select input { position:absolute; opacity:0; pointer-events:none; }
+.nmda-mail-card-select span { width:16px; height:16px; border:1px solid #c1cbd5; border-radius:5px; background:#fff; }
+.nmda-mail-card-select input:checked + span { border-color:#3975c5; background:#3975c5; box-shadow:inset 0 0 0 3px #fff; }
+
+.nmda-mail-card-main {
+  width:100%;
+  min-width:0;
+  min-height:66px;
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  padding:7px 10px 10px 12px;
+  border:0;
+  background:transparent;
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+}
+.nmda-mail-card-main:hover { background:rgba(247,250,252,.72); }
+.nmda-mail-card-index { align-self:start; padding-top:2px; color:#a2abb5; font:800 8px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.nmda-mail-card-copy { min-width:0; display:grid; gap:3px; }
+.nmda-mail-card-copy > strong { overflow:hidden; color:#1f2d3a; font-size:10.5px; font-weight:820; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-mail-card-copy > small { overflow:hidden; color:#6b7785; font-size:8.2px; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-mail-card-copy > b { overflow:hidden; color:#3d4a57; font-size:9px; font-weight:650; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-mail-card-toggle { align-self:end; display:inline-flex; align-items:center; gap:3px; color:#7b8794; font-size:7.8px; font-weight:700; }
+.nmda-mail-card-toggle i { font-style:normal; transition:transform .14s ease; }
+.nmda-mail-review-card.is-expanded .nmda-mail-card-toggle i { transform:rotate(180deg); }
+.nmda-mail-card-preview { display:none; padding:0 10px 10px 50px; }
+.nmda-mail-review-card.is-expanded .nmda-mail-card-preview { display:block; }
+.nmda-mail-card-preview > p { margin:0; padding:9px 10px; border:1px solid #e6ebef; border-radius:9px; background:#fbfcfd; color:#53606c; font-size:8.3px; line-height:1.55; }
+.nmda-mail-card-issues { display:flex; gap:5px; flex-wrap:wrap; padding-top:8px; }
+.nmda-mail-card-issues span { padding:3px 6px; border:1px solid #efcf9d; border-radius:999px; background:#fff7e9; color:#8b4b08; font-size:7.6px; font-weight:700; }
+[data-state="decision"] .nmda-mail-card-issues span { border-color:#d9c7eb; background:#f8f2ff; color:#68458f; }
+.nmda-mail-card-auto-note { padding-top:8px; color:#4d745d; font-size:7.8px; }
+.nmda-mail-card-auto-note span { display:inline-grid; place-items:center; width:15px; height:15px; margin-right:3px; border-radius:50%; background:#e2f4e8; font-weight:900; }
+.nmda-mail-card-foot { min-height:31px; display:flex; align-items:flex-end; justify-content:flex-end; padding-top:8px; }
+.nmda-mail-card-action,.nmda-mail-card-edit {
+  min-height:29px;
+  padding:5px 9px;
+  border-radius:7px;
+  font:750 8.3px/1.1 system-ui,-apple-system,"Segoe UI",sans-serif;
+  cursor:pointer;
+}
+.nmda-mail-card-action { border:1px solid #d8912b; background:#fff3df; color:#854707; }
+.nmda-mail-card-action:hover { background:#ffe9c4; }
+[data-state="decision"] .nmda-mail-card-action { border-color:#a985cd; background:#f3eaff; color:#65418a; }
+.nmda-mail-card-edit { border:1px solid #d7dfe6; background:#fff; color:#5f6b77; }
+.nmda-mail-card-edit:hover { border-color:#bdc8d2; background:#f7f9fb; }
+.nmda-mail-card-action b { margin-left:3px; font-size:9px; }
+
+/* Single-mail intervention layer. It no longer contains the batch queue. */
+#nmda-root.nmda-standalone #nmda-import-editor-overlay:not([hidden]) {
+  position:fixed !important;
+  inset:0 !important;
+  z-index:2147483646 !important;
+  width:auto !important;
+  height:auto !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  display:grid !important;
+  place-items:center !important;
+  padding:22px !important;
+  overflow:hidden !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:rgba(21,29,39,.38) !important;
+  backdrop-filter:blur(3px) !important;
+  box-shadow:none !important;
+}
+#nmda-root.nmda-standalone #nmda-import-editor-overlay > .nmda-review-detail-dialog {
+  width:min(920px,calc(100vw - 44px));
+  height:min(760px,calc(100dvh - 44px));
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.8);
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 24px 70px rgba(16,24,40,.28);
+}
+#nmda-root.nmda-standalone #nmda-import-editor-overlay .nmda-review-layout {
+  width:100% !important;
+  height:100% !important;
+  min-height:0 !important;
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  grid-template-rows:minmax(0,1fr) !important;
+  overflow:hidden !important;
+}
+#nmda-root.nmda-standalone #nmda-import-editor-overlay .nmda-review-edit-pane {
+  grid-column:1 !important;
+  grid-row:1 !important;
+  min-height:0 !important;
+  display:grid !important;
+  grid-template-rows:auto auto minmax(0,1fr) auto !important;
+  overflow:hidden !important;
+  border:0 !important;
+  background:#fff !important;
+}
+#nmda-root.nmda-standalone #nmda-import-editor-overlay .nmda-review-mail-toolbar {
+  min-height:54px !important;
+  padding:9px 12px !important;
+  border-bottom:1px solid #e3e8ed !important;
+}
+#nmda-root.nmda-standalone #nmda-import-editor-overlay .nmda-review-mail-heading strong { max-width:460px; color:#1f2b37; font-size:12px !important; }
+#nmda-root.nmda-standalone #nmda-import-editor-overlay .nmda-review-mail-heading small { max-width:520px; color:#727f8d; font-size:8.6px !important; }
+.nmda-review-detail-close { flex:0 0 auto; width:30px !important; height:30px !important; font-size:17px !important; }
+.nmda-review-problem-strip {
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 12px;
+  border-bottom:1px solid #f0e0c5;
+  background:#fff9ef;
+  color:#78440c;
+  font-size:8.8px;
+  font-weight:700;
+}
+.nmda-review-problem-shape { width:20px; height:20px; display:grid; place-items:center; clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); background:#ffdfad; color:#8f4d06; font-weight:900; }
+#nmda-root.nmda-standalone #nmda-import-editor-overlay .nmda-review-edit-scroll {
+  min-height:0 !important;
+  display:block !important;
+  overflow:auto !important;
+  padding:12px 14px !important;
+}
+#nmda-root.nmda-standalone #nmda-import-editor-overlay .nmda-review-core-fields {
+  min-height:100% !important;
+  height:auto !important;
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  grid-template-rows:auto auto minmax(250px,1fr) !important;
+  gap:10px !important;
+  margin:0 !important;
+}
+#nmda-root.nmda-standalone #nmda-import-editor-overlay #nmda-review-field-body { min-height:250px !important; }
+#nmda-root.nmda-standalone #nmda-import-editor-overlay #nmda-import-edit-body { min-height:250px !important; height:100% !important; resize:none !important; }
+#nmda-root.nmda-standalone #nmda-import-editor-overlay .nmda-review-actions {
+  position:static !important;
+  min-height:54px;
+  padding:8px 12px !important;
+  border-top:1px solid #e3e8ed;
+  background:#fff !important;
+  box-shadow:none !important;
+}
+
+@media (max-width:1120px) {
+  .nmda-review-boardbar { grid-template-columns:minmax(140px,.7fr) minmax(260px,1fr); }
+  .nmda-review-boardbar .nmda-review-queue-tools { grid-column:1 / -1; }
+  #nmda-root.nmda-standalone .nmda-review-mail-grid { grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); }
+}
+@media (max-width:760px) {
+  #nmda-root.nmda-standalone .nmda-inline-review:not([hidden]) { height:auto !important; min-height:100% !important; overflow:visible !important; }
+  .nmda-review-boardbar { grid-template-columns:1fr; gap:7px; }
+  .nmda-review-legend { display:none; }
+  #nmda-root.nmda-standalone .nmda-review-boardbar .nmda-review-queue-tools { grid-template-columns:1fr auto; }
+  #nmda-root.nmda-standalone .nmda-review-boardbar .nmda-review-bulk-entry { display:none; }
+  #nmda-root.nmda-standalone .nmda-review-mail-grid { grid-template-columns:1fr; overflow:visible !important; }
+  #nmda-root.nmda-standalone #nmda-import-editor-overlay:not([hidden]) { padding:8px !important; }
+  #nmda-root.nmda-standalone #nmda-import-editor-overlay > .nmda-review-detail-dialog { width:calc(100vw - 16px); height:calc(100dvh - 16px); }
+  .nmda-review-mail-heading small { display:none; }
+  .nmda-review-exclude-direct { display:none; }
+}
+@media (max-height:680px) {
+  #nmda-root.nmda-standalone .nmda-inline-review:not([hidden]) { inset:auto !important; }
+  #nmda-root.nmda-standalone .nmda-inline-review-top { min-height:52px !important; padding:7px 11px !important; }
+  #nmda-root.nmda-standalone .nmda-inline-review-top .nmda-card-desc { display:block !important; }
+  .nmda-review-boardbar { min-height:50px; padding:6px 10px; }
+  #nmda-root.nmda-standalone #nmda-import-editor-overlay:not([hidden]) { padding:8px !important; }
+  #nmda-root.nmda-standalone #nmda-import-editor-overlay > .nmda-review-detail-dialog { width:min(920px,calc(100vw - 16px)); height:calc(100dvh - 16px); }
+  #nmda-root.nmda-standalone #nmda-import-editor-overlay .nmda-review-mail-toolbar { min-height:47px !important; }
+  .nmda-review-problem-strip { min-height:32px; }
+  #nmda-root.nmda-standalone #nmda-import-editor-overlay .nmda-review-core-fields { grid-template-rows:auto auto minmax(160px,1fr) !important; }
+  #nmda-root.nmda-standalone #nmda-import-editor-overlay #nmda-review-field-body,
+  #nmda-root.nmda-standalone #nmda-import-editor-overlay #nmda-import-edit-body { min-height:160px !important; }
+}
+
+/* v2.5 placement correction: review is a real panel grid page, not a viewport overlay. */
+#nmda-root.nmda-standalone #nmda-panel > .nmda-inline-review:not([hidden]) {
+  grid-column:2 !important;
+  grid-row:2 !important;
+  align-self:stretch !important;
+  justify-self:stretch !important;
+  position:relative !important;
+  z-index:40 !important;
+  width:auto !important;
+  height:auto !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  margin:10px 12px !important;
+}
+@media (max-width:880px) {
+  #nmda-root.nmda-standalone #nmda-panel > .nmda-inline-review:not([hidden]) { margin:8px !important; }
+}
+
+/* v2.5 legibility pass: status board is a reading surface, not a dense diagnostic table. */
+.nmda-review-board-copy > strong { font-size:11.5px; }
+.nmda-review-board-copy > small { font-size:9.3px; }
+.nmda-review-legend > span { min-height:28px; padding:4px 8px; font-size:8.8px; }
+.nmda-mail-card-status strong { font-size:10.5px; }
+.nmda-mail-card-status small { font-size:8.8px; }
+.nmda-mail-card-copy > strong { font-size:11.5px; }
+.nmda-mail-card-copy > small { font-size:9.2px; }
+.nmda-mail-card-copy > b { font-size:10px; }
+.nmda-mail-card-toggle { font-size:8.6px; }
+.nmda-mail-card-preview > p { font-size:9.2px; }
+.nmda-mail-card-issues span,.nmda-mail-card-auto-note { font-size:8.5px; }
+.nmda-mail-card-action,.nmda-mail-card-edit { min-height:31px; font-size:9px; }
+#nmda-root.nmda-standalone .nmda-review-mail-grid { grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); }
+@media (max-width:1120px) { #nmda-root.nmda-standalone .nmda-review-mail-grid { grid-template-columns:repeat(auto-fill,minmax(285px,1fr)); } }
