@@ -1,4 +1,4 @@
-# NetEase Mail Draft Assistant v2.6 · Review-first Audit UI QA
+# NetEase Mail Draft Assistant v2.7 · Review-first Audit UI QA
 
 - Static / architecture checks: **PASS**
 - Standalone runtime load: **PASS**

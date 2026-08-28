@@ -2414,6 +2414,17 @@
 
   function taskNeedsImportReview(task) { return !task?.importExcluded && unresolvedImportIssues(task).length > 0; }
   function taskCoreValid(task) { return recipientLooksValid(task?.recipients||'') && !!String(task?.subject||'').trim() && !!String(task?.body||'').trim(); }
+  function directCorrectionFields(task) {
+    if(!task || task?.importExcluded)return [];
+    const issues=unresolvedImportIssues(task);
+    const issueText=issues.join('；');
+    const fields=[];
+    if(!recipientLooksValid(task?.recipients||'') && /收件人|邮箱/.test(issueText))fields.push('recipients');
+    if(!String(task?.subject||'').trim() && /主题|Subject/.test(issueText))fields.push('subject');
+    if(!String(task?.body||'').trim() && /正文/.test(issueText))fields.push('body');
+    return fields;
+  }
+  function taskNeedsDirectCorrection(task) { return directCorrectionFields(task).length>0; }
   function unresolvedDuplicateGroups(task) {
     if(!task)return [];
     const confirmed=new Set(task.duplicateConfirmedGroups||[]);
@@ -2523,11 +2534,14 @@
   function autoSizeReviewBody(){
     if(!importEditBodyEl || importEditorOverlayEl?.hidden) return;
     requestAnimationFrame(()=>{
-      const correctionMode=importEditorOverlayEl?.dataset.mode==='correction';
+      const mode=importEditorOverlayEl?.dataset.mode||'audit';
+      const correctionMode=mode==='correction';
+      const directMode=mode==='direct';
       const duplicateActive=importEditorOverlayEl?.classList.contains('has-duplicate-decision');
-      if(correctionMode){
+      if(correctionMode||directMode){
         importEditBodyEl.style.height='auto';
-        const target=Math.max(280,importEditBodyEl.scrollHeight+2);
+        const minimum=directMode?130:280;
+        const target=Math.max(minimum,importEditBodyEl.scrollHeight+2);
         importEditBodyEl.style.height=`${target}px`;
         importEditBodyEl.style.overflowY='hidden';
         importEditBodyEl.dataset.longBody='0';
@@ -2723,7 +2737,7 @@
         <label class="nmda-duplicate-pick-line"><input type="checkbox" data-duplicate-pick="${escapeHtml(candidate.editKey)}" ${isSelected?'checked':''}><span><strong>保留此封</strong><small>${escapeHtml(duplicateCandidateMeta(candidate))}</small></span></label>
         <div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>${escapeHtml(title)}</strong>${isRecommended?'<em>信息更完整</em>':''}${candidate.editKey===task.editKey?'<small>正在编辑</small>':''}</div><span class="nmda-duplicate-preview-recipient">${escapeHtml(recipient)}</span></div>
         <div class="nmda-duplicate-preview-body"><pre>${escapeHtml(body||'正文为空')}</pre></div>
-        <button type="button" class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-duplicate-edit" data-duplicate-open="${escapeHtml(candidate.editKey)}">编辑这封</button>
+        <button type="button" class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-duplicate-edit" data-duplicate-open="${escapeHtml(candidate.editKey)}">定位此版本</button>
       </article>`;
     }).join('');
   }
@@ -2785,22 +2799,24 @@
 
   function renderReviewPageOverview() {
     const tasks=(batch.tasks||[]).filter(task=>!task?.importExcluded);
-    let pendingCount=0,checked=0,decisionCount=0,actionCount=0;
+    let checked=0,decisionTaskCount=0,actionCount=0,autoPassed=0;
     for(const task of tasks){
       const visual=reviewVisualState(task);
-      if(visual.key==='decision'){decisionCount++;pendingCount++;}
-      else if(visual.key==='action'){actionCount++;pendingCount++;}
+      if(visual.key==='decision')decisionTaskCount++;
+      else if(visual.key==='action')actionCount++;
       else if(visual.key==='confirmed')checked++;
+      else autoPassed++;
     }
-    const autoPassed=Math.max(0,tasks.length-pendingCount-checked);
+    const decisionCount=unresolvedDuplicateGroupCount();
+    const pendingCount=actionCount+decisionCount;
     if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='邮件审阅';
     if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=pendingCount
-      ? `先浏览全部邮件状态；只对 ${pendingCount} 封异常邮件进入人工处理。`
+      ? `先浏览全部邮件状态；当前有 ${actionCount} 封需处理、${decisionCount} 组重复需取舍。`
       : '所有邮件都已满足创建条件；可以快速抽查，无需逐封确认。';
     if(reviewExitEl)reviewExitEl.textContent=batch.handoffComplete?'返回选择与安排':'完成审阅';
     if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
     if(reviewPageSummaryEl)reviewPageSummaryEl.innerHTML=tasks.length
-      ? `<span class="nmda-review-metric" data-tone="all"><small>全部邮件</small><strong>${tasks.length}</strong></span><span class="nmda-review-metric" data-tone="auto"><small>自动通过</small><strong>${autoPassed}</strong></span><span class="nmda-review-metric" data-tone="action"><small>需处理</small><strong>${actionCount}</strong></span><span class="nmda-review-metric" data-tone="decision"><small>冲突/重复</small><strong>${decisionCount}</strong></span><span class="nmda-review-metric" data-tone="confirmed"><small>已确认</small><strong>${checked}</strong></span>`
+      ? `<span class="nmda-review-metric" data-tone="all"><small>全部邮件</small><strong>${tasks.length}</strong></span><span class="nmda-review-metric" data-tone="auto"><small>自动通过</small><strong>${autoPassed}</strong></span><span class="nmda-review-metric" data-tone="action"><small>需处理</small><strong>${actionCount}</strong></span><span class="nmda-review-metric" data-tone="decision"><small>重复组</small><strong>${decisionCount}</strong></span><span class="nmda-review-metric" data-tone="confirmed"><small>已确认</small><strong>${checked}</strong></span>`
       : '<span class="nmda-review-metric" data-tone="all"><small>全部邮件</small><strong>0</strong></span>';
     if(reviewPageEmptyEl)reviewPageEmptyEl.hidden=!!tasks.length;
     const nextPendingBtn=$('nmda-review-next-pending');
@@ -2814,7 +2830,7 @@
     if(reviewFilterEl)reviewFilterEl.hidden=false;
     if(reviewQueueTitleEl)reviewQueueTitleEl.textContent=pendingCount?'邮件状态':'邮件状态 · 全部可用';
     ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter===batch.reviewFilter));
-    if(reviewQueueCaptionEl)reviewQueueCaptionEl.textContent=batch.reviewFilter==='pending'?'只看需要人工处理的邮件；点击直接审阅完整内容':'点击任意邮件块直接进入完整审阅；卡片不再展开第二层预览。';
+    if(reviewQueueCaptionEl)reviewQueueCaptionEl.textContent=batch.reviewFilter==='pending'?'缺失项点击后直接可填；不确定项进入完整审阅':'普通邮件点击完整审阅；重复邮件合并成一张版本堆叠卡，集中比较取舍。';
     if(reviewSearchEl && reviewSearchEl.value!==String(batch.reviewSearch||''))reviewSearchEl.value=String(batch.reviewSearch||'');
     if(!tasks.length){if(importEditorOverlayEl)importEditorOverlayEl.hidden=true;renderReviewBatchActions();return;}
     renderReviewBatchActions();
@@ -3012,20 +3028,65 @@
   function reviewVisualState(task) {
     const issues=unresolvedImportIssues(task);
     const duplicate=taskHasUnresolvedDuplicate(task);
-    if(duplicate)return {key:'decision',label:'冲突/重复',detail:'需要人工取舍',icon:'◆',issues};
-    if(issues.length)return {key:'action',label:'需处理',detail:'点击审阅完整邮件',icon:'!',issues};
+    const direct=directCorrectionFields(task);
+    if(duplicate)return {key:'decision',label:'重复组',detail:'比较版本后一次取舍',icon:'◆',issues};
+    if(direct.length)return {key:'action',label:'信息缺失',detail:'点击后直接补齐',icon:'!',issues,direct};
+    if(issues.length)return {key:'action',label:'需核对',detail:'点击审阅完整邮件',icon:'!',issues,direct:[]};
     if(task.reviewConfirmed||task.rosterConfirmed)return {key:'confirmed',label:'已确认',detail:'已人工核验',icon:'✓',issues:[]};
     return {key:'auto',label:'自动通过',detail:'识别完整',icon:'✓',issues:[]};
+  }
+
+  function reviewQueueItems(tasks=[]) {
+    const items=[];
+    const seenGroups=new Set();
+    for(const task of tasks){
+      const group=duplicateDecisionGroup(task);
+      if(group?.id){
+        if(seenGroups.has(group.id))continue;
+        seenGroups.add(group.id);
+        const members=(group.tasks||[]).filter(item=>!item?.importExcluded);
+        const representative=members.find(item=>item.editKey===task.editKey)||members[0]||task;
+        items.push({kind:'duplicate',task:representative,group,members});
+      }else items.push({kind:'mail',task});
+    }
+    return items;
+  }
+
+  function duplicateBoardCard(item,index,activeKey='') {
+    const {task,group,members=[]}=item;
+    const recommended=recommendedDuplicateTask(group);
+    const exact=group?.type==='exact-email';
+    const groupLabel=exact?(group.email||group.label||'同一收件人'):(group.label||'疑似同一联系人');
+    const samples=members.slice(0,2).map((candidate,i)=>{
+      const subject=String(candidate.subject||'未识别主题').trim()||'未识别主题';
+      const recipient=String(candidate.recipients||'').trim()||'未识别收件人';
+      const isRecommended=candidate.editKey===recommended?.editKey;
+      return `<span class="nmda-duplicate-stack-line ${isRecommended?'is-recommended':''}"><i>${String(i+1).padStart(2,'0')}</i><b>${escapeHtml(subject)}</b><small>${escapeHtml(recipient)}</small></span>`;
+    }).join('');
+    const extra=Math.max(0,members.length-2);
+    const active=members.some(candidate=>candidate.editKey===activeKey);
+    return `<article class="nmda-mail-review-card nmda-duplicate-stack-card ${active?'is-active':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="decision" data-duplicate-group="${escapeHtml(group?.id||'')}">
+      <span class="nmda-duplicate-stack-sheet sheet-a" aria-hidden="true"></span><span class="nmda-duplicate-stack-sheet sheet-b" aria-hidden="true"></span>
+      <button class="nmda-duplicate-stack-main" type="button" data-review-key="${escapeHtml(task.editKey)}" aria-label="比较重复邮件组 ${escapeHtml(groupLabel)}">
+        <span class="nmda-duplicate-stack-head"><span class="nmda-mail-state-shape" aria-hidden="true">◆</span><span><strong>${escapeHtml(exact?'同一收件人 · 多个版本':'疑似同一联系人')}</strong><small>${escapeHtml(groupLabel)}</small></span><em>${members.length} 封</em></span>
+        <span class="nmda-duplicate-stack-list">${samples}${extra?`<span class="nmda-duplicate-stack-more">+${extra} 个版本</span>`:''}</span>
+        <span class="nmda-duplicate-stack-foot"><small>${recommended?'已标记信息更完整版本':'需要人工比较'}</small><strong>比较并取舍 <i>→</i></strong></span>
+      </button>
+    </article>`;
   }
 
   function renderReviewQueue(activeKey='') {
     if(!reviewQueueEl)return;
     pruneReviewSelection();
-    const allList=reviewVisibleTasks();
-    const list=allList.slice(0,Math.max(50,viewPerf.reviewRenderLimit||250));
+    const visibleTasks=reviewVisibleTasks();
+    const allItems=reviewQueueItems(visibleTasks);
+    const list=allItems.slice(0,Math.max(50,viewPerf.reviewRenderLimit||250));
     const pendingCount=reviewTasks().length;
-    if(reviewProgressEl) reviewProgressEl.textContent=pendingCount?`${pendingCount} 封待处理`:'没有待处理邮件';
-    reviewQueueEl.innerHTML=list.length?list.map((task,index)=>{
+    const pendingUnits=reviewQueueItems(reviewTasks()).length;
+    if(reviewProgressEl) reviewProgressEl.textContent=pendingUnits?`${pendingUnits} 项待处理`:'没有待处理邮件';
+    reviewQueueEl.innerHTML=list.length?list.map((item,index)=>{
+      if(item.kind==='duplicate')return duplicateBoardCard(item,index,activeKey);
+      const task=item.task;
       const visual=reviewVisualState(task);
       const pending=visual.issues.length>0;
       const confirmable=taskCanBatchConfirm(task);
@@ -3040,16 +3101,17 @@
       const stateLine=pending
         ? `<span class="nmda-mail-card-issues">${issueChips}${moreCount?`<span>+${moreCount}</span>`:''}</span>`
         : `<span class="nmda-mail-card-auto-note"><span>✓</span>${visual.key==='confirmed'?'人工核验完成':'收件人、主题、正文已识别'}</span>`;
+      const openLabel=visual.direct?.length?'直接补齐':'审阅';
       return `<article class="nmda-mail-review-card ${checked?'is-selected':''} ${task.editKey===activeKey?'is-active':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}">
         <div class="nmda-mail-card-status"><span class="nmda-mail-state-shape" aria-hidden="true">${visual.icon}</span><span><strong>${escapeHtml(visual.label)}</strong><small>${escapeHtml(visual.detail)}</small></span>${selectHtml}</div>
         <button class="nmda-mail-card-main" type="button" data-review-key="${escapeHtml(task.editKey)}" aria-label="审阅 ${escapeHtml(label)}">
           <span class="nmda-mail-card-index">${String(index+1).padStart(2,'0')}</span>
           <span class="nmda-mail-card-copy"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(recipient)}</small><b>${escapeHtml(subject)}</b>${stateLine}</span>
-          <span class="nmda-mail-card-open">${visual.key==='decision'?'处理取舍':'审阅'} <i>→</i></span>
+          <span class="nmda-mail-card-open">${openLabel} <i>→</i></span>
         </button>
       </article>`;
     }).join(''):`<div class="nmda-review-empty">${batch.reviewFilter==='pending'?'当前没有需要人工处理的邮件。':batch.reviewFilter==='decision'?'当前没有冲突或重复邮件。':'当前没有可查看的邮件。'}</div>`;
-    if(allList.length>list.length)reviewQueueEl.insertAdjacentHTML('beforeend',`<button type="button" class="nmda-review-load-more" data-review-load-more>继续显示（${list.length}/${allList.length}）</button>`);
+    if(allItems.length>list.length)reviewQueueEl.insertAdjacentHTML('beforeend',`<button type="button" class="nmda-review-load-more" data-review-load-more>继续显示（${list.length}/${allItems.length}）</button>`);
     renderReviewBatchActions();
     const visible=reviewVisibleTasks().filter(taskCanBatchConfirm);const allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
     const selectButton=$('nmda-review-select-filtered');if(selectButton){const batchMode=batch.reviewFilter==='pending'&&pendingCount>0;selectButton.hidden=!batchMode||visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
@@ -3127,19 +3189,40 @@
     if(closingCard)closingCard.dataset.state=bodyOk&&boundary.hasClosing&&!closingWarn?'ok':'review';
   }
 
-  function setReviewCorrectionMode(enabled,task=reviewCurrentTask()) {
+  function setReviewCorrectionMode(mode='audit',task=reviewCurrentTask()) {
+    if(mode===true)mode='correction';
+    if(mode===false)mode='audit';
+    mode=['audit','correction','direct'].includes(mode)?mode:'audit';
     const audit=$('nmda-review-audit-view'),panel=$('nmda-review-correction-panel'),back=$('nmda-review-back-audit'),correct=$('nmda-review-correct');
     const duplicate=!!task&&taskHasUnresolvedDuplicate(task);
-    if(importEditorOverlayEl)importEditorOverlayEl.dataset.mode=enabled?'correction':'audit';
-    if(audit)audit.hidden=enabled||duplicate;
-    if(panel)panel.hidden=!enabled||duplicate;
-    if(back)back.hidden=!enabled||duplicate;
-    if(correct)correct.hidden=enabled||duplicate;
-    if(enabled){
+    const direct=mode==='direct'&&!duplicate;
+    const correction=mode==='correction'&&!duplicate;
+    const fields=directCorrectionFields(task);
+    if(importEditorOverlayEl){
+      importEditorOverlayEl.dataset.mode=duplicate?'decision':mode;
+      importEditorOverlayEl.classList.toggle('is-direct-correction',direct);
+    }
+    if(audit)audit.hidden=duplicate||correction;
+    if(panel)panel.hidden=duplicate||(!correction&&!direct);
+    if(back)back.hidden=duplicate||!correction;
+    if(correct)correct.hidden=duplicate||correction||direct;
+    const fieldMap={recipients:$('nmda-review-field-recipients'),subject:$('nmda-review-field-subject'),body:$('nmda-review-field-body')};
+    for(const [key,el] of Object.entries(fieldMap)){if(el)el.hidden=direct&&!fields.includes(key);}
+    const assist=$('nmda-subject-assist');
+    if(assist&&direct&&!fields.includes('subject'))assist.hidden=true;
+    const head=panel?.querySelector('.nmda-review-correction-head');
+    const headStrong=head?.querySelector('strong'),headSmall=head?.querySelector('small');
+    if(headStrong)headStrong.textContent=direct?'直接补齐缺失信息':'修正识别结果';
+    if(headSmall)headSmall.textContent=direct?'系统已定位确定性缺失项，可直接填写；下方仍保留完整邮件审阅。':'只在发现错误时修改；返回审阅后重新核对完整邮件。';
+    if((direct||correction)&&task){
       if(importEditRecipientsEl)importEditRecipientsEl.value=task?.recipients||'';
       if(importEditSubjectEl)importEditSubjectEl.value=task?.subject||'';
       if(importEditBodyEl)importEditBodyEl.value=task?.body||'';
       autoSizeReviewBody();
+      if(direct)requestAnimationFrame(()=>{
+        const first=fields.map(key=>fieldMap[key]?.querySelector('input,textarea')).find(Boolean);
+        first?.focus?.({preventScroll:true});
+      });
     }
     updateReviewConfirmationControls(task);
   }
@@ -3214,16 +3297,21 @@
 
   function updateReviewConfirmationControls(task) {
     const duplicateActive=!!task&&taskHasUnresolvedDuplicate(task);
-    const correctionMode=importEditorOverlayEl?.dataset.mode==='correction';
-    const coreValid=!!task&&taskCoreValid(task);
+    const mode=importEditorOverlayEl?.dataset.mode||'audit';
+    const correctionMode=mode==='correction';
+    const directMode=mode==='direct';
+    const editing=correctionMode||directMode;
+    const coreValid=editing
+      ? recipientLooksValid(importEditRecipientsEl?.value||'') && !!String(importEditSubjectEl?.value||'').trim() && !!String(importEditBodyEl?.value||'').trim()
+      : !!task&&taskCoreValid(task);
     const save=$('nmda-import-editor-save'), next=$('nmda-import-editor-next'), correct=$('nmda-review-correct'), back=$('nmda-review-back-audit');
     if(reviewActionsEl)reviewActionsEl.hidden=duplicateActive;
-    if(save){save.hidden=duplicateActive;save.disabled=!coreValid;save.textContent=correctionMode?'保存修正':'确认无误';}
-    if(next){next.hidden=duplicateActive;next.disabled=!coreValid;next.textContent=correctionMode?'保存并下一封':'确认无误，下一封';}
-    if(correct){correct.hidden=duplicateActive||correctionMode;correct.classList.toggle('nmda-btn-primary',!coreValid);}
+    if(save){save.hidden=duplicateActive;save.disabled=!coreValid;save.textContent=editing?'保存修正':'确认无误';}
+    if(next){next.hidden=duplicateActive;next.disabled=!coreValid;next.textContent=editing?'保存并下一项':'确认无误，下一封';}
+    if(correct){correct.hidden=duplicateActive||editing;correct.classList.toggle('nmda-btn-primary',!coreValid);}
     if(back)back.hidden=duplicateActive||!correctionMode;
     const copy=reviewActionsEl?.querySelector('.nmda-review-action-copy');
-    if(copy)copy.textContent=duplicateActive?'先完成重复邮件取舍。':correctionMode?'修正后保存，再返回完整审阅结果。':coreValid?'重点核对开头称呼、结尾署名及邮件边界；确认无误后继续。':'识别到必填内容缺失，需先修正后才能确认。';
+    if(copy)copy.textContent=duplicateActive?'先完成重复邮件取舍。':directMode?'缺失项已直接展开；补齐后保存，系统会立即重新核验。':correctionMode?'修正后保存，再返回完整审阅结果。':coreValid?'重点核对开头称呼、结尾署名及邮件边界；确认无误后继续。':'识别到必填内容缺失，已直接展开可修正字段。';
   }
 
   function updateReviewFieldStates(task) {
@@ -3378,20 +3466,23 @@
     const issueLabels=[...new Set(issues.map(reviewIssueLabel).filter(Boolean))];
     const editorTitle=$('nmda-import-editor-title');
     if(editorTitle)editorTitle.textContent=`审阅邮件 · ${task.id||task.collectionName||'当前邮件'}`;
-    if(importEditorEvidenceEl)importEditorEvidenceEl.textContent=issues.length
-      ? `识别到 ${issueLabels.length} 类待核验项：${issueLabels.join(' · ')}`
-      : '自动识别未发现明显问题；建议重点抽查开头与结尾。';
+    const directFields=directCorrectionFields(task);
+    if(importEditorEvidenceEl)importEditorEvidenceEl.textContent=directFields.length
+      ? `系统已定位缺失：${directFields.map(key=>({recipients:'收件人',subject:'主题',body:'正文'}[key]||key)).join(' · ')}；无需再点“修正”，可直接补齐。`
+      : issues.length
+        ? `识别到 ${issueLabels.length} 类待核验项：${issueLabels.join(' · ')}`
+        : '自动识别未发现明显问题；建议重点抽查开头与结尾。';
     if(reviewFeedbackEl){reviewFeedbackEl.hidden=true;reviewFeedbackEl.textContent='';}
     updateReviewFieldStates(task);
     renderReviewSource(task);
     renderReviewAudit(task);
     importEditorOverlayEl.hidden=false;
     importEditorOverlayEl.setAttribute('aria-hidden','false');
-    setReviewCorrectionMode(false,task);
+    setReviewCorrectionMode(directFields.length?'direct':'audit',task);
     syncModalState();
     renderReviewQueue(task.editKey);
     updateReviewMailNavigation(task);
-    requestAnimationFrame(()=>$('nmda-review-audit-view')?.scrollIntoView?.({block:'start'}));
+    requestAnimationFrame(()=>$(directFields.length?'nmda-review-correction-panel':'nmda-review-audit-view')?.scrollIntoView?.({block:'start'}));
   }
 
   function closeImportTaskEditor(){
@@ -3407,18 +3498,48 @@
     if(!importEditorOverlayEl)return;
     batch.handoffComplete=false;
     const key=importEditorOverlayEl.dataset.editKey;
+    const mode=importEditorOverlayEl.dataset.mode||'audit';
     const task=(batch.tasks||[]).find(t=>t.editKey===key); if(!task){closeImportTaskEditor();return;}
     const recipients=importEditRecipientsEl.value.trim(), subject=importEditSubjectEl.value.trim(), body=importEditBodyEl.value;
     const coreValid=recipientLooksValid(recipients)&&!!subject&&!!String(body||'').trim();
     stashCurrentReviewDraft();
+    rebuildTasks();
+    let current=(batch.tasks||[]).find(t=>t.editKey===key);
+
+    // Deterministic gaps are a repair operation, not a human approval shortcut.
+    // After the missing values are filled, unresolved soft/ambiguous issues must return to
+    // the read-first audit instead of being silently marked confirmed.
+    if(mode==='direct'){
+      if(!coreValid || (current&&taskNeedsDirectCorrection(current))){
+        if(reviewFeedbackEl){reviewFeedbackEl.hidden=false;reviewFeedbackEl.textContent='仍有必填信息未补齐，请直接完成上方缺失项。';}
+        if(current)openImportTaskEditor(current);
+        return;
+      }
+      if(current&&taskNeedsImportReview(current)){
+        openImportTaskEditor(current);
+        setImportStatus('缺失信息已补齐；仍有不确定项，请继续核对完整邮件。','warn');
+        return;
+      }
+      renderReviewPageOverview();
+      if(!goNext){
+        closeImportTaskEditor();
+        setImportStatus('缺失信息已补齐并通过重新校验。','ok');
+        return;
+      }
+      const next=reviewTasks()[0]||null;
+      if(next)openImportTaskEditor(next);
+      else{closeImportTaskEditor();renderReviewPageOverview();setImportStatus('缺失信息已补齐；当前没有其他邮件待处理。','ok');}
+      return;
+    }
+
     const previousEdit=batch.taskEdits.get(key)||{};
-    setTaskEdit(task,{
+    setTaskEdit(current||task,{
       reviewConfirmed:coreValid,
-      rosterConfirmed: coreValid && !!(task.rosterIssues||[]).length ? true : (previousEdit.rosterConfirmed||false),
+      rosterConfirmed: coreValid && !!((current||task).rosterIssues||[]).length ? true : (previousEdit.rosterConfirmed||false),
       duplicateConfirmedGroups:[...(previousEdit.duplicateConfirmedGroups||[])]
     });
     rebuildTasks();
-    const current=(batch.tasks||[]).find(t=>t.editKey===key);
+    current=(batch.tasks||[]).find(t=>t.editKey===key);
     if(current && taskNeedsImportReview(current)){
       if(reviewFeedbackEl){reviewFeedbackEl.hidden=false;reviewFeedbackEl.textContent=`仍需处理：${unresolvedImportIssues(current).join('；')}`;}
       openImportTaskEditor(current); return;
@@ -4790,7 +4911,7 @@
   $('nmda-import-editor-cancel')?.addEventListener('click', closeReviewWorkspace);
   $('nmda-import-editor-save')?.addEventListener('click', () => saveImportTaskEditor(false));
   $('nmda-import-editor-next')?.addEventListener('click', () => saveImportTaskEditor(true));
-  $('nmda-review-correct')?.addEventListener('click',()=>{const task=reviewCurrentTask();if(task)setReviewCorrectionMode(true,task);});
+  $('nmda-review-correct')?.addEventListener('click',()=>{const task=reviewCurrentTask();if(task)setReviewCorrectionMode('correction',task);});
   $('nmda-review-back-audit')?.addEventListener('click',returnToReviewAudit);
   $('nmda-review-exclude')?.addEventListener('click', excludeCurrentReviewTask);
   [importEditRecipientsEl,importEditSubjectEl,importEditBodyEl].forEach(el=>el?.addEventListener('input',()=>{refreshReviewDraftIndicators();if(el===importEditBodyEl)autoSizeReviewBody();}));
@@ -4803,14 +4924,22 @@
     const key=importEditorOverlayEl?.dataset.editKey||'';
     stashCurrentReviewDraft();rebuildTasks();renderReviewQueue(key);
     const current=(batch.tasks||[]).find(task=>task.editKey===key);
-    if(current){renderReviewAudit(current);updateReviewFieldStates(current);setReviewCorrectionMode(true,current);}
+    if(current){
+      const previousMode=importEditorOverlayEl?.dataset.mode||'correction';
+      renderReviewAudit(current);updateReviewFieldStates(current);
+      setReviewCorrectionMode(previousMode==='direct'?(taskNeedsDirectCorrection(current)?'direct':'audit'):'correction',current);
+    }
   }));
   importEditSubjectEl?.addEventListener('change',()=>{
     if(subjectAssistTimer){clearTimeout(subjectAssistTimer);subjectAssistTimer=null;}
     const key=importEditorOverlayEl?.dataset.editKey||'';
     stashCurrentReviewDraft();rebuildTasks();renderReviewQueue(key);maybeOfferSubjectAssist();
     const current=(batch.tasks||[]).find(task=>task.editKey===key);
-    if(current){renderReviewAudit(current);updateReviewFieldStates(current);setReviewCorrectionMode(true,current);}
+    if(current){
+      const previousMode=importEditorOverlayEl?.dataset.mode||'correction';
+      renderReviewAudit(current);updateReviewFieldStates(current);
+      setReviewCorrectionMode(previousMode==='direct'?(taskNeedsDirectCorrection(current)?'direct':'audit'):'correction',current);
+    }
   });
   $('nmda-subject-assist-apply')?.addEventListener('click',()=>void applySubjectAssist());
   $('nmda-subject-assist-dismiss')?.addEventListener('click',async()=>{

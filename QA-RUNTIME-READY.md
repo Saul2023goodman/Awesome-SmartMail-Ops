@@ -1,7 +1,12 @@
-# v2.6 QA Runtime Ready
+# v2.7 QA Runtime Ready
 
-- Version: `2.6.0`
-- Review architecture: fixed mail-status card board + read-first single-mail audit modal.
-- Editing is hidden by default and opened only from `发现问题，修正`.
-- QA covers real Word / Excel / PDF import, source-role regression, responsive viewports, 12-card collision stress, audit modal, correction mode, planning, schedule and contacts.
-- Latest report: `qa/reports/ui-audit.md`.
+- Version: `2.7.0`
+- Main review board: collision-safe fixed card grid.
+- Deterministic missing fields: direct correction on open, no extra correction click.
+- Missing-field repair keeps the complete read-first audit visible below the repair dock.
+- Duplicate groups: one stacked decision card per unresolved group, then side-by-side version comparison.
+- Ambiguous parse issues: read-first audit remains the default.
+- Real Word + Excel + PDF baseline QA: PASS.
+- 1366×611 and 820×700 deterministic-missing scenario: P0=0 / P1=0.
+- 1366×611 and 820×700 duplicate-stack scenario: P0=0 / P1=0.
+- Run `python3 qa/ui_audit.py` for the repeatable regression suite.
