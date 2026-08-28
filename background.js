@@ -210,126 +210,52 @@ async function readMailboxState(tabId, mode = 'quick') {
   };
 }
 
-importScripts('file-vault.js');
-
-const APP_URL = chrome.runtime.getURL('app.html');
-const MAIL_URL = 'https://mail.163.com/';
-
-async function listMailTabs() {
-  const tabs = await chrome.tabs.query({ url: ['https://mail.163.com/*'] });
-  return tabs.sort((a,b) => Number(b.active)-Number(a.active) || Number(b.lastAccessed||0)-Number(a.lastAccessed||0));
-}
-
-async function resolveMailTab(sender, { create = false, focus = false } = {}) {
-  let tab = sender?.tab?.url?.startsWith('https://mail.163.com/') ? sender.tab : null;
-  if (!tab) tab = (await listMailTabs())[0] || null;
-  if (!tab && create) tab = await chrome.tabs.create({ url: MAIL_URL, active: !!focus });
-  if (tab && focus) {
-    await chrome.tabs.update(tab.id, { active: true });
-    if (tab.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
-  }
-  return tab;
-}
-
-async function waitForExecutor(tabId, timeout = 10000) {
-  const started = Date.now(); let lastError = null;
-  while (Date.now() - started < timeout) {
-    try { const ping = await chrome.tabs.sendMessage(tabId, { type: 'NMDA_PING' }); if (ping?.ok) return ping; }
-    catch (error) { lastError = error; }
-    await new Promise(resolve => setTimeout(resolve, 250));
-  }
-  throw lastError || new Error('网易邮箱执行器尚未就绪');
-}
-
-async function accountInfo(tabId) {
-  return runMain(tabId, () => {
-    try {
-      const uid = typeof window.$S === 'function' ? (window.$S('uid') || '') : '';
-      return { ok: true, uid: String(uid || '') };
-    } catch (error) { return { ok: false, reason: error?.message || String(error) }; }
-  });
-}
-
-async function connectionStatus(sender) {
-  const tab = await resolveMailTab(sender);
-  if (!tab?.id) return { ok: true, connected: false, authenticated: false };
-  let executor = null;
-  try { executor = await chrome.tabs.sendMessage(tab.id, { type: 'NMDA_PING' }); } catch (_) {}
-  let account = { ok:false, uid:'' };
-  if (executor?.ok) { try { account = await accountInfo(tab.id); } catch (_) {} }
-  return {
-    ok:true, connected:!!executor?.ok, authenticated:!!String(account?.uid||'').trim(), account:String(account?.uid||''),
-    tabId:tab.id, active:!!tab.active, title:tab.title||'', url:tab.url||'', executor:executor?.role||''
-  };
-}
-
-async function openApp() {
-  const tabs = await chrome.tabs.query({});
-  const existing = tabs.find(tab => String(tab.url || '').split('#')[0].split('?')[0] === APP_URL);
-  if (existing?.id) {
-    await chrome.tabs.update(existing.id, { active:true });
-    if (existing.windowId !== undefined) await chrome.windows.update(existing.windowId,{focused:true}).catch(()=>{});
-    return existing;
-  }
-  return chrome.tabs.create({ url: APP_URL, active:true });
-}
-
-chrome.action.onClicked.addListener(() => { openApp().catch(console.error); });
-chrome.runtime.onInstalled.addListener(() => { globalThis.NMDAVault?.cleanup?.().catch(()=>{}); });
-
-function broadcastConnectionChange() {
-  chrome.runtime.sendMessage({ type:'NMDA_CONNECTION_CHANGED' }).catch(()=>{});
-}
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => { if (String(tab?.url||'').startsWith('https://mail.163.com/') || String(changeInfo.url||'').startsWith('https://mail.163.com/')) broadcastConnectionChange(); });
-chrome.tabs.onRemoved.addListener(() => { broadcastConnectionChange(); });
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  (async () => {
-    if (message?.type === 'NMDA_CONNECTION_STATUS') return connectionStatus(sender);
-    if (message?.type === 'NMDA_OPEN_MAIL') {
-      const tab = await resolveMailTab(sender, { create:true, focus:message.focus !== false });
-      return { ok:!!tab?.id, tabId:tab?.id || null };
-    }
-    if (message?.type === 'NMDA_OPEN_APP') { const tab=await openApp(); return {ok:true,tabId:tab?.id||null}; }
+  const tabId = sender.tab?.id;
+  if (!tabId) {
+    sendResponse({ ok: false, reason: 'missing-tab-id' });
+    return;
+  }
 
-    if (message?.type === 'NMDA_VAULT_META') {
-      const meta = await globalThis.NMDAVault.meta(message.id);
-      return meta ? { ok:true, ...meta } : { ok:false, reason:'vault-file-not-found' };
-    }
-    if (message?.type === 'NMDA_VAULT_CHUNK') {
-      const base64 = await globalThis.NMDAVault.chunkBase64(message.id, Number(message.offset||0), Number(message.length||262144));
-      return base64 === null ? {ok:false,reason:'vault-file-not-found'} : {ok:true,base64};
-    }
-    if (message?.type === 'NMDA_EXECUTION_PROGRESS') {
-      chrome.runtime.sendMessage({ ...message, type:'NMDA_EXECUTION_PROGRESS_BROADCAST', tabId:sender.tab?.id || null }).catch(()=>{});
-      return {ok:true};
-    }
+  if (message?.type === 'NMDA_OPEN_COMPOSE') {
+    runMain(tabId, () => {
+      try {
+        if (window.Interface && typeof window.Interface.compose === 'function') {
+          window.Interface.compose();
+          return { ok: true, method: 'window.Interface.compose' };
+        }
+        return { ok: false, reason: 'window.Interface.compose unavailable' };
+      } catch (error) {
+        return { ok: false, reason: error?.message || String(error) };
+      }
+    }).then(sendResponse).catch(error => sendResponse({ ok: false, reason: error?.message || String(error) }));
+    return true;
+  }
 
-    const tab = await resolveMailTab(sender);
-    const tabId = tab?.id;
-    if (!tabId) return { ok:false, reason:'mailbox-not-connected' };
+  if (message?.type === 'NMDA_ACCOUNT_INFO') {
+    runMain(tabId, () => {
+      try {
+        const uid = typeof window.$S === 'function' ? (window.$S('uid') || '') : '';
+        return { ok: true, uid: String(uid || '') };
+      } catch (error) {
+        return { ok: false, reason: error?.message || String(error) };
+      }
+    }).then(sendResponse).catch(error => sendResponse({ ok: false, reason: error?.message || String(error) }));
+    return true;
+  }
 
-    if (message?.type === 'NMDA_EXECUTE_DRAFT') {
-      await waitForExecutor(tabId);
-      return chrome.tabs.sendMessage(tabId, message);
-    }
-    if (message?.type === 'NMDA_LEGACY_PREFS') {
-      await waitForExecutor(tabId);
-      return chrome.tabs.sendMessage(tabId, {type:'NMDA_LEGACY_PREFS'});
-    }
-    if (message?.type === 'NMDA_OPEN_COMPOSE') {
-      return runMain(tabId, () => {
-        try {
-          if (window.Interface && typeof window.Interface.compose === 'function') { window.Interface.compose(); return { ok:true, method:'window.Interface.compose' }; }
-          return { ok:false, reason:'window.Interface.compose unavailable' };
-        } catch (error) { return {ok:false,reason:error?.message||String(error)}; }
-      });
-    }
-    if (message?.type === 'NMDA_ACCOUNT_INFO') return accountInfo(tabId);
-    if (message?.type === 'NMDA_READ_MAILBOX_STATE') return readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick');
-    if (message?.type === 'NMDA_READ_SENT') return readMailbox(tabId,3,message.limit ?? 200);
-    if (message?.type === 'NMDA_READ_DRAFTS') return readMailbox(tabId,2,message.limit ?? 200);
-    return {ok:false,reason:'unknown-message'};
-  })().then(sendResponse).catch(error => sendResponse({ok:false,reason:error?.message||String(error)}));
-  return true;
+  if (message?.type === 'NMDA_READ_MAILBOX_STATE') {
+    readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick').then(sendResponse).catch(error => sendResponse({ ok: false, reason: error?.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === 'NMDA_READ_SENT') {
+    readMailbox(tabId, 3, message.limit ?? 200).then(sendResponse).catch(error => sendResponse({ ok: false, reason: error?.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === 'NMDA_READ_DRAFTS') {
+    readMailbox(tabId, 2, message.limit ?? 200).then(sendResponse).catch(error => sendResponse({ ok: false, reason: error?.message || String(error) }));
+    return true;
+  }
 });

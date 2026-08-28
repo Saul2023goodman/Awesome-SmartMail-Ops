@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NMDA QA Harness · v1.47.0</title>
+  <link rel="stylesheet" href="content.css">
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      background: #eef3f8;
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; }
+    body {
+      min-height: 100vh;
+      overflow: auto;
+      color: #26364a;
+      background: #eef3f8;
+    }
+    .qa-mail-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      background: #fff;
+    }
+    .qa-mail-nav {
+      padding: 24px 18px;
+      color: #e8f1ff;
+      background: linear-gradient(180deg, #263b5b, #1d2f4a);
+    }
+    .qa-mail-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+      font-weight: 750;
+      letter-spacing: .02em;
+    }
+    .qa-mail-brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+      color: #24456f;
+      background: #d7e8ff;
+      font-weight: 850;
+    }
+    .qa-mail-nav button,
+    .qa-mail-nav .qa-nav-item {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 12px;
+      margin: 4px 0;
+      text-align: left;
+      color: #cfddf0;
+      background: transparent;
+      font: inherit;
+    }
+    .qa-mail-nav button.qa-write {
+      justify-content: center;
+      margin-bottom: 18px;
+      color: #173b67;
+      background: #d9eaff;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .qa-mail-nav .qa-nav-item.is-current {
+      color: #fff;
+      background: rgba(167, 203, 255, .16);
+    }
+    .qa-mail-nav small {
+      display: block;
+      margin-top: 30px;
+      color: #94a9c7;
+      line-height: 1.55;
+    }
+    .qa-mail-main {
+      min-width: 0;
+      padding: 32px clamp(28px, 5vw, 80px);
+      background: linear-gradient(180deg, #f8fbff 0 120px, #fff 280px);
+    }
+    .qa-mail-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid #e2e9f2;
+    }
+    .qa-mail-toolbar strong { font-size: 20px; }
+    .qa-mail-toolbar span { color: #7c8da2; font-size: 13px; }
+    .qa-mail-search {
+      width: min(300px, 42vw);
+      height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border: 1px solid #d9e3ef;
+      border-radius: 9px;
+      color: #93a0b0;
+      background: #fff;
+    }
+    .qa-mail-search input {
+      min-width: 0;
+      width: 100%;
+      border: 0;
+      outline: 0;
+      color: #3f5063;
+      background: transparent;
+    }
+    .qa-mail-placeholder {
+      margin-top: 48px;
+      padding: 34px;
+      border: 1px dashed #cfdae8;
+      border-radius: 16px;
+      color: #75869a;
+      background: rgba(249, 251, 254, .78);
+    }
+    .qa-mail-placeholder strong { display: block; margin-bottom: 8px; color: #42546a; font-size: 18px; }
+    .qa-harness-banner {
+      position: fixed;
+      z-index: 1000;
+      left: 16px;
+      bottom: 16px;
+      padding: 8px 11px;
+      border: 1px solid #cfe0f6;
+      border-radius: 9px;
+      color: #4e6d91;
+      background: rgba(246, 250, 255, .94);
+      box-shadow: 0 6px 20px rgba(47, 73, 105, .08);
+      font-size: 12px;
+    }
+    .qa-compose {
+      position: fixed;
+      z-index: 80;
+      right: 28px;
+      bottom: 24px;
+      width: min(690px, calc(100vw - 280px));
+      min-height: 390px;
+      border: 1px solid #d8e2ee;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 22px 70px rgba(31, 53, 82, .22);
+    }
+    .qa-compose-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 17px;
+      color: #fff;
+      background: #385b86;
+    }
+    .qa-compose-head strong { font-size: 15px; }
+    .qa-compose-head span { color: #d9e7f7; font-size: 12px; }
+    .qa-compose-body { padding: 14px 17px 8px; }
+    .qa-compose-field { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 10px; }
+    .qa-compose-field > label { color: #64778e; font-size: 13px; }
+    .qa-compose-field input,
+    .qa-compose-field textarea {
+      width: 100%;
+      border: 1px solid #d9e3ef;
+      border-radius: 7px;
+      padding: 8px 10px;
+      outline: 0;
+      color: #30445d;
+      background: #fbfdff;
+      font: inherit;
+    }
+    .qa-compose-field textarea { min-height: 125px; resize: vertical; }
+    .qa-compose-editor { width: 100%; height: 126px; border: 1px solid #d9e3ef; border-radius: 7px; background: #fbfdff; }
+    .qa-compose-options { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 2px 0 8px 68px; color: #63768c; font-size: 12px; }
+    .qa-compose-options button,
+    .qa-compose-options select { border: 1px solid #d6e1ed; border-radius: 6px; padding: 5px 8px; color: #536981; background: #fff; font: inherit; }
+    .qa-compose-schedule { display: none; gap: 5px; align-items: center; }
+    .qa-compose-schedule.is-visible { display: flex; }
+    .qa-compose-foot { display: flex; align-items: center; gap: 10px; padding: 10px 17px 14px; border-top: 1px solid #edf1f6; }
+    .qa-compose-foot [role="button"] { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 0 14px; border-radius: 7px; color: #fff; background: #3e76b5; cursor: pointer; }
+    .qa-compose-foot [role="button"]:hover { background: #2f639e; }
+    .qa-attachments { margin-left: 68px; color: #5b7797; font-size: 12px; }
+    .qa-save-tip,
+    .nui-tips-suc[role="status"] { position: fixed; z-index: 200; right: 36px; top: 24px; padding: 10px 14px; border: 1px solid #b8e4cc; border-radius: 8px; color: #17673b; background: #effbf4; box-shadow: 0 10px 28px rgba(24, 96, 56, .14); font-size: 13px; }
+    @media (max-width: 860px) {
+      .qa-mail-shell { grid-template-columns: 72px minmax(0, 1fr); }
+      .qa-mail-nav { padding: 18px 10px; }
+      .qa-mail-brand span, .qa-mail-nav button span:last-child, .qa-mail-nav .qa-nav-item span:last-child, .qa-mail-nav small { display: none; }
+      .qa-mail-nav button, .qa-mail-nav .qa-nav-item { justify-content: center; padding-inline: 4px; }
+      .qa-mail-main { padding-inline: 22px; }
+      .qa-compose { right: 16px; width: calc(100vw - 104px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="qa-mail-shell">
+    <aside class="qa-mail-nav" aria-label="网易邮箱导航">
+      <div class="qa-mail-brand"><span class="qa-mail-brand-mark">N</span><span>网易邮箱</span></div>
+      <button class="qa-write" id="qa-write" type="button" aria-label="写信"><span>✎</span><span>写信</span></button>
+      <div class="qa-nav-item is-current"><span>▱</span><span>收件箱</span></div>
+      <div class="qa-nav-item"><span>◫</span><span>草稿箱</span></div>
+      <div class="qa-nav-item"><span>↗</span><span>已发送</span></div>
+      <small>这是隔离的本地页面，仅用于插件 UI 与交互核验。<br>不会连接网易账号，也不会发送邮件。</small>
+    </aside>
+    <main class="qa-mail-main">
+      <div class="qa-mail-toolbar"><div><strong>收件箱</strong><br><span>开发预览 · 模拟登录态</span></div><label class="qa-mail-search"><span>⌕</span><input aria-label="搜索邮件" placeholder="搜索邮件"></label></div>
+      <div class="qa-mail-placeholder"><strong>准备开始核验</strong>点击右下角的 N 图标打开网易邮箱外联工作台；写信入口与草稿保存反馈均为本地模拟。</div>
+    </main>
+  </div>
+  <span id="spnUid" hidden>qa-user@example.com</span>
+  <div class="qa-harness-banner">QA Harness · v1.47.0 · 本地隔离预览</div>
+
+  <script>
+    (() => {
+      const storage = Object.create(null);
+      let composeIndex = 0;
+      let saveIndex = 0;
+
+      function addOption(select, value, label = value) {
+        const option = document.createElement('option');
+        option.value = String(value);
+        option.textContent = String(label);
+        select.appendChild(option);
+      }
+
+      function scheduleSelect(id, values) {
+        const select = document.createElement('select');
+        select.id = id;
+        values.forEach(value => addOption(select, value));
+        return select;
+      }
+
+      function makeCompose() {
+        const index = ++composeIndex;
+        const root = document.createElement('section');
+        root.className = 'qa-compose';
+        root.id = `_dvModuleContainer_compose.ComposeModule_QA_${index}`;
+        root.setAttribute('role', 'main');
+        root.setAttribute('aria-label', '写信');
+        root.innerHTML = `
+          <header class="qa-compose-head"><strong>写信</strong><span>本地模拟 Compose #${index}</span></header>
+          <div class="qa-compose-body">
+            <div class="qa-compose-field"><label>收件人</label><input type="text" aria-label="收件人地址输入框" placeholder="输入收件人地址"></div>
+            <div class="qa-compose-field"><label>主题</label><input id="qa_${index}_subjectInput" type="text" aria-label="主题" placeholder="邮件主题"></div>
+            <div class="qa-compose-field"><label>正文</label><iframe class="qa-compose-editor" title="正文编辑器" srcdoc="<!doctype html><html><body contenteditable='true' style='margin:10px;font:14px system-ui;color:#30445d;outline:0;min-height:100px'></body></html>"></iframe></div>
+            <div class="qa-attachments" id="qa-attachments-${index}">尚未添加附件</div>
+            <div class="qa-compose-options">
+              <button id="qa-more-${index}" type="button">更多发送选项</button>
+              <label><input id="qa-schedule-toggle-${index}" type="checkbox" role="checkbox" aria-label="定时发送"> 定时发送</label>
+              <span class="qa-compose-schedule" id="qa-schedule-${index}"></span>
+              <span id="_mail_attachBrowser_${index}"><input type="file" multiple aria-label="添加附件"></span>
+            </div>
+          </div>
+          <footer class="qa-compose-foot"><div role="button" id="qa-save-${index}" aria-label="存草稿"><span class="nui-btn-text">存草稿</span></div><span>本地模拟：保存后出现成功提示</span></footer>`;
+        document.body.appendChild(root);
+
+        const attachmentInput = root.querySelector('input[type="file"]');
+        const attachmentSummary = root.querySelector(`#qa-attachments-${index}`);
+        attachmentInput.addEventListener('change', () => {
+          const names = [...attachmentInput.files].map(file => file.name);
+          attachmentSummary.textContent = names.length ? `已添加附件：${names.join('、')}` : '尚未添加附件';
+        });
+
+        const scheduleArea = root.querySelector(`#qa-schedule-${index}`);
+        const scheduleToggle = root.querySelector(`#qa-schedule-toggle-${index}`);
+        scheduleToggle.addEventListener('change', () => {
+          scheduleArea.classList.toggle('is-visible', scheduleToggle.checked);
+          if (!scheduleToggle.checked || scheduleArea.childElementCount) return;
+          scheduleArea.append(
+            scheduleSelect(`qa_${index}_scheduleYear`, ['2026', '2027']),
+            scheduleSelect(`qa_${index}_scheduleMonth`, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']),
+            scheduleSelect(`qa_${index}_scheduleDay`, Array.from({length:31}, (_, i) => String(i + 1))),
+            scheduleSelect(`qa_${index}_scheduleHour`, Array.from({length:24}, (_, i) => String(i))),
+            scheduleSelect(`qa_${index}_scheduleMinute`, Array.from({length:60}, (_, i) => String(i)))
+          );
+        });
+        root.querySelector(`#qa-more-${index}`).addEventListener('click', () => scheduleToggle.focus());
+        root.querySelector(`#qa-save-${index}`).addEventListener('click', () => {
+          document.querySelectorAll('.nui-tips-suc').forEach(node => node.remove());
+          const tip = document.createElement('div');
+          tip.className = 'nui-tips-suc';
+          tip.id = `qa-save-tip-${++saveIndex}`;
+          tip.setAttribute('role', 'status');
+          tip.textContent = scheduleToggle.checked ? '定时发信设置成功' : '邮件已成功保存到草稿箱';
+          document.body.appendChild(tip);
+          setTimeout(() => tip.remove(), 4200);
+        });
+        return root;
+      }
+
+      window.Interface = { compose: makeCompose };
+      document.querySelector('#qa-write').addEventListener('click', makeCompose);
+      window.chrome = {
+        storage: {
+          local: {
+            async get(keys) {
+              if (!keys) return {...storage};
+              if (typeof keys === 'string') return {[keys]: storage[keys]};
+              if (Array.isArray(keys)) return Object.fromEntries(keys.map(key => [key, storage[key]]));
+              return Object.fromEntries(Object.keys(keys).map(key => [key, storage[key] ?? keys[key]]));
+            },
+            async set(values) { Object.assign(storage, values || {}); },
+            async remove(keys) { for (const key of (Array.isArray(keys) ? keys : [keys])) delete storage[key]; }
+          }
+        },
+        runtime: {
+          async sendMessage(message) {
+            if (message?.type === 'NMDA_OPEN_COMPOSE') {
+              makeCompose();
+              return {ok: true, method: 'qa.Interface.compose'};
+            }
+            if (message?.type === 'NMDA_ACCOUNT_INFO') return {ok: true, uid: 'qa-user@example.com'};
+            if (message?.type === 'NMDA_READ_MAILBOX_STATE') {
+              return {
+                ok: true,
+                mode: message.mode || 'quick',
+                uid: 'qa-user@example.com',
+                sent: {ok: true, total: 2, complete: true, messages: [{id:'sent-1', subject:'QA sample', toRaw:'demo@example.com', recipients:[{email:'demo@example.com'}], sentAt:'2026-08-28'}]},
+                drafts: {ok: true, total: 1, complete: true, messages: [{id:'draft-1', subject:'QA draft', toRaw:'demo@example.com', recipients:[{email:'demo@example.com'}], savedAt:'2026-08-28'}]}
+              };
+            }
+            return {ok: false, reason: `QA harness does not implement ${message?.type || 'unknown message'}`};
+          }
+        }
+      };
+    })();
+  </script>
+
+  <script src="import-core.js"></script>
+  <script src="mail-recognizer.js"></script>
+  <script src="import-adapters.js"></script>
+  <script src="importer.js"></script>
+  <script src="contacts.js"></script>
+  <script src="scheduler.js"></script>
+  <script src="roster.js"></script>
+  <script src="content.js"></script>
+</body>
+</html>

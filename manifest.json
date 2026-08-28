@@ -1,32 +1,37 @@
 {
   "manifest_version": 3,
   "name": "NetEase Mail Draft Assistant",
-  "version": "2.7.0",
-  "description": "独立 Chrome 工作台：邮件审阅按异常类型直接进入正确操作。确定性缺失字段点击邮件即直接补齐；重复邮件合并为版本堆叠卡并集中比较取舍；普通邮件保持完整只读审阅，重点核对开头、结尾与边界。",
+  "version": "1.47.0",
+  "description": "网易邮箱网页版邮件工作台：将分类核验列表改为决策型快速摘要；名单识别新增文件名意图与表格结构互证，并对多工作表采用高置信来源共识，减少明确名单误进待确认。",
   "permissions": [
     "storage",
-    "scripting",
-    "tabs"
+    "scripting"
   ],
   "host_permissions": [
     "https://mail.163.com/*"
   ],
-  "action": {
-    "default_title": "打开网易邮箱外联工作台"
-  },
-  "background": {
-    "service_worker": "background.js"
-  },
   "content_scripts": [
     {
       "matches": [
         "https://mail.163.com/*"
       ],
       "js": [
-        "executor.js"
+        "import-core.js",
+        "mail-recognizer.js",
+        "import-adapters.js",
+        "importer.js",
+        "contacts.js",
+        "scheduler.js",
+        "roster.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
       ],
       "run_at": "document_idle"
     }
   ],
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtsSYHVZA1TDQv6x0ngH80Zw/eCkGDeV2OBgjABB4pUNc57YjBObeq/PJitSyaAppsUvA7uutDxpaFfsUoyDgafwqVir2YOKi3fNjcs50JAjOkyUX42YHurq0Y5z11xKCdzyUptSSby1OzmXwYbOl1i+OgFNbcz/J5ly2iKiW9PGihAd1eTRRy8NSWExoOvKPHEAAE3rr1gGSokG/tSEXIX24bna8j2RiRC6cgffnwZPoXZf944uKaFh0zDNTonH7KDaPOd6ZtxDKzGcRdHobF01OJ4gHaCOFgytyd0Oq8kP1dZdZttramZrwU4Am/sfykhBMNWOcsodFD/WqUi0ndQIDAQAB"
+  "background": {
+    "service_worker": "background.js"
+  }
 }
