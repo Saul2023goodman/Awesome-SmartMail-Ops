@@ -5,6 +5,68 @@
 
   const PROFILE_KEY='nmda.import.profiles.v1';
   const detector=new A.FormatDetector();
+  const FILE_HASH_CACHE=new WeakMap();
+
+  async function fileBuffer(file){
+    if(!file)throw new Error('没有选择导入文件。');
+    // Keep raw buffers request-scoped. Persisting ArrayBuffers in a cache would retain
+    // an extra full copy of every large ZIP/DOCX for the whole import session.
+    return file.arrayBuffer();
+  }
+  function hashFallback(bytes){
+    // FNV-1a x2 is only a compatibility fallback for runtimes without SubtleCrypto.
+    // Normal Chrome paths use SHA-256 below.
+    let a=0x811c9dc5,b=0x9e3779b9;
+    for(let i=0;i<bytes.length;i++){
+      const v=bytes[i];a^=v;a=Math.imul(a,0x01000193)>>>0;
+      b^=(v+i)&255;b=Math.imul(b,0x85ebca6b)>>>0;
+    }
+    return `fallback-${a.toString(16).padStart(8,'0')}${b.toString(16).padStart(8,'0')}-${bytes.length}`;
+  }
+  async function contentHashFromBuffer(buffer){
+    const bytes=buffer instanceof Uint8Array?buffer:new Uint8Array(buffer);
+    try{
+      if(globalThis.crypto?.subtle?.digest){
+        const digest=await globalThis.crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
+      }
+    }catch(_){}
+    return hashFallback(bytes);
+  }
+  async function fileContentHash(file,buffer=null){
+    if(!file)return'';
+    if(file._nmdaContentHash)return String(file._nmdaContentHash);
+    if(FILE_HASH_CACHE.has(file))return FILE_HASH_CACHE.get(file);
+    const promise=(async()=>{
+      const ab=buffer||await fileBuffer(file),hash=await contentHashFromBuffer(ab);
+      try{Object.defineProperty(file,'_nmdaContentHash',{value:hash,configurable:true});}catch(_){try{file._nmdaContentHash=hash;}catch(__){}}
+      return hash;
+    })();
+    FILE_HASH_CACHE.set(file,promise);
+    try{return await promise;}catch(error){FILE_HASH_CACHE.delete(file);throw error;}
+  }
+  function createDedupeContext(){return{seen:new Map(),duplicates:[]};}
+  async function claimContentSource(file,buffer,context){
+    if(!context)return{accepted:true,hash:await fileContentHash(file,buffer),duplicateOf:null};
+    const hash=await fileContentHash(file,buffer),existing=context.seen.get(hash);
+    if(existing){
+      const duplicate={file,hash,duplicateOf:existing.file,source:sourceIdentity(file),duplicateOfSource:existing.source};
+      context.duplicates.push(duplicate);
+      return{accepted:false,hash,duplicateOf:existing.file,duplicate};
+    }
+    context.seen.set(hash,{file,source:sourceIdentity(file)});
+    return{accepted:true,hash,duplicateOf:null};
+  }
+  function markDatasetContentHash(dataset,file,hash){
+    if(!dataset||!hash)return dataset;
+    for(const rs of dataset.recordSets||dataset.sheets||[])rs.meta={...(rs.meta||{}),sourceContentHash:hash};
+    dataset.meta={...(dataset.meta||{}),sourceContentHash:hash};
+    return dataset;
+  }
+  function duplicateSourceDataset(file,claim){
+    const original=claim?.duplicateOf?.name||claim?.duplicate?.duplicateOfSource||'已读取文件';
+    return new Core.NormalizedDataset({format:'duplicate-source',recordSets:[],sourceFiles:[],embeddedFiles:[],warnings:[`${file?.name||'文件'}：与 ${original} 内容完全相同，已自动跳过重复导入。`],meta:{duplicateSource:true,duplicateOf:original,sourceContentHash:claim?.hash||''}});
+  }
   const DIRECT_ATTACHMENT_EXT=new Set(['pdf','ppt','pptx','rtf','png','jpg','jpeg','gif','webp','svg','zip','rar','7z']);
 
   const SOURCE_PURPOSES={mail:'mail',roster:'roster',attachment:'attachment',ignored:'ignored',ambiguous:'ambiguous'};
@@ -288,7 +350,11 @@
 
 
   function mergeWordTaskRecordSets(recordSets,{namePrefix='Word文档批次',source='multi-word',packageMode=false}={}){
-    const candidates=(recordSets||[]).filter(rs=>rs.meta?.wordTaskRows && rs.meta?.sourcePurpose===SOURCE_PURPOSES.mail && !rs.meta?.supplemental);
+    // Never aggregate an already-shadowed child again. A ZIP may already contain a
+    // merged Word execution set plus its per-file shadows; the old filter admitted
+    // both levels into a second outer merge, duplicating every row exactly once and
+    // making the normal duplicate audit report the whole batch as repeated.
+    const candidates=(recordSets||[]).filter(rs=>rs.meta?.wordTaskRows && rs.meta?.sourcePurpose===SOURCE_PURPOSES.mail && !rs.meta?.supplemental && !rs.meta?.taskShadow);
     if(candidates.length<2)return false;
     const header=['编号','收件人','学校 / 机构','主题','正文','附件','定时时间','任务标记','来源文件'],rows=[header],rowMeta={};
     let mailFrameCount=0, confidenceTotal=0, confidenceCount=0, scanBlocks=0, scanSubjects=0, scanSalutations=0, scanClosings=0, scanEmails=0;
@@ -297,7 +363,7 @@
       for(let rowIndex=d.index+1;rowIndex<(rs.rows||[]).length;rowIndex++){
         const row=rs.rows[rowIndex]; if(!row?.some(v=>String(v??'').trim()))continue;
         rows.push(header.map((_,i)=>row[i]??''));
-        const meta=rs.meta?.rowMeta?.[rowIndex]; if(meta)rowMeta[rows.length-1]={...meta};
+        const meta=rs.meta?.rowMeta?.[rowIndex]; rowMeta[rows.length-1]={...(meta||{}),sourceContentHash:meta?.sourceContentHash||rs.meta?.sourceContentHash||''};
       }
       if(rs.meta?.mailFrames){
         mailFrameCount++;
@@ -319,39 +385,80 @@
   class UniversalImportEngine{
     constructor({registry=A.registry, detectorInstance=detector}={}){this.registry=registry;this.detector=detectorInstance;}
 
-    async parseFile(file,{allowZipBatch=true}={}){
+    async parseFile(file,{allowZipBatch=true,dedupeContext=null}={}){
       if(!file)throw new Error('没有选择导入文件。');
-      const buffer=await file.arrayBuffer(), detection=await this.detector.detect(file,buffer);
+      const buffer=await fileBuffer(file), detection=await this.detector.detect(file,buffer);
       if(detection.format==='xls')throw new Error('已识别为旧版 Excel .xls（OLE/BIFF）。当前通用引擎尚未启用二进制 XLS Adapter；请另存为 XLSX/ODS/CSV。');
       if(detection.format==='doc')throw new Error('已识别为旧版 Word .doc（二进制 OLE）。WordAdapter 当前支持 DOCX/DOCM/DOTX；请在 Word/WPS 中另存为 .docx 后批量导入。');
       if(detection.format==='zip'){
         if(!allowZipBatch)throw new Error('ZIP 内再次嵌套 ZIP 暂不支持。');
-        return this.parseZipBatch(file,buffer,detection.entries||await A.unzip(buffer));
+        // ZIP is a transport container, never a business source. Its children share the
+        // caller's dedupe context, so a file selected outside the archive and the same
+        // binary file inside the archive can only enter the parser once.
+        return this.parseZipBatch(file,buffer,detection.entries||await A.unzip(buffer),dedupeContext||createDedupeContext());
       }
-      const adapter=this.registry.find(detection.format) || this.registry.find(detection.container==='text'?'text':detection.format);
-      if(!adapter)throw new Error(`已识别格式“${detection.format}”，但当前没有对应 Adapter。`);
-      const result=await adapter.parse({file,buffer,detection,engine:this});
-      result.meta={...(result.meta||{}), detection, adapter:adapter.name};
-      return prepareDataset(result);
+      const claim=await claimContentSource(file,buffer,dedupeContext);
+      if(!claim.accepted)return duplicateSourceDataset(file,claim);
+      try{
+        const adapter=this.registry.find(detection.format) || this.registry.find(detection.container==='text'?'text':detection.format);
+        if(!adapter)throw new Error(`已识别格式“${detection.format}”，但当前没有对应 Adapter。`);
+        const result=await adapter.parse({file,buffer,detection,engine:this});
+        result.meta={...(result.meta||{}), detection, adapter:adapter.name};
+        markDatasetContentHash(result,file,claim.hash);
+        return prepareDataset(result);
+      }catch(error){
+        // A failed parse has not consumed the source. Release its claim so the caller
+        // can still route a CV/proposal-like document to the attachment fallback.
+        if(dedupeContext&&dedupeContext.seen.get(claim.hash)?.file===file)dedupeContext.seen.delete(claim.hash);
+        throw error;
+      }
     }
 
     async parseFiles(files,{ignoreUnsupported=false}={}){
       const list=[...(files||[])].filter(Boolean);if(!list.length)throw new Error('没有选择数据文件。');
-      const recordSets=[],sourceFiles=[],embeddedFiles=[],warnings=[],formats=[];
+      const recordSets=[],sourceFiles=[],embeddedFiles=[],containerFiles=[],warnings=[],formats=[],dedupeContext=createDedupeContext();
       for(const file of list){
-        if(directAttachmentFile(file)){sourceFiles.push(file);formats.push('attachment');recordSets.push(attachmentRecordSet(file));continue;}
+        if(directAttachmentFile(file)){
+          try{
+            const buffer=await fileBuffer(file),claim=await claimContentSource(file,buffer,dedupeContext);
+            if(!claim.accepted){warnings.push(`${file.name}: 与 ${claim.duplicateOf?.name||'已加入文件'} 内容完全相同，已自动跳过重复导入。`);continue;}
+            sourceFiles.push(file);formats.push('attachment');const rs=attachmentRecordSet(file);rs.meta={...(rs.meta||{}),sourceContentHash:claim.hash};recordSets.push(rs);continue;
+          }catch(error){if(ignoreUnsupported||list.length>1){warnings.push(`${file.name}: 读取失败，已跳过（${error.message}）`);continue;}throw error;}
+        }
         try{
-          const ds=await this.parseFile(file); formats.push(ds.format); sourceFiles.push(...(ds.sourceFiles||[file])); embeddedFiles.push(...(ds.embeddedFiles||[])); warnings.push(...(ds.warnings||[]));
-          for(const rs of ds.sheets||[]){const prefix=list.length>1?`${file.name} · `:'';recordSets.push(scopeRecordSetToSource(rs,file,ds.format,prefix));}
+          const ds=await this.parseFile(file,{dedupeContext});
+          warnings.push(...(ds.warnings||[]));
+          if(ds.meta?.duplicateSource)continue;
+          formats.push(ds.format); sourceFiles.push(...(ds.sourceFiles||[file])); embeddedFiles.push(...(ds.embeddedFiles||[])); containerFiles.push(...(ds.meta?.containerFiles||[]));
+          for(const rs of ds.sheets||[]){
+            const prefix=list.length>1?`${file.name} · `:'';
+            if(ds.meta?.package){
+              // Keep the archive child's own source identity. Re-scoping it to the ZIP
+              // filename makes every child look like the same source and is the root of
+              // both false classification prompts and source-level duplication.
+              recordSets.push(new Core.NormalizedRecordSet({name:`${prefix}${rs.name||'内容'}`,rows:rs.rows,source:rs.source,meta:{...(rs.meta||{}),package:true,packageContainer:file.name,format:rs.meta?.format||ds.format}}));
+            }else recordSets.push(scopeRecordSetToSource(rs,file,ds.format,prefix));
+          }
         }catch(error){
-          if(MATERIAL_NAME_RE.test(String(file?.name||''))){sourceFiles.push(file);formats.push('attachment');recordSets.push(attachmentRecordSet(file));warnings.push(`${file.name}: 无法解析文档内容，已保守放入附件候选（${error.message}）`);continue;}
+          if(MATERIAL_NAME_RE.test(String(file?.name||''))){
+            const buffer=await fileBuffer(file),claim=await claimContentSource(file,buffer,dedupeContext);
+            if(claim.accepted){sourceFiles.push(file);formats.push('attachment');const rs=attachmentRecordSet(file);rs.meta={...(rs.meta||{}),sourceContentHash:claim.hash};recordSets.push(rs);warnings.push(`${file.name}: 无法解析文档内容，已保守放入附件候选（${error.message}）`);}else warnings.push(`${file.name}: 与 ${claim.duplicateOf?.name||'已加入文件'} 内容完全相同，已自动跳过重复导入。`);
+            continue;
+          }
           if(ignoreUnsupported||list.length>1){sourceFiles.push(file);formats.push('unreadable');recordSets.push(unreadableRecordSet(file,error));warnings.push(`${file.name}: 读取失败，已隔离为“暂不使用”，不影响其他来源（${error.message}）`);continue;}throw error;
         }
       }
-      // 多个“一文件一封”/字段式 Word/邮件原语集合自动合并，并保留逐条识别证据。
-      if(list.length>1)mergeWordTaskRecordSets(recordSets,{source:'multi-word'});
+      // Multiple Word mail sources are merged only after content-level idempotency has
+      // already removed repeated physical files. The aggregate therefore cannot create
+      // a second copy of every mail merely because the same source arrived twice.
+      if(recordSets.length>1)mergeWordTaskRecordSets(recordSets,{source:'multi-word'});
       if(!recordSets.length)throw new Error(warnings.length?`没有成功读取的数据文件。${warnings[0]}`:'没有可读取的数据。');
-      return prepareDataset(new Core.NormalizedDataset({format:[...new Set(formats)].join('+')||'multi',recordSets,sourceFiles,embeddedFiles,warnings,meta:{multiFile:list.length>1}}));
+      const uniqueSourceFiles=[];const seenHashes=new Set();
+      for(const file of sourceFiles){const hash=String(file?._nmdaContentHash||'');const key=hash||`${sourceIdentity(file)}|${Number(file?.size||0)}`;if(seenHashes.has(key))continue;seenHashes.add(key);uniqueSourceFiles.push(file);}
+      const uniqueEmbedded=[];const seenEmbedded=new Set();
+      for(const file of embeddedFiles){const hash=String(file?._nmdaContentHash||'');const key=hash||`${sourceIdentity(file)}|${Number(file?.size||0)}`;if(seenEmbedded.has(key))continue;seenEmbedded.add(key);uniqueEmbedded.push(file);}
+      const duplicateSummary=dedupeContext.duplicates.map(item=>({source:item.source,duplicateOf:item.duplicateOfSource,hash:item.hash}));
+      return prepareDataset(new Core.NormalizedDataset({format:[...new Set(formats)].join('+')||'multi',recordSets,sourceFiles:uniqueSourceFiles,embeddedFiles:uniqueEmbedded,warnings:[...new Set(warnings)],meta:{multiFile:list.length>1,package:containerFiles.length>0,containerFiles:[...new Map(containerFiles.map(file=>[`${file?.name||''}|${Number(file?.size||0)}`,file])).values()],duplicateSources:duplicateSummary,duplicateSourceCount:duplicateSummary.length}}));
     }
 
     async parseDirectory(files){
@@ -359,7 +466,7 @@
       return this.parseFiles(candidates,{ignoreUnsupported:true});
     }
 
-    async parseZipBatch(zipFile,buffer,entries){
+    async parseZipBatch(zipFile,buffer,entries,dedupeContext=createDedupeContext()){
       const warnings=[],embeddedFiles=[];let manifest=null;
       const manifestBytes=entries.get('manifest.json')||entries.get('nmda-manifest.json');
       if(manifestBytes){try{manifest=JSON.parse(A.decodeText(manifestBytes));}catch(e){throw new Error(`ZIP manifest.json 无法解析：${e.message}`);}}
@@ -369,13 +476,33 @@
       else taskNames=names.filter(n=>A.SUPPORTED_EXT.has(A.extOf(n))&&A.extOf(n)!=='zip'&&!/^manifest\.json$/i.test(n));
       if(!taskNames.length)throw new Error('ZIP 中没有找到任务数据文件。建议包含 manifest.json + tasks.xlsx/csv/json/docx。');
       const recordSets=[],sourceFiles=[];
-      for(const name of taskNames){const bytes=entries.get(name),vf=A.makeVirtualFile(name,bytes);try{const ds=await this.parseFile(vf,{allowZipBatch:false});sourceFiles.push(vf);for(const rs of ds.sheets)recordSets.push(new Core.NormalizedRecordSet({name:`${name} · ${rs.name}`,rows:rs.rows,source:name,meta:{...(rs.meta||{}),package:true,format:ds.format}}));}catch(e){warnings.push(`${name}: ${e.message}`);}}
-      mergeWordTaskRecordSets(recordSets,{source:zipFile.name,packageMode:true});
+      for(const name of taskNames){
+        const bytes=entries.get(name),vf=A.makeVirtualFile(name,bytes);
+        try{
+          const ds=await this.parseFile(vf,{allowZipBatch:false,dedupeContext});
+          warnings.push(...(ds.warnings||[]));
+          if(ds.meta?.duplicateSource)continue;
+          sourceFiles.push(...(ds.sourceFiles||[vf]));
+          for(const rs of ds.sheets||[])recordSets.push(new Core.NormalizedRecordSet({name:`${name} · ${rs.name}`,rows:rs.rows,source:rs.source||name,meta:{...(rs.meta||{}),package:true,packageContainer:zipFile.name,format:ds.format}}));
+        }catch(e){warnings.push(`${name}: ${e.message}`);}
+      }
+      if(recordSets.length>1)mergeWordTaskRecordSets(recordSets,{source:`${zipFile.name}::mail-batch`,packageMode:true});
       const taskSet=new Set(taskNames);
       const attachmentRoot=String(manifest?.attachmentRoot||'').replace(/^\.\//,'').replace(/\/+$/,'');
-      for(const name of names){if(taskSet.has(name)||/^manifest\.json$/i.test(name))continue;if(attachmentRoot&&!(name===attachmentRoot||name.startsWith(`${attachmentRoot}/`)))continue;embeddedFiles.push(A.makeVirtualFile(name,entries.get(name)));}
-      if(!recordSets.length)throw new Error(`ZIP 中的任务文件均解析失败：${warnings[0]||'未知原因'}`);
-      return prepareDataset(new Core.NormalizedDataset({format:'nmda-zip',recordSets,sourceFiles:[zipFile,...sourceFiles],embeddedFiles,warnings,meta:{manifest,package:true}}));
+      for(const name of names){
+        if(taskSet.has(name)||/^manifest\.json$/i.test(name))continue;
+        if(attachmentRoot&&!(name===attachmentRoot||name.startsWith(`${attachmentRoot}/`)))continue;
+        const bytes=entries.get(name),vf=A.makeVirtualFile(name,bytes);
+        // Embedded attachments are not business sources and never enter the source-role
+        // picker, but a content hash keeps the attachment index idempotent too.
+        try{await fileContentHash(vf,bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));}catch(_){}
+        embeddedFiles.push(vf);
+      }
+      if(!recordSets.length){
+        if(warnings.some(item=>/内容完全相同，已自动跳过重复导入/.test(item)))return prepareDataset(new Core.NormalizedDataset({format:'nmda-zip',recordSets:[],sourceFiles:[],embeddedFiles,warnings,meta:{manifest,package:true,containerFiles:[zipFile],allTaskSourcesDuplicate:true,duplicateSources:dedupeContext.duplicates.map(item=>({source:item.source,duplicateOf:item.duplicateOfSource,hash:item.hash})),duplicateSourceCount:dedupeContext.duplicates.length}}));
+        throw new Error(`ZIP 中的任务文件均解析失败：${warnings[0]||'未知原因'}`);
+      }
+      return prepareDataset(new Core.NormalizedDataset({format:'nmda-zip',recordSets,sourceFiles,embeddedFiles,warnings,meta:{manifest,package:true,containerFiles:[zipFile],containerName:zipFile.name,duplicateSources:dedupeContext.duplicates.map(item=>({source:item.source,duplicateOf:item.duplicateOfSource,hash:item.hash})),duplicateSourceCount:dedupeContext.duplicates.length}}));
     }
   }
 
@@ -399,7 +526,7 @@
   function baseName(value){const key=normalizeFileKey(value);return key.split('/').filter(Boolean).pop()||'';}
   function relaxedFileName(value){const name=baseName(value),dot=name.lastIndexOf('.'),stem=dot>0?name.slice(0,dot):name,ext=dot>0?name.slice(dot):'';return`${stem.replace(/\s*[（(]\d+[）)]\s*$/,'').trim()}${ext}`;}
   function filePath(file){return file?.webkitRelativePath||file?._nmdaPath||file?.name||'';}
-  function fileIdentity(file){return`${normalizeFileKey(filePath(file))}|${Number(file?.size||0)}|${Number(file?.lastModified||0)}`;}
+  function fileIdentity(file){const hash=String(file?._nmdaContentHash||'');return hash?`sha256:${hash}`:`${normalizeFileKey(filePath(file))}|${Number(file?.size||0)}|${Number(file?.lastModified||0)}`;}
   function addIndex(map,key,file){if(!key)return;if(!map.has(key))map.set(key,[]);const list=map.get(key);if(!list.some(x=>fileIdentity(x)===fileIdentity(file)))list.push(file);}
   function buildFileIndex(files){const exact=new Map(),byName=new Map(),relaxedByName=new Map(),unique=new Map();for(const file of files||[]){if(!file)continue;unique.set(fileIdentity(file),file);const relative=normalizeFileKey(filePath(file)),withoutRoot=relative.includes('/')?relative.split('/').slice(1).join('/'):'';for(const path of [file.name,relative,withoutRoot].filter(Boolean).map(normalizeFileKey))addIndex(exact,path,file);const name=baseName(file.name);addIndex(byName,name,file);addIndex(relaxedByName,relaxedFileName(name),file);}return{exact,byName,relaxedByName,files:[...unique.values()]};}
   function resolveOneFile(ref,index){const key=normalizeFileKey(ref);if(!key)return{ref,status:'missing',candidates:[],method:'empty'};let matches=index?.exact?.get(key)||[];if(matches.length===1)return{ref,status:'matched',file:matches[0],candidates:matches,method:'exact'};if(matches.length>1)return{ref,status:'ambiguous',candidates:matches,method:'exact'};const basename=baseName(key);matches=index?.byName?.get(basename)||[];if(matches.length===1)return{ref,status:'matched',file:matches[0],candidates:matches,method:'basename'};if(matches.length>1)return{ref,status:'ambiguous',candidates:matches,method:'basename'};const relaxed=relaxedFileName(basename);matches=index?.relaxedByName?.get(relaxed)||[];if(matches.length===1)return{ref,status:'matched',file:matches[0],candidates:matches,method:'relaxed-copy-suffix'};if(matches.length>1)return{ref,status:'ambiguous',candidates:matches,method:'relaxed-copy-suffix'};return{ref,status:'missing',candidates:[],method:'none'};}
@@ -408,11 +535,11 @@
   function resolveFiles(refs,index){const files=[],missing=[],ambiguous=[],details=[];for(const ref of refs||[]){const d=resolveOneFile(ref,index||buildFileIndex([]));details.push(d);if(d.status==='matched')files.push(d.file);else if(d.status==='missing')missing.push(ref);else ambiguous.push(ref);}return{files,missing,ambiguous,details};}
 
   globalThis.NMDAImporter={
-    version:'1.46.0', engine, UniversalImportEngine,
+    version:'1.47.0', engine, UniversalImportEngine,
     FIELD_DEFS:Core.FIELD_DEFS, normalizeHeader:Core.normalizeHeader, mappingForHeaders:Core.mappingForHeaders,
     detectHeader:Core.detectHeader, detectBestSheet:Core.detectBestSheet, detectBestRecordSet:Core.detectBestRecordSet, parseFile, parseFiles, parseDirectory,
     parseDateValue,formatLocalDateTime,createProfile,loadProfiles,saveProfile,deleteProfile,suggestProfile,
-    splitAttachments,normalizeFileKey,relaxedFileName,fileIdentity,buildFileIndex,resolveOneFile,suggestFiles,resolveFiles,
+    splitAttachments,normalizeFileKey,relaxedFileName,fileIdentity,fileContentHash,buildFileIndex,resolveOneFile,suggestFiles,resolveFiles,
     supportedFormats:['XLSX','ODS','FODS','DOCX/DOCM/DOTX','CSV','TSV','PSV','TXT','JSON','JSONL/NDJSON','HTML table','Excel 2003 XML','ZIP batch'],
     candidateDataFile:A.candidateDataFile,directAttachmentFile,
     SOURCE_PURPOSES,sourceRoleCandidates,detectMailHeader,detectRosterHeader,analyzeMailDiscourse,analyzeMaterialStructure,classifyRecordSet,annotateRecordSet,summarizeSourceRouting,prepareDataset,mergeWordTaskRecordSets

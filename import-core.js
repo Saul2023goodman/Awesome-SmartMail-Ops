@@ -8,7 +8,12 @@
     { key: 'subject', label: '主题', aliases: ['主题','邮件主题','标题','subject','title','emailsubject','邮件标题','邮件名称','邮件名','邮件题目'] },
     { key: 'body', label: '正文', aliases: ['正文','邮件正文','内容','邮件内容','正文内容','body','content','message','text','emailbody','邮件文本'] },
     { key: 'attachments', label: '附件', aliases: ['附件','附件名','附件名称','附件路径','附件文件','附件列表','材料','文件','attachment','attachments','file','files','filename','filenames','filepath','documents'] },
-    { key: 'scheduleAt', label: '定时时间', aliases: ['定时时间','定时发送时间','发送时间','计划发送时间','预约发送时间','schedule','scheduleat','scheduledat','sendat','sendtime','scheduledtime','datetime'] },
+    { key: 'scheduleAt', label: '定时时间', aliases: [
+      '定时时间','定时发送时间','定时发送','定时','定时日期','预约发送时间','预约时间','预约发送','排期','排期时间','邮件排期','发送排期',
+      '发送时间','发送日期','发送日期时间','计划发送时间','计划发送日期','计划发送日期时间','预定发送时间','预定发送日期','投递时间','投递日期',
+      'schedule','scheduleat','scheduledat','scheduledtime','scheduleddate','scheduleddatetime','scheduleddelivery','scheduleddeliverytime',
+      'sendat','sendtime','senddate','senddatetime','deliverytime','deliverydate','deliverydatetime','plannedsendtime','planneddeliverytime','datetime'
+    ] },
     { key: 'tags', label: '任务标记', aliases: ['标签','邮件标签','联系人标签','任务标签','批次','分组','类别','分类','tag','tags','label','labels','group','batch','category','categories'] }
   ];
 
