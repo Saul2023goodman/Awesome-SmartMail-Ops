@@ -61,6 +61,28 @@ function readMailbox(tabId, fid, requested) {
         return recipients;
       }
 
+      function parseSender(item) {
+        const raw = String(item?.from || item?.sender || item?.mailFrom || '');
+        try {
+          const parsed = window.$.Uri?.getEmails?.(raw);
+          const match = parsed?.match?.[0];
+          const email = String(match?.address || '').trim().toLowerCase();
+          if (email) return { email, name: String(match?.name || '').trim(), raw };
+        } catch (_) {}
+        const email = raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase() || '';
+        const name = raw.replace(/<[^>]+>/g,'').replace(email,'').trim().replace(/^['"]|['"]$/g,'');
+        return { email, name, raw };
+      }
+
+      function detectAutoReplyHint(item) {
+        const subject = String(item?.subject || '');
+        const sender = parseSender(item);
+        const text = `${subject} ${sender.email}`.toLowerCase();
+        const subjectAuto = /(?:auto(?:matic)?[\s-]*reply|out[\s-]*of[\s-]*(?:the[\s-]*)?office|\booo\b|vacation(?:\s+reply|\s+responder)?|自动(?:回复|答复|回覆)|不在办公室|外出(?:自动)?回复|休假(?:自动)?回复|假期(?:自动)?回复)/i.test(text);
+        const senderAuto = /^(?:no-?reply|do-?not-?reply|mailer-daemon|postmaster|autoresponder|auto-?reply)@/i.test(sender.email || '');
+        return subjectAuto ? 'subject-pattern' : senderAuto ? 'sender-pattern' : '';
+      }
+
       function normalizeMailboxDate(value) {
         if (value == null || value === '') return '';
         try {
@@ -111,9 +133,14 @@ function readMailbox(tabId, fid, requested) {
           id: String(item?.id || item?.mid || ''),
           subject: String(item?.subject || ''),
           toRaw: String(item?.to || ''),
+          fromRaw: String(item?.from || item?.sender || item?.mailFrom || ''),
           recipients: parseRecipients(item),
+          sender: parseSender(item),
           sentAt: sentTimestamp,
+          receivedAt: fidArg === 1 ? sentTimestamp : '',
           savedAt: savedTimestamp,
+          autoReplyHint: fidArg === 1 ? detectAutoReplyHint(item) : '',
+          autoReply: fidArg === 1 ? !!detectAutoReplyHint(item) : false,
           scheduleAt: scheduleValue,
           scheduleEvidence: scheduledDraft ? (flags.scheduleDelivery ? 'scheduleDelivery-flag' : (explicitSchedule ? 'explicit-schedule-field' : (futureSent ? 'future-sentDate' : ''))) : '',
           flags: { ...flags },
@@ -237,19 +264,78 @@ async function readMailboxState(tabId, mode = 'quick') {
   if (!sent?.ok) return { ok: false, phase: 'sent', reason: sent?.reason || '读取已发送失败', sent };
   const drafts = await readMailbox(tabId, 2, requested);
   if (!drafts?.ok) return { ok: false, phase: 'drafts', reason: drafts?.reason || '读取草稿箱失败', sent, drafts };
-  const complete = !!sent.complete && !!drafts.complete;
+  const inbox = await readMailbox(tabId, 1, requested);
+  if (!inbox?.ok) return { ok: false, phase: 'inbox', reason: inbox?.reason || '读取收件箱失败', sent, drafts, inbox };
+  const complete = !!sent.complete && !!drafts.complete && !!inbox.complete;
   return {
     ok: true,
     mode: full ? 'full' : 'quick',
-    uid: sent.uid || drafts.uid || '',
-    sent, drafts, complete,
+    uid: sent.uid || drafts.uid || inbox.uid || '',
+    sent, drafts, inbox, complete,
     coverage: {
       sent: { read: sent.messages?.length || 0, total: sent.total || 0, complete: !!sent.complete, pages: sent.pages || 0 },
-      drafts: { read: drafts.messages?.length || 0, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 }
+      drafts: { read: drafts.messages?.length || 0, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 },
+      inbox: { read: inbox.messages?.length || 0, total: inbox.total || 0, complete: !!inbox.complete, pages: inbox.pages || 0 }
     }
   };
 }
 
+
+async function readMessageDetail(tabId, summary = {}) {
+  return runMain(tabId, (summaryArg) => new Promise(async resolve => {
+    try {
+      if (!window.$?.DataAction) return resolve({ ok:false, reason:'$.DataAction unavailable' });
+      const id = String(summaryArg?.id || summaryArg?.mid || '').trim();
+      if (!id) return resolve({ ok:false, reason:'message-id-missing' });
+      function request(body) {
+        return new Promise((res, rej) => {
+          try {
+            const action = new window.$.DataAction();
+            action.wmsvr({ func:'mbox:readMessage', body, call(response){res(response||{});}, error(error){rej(new Error(error?.message||error?.code||'mbox:readMessage failed'));}, ignoreError:true });
+          } catch (error) { rej(error); }
+        });
+      }
+      let response = null, lastError = null;
+      for (const body of [{mid:id},{id}]) {
+        try { response = await request(body); if (response) break; } catch (error) { lastError = error; }
+      }
+      if (!response) return resolve({ok:false,id,reason:lastError?.message||'读取邮件详情失败'});
+      const root = response?.var ?? response;
+      const queue = [], seen = new Set();
+      if (root && typeof root === 'object') queue.push(root);
+      for (let i=0;i<queue.length && i<800;i++) {
+        const node=queue[i]; if(!node||typeof node!=='object'||seen.has(node))continue; seen.add(node);
+        for(const value of (Array.isArray(node)?node:Object.values(node))) if(value&&typeof value==='object') queue.push(value);
+      }
+      const keyNorm=v=>String(v||'').replace(/[\s_\-]/g,'').toLowerCase();
+      function first(keys,{allowObject=false}={}) {
+        const wanted=new Set(keys.map(keyNorm));
+        for(const node of queue){ if(Array.isArray(node))continue; for(const [key,value] of Object.entries(node)){ if(!wanted.has(keyNorm(key))||value==null)continue; if(typeof value==='object'&&!allowObject)continue; if(typeof value==='string'&&!value.trim())continue; return value; }}
+        return '';
+      }
+      function recipientText(value) {
+        const fmt=item=>{ if(typeof item==='string')return item.trim(); if(!item||typeof item!=='object')return ''; const email=String(item.address||item.email||item.mail||'').trim(); const name=String(item.name||item.displayName||'').trim(); return email?(name?`${name} <${email}>`:email):''; };
+        if(Array.isArray(value))return value.map(fmt).filter(Boolean).join('; ');
+        return fmt(value)||String(value||'').trim();
+      }
+      function htmlToText(raw,isHtml=true){ if(!isHtml)return String(raw||'').trim(); try{const doc=new DOMParser().parseFromString(String(raw||''),'text/html'); return String(doc.body?.innerText||doc.body?.textContent||'').replace(/\u00a0/g,' ').replace(/\r\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();}catch(_){const div=document.createElement('div');div.innerHTML=String(raw||'');return String(div.textContent||'').trim();}}
+      const direct=root && !Array.isArray(root) ? root : {};
+      const subject=String(direct.subject ?? first(['subject','mailSubject','title']) ?? summaryArg?.subject ?? '').trim();
+      const from=recipientText(direct.from ?? direct.sender ?? first(['from','sender','mailFrom'],{allowObject:true})) || String(summaryArg?.fromRaw||'').trim();
+      const to=recipientText(direct.to ?? first(['to','recipients','recipient','toList'],{allowObject:true})) || String(summaryArg?.toRaw||'').trim();
+      const cc=recipientText(direct.cc ?? first(['cc','ccList'],{allowObject:true}));
+      const date=String(direct.sentDate ?? direct.date ?? direct.receivedDate ?? first(['sentDate','date','receivedDate','receiveDate']) ?? summaryArg?.receivedAt ?? summaryArg?.sentAt ?? '').trim();
+      const isHtml=direct.isHtml !== false;
+      const bodyHtml=String(direct.content ?? direct.bodyHtml ?? first(['content','body','mailContent','html','contentHtml','bodyHtml','mailBody']) ?? '');
+      const body=htmlToText(bodyHtml,isHtml);
+      const headerText=JSON.stringify(direct?.headers||direct?.header||direct?.mailHeaders||{});
+      const autoHint=`${subject} ${from} ${headerText}`.toLowerCase();
+      const autoReply=/(?:auto(?:matic)?[\s-]*reply|out[\s-]*of[\s-]*(?:the[\s-]*)?office|\booo\b|vacation(?:\s+reply|\s+responder)?|自动(?:回复|答复|回覆)|不在办公室|外出(?:自动)?回复|休假(?:自动)?回复|假期(?:自动)?回复|auto-submitted[^a-z]*auto-replied|x-autoreply|x-autorespond)/i.test(autoHint)
+        || /(?:no-?reply|do-?not-?reply|mailer-daemon|postmaster|autoresponder|auto-?reply)@/i.test(from);
+      resolve({ok:true,id,subject,from,to,cc,date,body,bodyHtml,isHtml,autoReply,rawKeys:Object.keys(direct).slice(0,100)});
+    } catch (error) { resolve({ok:false,id:String(summaryArg?.id||''),reason:error?.message||String(error)}); }
+  }), [summary]);
+}
 
 async function readDraftDetail(tabId, summary = {}) {
   return runMain(tabId, (summaryArg) => new Promise(async resolve => {
@@ -638,6 +724,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_READ_MAILBOX_STATE') return readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick');
     if (message?.type === 'NMDA_READ_SENT') return readMailbox(tabId,3,message.limit ?? 200);
     if (message?.type === 'NMDA_READ_DRAFTS') return readMailbox(tabId,2,message.limit ?? 200);
+    if (message?.type === 'NMDA_READ_INBOX') return readMailbox(tabId,1,message.limit ?? 500);
+    if (message?.type === 'NMDA_READ_MESSAGE_DETAIL') return readMessageDetail(tabId,message.summary || {id:message.id||''});
     if (message?.type === 'NMDA_IMPORT_DRAFTS') return readDraftImport(tabId,message.limit ?? 300);
     return {ok:false,reason:'unknown-message'};
   })().then(sendResponse).catch(error => sendResponse({ok:false,reason:error?.message||String(error)}));
