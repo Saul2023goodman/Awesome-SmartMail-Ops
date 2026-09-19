@@ -656,15 +656,6 @@
     next.innerHTML='<div class="nmda-next-step-copy"><span class="nmda-next-step-kicker">导入完成</span><strong>资料已经准备好，下一步进行邮件审阅</strong><small id="nmda-handoff-hint">核对收件人、主题与正文后，再进入排期。</small></div><div class="nmda-import-ready-summary" id="nmda-import-ready-summary"></div><button class="nmda-btn nmda-btn-primary nmda-next-step-action" id="nmda-go-batch" type="button">进入邮件审阅 →</button>';
     batchPaneHost.appendChild(next);
   }
-  if(reviewCardHost&&!reviewCardHost.querySelector('#nmda-review-complete-card')){
-    const complete=document.createElement('div');
-    complete.id='nmda-review-complete-card';
-    complete.className='nmda-review-complete-card';
-    complete.hidden=true;
-    complete.innerHTML='<div><span>审阅完成</span><strong>所有可执行邮件均已 Pass</strong><small>下一步统一进入选择与排期；这里不会直接创建草稿。</small></div><button class="nmda-btn nmda-btn-primary" id="nmda-review-go-dispatch" type="button">进入选择与排期 →</button>';
-    const queue=reviewCardHost.querySelector('#nmda-review-queue');
-    if(queue)reviewCardHost.insertBefore(complete,queue); else reviewCardHost.appendChild(complete);
-  }
   // Attachments belong to import, so their single workspace is physically mounted
   // inside the import card instead of a portal.
   const attachmentWorkspace=ui.querySelector('#nmda-attachment-manager-overlay');
@@ -3146,8 +3137,9 @@
     const pendingCount=actionCount;
     if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='邮件审阅';
     if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=pendingCount
-      ? '核对缺失字段与内容识别；全部 Pass 后会显示下一步入口。'
-      : '邮件内容已全部 Pass；下一步进入“选择与排期”。';
+      ? `还有 ${pendingCount} 封需要处理 · 完成后进入选择与排期`
+      : tasks.length ? `${tasks.length}/${tasks.length} 已 Pass · 可以进入选择与排期` : '导入完成后，这里统一核对收件人、主题与正文。';
+    if(reviewInlineEl)reviewInlineEl.dataset.reviewState=tasks.length&&pendingCount===0?'complete':pendingCount?'pending':'empty';
     if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
     const reviewCounts={all:tasks.length,auto:autoPassed,pending:actionCount,confirmed:checked};
     ui.querySelectorAll('#nmda-review-filter [data-review-filter]').forEach(button=>{
@@ -3165,9 +3157,6 @@
       nextPendingBtn.textContent=pendingMails.length?'下一个待审阅':'进入选择与排期 →';
       nextPendingBtn.classList.toggle('nmda-btn-primary',!pendingMails.length);
     }
-    const reviewCompleteCard=$('nmda-review-complete-card');
-    const reviewComplete=!!tasks.length && pendingCount===0;
-    if(reviewCompleteCard)reviewCompleteCard.hidden=!reviewComplete;
     if(reviewFilterEl)reviewFilterEl.hidden=false;
     ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter===batch.reviewFilter));
     if(reviewSearchEl && reviewSearchEl.value!==String(batch.reviewSearch||''))reviewSearchEl.value=String(batch.reviewSearch||'');
