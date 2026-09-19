@@ -615,6 +615,15 @@
               <input class="nmda-monitor-search" id="nmda-monitor-search" type="search" placeholder="搜索收件人或主题">
             </div>
 
+            <div class="nmda-monitor-bulkbar" id="nmda-monitor-bulkbar" hidden>
+              <label class="nmda-monitor-select-all"><input id="nmda-monitor-select-visible" type="checkbox"><span>选择当前可生成</span></label>
+              <span class="nmda-monitor-selection-copy" id="nmda-monitor-selection-copy">已选择 0</span>
+              <div class="nmda-monitor-bulk-actions">
+                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-clear-selection" type="button">清除</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-monitor-batch-create" type="button">批量生成 Follow-up</button>
+              </div>
+            </div>
+
             <div class="nmda-monitor-notice" id="nmda-monitor-notice" hidden></div>
             <div class="nmda-monitor-list" id="nmda-monitor-list"></div>
 
@@ -849,12 +858,13 @@
   }
 
 
-  const monitorState = { filter:'all', search:'', syncing:false, editorTaskId:'', lastRenderAt:0 };
+  const monitorState = { filter:'all', search:'', syncing:false, editorTaskId:'', lastRenderAt:0, selectedRootIds:new Set() };
 
   function monitorEls() {
     return {
       stats:$('nmda-monitor-stats'), list:$('nmda-monitor-list'),
-      notice:$('nmda-monitor-notice'), syncCopy:$('nmda-monitor-sync-copy'), delay:$('nmda-monitor-delay'), max:$('nmda-monitor-max'), compose:$('nmda-monitor-compose-mode')
+      notice:$('nmda-monitor-notice'), syncCopy:$('nmda-monitor-sync-copy'), delay:$('nmda-monitor-delay'), max:$('nmda-monitor-max'), compose:$('nmda-monitor-compose-mode'),
+      bulkbar:$('nmda-monitor-bulkbar'), selectVisible:$('nmda-monitor-select-visible'), selectionCopy:$('nmda-monitor-selection-copy'), batchCreate:$('nmda-monitor-batch-create')
     };
   }
 
@@ -882,6 +892,21 @@
     if(group.eligibility?.reason==='max-attempts-reached')return {key:'replied',tone:'',label:'已达跟进上限',detail:`最多 ${group.policy.maxAttempts} 次 Follow-up`};
     if(group.eligibility?.reason==='recipient-guard')return {key:'blocked',tone:'blocked',label:'联系规则阻断',detail:(group.eligibility.guard?.reasons||[]).join('；')||'已暂停联系'};
     return {key:'waiting',tone:'',label:'监测中',detail:group.eligibility?.reason||'等待邮箱事实'};
+  }
+
+  function monitorCreatable(group) {
+    return !group.viewState?.activeTask && group.eligibility?.eligible === true;
+  }
+
+  function monitorSelectedIds() {
+    return monitorState.selectedRootIds instanceof Set ? monitorState.selectedRootIds : (monitorState.selectedRootIds=new Set());
+  }
+
+  function pruneMonitorSelection(enriched) {
+    const valid=new Set((enriched||[]).filter(monitorCreatable).map(item=>item.rootTaskId));
+    const selected=monitorSelectedIds();
+    [...selected].forEach(id=>{if(!valid.has(id))selected.delete(id);});
+    return selected;
   }
 
   function renderMonitoring() {
@@ -915,6 +940,18 @@
       const hay=[monitorRecipientText(item.lastOutbound),item.lastOutbound?.subject,item.viewState.label,item.viewState.detail].join(' ').toLocaleLowerCase('zh-CN');
       return query.split(/\s+/).every(token=>hay.includes(token));
     });
+    const selected=pruneMonitorSelection(enriched);
+    const visibleCreatable=visible.filter(monitorCreatable);
+    const allCreatable=enriched.filter(monitorCreatable);
+    if(els.bulkbar)els.bulkbar.hidden=allCreatable.length===0;
+    if(els.selectionCopy)els.selectionCopy.textContent=`已选择 ${selected.size} · 当前可生成 ${visibleCreatable.length}`;
+    if(els.batchCreate)els.batchCreate.disabled=selected.size===0;
+    if(els.selectVisible){
+      const selectedVisible=visibleCreatable.filter(item=>selected.has(item.rootTaskId)).length;
+      els.selectVisible.disabled=visibleCreatable.length===0;
+      els.selectVisible.checked=visibleCreatable.length>0 && selectedVisible===visibleCreatable.length;
+      els.selectVisible.indeterminate=selectedVisible>0 && selectedVisible<visibleCreatable.length;
+    }
     if(els.list){
       if(!visible.length){
         els.list.innerHTML=`<div class="nmda-monitor-empty"><div><strong>${groups.length?'当前筛选没有邮件':'尚无已发送邮件'}</strong><small>${groups.length?'切换筛选条件，或清空搜索。':'点击“读取邮箱”后，已发送邮件会自动进入检测范围；只有再次人工读取时才刷新邮箱事实。'}</small></div></div>`;
@@ -935,7 +972,10 @@
           if(ambiguous){
             evidence=`<div class="nmda-monitor-reply-evidence"><span>模糊回复：${escapeHtml(ambiguous.sender||'')} · ${escapeHtml(ambiguous.subject||'(无主题)')}</span><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="human">视为真人回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="automatic">视为自动回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="unrelated">与本邮件无关</button></div>`;
           }
-          return `<article class="nmda-monitor-row" data-tone="${escapeHtml(st.tone||'')}">
+          const selectable=monitorCreatable(group);
+          const selectionCell=selectable?`<label class="nmda-monitor-row-select" title="选择生成 Follow-up"><input type="checkbox" data-monitor-select="${escapeHtml(group.rootTaskId)}" ${selected.has(group.rootTaskId)?'checked':''}><span class="sr-only">选择此邮件</span></label>`:`<span class="nmda-monitor-row-select-placeholder" aria-hidden="true"></span>`;
+          return `<article class="nmda-monitor-row${selectable?' is-selectable':''}" data-tone="${escapeHtml(st.tone||'')}">
+            ${selectionCell}
             <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(last.kind==='follow_up'?`最近发送 Follow-up #${last.sequence}`:'初始 outreach')}</small><div class="nmda-monitor-subject" title="${escapeHtml(last.subject||'')}">${escapeHtml(last.subject||'(无主题)')}</div></div>
             <div class="nmda-monitor-row-state"><span class="nmda-monitor-badge" data-tone="${escapeHtml(st.tone||'')}">${escapeHtml(st.label)}</span><small>${escapeHtml(st.detail||'')}</small></div>
             <div class="nmda-monitor-row-time"><div><span>最近发送</span><strong>${escapeHtml(Operations.formatDisplayTime(last.sentAt))}</strong></div><div><span>下一节点</span><strong>${dueAt?escapeHtml(Operations.formatDisplayTime(dueAt)):'—'}</strong></div></div>
@@ -986,6 +1026,32 @@
     await persistOperations();
     renderMonitoring();
     openFollowUpEditor(created.task.id);
+  }
+
+  async function batchCreateMonitorFollowUps() {
+    await ensureOperationStore();
+    const selected=[...monitorSelectedIds()];
+    if(!selected.length){setMonitorNotice('请先选择已经到期、可生成 Follow-up 的邮件。','warn');return;}
+    const before=selected.length;
+    try{
+      const result=Operations.createFollowUpTasks(operationState.store,selected);
+      operationState.store=result.store;
+      for(const task of result.created){
+        const parent=operationState.store.outboundRecords?.[task.parentOutboundId];
+        const defaultSubject=task.composeMode==='new'?`Re: ${parent?.subject||''}`.trim():(parent?.subject||'');
+        if(defaultSubject){
+          const updated=Operations.updateDerivedTaskContent(operationState.store,task.id,{subject:defaultSubject});
+          operationState.store=updated.store;
+        }
+      }
+      await persistOperations();
+      monitorSelectedIds().clear();
+      renderMonitoring();
+      const skipped=result.skipped?.length||0;
+      setMonitorNotice(`已批量生成 ${result.created.length} 个 Follow-up Task${skipped?`；${skipped} 个因状态变化未生成`:''}。可逐项编辑并确认后加入“选择与排期”。`,result.created.length?'ok':'warn');
+    }catch(error){
+      setMonitorNotice(`批量生成失败：${error?.message||String(error)}`,'error');
+    }
   }
 
   function followUpEditorTask() {
@@ -1084,6 +1150,26 @@
     });
     ui.querySelectorAll('[data-monitor-filter]').forEach(button=>button.addEventListener('click',()=>{monitorState.filter=button.dataset.monitorFilter||'all';ui.querySelectorAll('[data-monitor-filter]').forEach(item=>item.classList.toggle('is-active',item===button));renderMonitoring();}));
     $('nmda-monitor-search')?.addEventListener('input',event=>{monitorState.search=event.currentTarget.value||'';renderMonitoring();});
+    $('nmda-monitor-select-visible')?.addEventListener('change',event=>{
+      const selected=monitorSelectedIds();
+      const groups=Operations.monitoringRoots(operationState.store).map(group=>({...group,viewState:monitorGroupState(group)}));
+      const query=String(monitorState.search||'').toLocaleLowerCase('zh-CN').trim();
+      const visible=groups.filter(item=>{
+        if(monitorState.filter!=='all'&&item.viewState.key!==monitorState.filter)return false;
+        if(query){const hay=[monitorRecipientText(item.lastOutbound),item.lastOutbound?.subject,item.viewState.label,item.viewState.detail].join(' ').toLocaleLowerCase('zh-CN');if(!query.split(/\s+/).every(token=>hay.includes(token)))return false;}
+        return monitorCreatable(item);
+      });
+      visible.forEach(item=>event.currentTarget.checked?selected.add(item.rootTaskId):selected.delete(item.rootTaskId));
+      renderMonitoring();
+    });
+    $('nmda-monitor-clear-selection')?.addEventListener('click',()=>{monitorSelectedIds().clear();renderMonitoring();});
+    $('nmda-monitor-batch-create')?.addEventListener('click',()=>void batchCreateMonitorFollowUps());
+    $('nmda-monitor-list')?.addEventListener('change',event=>{
+      const checkbox=event.target.closest('[data-monitor-select]');if(!checkbox)return;
+      const selected=monitorSelectedIds();
+      checkbox.checked?selected.add(checkbox.dataset.monitorSelect):selected.delete(checkbox.dataset.monitorSelect);
+      renderMonitoring();
+    });
     $('nmda-monitor-list')?.addEventListener('click',event=>{
       const create=event.target.closest('[data-monitor-create]');if(create){void createMonitorFollowUp(create.dataset.monitorCreate,create.dataset.manual==='1');return;}
       const edit=event.target.closest('[data-monitor-edit]');if(edit){openFollowUpEditor(edit.dataset.monitorEdit);return;}

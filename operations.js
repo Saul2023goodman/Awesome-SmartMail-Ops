@@ -861,6 +861,54 @@
     return { store: next, task, eligibility };
   }
 
+  function createFollowUpTasks(storeInput, rootTaskIds = [], options = {}) {
+    const next = clone(normalizeStore(storeInput));
+    const created = [];
+    const skipped = [];
+    const seen = new Set();
+    for (const rawId of Array.isArray(rootTaskIds) ? rootTaskIds : []) {
+      const rootTaskId = String(rawId || '').trim();
+      if (!rootTaskId || seen.has(rootTaskId)) continue;
+      seen.add(rootTaskId);
+      const eligibility = evaluateFollowUpEligibility(next, rootTaskId, { now: options.now, ignoreTiming: false });
+      if (!eligibility.eligible) {
+        skipped.push({ rootTaskId, reason: eligibility.reason });
+        continue;
+      }
+      const { lastOutbound, sequence, policy, dueAt } = eligibility;
+      const id = `followup:${stableHash(`${rootTaskId}|${sequence}`)}`;
+      const now = nowIso();
+      const task = {
+        id,
+        kind: 'follow_up',
+        rootTaskId,
+        parentTaskId: String(lastOutbound.taskId || rootTaskId),
+        parentOutboundId: lastOutbound.id,
+        sequence,
+        state: 'due',
+        dueAt,
+        createdAt: now,
+        updatedAt: now,
+        createdReason: eligibility.reason,
+        recipients: (lastOutbound.recipients || []).map(item => ({ ...item })),
+        subject: '',
+        body: '',
+        composeMode: policy.composeMode,
+        contentVersion: 1,
+        confirmedVersion: null,
+        confirmedAt: '',
+        scheduledAt: '',
+        sentOutboundId: '',
+        blocker: null,
+        dispatch: { queued: false, enabled: true, scheduleAt: '', scheduleSource: '', scheduleReason: '', queuedAt: '', dequeuedAt: '', dequeuedReason: '' }
+      };
+      next.derivedTasks[id] = task;
+      next.updatedAt = now;
+      created.push(task);
+    }
+    return { store: next, created, skipped };
+  }
+
   function updateDerivedTaskContent(storeInput, taskId, patch = {}) {
     const store = normalizeStore(storeInput);
     const next = clone(store);
@@ -1111,6 +1159,7 @@
     refreshDerivedTaskBlocks,
     evaluateFollowUpEligibility,
     createFollowUpTask,
+    createFollowUpTasks,
     updateDerivedTaskContent,
     confirmDerivedTask,
     setDerivedTaskState,

@@ -75,3 +75,8 @@ Import-time duplicate handling now follows the business meaning of each evidence
 `existing Sent → outbound-history gate / Follow-up routing warning`
 
 Draft-only hits never render imported body versus mailbox Draft body. They are shown as recipient-level Draft existence facts with a suggested filter-out action and an explicit keep exception. Sent history remains a stronger external communication fact and retains an explicit decision gate.
+
+
+## v3.8.6 Monitoring batch preparation
+
+邮件监测支持对当前已到期且 eligible 的线程进行批量选择并创建 Derived Follow-up Tasks。批量生成属于 Task preparation，不属于 Dispatch；生成后的 Follow-up 仍需独立内容确认后进入统一“选择与排期”。邮件监测页面拥有独立纵向滚动容器，其他工作区继续保持单视口布局。
