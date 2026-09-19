@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.11",
-  "description": "SmartMail Ops — reliable Sent-body hydration for template Follow-up, first-class import/review/dispatch, manual mailbox monitoring, and unified execution.",
+  "version": "3.8.12",
+  "description": "SmartMail Ops — provider readhtml-based Sent body hydration for template Follow-up, first-class import/review/dispatch, manual mailbox monitoring, and unified execution.",
   "permissions": [
     "storage",
     "scripting",

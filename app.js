@@ -1022,6 +1022,8 @@
       'sent-read-failed':'读取 Initial 已发送正文失败',
       'sent-read-empty':'163 返回的 Initial 邮件详情为空',
       'sent-body-parse-failed':'已读取 Initial 邮件，但未解析出正文',
+      'sent-readhtml-failed':'读取 Initial 正文页失败',
+      'sent-readhtml-parse-failed':'已读取 Initial 正文页，但未解析出邮件正文',
       'initial-body-missing':'Initial 正文尚未缓存',
       'salutation-and-signature-missing':'Initial 正文中未识别到称呼和署名',
       'salutation-missing':'Initial 正文中未识别到称呼',

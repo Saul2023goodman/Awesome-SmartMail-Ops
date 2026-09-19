@@ -543,9 +543,33 @@ async function readSentDetail(tabId, messageId) {
         });
       }
 
-      // Match NetEase's own module.read.ReadAction.readMessage contract first.
-      // Keep the minimal {id} call as a compatibility fallback because NetEase's
-      // own Forward/Reply helper also uses that shorter form.
+      function htmlToText(value, forceHtml = null) {
+        let raw = String(value ?? '');
+        if (!raw) return '';
+        const looksHtml = forceHtml === true || (forceHtml !== false && /<[a-z][\s\S]*>/i.test(raw));
+        if (!looksHtml) return raw.replace(/\r\n?/g,'\n').replace(/\u00a0/g,' ').trim();
+        raw = raw
+          .replace(/<\s*br\s*\/?\s*>/gi,'\n')
+          .replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi,'\n')
+          .replace(/<\s*li\b[^>]*>/gi,'• ');
+        try {
+          const doc = new DOMParser().parseFromString(raw,'text/html');
+          doc.querySelectorAll('script,style,noscript').forEach(el=>el.remove());
+          return String(doc.body?.textContent || '')
+            .replace(/\u00a0/g,' ')
+            .replace(/[ \t]+\n/g,'\n')
+            .replace(/\n{3,}/g,'\n\n')
+            .trim();
+        } catch (_) {
+          const div=document.createElement('div');
+          div.innerHTML=raw;
+          return String(div.textContent||'').replace(/\u00a0/g,' ').trim();
+        }
+      }
+
+      // 1) Read metadata using NetEase's own ReadAction contract. The provider's
+      // body is not expected to live here; readMessage establishes the canonical
+      // message record/context and gives us subject + a validated message id.
       const officialBody = {
         id:idArg,
         header:true,
@@ -590,31 +614,110 @@ async function readSentDetail(tabId, messageId) {
 
       const root = response.var;
       if (!root || typeof root !== 'object') return resolve({ ok:false, id:idArg, reasonCode:'sent-read-empty', reason:'mbox:readMessage 返回的 var 为空' });
+      const subject = String(root?.subject || root?.mailSubject || root?.title || '').trim();
 
-      function htmlToText(value, forceHtml = null) {
-        let raw = String(value ?? '');
-        if (!raw) return '';
-        const looksHtml = forceHtml === true || (forceHtml !== false && /<[a-z][\s\S]*>/i.test(raw));
-        if (!looksHtml) return raw.replace(/\r\n?/g,'\n').replace(/\u00a0/g,' ').trim();
-        raw = raw.replace(/<\s*br\s*\/?\s*>/gi,'\n').replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi,'\n').replace(/<\s*li\b[^>]*>/gi,'• ');
+      // 2) NetEase's MailReader loads the actual body in a separate readhtml frame.
+      // Mirror the provider's own MailReader.initialize() URL construction:
+      //   $.Ext.read_noSsidRead ? read/readhtml3.jsp?mid=... : $G.environment.readUrl + &mid=...
+      function buildReadHtmlUrl() {
         try {
-          const doc = new DOMParser().parseFromString(raw,'text/html');
-          doc.querySelectorAll('script,style,noscript').forEach(el=>el.remove());
-          return String(doc.body?.textContent || '')
-            .replace(/\u00a0/g,' ')
-            .replace(/[ \t]+\n/g,'\n')
-            .replace(/\n{3,}/g,'\n\n')
-            .trim();
+          const dollar = window.$;
+          const globalG = window.$G || (typeof $G !== 'undefined' ? $G : null);
+          let base = '';
+          if (dollar?.Ext?.read_noSsidRead) {
+            let path = 'read/readhtml3.jsp';
+            try { if (dollar?.Browser?.isIE?.()) path = 'read/readhtml.jsp'; } catch (_) {}
+            base = `${path}?mid=${encodeURIComponent(idArg)}`;
+          } else {
+            const providerReadUrl = String(globalG?.environment?.readUrl || '').trim();
+            if (providerReadUrl) {
+              base = `${providerReadUrl}${providerReadUrl.includes('?') ? '&' : '?'}mid=${encodeURIComponent(idArg)}`;
+            }
+          }
+          // Defensive fallback matches the no-ssid route observed in NetEase source.
+          if (!base) base = `read/readhtml3.jsp?mid=${encodeURIComponent(idArg)}`;
+
+          try {
+            const getState = window.$S || (typeof $S !== 'undefined' ? $S : null);
+            const userType = String(getState?.('ad')?.userType || '').trim();
+            if (userType) base += `${base.includes('?') ? '&' : '?'}userType=${encodeURIComponent(userType)}`;
+          } catch (_) {}
+          return new URL(base, window.location.href).href;
         } catch (_) {
-          const div=document.createElement('div');
-          div.innerHTML=raw;
-          return String(div.textContent||'').replace(/\u00a0/g,' ').trim();
+          return new URL(`read/readhtml3.jsp?mid=${encodeURIComponent(idArg)}`, window.location.href).href;
         }
       }
 
-      // NetEase MailReader's response model exposes the message body primarily as
-      // var.html.content / var.text.content. Prefer those exact fields before any
-      // defensive schema search.
+      function parseReadHtml(rawHtml) {
+        const html = String(rawHtml || '');
+        if (!html.trim()) return { ok:false, reason:'readhtml 响应为空' };
+        try {
+          const doc = new DOMParser().parseFromString(html,'text/html');
+          const template = doc.querySelector('template#contentTemplate');
+          let mailRoot = null;
+          if (template?.content?.querySelector) {
+            mailRoot = template.content.querySelector('[data-ntes="ntes_mail_body_root"]');
+          }
+          // Some DOMParser implementations expose template.innerHTML more reliably
+          // than template.content. Parse that fragment as a compatibility path.
+          if (!mailRoot && template) {
+            const holder = doc.createElement('div');
+            holder.innerHTML = template.innerHTML || '';
+            mailRoot = holder.querySelector('[data-ntes="ntes_mail_body_root"]');
+          }
+          if (!mailRoot) mailRoot = doc.querySelector('[data-ntes="ntes_mail_body_root"]');
+          if (!mailRoot) return { ok:false, reason:'readhtml 中缺少 contentTemplate / ntes_mail_body_root' };
+
+          const bodyHtml = String(mailRoot.innerHTML || '');
+          const body = htmlToText(bodyHtml, true);
+          if (!body.trim()) return { ok:false, reason:'readhtml 已命中正文节点，但正文为空' };
+          return { ok:true, body, bodyHtml, bodySource:'readhtml:template#contentTemplate>[data-ntes=ntes_mail_body_root]' };
+        } catch (error) {
+          return { ok:false, reason:error?.message || String(error) };
+        }
+      }
+
+      let readHtmlFailure = '';
+      let readHtmlStatus = 0;
+      let readHtmlFetched = false;
+      try {
+        const readHtmlUrl = buildReadHtmlUrl();
+        const bodyResponse = await fetch(readHtmlUrl, {
+          method:'GET',
+          credentials:'include',
+          cache:'no-store',
+          redirect:'follow'
+        });
+        readHtmlStatus = Number(bodyResponse.status || 0) || 0;
+        if (!bodyResponse.ok) {
+          readHtmlFailure = `readhtml HTTP ${bodyResponse.status}`;
+        } else {
+          readHtmlFetched = true;
+          const rawHtml = await bodyResponse.text();
+          const parsed = parseReadHtml(rawHtml);
+          if (parsed.ok) {
+            return resolve({
+              ok:true,
+              id:idArg,
+              subject,
+              body:parsed.body,
+              bodyHtml:parsed.bodyHtml,
+              isHtml:true,
+              bodySource:parsed.bodySource,
+              detailSource:'readhtml',
+              requestShape,
+              responseCode:response.code,
+              readHtmlStatus
+            });
+          }
+          readHtmlFailure = parsed.reason || 'readhtml 正文解析失败';
+        }
+      } catch (error) {
+        readHtmlFailure = error?.message || String(error);
+      }
+
+      // 3) Compatibility fallback only: older/alternate NetEase deployments may
+      // embed content in readMessage. Do not depend on this for normal js6 MailReader.
       const directHtml = typeof root?.html?.content === 'string' ? root.html.content : '';
       const directText = typeof root?.text?.content === 'string' ? root.text.content : '';
       let bodyHtml = directHtml;
@@ -655,31 +758,34 @@ async function readSentDetail(tabId, messageId) {
         }
       }
 
-      const subject = String(root?.subject || root?.mailSubject || root?.title || '').trim();
-      if (!body) {
+      if (body) {
         return resolve({
-          ok:false,
+          ok:true,
           id:idArg,
           subject,
-          reasonCode:'sent-body-parse-failed',
-          reason:'mbox:readMessage 成功，但未从 var.html.content / var.text.content 或兼容字段中解析出正文',
-          detailSource:'mbox:readMessage',
+          body,
+          bodyHtml,
+          isHtml:!!bodyHtml,
+          bodySource,
+          detailSource:'mbox:readMessage-compatibility-fallback',
           requestShape,
-          rawKeys:Object.keys(root).slice(0,80)
+          responseCode:response.code,
+          readHtmlStatus,
+          readHtmlWarning:readHtmlFailure
         });
       }
 
-      resolve({
-        ok:true,
+      return resolve({
+        ok:false,
         id:idArg,
         subject,
-        body,
-        bodyHtml,
-        isHtml:!!bodyHtml,
-        bodySource,
-        detailSource:'mbox:readMessage',
+        reasonCode: readHtmlFetched ? 'sent-readhtml-parse-failed' : 'sent-readhtml-failed',
+        reason: readHtmlFailure || 'readhtml3.jsp 未返回可解析正文',
+        detailSource:'readhtml',
         requestShape,
-        responseCode:response.code
+        responseCode:response.code,
+        readHtmlStatus,
+        rawKeys:Object.keys(root).slice(0,80)
       });
     } catch (error) {
       resolve({ ok:false, id:idArg, reasonCode:'sent-read-failed', reason:error?.message || String(error) });

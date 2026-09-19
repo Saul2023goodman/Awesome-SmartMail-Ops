@@ -97,3 +97,7 @@ The Mail Monitoring module now owns eligibility and template-based task generati
 ## v3.8.11 Sent-body hydration contract
 
 Template Follow-up hydration uses NetEase WebMail's own `mbox:readMessage` reader contract. The adapter first requests the provider message with the same header/options shape used by `module.read.ReadAction`, validates the provider success code, and prefers the MailReader schema `var.html.content` / `var.text.content`. Successful content is persisted on the root Initial outbound record. Provider-id, read, empty-response, and body-parse failures are retained as explicit diagnostics rather than collapsed into `initial-body-missing`.
+
+## v3.8.12 Sent body transport correction
+
+163 js6 separates message metadata from rendered body transport. `mbox:readMessage` is the metadata/context request; the actual body is fetched through MailReader's `readhtml` URL and parsed from the provider-owned `contentTemplate`. SmartMail caches that immutable body snapshot on the root Initial outbound record and uses it for deterministic Follow-up template personalization.

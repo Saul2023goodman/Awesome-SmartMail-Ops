@@ -74,3 +74,7 @@ Follow-up generation no longer opens a per-task editor. Configure the reusable m
 ## v3.8.11 Sent body hydration
 
 Follow-up 不再把所有读取问题折叠成 `initial-body-missing`。Sent detail 使用网易自身 `ReadAction.readMessage` 请求结构，并优先解析 `response.var.html.content` / `response.var.text.content`。成功正文会缓存到 root Initial outbound；失败会保存具体诊断码，批量生成只跳过失败线程。
+
+## v3.8.12 readhtml body hydration
+
+For 163 js6 MailReader, `mbox:readMessage` supplies message metadata/context while the rendered body is loaded from the provider's `readhtml` document. Follow-up hydration therefore resolves the provider read URL, fetches the authenticated `readhtml` response, and extracts the Initial body from `template#contentTemplate > [data-ntes="ntes_mail_body_root"]`. The resulting body snapshot is cached on the root Initial outbound record before salutation/signature extraction.
