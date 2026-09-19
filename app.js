@@ -1408,7 +1408,7 @@
     const action=event.target.closest?.('[data-review-key]');
     if(!action)return;
     stashCurrentReviewDraft(); hideSubjectAssist();
-    const task=(batch.tasks||[]).find(t=>t.editKey===action.dataset.reviewKey);if(task)openImportTaskEditor(task);
+    const task=reviewTaskByKey(action.dataset.reviewKey);if(task)openImportTaskEditor(task);
   });
   reviewQueueEl?.addEventListener('change',event=>{
     const input=event.target.closest?.('[data-review-select]');if(!input)return;
@@ -1445,7 +1445,7 @@
     renderReviewQueue(currentKey);
     const visible=reviewVisibleTasks();
     if(currentKey && !visible.some(task=>task.editKey===currentKey))closeImportTaskEditor();
-    else{const current=(batch.tasks||[]).find(task=>task.editKey===currentKey);if(current)updateReviewMailNavigation(current);}
+    else{const current=reviewTaskByKey(currentKey);if(current)updateReviewMailNavigation(current);}
   });
   reviewPrevEl?.addEventListener('click',()=>navigateReviewMail(-1));
   reviewNextEl?.addEventListener('click',()=>navigateReviewMail(1));
@@ -2747,7 +2747,7 @@
   function maybeOfferSubjectAssist(){
     const task=reviewCurrentTask();
     const subject=String(importEditSubjectEl?.value||'').trim();
-    if(!task || !subject || importEditSubjectEl?.dataset.startedBlank!=='1'){hideSubjectAssist();return;}
+    if(!task || isFollowUpReviewTask(task) || !subject || importEditSubjectEl?.dataset.startedBlank!=='1'){hideSubjectAssist();return;}
     stashCurrentReviewDraft();
     const missing=otherMissingSubjectTasks(task.editKey);
     if(!missing.length){hideSubjectAssist();return;}
@@ -2760,7 +2760,7 @@
     if(subjectAssistTimer){clearTimeout(subjectAssistTimer);subjectAssistTimer=null;}
     const task=reviewCurrentTask();
     const subject=String(importEditSubjectEl?.value||'').trim();
-    if(!task||!subject)return;
+    if(!task||isFollowUpReviewTask(task)||!subject)return;
     stashCurrentReviewDraft();
     const missing=otherMissingSubjectTasks(task.editKey);
     const missingKeys=missing.map(item=>item.editKey);
@@ -5523,7 +5523,7 @@
   [importEditRecipientsEl,importEditBodyEl].forEach(el=>el?.addEventListener('change',()=>{
     const key=importEditorOverlayEl?.dataset.editKey||'';
     stashCurrentReviewDraft();rebuildTasks();renderReviewQueue(key);
-    const current=(batch.tasks||[]).find(task=>task.editKey===key);
+    const current=reviewTaskByKey(key);
     if(current){
       const previousMode=importEditorOverlayEl?.dataset.mode||'correction';
       renderReviewAudit(current);updateReviewFieldStates(current);
@@ -5534,7 +5534,7 @@
     if(subjectAssistTimer){clearTimeout(subjectAssistTimer);subjectAssistTimer=null;}
     const key=importEditorOverlayEl?.dataset.editKey||'';
     stashCurrentReviewDraft();rebuildTasks();renderReviewQueue(key);maybeOfferSubjectAssist();
-    const current=(batch.tasks||[]).find(task=>task.editKey===key);
+    const current=reviewTaskByKey(key);
     if(current){
       const previousMode=importEditorOverlayEl?.dataset.mode||'correction';
       renderReviewAudit(current);updateReviewFieldStates(current);
@@ -5546,7 +5546,7 @@
     if(subjectAssistTimer){clearTimeout(subjectAssistTimer);subjectAssistTimer=null;}
     hideSubjectAssist();if(importEditSubjectEl)importEditSubjectEl.dataset.startedBlank='0';
     const key=importEditorOverlayEl?.dataset.editKey||'';
-    const current=(batch.tasks||[]).find(task=>task.editKey===key);
+    const current=reviewTaskByKey(key);
     if(current&&!taskNeedsImportReview(current))await continueAfterReviewResolution('当前邮件已补齐');
   });
   schedulerCardEl?.addEventListener('toggle',()=>{if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent=schedulerCardEl.open?'收起':'展开';});

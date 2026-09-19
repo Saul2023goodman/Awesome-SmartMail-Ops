@@ -1,4 +1,4 @@
-# SmartMail Ops — Current Architecture (v3.8.14)
+# SmartMail Ops — Current Architecture (v3.8.15)
 
 ## First-class workspaces
 
@@ -85,3 +85,8 @@ Any later change to Follow-up recipients, subject, body, or compose mode increme
 ## Upgrade behavior
 
 Unexecuted Follow-up tasks created by the old template-auto-confirm path are migrated back to `prepared / awaiting-review`. Older Follow-up tasks that had an explicit human confirmation before template auto-confirm existed retain that confirmation as their Review authorization. Executed/sent history is never rewritten.
+
+
+## v3.8.15 Review routing fix
+
+The Review workspace resolves every visible card through the unified Review task registry (`reviewTaskByKey`) rather than the Initial-only `batch.tasks` collection. Follow-up cards therefore open the same first-class editor, remain navigable under search/filter changes, and refresh after content edits. Initial-only subject propagation helpers are explicitly disabled for Follow-up tasks.
