@@ -707,6 +707,21 @@
     record.bodyIsHtml = content.bodyIsHtml === true || content.isHtml === true;
     record.contentObservedAt = nowIso();
     record.contentSource = String(content.source || 'initial-message-detail');
+    record.contentReadError = '';
+    record.contentReadErrorDetail = '';
+    record.contentReadAttemptedAt = record.contentObservedAt;
+    next.updatedAt = nowIso();
+    return { store: next, record };
+  }
+
+  function setOutboundContentReadFailure(storeInput, outboundId, code = 'sent-read-failed', detail = '') {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const record = next.outboundRecords[String(outboundId || '')];
+    if (!record) throw new Error(`找不到 outbound record：${outboundId}`);
+    record.contentReadError = String(code || 'sent-read-failed');
+    record.contentReadErrorDetail = String(detail || '');
+    record.contentReadAttemptedAt = nowIso();
     next.updatedAt = nowIso();
     return { store: next, record };
   }
@@ -737,6 +752,9 @@
     if (!policy.templateBody) return { ok: false, reason: 'template-missing', body: '', policy };
     const initial = initialOutboundForRoot(store, rootTaskId);
     if (!initial) return { ok: false, reason: 'initial-outbound-missing', body: '', policy };
+    if (!String(initial.body || '').trim() && initial.contentReadError) {
+      return { ok: false, reason: String(initial.contentReadError), reasonDetail: String(initial.contentReadErrorDetail || ''), body: '', policy, initial };
+    }
     const personalization = extractInitialPersonalization(initial.body || '');
     if (!personalization.ok) return { ok: false, reason: personalization.reason, body: '', policy, initial, personalization };
     const body = [personalization.salutation, policy.templateBody, personalization.signature].filter(Boolean).join('\n\n');
@@ -1211,6 +1229,7 @@
     setFollowUpPolicy,
     initialOutboundForRoot,
     setOutboundContentSnapshot,
+    setOutboundContentReadFailure,
     extractInitialPersonalization,
     renderFollowUpTemplate,
     recordReplyObservation,

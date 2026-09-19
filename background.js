@@ -522,73 +522,167 @@ async function readDraftDetail(tabId, summary = {}) {
 
 async function readSentDetail(tabId, messageId) {
   const id = String(messageId || '').trim();
-  if (!id) return { ok:false, id:'', reason:'missing-message-id' };
+  if (!id) return { ok:false, id:'', reasonCode:'initial-provider-id-missing', reason:'缺少已发送邮件 provider message id' };
   return runMain(tabId, (idArg) => new Promise(async resolve => {
     try {
-      if (!window.$?.DataAction) return resolve({ ok:false, id:idArg, reason:'$.DataAction unavailable' });
-      function request(body) {
+      if (!window.$?.DataAction) return resolve({ ok:false, id:idArg, reasonCode:'sent-read-unavailable', reason:'$.DataAction unavailable' });
+
+      function requestReadMessage(body) {
         return new Promise((res, rej) => {
           try {
             const action = new window.$.DataAction();
             action.wmsvr({
-              func:'mbox:readMessage', body,
+              func:'mbox:readMessage',
+              body,
               call(response){ res(response || {}); },
               error(error){ rej(new Error(error?.message || error?.code || 'mbox:readMessage failed')); },
-              ignoreError:true
+              ignoreError:true,
+              hideWait:true
             });
           } catch (error) { rej(error); }
         });
       }
-      let response = null, lastError = null;
-      for (const body of [{mid:idArg},{id:idArg}]) {
-        try { response = await request(body); if (response) break; }
-        catch (error) { lastError = error; }
-      }
-      if (!response) return resolve({ ok:false, id:idArg, reason:lastError?.message || '读取已发送邮件详情失败' });
-      const root = response?.var ?? response;
-      if (!root || typeof root !== 'object') return resolve({ ok:false, id:idArg, reason:'已发送邮件详情响应为空' });
-      const keyNorm = value => String(value || '').replace(/[\s_\-]/g,'').toLowerCase();
-      const objectQueue = [root], seen = new Set();
-      for (let i=0; i<objectQueue.length && i<800; i++) {
-        const node = objectQueue[i];
-        if (!node || typeof node !== 'object' || seen.has(node)) continue;
-        seen.add(node);
-        for (const value of (Array.isArray(node) ? node : Object.values(node))) if (value && typeof value === 'object') objectQueue.push(value);
-      }
-      function first(keys, {allowObject=false}={}) {
-        const wanted = new Set(keys.map(keyNorm));
-        for (const node of objectQueue) {
-          if (Array.isArray(node)) continue;
-          for (const [key,value] of Object.entries(node)) {
-            if (!wanted.has(keyNorm(key)) || value == null) continue;
-            if (typeof value === 'object' && !allowObject) continue;
-            if (typeof value === 'string' && !value.trim()) continue;
-            return value;
+
+      // Match NetEase's own module.read.ReadAction.readMessage contract first.
+      // Keep the minimal {id} call as a compatibility fallback because NetEase's
+      // own Forward/Reply helper also uses that shorter form.
+      const officialBody = {
+        id:idArg,
+        header:true,
+        returnImageInfo:true,
+        returnAntispamInfo:true,
+        autoName:true,
+        returnHeaders:{
+          'Resent-From':'A',
+          'Sender':'A',
+          'List-Unsubscribe':'A',
+          'Reply-To':'A',
+          'From':''
+        },
+        supportTNEF:false
+      };
+      const attempts = [officialBody, {id:idArg}];
+      let response = null;
+      let lastFailure = '';
+      let requestShape = '';
+      for (let index=0; index<attempts.length; index++) {
+        try {
+          const candidate = await requestReadMessage(attempts[index]);
+          const successCode = window.$?.S_OK;
+          const hasCode = candidate && candidate.code !== undefined && candidate.code !== null;
+          const codeOk = !hasCode || successCode === undefined || candidate.code === successCode;
+          if (!codeOk) {
+            lastFailure = `mbox:readMessage code=${String(candidate.code)}`;
+            continue;
           }
+          if (!candidate || candidate.var == null) {
+            lastFailure = 'mbox:readMessage response.var empty';
+            continue;
+          }
+          response = candidate;
+          requestShape = index === 0 ? 'netease-read-action' : 'minimal-id-fallback';
+          break;
+        } catch (error) {
+          lastFailure = error?.message || String(error);
         }
-        return '';
       }
-      function htmlToText(value, isHtml) {
+      if (!response) return resolve({ ok:false, id:idArg, reasonCode:'sent-read-failed', reason:lastFailure || '读取已发送邮件详情失败' });
+
+      const root = response.var;
+      if (!root || typeof root !== 'object') return resolve({ ok:false, id:idArg, reasonCode:'sent-read-empty', reason:'mbox:readMessage 返回的 var 为空' });
+
+      function htmlToText(value, forceHtml = null) {
         let raw = String(value ?? '');
         if (!raw) return '';
-        if (isHtml === false || !/<[a-z][\s\S]*>/i.test(raw)) return raw.replace(/\r\n?/g,'\n').trim();
+        const looksHtml = forceHtml === true || (forceHtml !== false && /<[a-z][\s\S]*>/i.test(raw));
+        if (!looksHtml) return raw.replace(/\r\n?/g,'\n').replace(/\u00a0/g,' ').trim();
         raw = raw.replace(/<\s*br\s*\/?\s*>/gi,'\n').replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi,'\n').replace(/<\s*li\b[^>]*>/gi,'• ');
         try {
           const doc = new DOMParser().parseFromString(raw,'text/html');
           doc.querySelectorAll('script,style,noscript').forEach(el=>el.remove());
-          return String(doc.body?.textContent || '').replace(/\u00a0/g,' ').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+          return String(doc.body?.textContent || '')
+            .replace(/\u00a0/g,' ')
+            .replace(/[ \t]+\n/g,'\n')
+            .replace(/\n{3,}/g,'\n\n')
+            .trim();
         } catch (_) {
-          const div=document.createElement('div'); div.innerHTML=raw; return String(div.textContent||'').replace(/\u00a0/g,' ').trim();
+          const div=document.createElement('div');
+          div.innerHTML=raw;
+          return String(div.textContent||'').replace(/\u00a0/g,' ').trim();
         }
       }
-      const bodyHtml = String(first(['content','body','mailContent','html','contentHtml','bodyHtml','text','plainText','mailBody']) || '');
-      const isHtmlValue = first(['isHtml','htmlFlag']);
-      const isHtml = isHtmlValue === '' ? /<[a-z][\s\S]*>/i.test(bodyHtml) : isHtmlValue !== false && String(isHtmlValue) !== 'false' && String(isHtmlValue) !== '0';
-      const body = htmlToText(bodyHtml, isHtml);
-      const subject = String(first(['subject','mailSubject','title']) || '').trim();
-      resolve({ ok:!!body, id:idArg, subject, body, bodyHtml, isHtml, detailSource:'mbox:readMessage' });
+
+      // NetEase MailReader's response model exposes the message body primarily as
+      // var.html.content / var.text.content. Prefer those exact fields before any
+      // defensive schema search.
+      const directHtml = typeof root?.html?.content === 'string' ? root.html.content : '';
+      const directText = typeof root?.text?.content === 'string' ? root.text.content : '';
+      let bodyHtml = directHtml;
+      let body = directText ? htmlToText(directText, false) : (directHtml ? htmlToText(directHtml, true) : '');
+      let bodySource = directText ? 'var.text.content' : (directHtml ? 'var.html.content' : '');
+
+      if (!body) {
+        const keyNorm = value => String(value || '').replace(/[\s_\-]/g,'').toLowerCase();
+        const preferredKeys = new Map([
+          ['content',10],['body',9],['mailcontent',9],['mailbody',9],['plaintext',8],['bodyhtml',8],['contenthtml',8],['html',6],['text',6]
+        ]);
+        const queue = [{node:root,path:'var'}], seen = new Set(), candidates = [];
+        for (let i=0; i<queue.length && i<1000; i++) {
+          const entry = queue[i], node = entry.node;
+          if (!node || typeof node !== 'object' || seen.has(node)) continue;
+          seen.add(node);
+          const entries = Array.isArray(node) ? node.map((value,index)=>[String(index),value]) : Object.entries(node);
+          for (const [key,value] of entries) {
+            const path = `${entry.path}.${key}`;
+            if (value && typeof value === 'object') { queue.push({node:value,path}); continue; }
+            if (typeof value !== 'string' || !value.trim()) continue;
+            const norm = keyNorm(key);
+            if (!preferredKeys.has(norm)) continue;
+            const raw = value.trim();
+            if (/^data:[^;]+;base64,/i.test(raw)) continue;
+            const text = htmlToText(raw, null);
+            if (!text) continue;
+            const score = preferredKeys.get(norm) * 100000 + Math.min(text.length, 99999);
+            candidates.push({raw,text,path,score,looksHtml:/<[a-z][\s\S]*>/i.test(raw)});
+          }
+        }
+        candidates.sort((a,b)=>b.score-a.score);
+        const best = candidates[0];
+        if (best) {
+          body = best.text;
+          bodyHtml = best.looksHtml ? best.raw : '';
+          bodySource = best.path;
+        }
+      }
+
+      const subject = String(root?.subject || root?.mailSubject || root?.title || '').trim();
+      if (!body) {
+        return resolve({
+          ok:false,
+          id:idArg,
+          subject,
+          reasonCode:'sent-body-parse-failed',
+          reason:'mbox:readMessage 成功，但未从 var.html.content / var.text.content 或兼容字段中解析出正文',
+          detailSource:'mbox:readMessage',
+          requestShape,
+          rawKeys:Object.keys(root).slice(0,80)
+        });
+      }
+
+      resolve({
+        ok:true,
+        id:idArg,
+        subject,
+        body,
+        bodyHtml,
+        isHtml:!!bodyHtml,
+        bodySource,
+        detailSource:'mbox:readMessage',
+        requestShape,
+        responseCode:response.code
+      });
     } catch (error) {
-      resolve({ ok:false, id:idArg, reason:error?.message || String(error) });
+      resolve({ ok:false, id:idArg, reasonCode:'sent-read-failed', reason:error?.message || String(error) });
     }
   }), [id]);
 }

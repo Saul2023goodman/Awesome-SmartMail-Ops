@@ -1012,34 +1012,84 @@
     }
   }
 
+  function followUpTemplateReasonText(reason, detail='') {
+    const code=String(reason||'');
+    const labels={
+      'template-missing':'未配置 Follow-up 模板',
+      'initial-outbound-missing':'找不到 Initial 已发送记录',
+      'initial-provider-id-missing':'Initial 已发送记录缺少 provider message id',
+      'sent-read-unavailable':'当前 163 页面无法调用邮件读取接口',
+      'sent-read-failed':'读取 Initial 已发送正文失败',
+      'sent-read-empty':'163 返回的 Initial 邮件详情为空',
+      'sent-body-parse-failed':'已读取 Initial 邮件，但未解析出正文',
+      'initial-body-missing':'Initial 正文尚未缓存',
+      'salutation-and-signature-missing':'Initial 正文中未识别到称呼和署名',
+      'salutation-missing':'Initial 正文中未识别到称呼',
+      'signature-missing':'Initial 正文中未识别到署名'
+    };
+    const base=labels[code]||code||'无法生成 Follow-up';
+    return detail?`${base}：${detail}`:base;
+  }
+
   async function hydrateInitialContentForRoots(rootTaskIds = []) {
     await ensureOperationStore();
     const roots=[...new Set((rootTaskIds||[]).map(value=>String(value||'').trim()).filter(Boolean))];
     const remote=[];
     for(const rootTaskId of roots){
       let initial=Operations.initialOutboundForRoot(operationState.store,rootTaskId);
-      if(!initial || String(initial.body||'').trim())continue;
+      if(!initial)continue;
+      if(String(initial.body||'').trim())continue;
+
+      // Prefer the exact Initial task body when this message originated from the
+      // current SmartMail batch. Historical mailbox mail falls through to readMessage.
       const local=(batch.tasks||[]).find(task=>String(task.editKey||task.id||'')===rootTaskId && String(task.body||'').trim());
       if(local){
         const updated=Operations.setOutboundContentSnapshot(operationState.store,initial.id,{body:local.body||'',bodyHtml:local.bodyHtml||'',bodyIsHtml:!!local.bodyIsHtml,source:'initial-task'});
         operationState.store=updated.store;
         initial=updated.record;
       }
-      if(!String(initial?.body||'').trim() && initial?.providerMessageId)remote.push({rootTaskId,outboundId:initial.id,providerMessageId:initial.providerMessageId});
+      if(String(initial?.body||'').trim())continue;
+
+      if(!String(initial?.providerMessageId||'').trim()){
+        const failed=Operations.setOutboundContentReadFailure(operationState.store,initial.id,'initial-provider-id-missing','无法定位 163 已发送邮件详情');
+        operationState.store=failed.store;
+        continue;
+      }
+      remote.push({rootTaskId,outboundId:initial.id,providerMessageId:String(initial.providerMessageId)});
     }
+
     if(remote.length){
       const response=await chrome.runtime.sendMessage({type:'NMDA_READ_SENT_DETAILS',messageIds:remote.map(item=>item.providerMessageId)});
       if(!response?.ok)throw new Error(response?.reason||'读取 Initial 邮件正文失败。');
       const byId=new Map((response.details||[]).map(item=>[String(item?.id||''),item]));
       for(const item of remote){
         const detail=byId.get(String(item.providerMessageId));
-        if(!detail?.ok || !String(detail.body||'').trim())continue;
-        const updated=Operations.setOutboundContentSnapshot(operationState.store,item.outboundId,{body:detail.body,bodyHtml:detail.bodyHtml||'',isHtml:detail.isHtml===true,source:'sent-message-detail'});
+        if(!detail){
+          const failed=Operations.setOutboundContentReadFailure(operationState.store,item.outboundId,'sent-read-failed','读取结果中缺少对应 message id');
+          operationState.store=failed.store;
+          continue;
+        }
+        if(!detail.ok){
+          const code=String(detail.reasonCode||'sent-read-failed');
+          const failed=Operations.setOutboundContentReadFailure(operationState.store,item.outboundId,code,detail.reason||'');
+          operationState.store=failed.store;
+          continue;
+        }
+        if(!String(detail.body||'').trim()){
+          const failed=Operations.setOutboundContentReadFailure(operationState.store,item.outboundId,'sent-body-parse-failed',detail.reason||'readMessage 未返回可用正文');
+          operationState.store=failed.store;
+          continue;
+        }
+        const updated=Operations.setOutboundContentSnapshot(operationState.store,item.outboundId,{body:detail.body,bodyHtml:detail.bodyHtml||'',isHtml:detail.isHtml===true,source:`sent-message-detail:${detail.bodySource||detail.requestShape||'readMessage'}`});
         operationState.store=updated.store;
       }
     }
+
     await persistOperations();
-    return roots.map(rootTaskId=>({rootTaskId,rendered:Operations.renderFollowUpTemplate(operationState.store,rootTaskId)}));
+    return roots.map(rootTaskId=>{
+      const rendered=Operations.renderFollowUpTemplate(operationState.store,rootTaskId);
+      return {rootTaskId,rendered,reasonText:rendered?.ok?'':followUpTemplateReasonText(rendered?.reason,rendered?.reasonDetail)};
+    });
   }
 
   async function createMonitorFollowUp(rootTaskId, manual=false) {
@@ -1049,7 +1099,7 @@
     try{
       const hydrated=await hydrateInitialContentForRoots([rootTaskId]);
       const prep=hydrated[0]?.rendered;
-      if(!prep?.ok){setMonitorNotice(`无法模板生成：${prep?.reason||'无法从 Initial 邮件提取称呼或署名'}`,'error');return;}
+      if(!prep?.ok){setMonitorNotice(`无法模板生成：${hydrated[0]?.reasonText||followUpTemplateReasonText(prep?.reason,prep?.reasonDetail)}`,'error');return;}
       const created=Operations.createFollowUpTask(operationState.store,rootTaskId,{manual});
       operationState.store=created.store;
       await persistOperations();
@@ -1066,15 +1116,18 @@
     if(!String(policy.templateBody||'').trim()){setMonitorNotice('请先填写并保存 Follow-up 模板正文，再批量生成。','warn');return;}
     try{
       setMonitorNotice(`正在读取 ${selected.length} 条 Initial 邮件的称呼与署名…`);
-      await hydrateInitialContentForRoots(selected);
-      const result=Operations.createFollowUpTasks(operationState.store,selected);
+      const hydrated=await hydrateInitialContentForRoots(selected);
+      const readyRoots=hydrated.filter(item=>item.rendered?.ok).map(item=>item.rootTaskId);
+      const hydrateSkipped=hydrated.filter(item=>!item.rendered?.ok).map(item=>({rootTaskId:item.rootTaskId,reason:item.rendered?.reason||'initial-body-missing',reasonText:item.reasonText||followUpTemplateReasonText(item.rendered?.reason,item.rendered?.reasonDetail)}));
+      const result=Operations.createFollowUpTasks(operationState.store,readyRoots);
       operationState.store=result.store;
       await persistOperations();
       monitorSelectedIds().clear();
       renderMonitoring();
-      const skipped=result.skipped?.length||0;
-      const reasons=[...new Set((result.skipped||[]).map(item=>item.reason).filter(Boolean))];
-      setMonitorNotice(`已按模板生成 ${result.created.length} 个 Follow-up Task，并加入“选择与排期”${skipped?`；${skipped} 个未生成${reasons.length?`（${reasons.join('、')}）`:''}`:''}。`,result.created.length?'ok':'warn');
+      const createSkipped=(result.skipped||[]).map(item=>({...item,reasonText:followUpTemplateReasonText(item.reason)}));
+      const allSkipped=[...hydrateSkipped,...createSkipped];
+      const reasons=[...new Set(allSkipped.map(item=>item.reasonText||item.reason).filter(Boolean))];
+      setMonitorNotice(`已按模板生成 ${result.created.length} 个 Follow-up Task，并加入“选择与排期”${allSkipped.length?`；${allSkipped.length} 个未生成${reasons.length?`（${reasons.slice(0,4).join('；')}${reasons.length>4?'；…':''}）`:''}`:''}。`,result.created.length?'ok':'warn');
     }catch(error){setMonitorNotice(`批量生成失败：${error?.message||String(error)}`,'error');}
   }
 

@@ -14,8 +14,8 @@
 4. 回复分类为 `human / automatic / ambiguous / bounce / system`。
 5. `automatic` 不阻断；`human` 阻断；`ambiguous` 阻断并等待人工判断。
 6. Follow-up 到期后创建 Derived Task，不修改原始 Task / Sent Record。
-7. Follow-up 在监测模块中准备正文并执行 exact-version confirmation。
-8. 已确认的 Follow-up 通过“加入选择与排期”进入统一执行池；监测模块到此结束职责。
+7. Follow-up 到期后按已保存模板生成正文：优先复用本地 root Initial 正文；若正文未缓存，则按 provider message id 调用网易原生 `mbox:readMessage` 读取 Sent 正文，并从真实 Initial 中提取称呼/署名。
+8. 模板生成结果直接成为已确认的 Derived Task 并进入统一“选择与排期”；单封编辑环节已移除。
 9. “选择与排期”统一汇合初始邮件与 Follow-up，负责选择范围、排期和执行。
 10. 执行器根据 `composeMode` 使用网易原生 Forward / Reply / New 创建草稿。
 11. Follow-up 草稿创建成功后从执行池退出，但不会被标记为 Sent。
@@ -69,3 +69,8 @@
 ## v3.8.8 template-driven generation
 
 Follow-up generation no longer opens a per-task editor. Configure the reusable middle-body template once in Mail Monitoring. When a Follow-up becomes eligible, SmartMail uses the root Initial message as the personalization source, copies its salutation and signature block, inserts the saved template between them, confirms that deterministic result, and queues the Derived Task directly into Selection & Scheduling. Missing Initial body or missing salutation/signature causes that item to be skipped rather than guessed.
+
+
+## v3.8.11 Sent body hydration
+
+Follow-up 不再把所有读取问题折叠成 `initial-body-missing`。Sent detail 使用网易自身 `ReadAction.readMessage` 请求结构，并优先解析 `response.var.html.content` / `response.var.text.content`。成功正文会缓存到 root Initial outbound；失败会保存具体诊断码，批量生成只跳过失败线程。

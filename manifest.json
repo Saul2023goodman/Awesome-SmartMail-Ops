@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.10",
-  "description": "SmartMail Ops — first-class import/review/dispatch, manual mailbox monitoring, template-driven Follow-up, and a unified non-obstructive execution dock.",
+  "version": "3.8.11",
+  "description": "SmartMail Ops — reliable Sent-body hydration for template Follow-up, first-class import/review/dispatch, manual mailbox monitoring, and unified execution.",
   "permissions": [
     "storage",
     "scripting",

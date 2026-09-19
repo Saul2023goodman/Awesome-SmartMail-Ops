@@ -92,3 +92,8 @@ Import prepares source facts and prevents duplicate Initial outreach. Review own
 ## v3.8.8 Follow-up preparation simplification
 
 The Mail Monitoring module now owns eligibility and template-based task generation only. It no longer contains a per-task Follow-up editor. A saved template is the content configuration surface; generated Follow-up tasks inherit salutation/signature from the root Initial email and immediately join the unified Dispatch pool. Selection & Scheduling remains the only execution-planning surface.
+
+
+## v3.8.11 Sent-body hydration contract
+
+Template Follow-up hydration uses NetEase WebMail's own `mbox:readMessage` reader contract. The adapter first requests the provider message with the same header/options shape used by `module.read.ReadAction`, validates the provider success code, and prefers the MailReader schema `var.html.content` / `var.text.content`. Successful content is persisted on the root Initial outbound record. Provider-id, read, empty-response, and body-parse failures are retained as explicit diagnostics rather than collapsed into `initial-body-missing`.
