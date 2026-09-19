@@ -26,3 +26,17 @@
 - Mailbox reads now happen only after an explicit operator action: “读取邮箱” or “完整读取”.
 - Entering batch/review/dispatch flows no longer performs an implicit quick mailbox read.
 - Follow-up eligibility uses the most recently persisted mailbox facts until the operator reads the mailbox again.
+
+
+## v3.8.0 — Independent Selection & Scheduling / Unified Dispatch
+
+- Promoted “选择与排期” from Batch step 3 to a top-level module.
+- Reduced Batch to two responsibilities: import/preparation and review.
+- Mail Monitoring no longer creates Follow-up drafts directly. It prepares and confirms Follow-up, then explicitly queues it for dispatch.
+- Added `dispatch.js` to adapt reviewed initial mail and queued Follow-up into one execution-facing task shape.
+- Added persisted `derivedTask.dispatch` state for Follow-up queue membership, selection and scheduling.
+- Editing Follow-up content invalidates confirmation and automatically removes it from the dispatch pool.
+- The unified executor now freezes the selected queue at run start and executes initial mail and Follow-up through the same path.
+- Follow-up execution uses native Forward / Reply / New context, writes a draft record, updates the derived task, and dequeues it without falsely marking it Sent.
+- Follow-up-only operation is supported: Selection & Scheduling no longer depends on an active Batch.
+- Mailbox observation remains operator-triggered; entering Dispatch does not read the mailbox.

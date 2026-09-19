@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.7.2",
-  "description": "SmartMail Ops — batch outreach plus on-demand mailbox reading and deterministic Follow-up workflow.",
+  "version": "3.8.0",
+  "description": "SmartMail Ops — separate batch preparation, on-demand mailbox monitoring, and one unified Selection & Scheduling execution pool for initial mail and Follow-up.",
   "permissions": [
     "storage",
     "scripting",

@@ -1,35 +1,62 @@
-# SmartMail 邮件监测 / Follow-up（v3.7.0）
+# SmartMail 邮件监测 / Follow-up（v3.8.0）
 
 ## 模块定位
 
-“邮件监测”取代旧联系人工作区。它以已发送邮件事实为入口，在操作者主动唤醒时读取网易邮箱的 Sent / Drafts / Inbox，并用确定性规则维护 Follow-up 生命周期。
+“邮件监测”只负责读取和解释邮箱事实，并据此产生 / 更新 Follow-up 派生任务。它不再承担排期，也不直接创建网易草稿。
+
+邮件监测采用人工唤醒：只有操作者点击“读取邮箱”或“完整读取”时，扩展才读取 163 的 Sent / Drafts / Inbox。其余时间只展示最近一次持久化快照。
 
 ## 主链路
 
-1. 已发送邮件进入 Outbound Records。
-2. SmartMail 创建并发送的邮件在邮箱对账后自动进入监测；历史 Sent 可以手工“开始监测”。
-3. Inbox 消息被记录为 Reply Observation，并尝试关联到对应 outbound lineage。
-4. 回复分类为 human / automatic / ambiguous / bounce / system。
-5. automatic 不阻断 Follow-up；human 阻断后续 Follow-up；ambiguous 阻断并要求人工判断。
-6. Follow-up 到期后创建 Derived Task，而不是修改原邮件。
-7. Derived Task 有独立 contentVersion / confirmedVersion；修改内容后必须重新确认。
-8. 默认以网易原生 Forward 创建草稿，也支持 Reply / New。
-9. Follow-up 草稿发送后，由 Sent mailbox reconciliation 确认并成为新的 outbound；下一轮从最近一次 outbound 重新计时。
+1. 已发送邮件进入 `outboundRecords`。
+2. SmartMail 创建的草稿在后续人工邮箱读取中与 Sent 对账；历史 Sent 也可手工“开始监测”。
+3. Inbox 消息进入 Reply Observation，并关联到对应 outbound lineage。
+4. 回复分类为 `human / automatic / ambiguous / bounce / system`。
+5. `automatic` 不阻断；`human` 阻断；`ambiguous` 阻断并等待人工判断。
+6. Follow-up 到期后创建 Derived Task，不修改原始 Task / Sent Record。
+7. Follow-up 在监测模块中准备正文并执行 exact-version confirmation。
+8. 已确认的 Follow-up 通过“加入选择与排期”进入统一执行池；监测模块到此结束职责。
+9. “选择与排期”统一汇合初始邮件与 Follow-up，负责选择范围、排期和执行。
+10. 执行器根据 `composeMode` 使用网易原生 Forward / Reply / New 创建草稿。
+11. Follow-up 草稿创建成功后从执行池退出，但不会被标记为 Sent。
+12. 下一次人工读取邮箱时，Draft / Sent reconciliation 确认真实发送结果；确认 Sent 后下一轮从最近一次 outbound 重新计时。
 
 ## 人工唤醒读取
 
-邮件监测采用按需读取，不运行后台轮询。只有操作者在“邮件监测”中点击“读取邮箱”或“完整读取”时，扩展才读取 163 的已发送、草稿和收件箱并更新本地 operation store。其余时间只展示上一次人工读取后保存的事实，不会周期访问邮箱，也不会因为进入批量流程而隐式刷新。
+- 打开工作台：不读取邮箱。
+- 打开“邮件监测”：不读取邮箱。
+- 进入“选择与排期”：不读取邮箱。
+- 点击“读取邮箱”：读取当前范围并更新事实。
+- 点击“完整读取”：完整重建 Sent / Drafts / Inbox 邮箱事实。
 
-## 数据边界
+因此 Follow-up eligibility 始终表示“基于最近一次人工读取快照的判断”，不是实时状态。
 
-- 业务事实：outboundRecords / draftRecords / inboundRecords / replyObservations / derivedTasks / recipientGuards / followUpPolicies
-- 旧 Contact 不再是运行时业务对象。
-- 旧 contacts storage 仅作为一次性迁移来源保留兼容读取。
-- 名单中的“联系人”字段仍用于导入识别和查重，这不属于旧 Contact 模块。
+## 模块边界
+
+### 邮件监测
+
+拥有：邮箱读取、Sent/Draft/Inbox observation、reply association、eligibility、Follow-up 创建、内容准备、版本确认。
+
+不拥有：执行范围选择、批量排期、草稿创建、自动发送。
+
+### 选择与排期
+
+拥有：统一执行池、选择/排除、排期规则、手工时间调整、网易草稿执行、失败即停。
+
+输入来源：
+
+- 已完成审阅的初始邮件 Task
+- 已确认并显式加入执行池的 Follow-up Derived Task
+
+### 批量草稿
+
+拥有：资料导入、识别、查重、内容审阅、附件准备。完成后只把可执行初始邮件暴露给统一执行池。
 
 ## 安全边界
 
-- Follow-up eligibility 不会自动发送邮件。
+- Follow-up eligibility 不会自动入池，更不会自动执行。
+- Follow-up 内容修改会使旧 confirmation 失效，并自动退出执行池。
 - Human reply / ambiguous reply / recipient guard 是硬阻断。
-- Forward / Reply 必须有原始 Sent provider message id，避免伪造线程上下文。
-- 执行失败不盲重试；等待重新对账或人工处理。
+- Forward / Reply 必须有原始 Sent provider message id。
+- 执行失败不盲重试；统一执行器在当前失败项停止。
+- 草稿创建成功 ≠ 已发送；Sent 只能由后续 mailbox reconciliation 确认。

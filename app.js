@@ -8,6 +8,7 @@
   const MailRecognizer = globalThis.NMDAMailRecognizer;
   const Operations = globalThis.NMDAOperations;
   const Scheduler = globalThis.NMDAScheduler;
+  const Dispatch = globalThis.NMDADispatch;
   const Roster = globalThis.NMDARoster;
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const executionProgressHandlers = new Map();
@@ -113,26 +114,28 @@
 
         <nav class="nmda-tabs" aria-label="工作台模块">
           <div class="nmda-nav-label">工作区</div>
-          <button class="nmda-tab is-active" data-tab="batch" type="button" title="批量草稿"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg></span><span><strong>批量草稿</strong><small>导入 · 审阅 · 排期</small></span></button>
+          <button class="nmda-tab is-active" data-tab="batch" type="button" title="批量草稿"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg></span><span><strong>批量草稿</strong><small>导入 · 审阅</small></span></button>
+          <button class="nmda-tab" data-tab="dispatch" type="button" title="选择与排期"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="8" cy="6" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="11" cy="18" r="1.8"/></svg></span><span><strong>选择与排期</strong><small>初始邮件 · Follow-up</small></span></button>
           <button class="nmda-tab" data-tab="monitor" type="button" title="邮件监测"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7.5h16v10H4z"/><path d="m4 8 8 6 8-6"/><circle cx="18" cy="6" r="2.5"/></svg></span><span><strong>邮件监测</strong><small>回复 · Follow-up</small></span></button>
 
         </nav>
 
         <main class="nmda-main">
           <div class="nmda-page-head" data-page-head="batch">
-            <div><h2>批量草稿</h2><p>导入 → 审阅 → 排期 → 创建</p></div>
+            <div><h2>批量草稿</h2><p>导入 → 审阅 → 进入执行池</p></div>
+          </div>
+          <div class="nmda-page-head" data-page-head="dispatch" hidden>
+            <div><h2>选择与排期</h2><p>汇合初始邮件与 Follow-up → 选择范围 → 安排时间 → 统一执行</p></div>
           </div>
           <div class="nmda-page-head" data-page-head="monitor" hidden>
             <div><h2>邮件监测</h2><p>已发送 → 回复识别 → Follow-up 到期 → 跟进准备</p></div>
           </div>
           <section class="nmda-tabpane nmda-page nmda-ingest-page nmda-bulk-workbench" data-pane="batch" data-phase="empty">
             <aside class="nmda-process-guide" aria-label="批量流程">
-              <div class="nmda-process-guide-title"><small>当前批次</small><strong>步骤 1 / 3</strong></div>
+              <div class="nmda-process-guide-title"><small>当前批次</small><strong>步骤 1 / 2</strong></div>
               <button type="button" data-flow-step="1"><span>1</span><strong>导入资料</strong><small>拖入邮件与批次资料</small></button>
               <i></i>
               <button type="button" data-flow-step="2"><span>2</span><strong>邮件审阅</strong><small>内容 · 重复 · 缺失字段</small></button>
-              <i></i>
-              <button type="button" data-flow-step="3"><span>3</span><strong>选择与排期</strong><small>确认后转到网易邮箱执行</small></button>
             </aside>
 
             <div class="nmda-workflow-stage-head" id="nmda-stage-prepare">
@@ -500,13 +503,19 @@
 
             </div>
 
-            <div class="nmda-workflow-stage-separator" aria-hidden="true"></div>
-            <div class="nmda-workflow-stage-head" id="nmda-stage-execute" hidden>
-              <span class="nmda-stage-number">03</span><div><strong>确认与安排</strong><small>确认邮件与发送时间。</small></div>
+
+
+
+          </section>
+
+
+          <section class="nmda-tabpane nmda-page nmda-dispatch-page" data-pane="dispatch" hidden>
+            <div class="nmda-dispatch-intro">
+              <div><strong>统一执行池</strong><small>批量草稿在审阅完成后进入这里；Follow-up 在确认版本后加入这里。监测模块不再直接创建草稿。</small></div>
+              <div class="nmda-dispatch-source-summary" id="nmda-dispatch-source-summary"></div>
             </div>
             <div class="nmda-batch-empty" id="nmda-batch-empty" hidden></div>
-
-            <div class="nmda-card nmda-list-card nmda-planning-workspace" id="nmda-preview-card" hidden>
+<div class="nmda-card nmda-list-card nmda-planning-workspace" id="nmda-preview-card" hidden>
               <div class="nmda-card-head nmda-list-head nmda-planning-head">
                 <div><div class="nmda-card-title">安排本次邮件</div><div class="nmda-card-desc">以学校 × 轮次为唯一主视图；异常任务只在需要时出现。</div></div>
                 <div class="nmda-planning-head-actions">
@@ -559,10 +568,7 @@
               </section>
             </div>
 
-
-
           </section>
-
 
           <section class="nmda-tabpane nmda-page nmda-monitor-page" data-pane="monitor" hidden>
             <div class="nmda-monitor-toolbar">
@@ -626,7 +632,7 @@
                   <div class="nmda-dialog-foot-spacer"></div>
                   <button class="nmda-btn nmda-btn-small" id="nmda-followup-save" type="button">保存内容</button>
                   <button class="nmda-btn nmda-btn-small" id="nmda-followup-confirm" type="button">确认版本</button>
-                  <button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-followup-create-draft" type="button">创建草稿</button>
+                  <button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-followup-queue" type="button">加入选择与排期</button>
                 </footer>
               </section>
             </div>
@@ -738,7 +744,7 @@
   }
 
   function batchPaneVisible() {
-    return !panel.hidden && currentWorkbenchTab() === 'batch';
+    return !panel.hidden && ['batch','dispatch'].includes(currentWorkbenchTab());
   }
 
   function scheduleBatchRender({ aux = false, force = false } = {}) {
@@ -784,6 +790,56 @@
     finally { if (viewPerf.operationPersistPromise === pending) viewPerf.operationPersistPromise = null; }
   }
 
+  const dispatchRuntime = new Map();
+
+  function dispatchTasks() {
+    const initial = batch?.handoffComplete ? (batch.tasks || []) : [];
+    const tasks = Dispatch?.buildQueue ? Dispatch.buildQueue(initial, operationState.loaded ? operationState.store : null) : initial;
+    return tasks.map(task => {
+      const runtime = dispatchRuntime.get(task.editKey);
+      return runtime ? { ...task, ...runtime } : task;
+    });
+  }
+
+  function dispatchTaskByKey(key) {
+    return dispatchTasks().find(task => String(task.editKey) === String(key)) || null;
+  }
+
+  async function updateDispatchTask(task, patch = {}) {
+    if (!task) return null;
+    if (task.dispatchKind === 'follow_up') {
+      await ensureOperationStore();
+      const result = Operations.updateDerivedTaskDispatch(operationState.store, task._sourceTaskId || task.id, patch);
+      operationState.store = result.store;
+      await persistOperations();
+      return Dispatch?.followUpTaskToDispatch?.(result.task, operationState.store) || null;
+    }
+    const original=(batch.tasks||[]).find(item=>String(item.editKey)===String(task.editKey)) || task;
+    setTaskEdit(original, patch);
+    return original;
+  }
+
+  function setDispatchRuntime(task, patch = {}) {
+    if (!task?.editKey) return;
+    if (task.dispatchKind === 'follow_up') {
+      const current = dispatchRuntime.get(task.editKey) || {};
+      dispatchRuntime.set(task.editKey, { ...current, ...patch });
+      return;
+    }
+    const original=(batch.tasks||[]).find(item=>String(item.editKey)===String(task.editKey));
+    if(original)Object.assign(original,patch);
+  }
+
+  function clearDispatchRuntime(task) {
+    if (task?.editKey) dispatchRuntime.delete(task.editKey);
+  }
+
+  function renderDispatchSourceSummary(tasks = dispatchTasks()) {
+    const el=$('nmda-dispatch-source-summary');if(!el)return;
+    const counts=Dispatch?.sourceCounts?.(tasks)||{initial:tasks.filter(t=>t.dispatchKind!=='follow_up').length,followUp:tasks.filter(t=>t.dispatchKind==='follow_up').length,total:tasks.length};
+    el.innerHTML=`<span>执行池 <strong>${counts.total}</strong></span><span>初始邮件 <strong>${counts.initial}</strong></span><span>Follow-up <strong>${counts.followUp}</strong></span>`;
+  }
+
 
   const monitorState = { filter:'all', search:'', syncing:false, editorTaskId:'', lastRenderAt:0 };
 
@@ -811,7 +867,7 @@
     if(human)return {key:'replied',tone:'replied',label:'已真人回复',detail:human.subject||'已停止后续 Follow-up',observation:human,activeTask};
     if(ambiguous)return {key:'blocked',tone:'blocked',label:'回复待判断',detail:ambiguous.subject||'需要人工确认',observation:ambiguous,activeTask};
     if(activeTask?.state==='blocked')return {key:'blocked',tone:'blocked',label:'跟进已阻断',detail:activeTask.blocker?.kind==='human'?'收到真人回复':'需要处理阻断原因',activeTask};
-    if(activeTask)return {key:'due',tone:'due',label:`Follow-up #${activeTask.sequence} · ${activeTask.state==='confirmed'?'已确认':activeTask.state==='prepared'?'待确认':activeTask.state==='scheduled'?'已排期':'待准备'}`,detail:activeTask.draftPreparedAt?'草稿已创建':(automatic?'收到自动回复，不阻断':'已有跟进任务'),activeTask,automatic};
+    if(activeTask)return {key:'due',tone:'due',label:`Follow-up #${activeTask.sequence} · ${activeTask.dispatch?.queued?'已进入排期':activeTask.state==='confirmed'?'已确认':activeTask.state==='prepared'?'待确认':activeTask.state==='scheduled'?'已排期':'待准备'}`,detail:activeTask.draftPreparedAt?'草稿已创建':activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:'等待选择与排期'):(automatic?'收到自动回复，不阻断':'已有跟进任务'),activeTask,automatic};
     if(group.eligibility?.eligible)return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:automatic?'收到自动回复，不阻断':'可以创建跟进任务',automatic};
     if(group.eligibility?.reason==='waiting')return {key:'waiting',tone:'',label:'等待中',detail:`到期 ${Operations.formatDisplayTime(group.eligibility.dueAt)}`,automatic};
     if(group.eligibility?.reason==='follow-up-disabled')return {key:'blocked',tone:'',label:'监测已暂停',detail:'不会创建新的 Follow-up'};
@@ -861,7 +917,7 @@
           const dueAt=group.eligibility?.dueAt || active?.dueAt || '';
           const enabled=group.policy?.enabled!==false;
           const actions=[];
-          if(active)actions.push(`<button class="nmda-btn nmda-btn-small" type="button" data-monitor-edit="${escapeHtml(active.id)}">打开跟进</button>`);
+          if(active){actions.push(`<button class="nmda-btn nmda-btn-small" type="button" data-monitor-edit="${escapeHtml(active.id)}">编辑跟进</button>`);if(active.dispatch?.queued)actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-dispatch="${escapeHtml(active.id)}">查看排期</button>`);}
           else if(group.eligibility?.eligible)actions.push(`<button class="nmda-btn nmda-btn-primary nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}">创建 Follow-up</button>`);
           else if(group.eligibility?.reason==='waiting')actions.push(`<button class="nmda-btn nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}" data-manual="1">提前跟进</button>`);
           actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-monitor-toggle="${escapeHtml(group.rootTaskId)}" data-enabled="${enabled?'1':'0'}">${enabled?'暂停监测':'恢复监测'}</button>`);
@@ -947,15 +1003,15 @@
 
   function refreshFollowUpModeNote() {
     const mode=$('nmda-followup-mode')?.value||'forward';
-    const note=$('nmda-followup-mode-note');const subject=$('nmda-followup-subject');const create=$('nmda-followup-create-draft');
+    const note=$('nmda-followup-mode-note');const subject=$('nmda-followup-subject');const queue=$('nmda-followup-queue');
     if(subject)subject.disabled=mode!=='new';
     if(!note)return;
     if(mode==='new'){
-      note.dataset.tone='ok';note.textContent='New message 会新建邮件；内容版本确认后由执行器保存为网易草稿。';
-      if(create)create.textContent='创建草稿';
+      note.dataset.tone='ok';note.textContent='New message 会作为普通新邮件进入统一执行池；在“选择与排期”中选择范围和发送时间。';
+      if(queue)queue.textContent='加入选择与排期';
     }else{
-      note.dataset.tone='ok';note.textContent=`${mode==='forward'?'Forward':'Reply'} 会先打开原始 Sent 邮件，再使用网易原生“${mode==='forward'?'转发':'回复'}”进入写信上下文；本次正文插入在引用内容之前。`;
-      if(create)create.textContent=`创建${mode==='forward'?'转发':'回复'}草稿`;
+      note.dataset.tone='ok';note.textContent=`${mode==='forward'?'Forward':'Reply'} 会保留原始 Sent 上下文；确认版本后进入统一执行池，由“选择与排期”决定何时执行。`;
+      if(queue)queue.textContent='加入选择与排期';
     }
   }
 
@@ -974,10 +1030,10 @@
     $('nmda-followup-body').value=task.body||'';
     $('nmda-followup-save').disabled=['sent','cancelled'].includes(task.state);
     $('nmda-followup-confirm').disabled=['sent','cancelled','blocked'].includes(task.state);
-    $('nmda-followup-create-draft').disabled=['sent','cancelled','blocked'].includes(task.state) || ((task.composeMode==='forward'||task.composeMode==='reply') && !parent?.providerMessageId);
+    $('nmda-followup-queue').disabled=['sent','cancelled','blocked'].includes(task.state) || ((task.composeMode==='forward'||task.composeMode==='reply') && !parent?.providerMessageId);
     $('nmda-followup-cancel-task').disabled=['sent','cancelled'].includes(task.state);
     refreshFollowUpModeNote();
-    const mode=$('nmda-followup-mode')?.value||'forward';if($('nmda-followup-create-draft'))$('nmda-followup-create-draft').disabled=['sent','cancelled','blocked'].includes(task.state)||((mode==='forward'||mode==='reply')&&!parent?.providerMessageId);
+    const mode=$('nmda-followup-mode')?.value||'forward';if($('nmda-followup-queue'))$('nmda-followup-queue').disabled=['sent','cancelled','blocked'].includes(task.state)||((mode==='forward'||mode==='reply')&&!parent?.providerMessageId);
     setFollowUpEditorStatus(task.blocker?`阻断：${task.blocker.kind==='human'?'收到真人回复':task.blocker.type==='recipient-guard'?'联系规则限制':'回复需要判断'}`:'',task.blocker?'error':'');
   }
 
@@ -1000,27 +1056,20 @@
     catch(error){setFollowUpEditorStatus(error?.message||String(error),'error');}
   }
 
-  async function createFollowUpDraftFromEditor() {
+  async function queueFollowUpFromEditor() {
     let task=await saveFollowUpEditor();if(!task)return;
-    if(Number(task.confirmedVersion)!==Number(task.contentVersion)){setFollowUpEditorStatus('请先确认当前内容版本，再创建草稿。','warn');return;}
-    const recipients=monitorRecipientText({recipients:task.recipients});
-    if(!recipients){setFollowUpEditorStatus('缺少收件人，不能创建草稿。','error');return;}
-    const btn=$('nmda-followup-create-draft');if(btn)btn.disabled=true;
-    setFollowUpEditorStatus('正在网易邮箱创建 Follow-up 草稿…');
+    if(Number(task.confirmedVersion)!==Number(task.contentVersion)){setFollowUpEditorStatus('请先确认当前内容版本，再加入选择与排期。','warn');return;}
     try{
-      const mailTarget=await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL',focus:true});
-      if(!mailTarget?.ok)throw new Error('无法打开网易邮箱页面。');
-      const ready=await waitForMailboxExecutionReady();
-      if(!ready?.connected||!ready?.authenticated)throw new Error('网易邮箱尚未登录。');
-      const parent=operationState.store.outboundRecords?.[task.parentOutboundId];
-      if((task.composeMode==='forward'||task.composeMode==='reply') && !parent?.providerMessageId) throw new Error('原始 Sent 邮件缺少 provider message id，无法进入网易原生 Forward / Reply 上下文。');
-      const outcome=await executeDraftRemotely({id:task.id,editKey:task.id,kind:'follow_up',rootTaskId:task.rootTaskId,parentTaskId:task.parentTaskId,parentOutboundId:task.parentOutboundId,sequence:task.sequence,recipients,subject:task.subject||'',body:task.body||'',composeMode:task.composeMode||'forward',parentMessageId:parent?.providerMessageId||'',parentFid:3,contentVersion:task.contentVersion,files:[]},{fresh:true,onProgress:progress=>setFollowUpEditorStatus(progress.message||'正在创建草稿…')});
-      let recorded=Operations.recordPreparedDraft(operationState.store,{id:task.id,editKey:task.id,kind:'follow_up',rootTaskId:task.rootTaskId,parentTaskId:task.parentTaskId,parentOutboundId:task.parentOutboundId,sequence:task.sequence,recipients,subject:task.subject||'',body:task.body||'',composeMode:task.composeMode||'forward',contentVersion:task.contentVersion},outcome);
-      operationState.store=recorded.store;
-      const patched=Operations.setDerivedTaskState(operationState.store,task.id,'confirmed',{draftPreparedAt:new Date().toISOString(),draftRecordId:recorded.record.id});
-      operationState.store=patched.store;await persistOperations();renderMonitoring();openFollowUpEditor(task.id);setFollowUpEditorStatus(`Follow-up ${task.composeMode==='forward'?'转发':task.composeMode==='reply'?'回复':'新邮件'}草稿已在网易邮箱中确认保存。`,'ok');
-    }catch(error){setFollowUpEditorStatus(`创建失败：${error?.message||String(error)}`,'error');}
-    finally{const current=followUpEditorTask();const parent=current?operationState.store.outboundRecords?.[current.parentOutboundId]:null;if(btn)btn.disabled=!current||['sent','cancelled','blocked'].includes(current.state)||((current.composeMode==='forward'||current.composeMode==='reply')&&!parent?.providerMessageId);}
+      const result=Operations.queueDerivedTaskForDispatch(operationState.store,task.id);
+      operationState.store=result.store;
+      await persistOperations();
+      renderMonitoring();
+      closeFollowUpEditor();
+      setWorkbenchTab('dispatch');
+      history.replaceState(null,'','#dispatch');
+      scheduleBatchRender({aux:false,force:true});
+      setBatchStatus(`Follow-up #${task.sequence} 已进入统一执行池；请在这里选择范围并安排时间。`,'ok');
+    }catch(error){setFollowUpEditorStatus(error?.message||String(error),'error');}
   }
 
   async function cancelFollowUpEditorTask() {
@@ -1043,15 +1092,16 @@
     $('nmda-monitor-list')?.addEventListener('click',event=>{
       const create=event.target.closest('[data-monitor-create]');if(create){void createMonitorFollowUp(create.dataset.monitorCreate,create.dataset.manual==='1');return;}
       const edit=event.target.closest('[data-monitor-edit]');if(edit){openFollowUpEditor(edit.dataset.monitorEdit);return;}
+      const dispatch=event.target.closest('[data-monitor-dispatch]');if(dispatch){setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});return;}
       const toggle=event.target.closest('[data-monitor-toggle]');if(toggle){void (async()=>{await ensureOperationStore();const enabled=toggle.dataset.enabled!=='1';const result=Operations.setFollowUpPolicy(operationState.store,toggle.dataset.monitorToggle,{enabled});operationState.store=result.store;await persistOperations();renderMonitoring();})();return;}
       const disposition=event.target.closest('[data-reply-disposition]');if(disposition){void (async()=>{await ensureOperationStore();const result=Operations.setReplyObservationDisposition(operationState.store,disposition.dataset.replyId,disposition.dataset.replyDisposition);operationState.store=result.store;await persistOperations();renderMonitoring();setMonitorNotice('回复判断已更新，并重新计算 Follow-up 阻断状态。','ok');})();}
     });
     $('nmda-monitor-unlinked-list')?.addEventListener('click',event=>{const button=event.target.closest('[data-monitor-adopt]');if(button)void adoptMonitorOutbound(button.dataset.monitorAdopt);});
     $('nmda-followup-editor-close')?.addEventListener('click',closeFollowUpEditor);
-    $('nmda-followup-mode')?.addEventListener('change',()=>{refreshFollowUpModeNote();const task=followUpEditorTask();const parent=task?operationState.store.outboundRecords?.[task.parentOutboundId]:null;const mode=$('nmda-followup-mode').value;const btn=$('nmda-followup-create-draft');if(btn)btn.disabled=!task||['sent','cancelled','blocked'].includes(task.state)||((mode==='forward'||mode==='reply')&&!parent?.providerMessageId);});
+    $('nmda-followup-mode')?.addEventListener('change',()=>{refreshFollowUpModeNote();const task=followUpEditorTask();const parent=task?operationState.store.outboundRecords?.[task.parentOutboundId]:null;const mode=$('nmda-followup-mode').value;const btn=$('nmda-followup-queue');if(btn)btn.disabled=!task||['sent','cancelled','blocked'].includes(task.state)||((mode==='forward'||mode==='reply')&&!parent?.providerMessageId);});
     $('nmda-followup-save')?.addEventListener('click',()=>void saveFollowUpEditor());
     $('nmda-followup-confirm')?.addEventListener('click',()=>void confirmFollowUpEditor());
-    $('nmda-followup-create-draft')?.addEventListener('click',()=>void createFollowUpDraftFromEditor());
+    $('nmda-followup-queue')?.addEventListener('click',()=>void queueFollowUpFromEditor());
     $('nmda-followup-cancel-task')?.addEventListener('click',()=>void cancelFollowUpEditorTask());
   }
 
@@ -1075,53 +1125,35 @@
   }
 
   function processStepAccess(step, options={}) {
-    const n=Math.min(3,Math.max(1,Number(step||1)));
-    const from=Math.min(3,Math.max(1,Number(options.fromStep ?? batch.uiStep ?? 1)));
+    const n=Math.min(2,Math.max(1,Number(step||1)));
+    const from=Math.min(2,Math.max(1,Number(options.fromStep ?? batch.uiStep ?? 1)));
     const hasSource=!!batch.dataset;
     const contextPending=hasSource && typeof supplementPreflightNeedsDecision==='function' && supplementPreflightNeedsDecision();
     const attachmentIssues=hasSource && typeof importAttachmentStats==='function' ? Number(importAttachmentStats().issues||0) : 0;
     const blockers=hasSource && Array.isArray(batch.tasks) ? batch.tasks.filter(task=>typeof taskHasPrePlanningBlocker==='function' && taskHasPrePlanningBlocker(task)).length : 0;
-    const direction=n<from?'backward':n>from?'forward':'current';
-
-    // The stage bar is navigation, not a workflow gate. Operators may inspect every
-    // stage in either direction. Readiness is reported separately and is enforced
-    // only by the action that commits work (for example draft creation).
     let ready=true, reason='';
-    if(n===2 && !hasSource){
-      ready=false; reason='尚未导入资料。';
-    }else if(n===3){
-      if(!hasSource){ ready=false; reason='尚未导入资料。'; }
-      else if(contextPending){ ready=false; reason='导入准备尚未完成。'; }
-      else if(attachmentIssues){ ready=false; reason=`还有 ${attachmentIssues} 项附件要求待处理。`; }
-      else if(blockers){ ready=false; reason=`还有 ${blockers} 项邮件审阅问题待处理。`; }
-    }
-    return {allowed:true,ready,reason,hasSource,contextPending,attachmentIssues,blockers,fromStep:from,direction};
+    if(n===2 && !hasSource){ready=false;reason='尚未导入资料。';}
+    return {allowed:true,ready,reason,hasSource,contextPending,attachmentIssues,blockers,fromStep:from,direction:n<from?'backward':n>from?'forward':'current'};
   }
 
   function renderProcessGuide() {
     const guides = ui.querySelectorAll('.nmda-process-guide');
     if (!guides.length || typeof batch === 'undefined') return;
     const hasSource = !!batch.dataset;
-    const handed = !!batch.handoffComplete;
     const attachmentIssues=hasSource && typeof importAttachmentStats==='function' ? Number(importAttachmentStats().issues||0) : 0;
-    let review = 0, other = 0, selected = 0, scheduled = 0, completed = 0;
+    let review = 0, other = 0;
     for (const task of (batch.tasks || [])) {
       if (hasSource && typeof taskNeedsImportReview === 'function' && taskNeedsImportReview(task)) review++;
       if (hasSource && typeof taskIssueState === 'function' && taskIssueState(task).other.length) other++;
-      if (handed && task.enabled && ['ready','running','done','error'].includes(task.status)) {
-        selected++;
-        if (task.scheduleAt) scheduled++;
-      }
-      if (task.status === 'done' || task.status === 'error') completed++;
+
     }
     const blockers=review+other;
     const contextPending=hasSource && typeof supplementPreflightNeedsDecision==='function' && supplementPreflightNeedsDecision();
-    const creating=!!batch.running || completed>0;
-    const viewing=Math.min(3,Math.max(1,Number(batch.uiStep||1)));
+    const viewing=Math.min(2,Math.max(1,Number(batch.uiStep||1)));
     guides.forEach(guide => {
       guide.dataset.currentStep = String(viewing);
       const title = guide.querySelector('.nmda-process-guide-title strong');
-      if (title) title.textContent = `步骤 ${viewing} / 3`;
+      if (title) title.textContent = `步骤 ${viewing} / 2`;
       const workbench=guide.closest('.nmda-bulk-workbench');
       if(workbench)workbench.dataset.viewStep=String(viewing);
       guide.querySelectorAll('[data-flow-step]').forEach(button => {
@@ -1130,7 +1162,6 @@
         let state='ready';
         if(step===1) state=hasSource&&!contextPending&&!attachmentIssues?'done':'ready';
         else if(step===2) state=hasSource&&!blockers?'done':'ready';
-        else if(step===3) state=creating?'active':access.ready?'ready':'pending';
         button.dataset.state=state;
         button.classList.toggle('is-viewing',step===viewing);
         button.setAttribute('aria-current',step===viewing?'step':'false');
@@ -1141,7 +1172,6 @@
         if(!small) return;
         if(step===1) small.textContent=!hasSource?'先导入资料':contextPending?'完成导入核对':attachmentIssues?`附件待处理 ${attachmentIssues} 项`:'导入准备已完成';
         if(step===2) small.textContent=!hasSource?'添加资料后审阅':contextPending||attachmentIssues?'先完成导入准备':blockers?`${blockers} 项待审阅`:'审阅完成';
-        if(step===3) small.textContent=attachmentIssues?'先处理附件':blockers?'先完成邮件审阅':creating?`${completed}/${selected} 正在网易邮箱执行`:selected?`已选择 ${selected} 封${scheduled?` · 定时 ${scheduled}`:''}`:'选择邮件与时间';
       });
     });
     syncStageSurfaceVisibility(viewing);
@@ -1153,68 +1183,27 @@
   }
 
   function syncStageSurfaceVisibility(step=batch.uiStep) {
-    const n=Math.min(3,Math.max(1,Number(step||1)));
+    const n=Math.min(2,Math.max(1,Number(step||1)));
     const workbench=ui.querySelector('.nmda-bulk-workbench');
     const ingest=ui.querySelector('.nmda-ingest-workspace-v2');
-    const preview=$('nmda-preview-card');
-    const hasPlanningTasks=!!(batch.handoffComplete && (batch.tasks||[]).length);
     if(workbench)workbench.dataset.viewStep=String(n);
-    // Stage ownership is semantic as well as visual. Hidden state prevents legacy
-    // planning CSS from keeping stage 3 on screen after uiStep has changed.
-    if(ingest)ingest.hidden=n===3;
-    if(preview)preview.hidden=n!==3 || !hasPlanningTasks;
-    const executeStage=$('nmda-stage-execute');
-    if(executeStage)executeStage.hidden=n!==3;
+    if(ingest)ingest.hidden=false;
   }
 
   async function goToProcessStep(step, options={}) {
-    const n = Math.min(3,Math.max(1,Number(step || 1)));
+    const n = Math.min(2,Math.max(1,Number(step || 1)));
     setWorkbenchTab('batch');
     closeScheduleModal({restoreFocus:false});
-    const fromStep=Math.min(3,Math.max(1,Number(batch.uiStep||1)));
-
-    // Stage-local surfaces may visually cover the next view. Close them before
-    // routing so one click on the global stage bar always produces a visible switch.
     if(n!==1){
-      if(batch.supplementPreflightOpen){
-        batch.supplementPreflightOpen=false;
-        renderSupplementPreflight();
-      }
+      if(batch.supplementPreflightOpen){batch.supplementPreflightOpen=false;renderSupplementPreflight();}
       if(batch.attachmentManagerOpen)closeAttachmentManager();
     }
-
-    // The navigation bar changes views immediately. It must never be coupled to
-    // readiness checks, otherwise a user can be trapped behind a business rule.
-    if(n!==2 && reviewInlineEl && !reviewInlineEl.hidden){
-      stashCurrentReviewDraft();
-      closeImportTaskEditor();
-      hideReviewWorkspaceWithoutStash();
-    }
-
+    if(n!==2 && reviewInlineEl && !reviewInlineEl.hidden){stashCurrentReviewDraft();closeImportTaskEditor();hideReviewWorkspaceWithoutStash();}
     batch.uiStep=n;
-    if(n===3 && !batch.planningView)batch.planningView='rules';
     renderProcessGuide();
     if(options.syncHash!==false)syncBatchStageHash(n);
-
-    if(n===1){
-      scheduleBatchRender({aux:true,force:true});
-      return true;
-    }
-
-    if(n===2){
-      openReviewWorkspace({returnStep:2,pendingOnly:false,fromStageNav:true});
-      return true;
-    }
-
-    hideReviewWorkspaceWithoutStash();
-    const readiness=processStepAccess(3,{fromStep});
-    if(readiness.ready && !batch.handoffComplete){
-      await enterSelectionAndSchedule('邮件已就绪');
-    }else if(!readiness.ready && readiness.reason){
-      setBatchStatus(`${readiness.reason} 仍可查看本阶段；完成前置处理后即可执行。`,'warn');
-    }
-    scheduleBatchRender({aux:true,force:true});
-    renderProcessGuide();
+    if(n===1){scheduleBatchRender({aux:true,force:true});return true;}
+    openReviewWorkspace({returnStep:2,pendingOnly:false,fromStageNav:true});
     return true;
   }
 
@@ -1226,6 +1215,7 @@
       ui.querySelectorAll('[data-page-head]').forEach(head => { head.hidden = head.dataset.pageHead !== name; });
     }
     if (name === 'batch' && viewPerf.batchDirty) scheduleBatchRender();
+    if (name === 'dispatch') requestAnimationFrame(() => { void (async()=>{ await ensureOperationStore(); scheduleBatchRender({aux:false,force:true}); })(); });
     if (name === 'monitor') requestAnimationFrame(() => { void loadMonitoring(); });
   }
 
@@ -1233,7 +1223,7 @@
     setPanelOpen(panel.hidden);
     if (!panel.hidden) {
       const name = currentWorkbenchTab();
-      if (name === 'batch' && viewPerf.batchDirty) scheduleBatchRender();
+      if ((name === 'batch' || name === 'dispatch') && viewPerf.batchDirty) scheduleBatchRender({aux:name==='batch'});
     }
   });
   $('nmda-close').addEventListener('click', () => { setPanelOpen(false); });
@@ -1242,7 +1232,7 @@
     $('nmda-expand').textContent = panel.classList.contains('is-maximized') ? '◱' : '⛶';
     $('nmda-expand').title = panel.classList.contains('is-maximized') ? '还原工作台' : '全屏工作台';
   });
-  ui.querySelectorAll('.nmda-tab').forEach(tab => tab.addEventListener('click', () => { const name=tab.dataset.tab; setWorkbenchTab(name); history.replaceState(null,'',name==='batch'?`#batch/${Number(batch.uiStep||1)}`:'#monitor'); }));
+  ui.querySelectorAll('.nmda-tab').forEach(tab => tab.addEventListener('click', () => { const name=tab.dataset.tab; setWorkbenchTab(name); history.replaceState(null,'',name==='batch'?`#batch/${Number(batch.uiStep||1)}`:`#${name}`); }));
   ui.querySelectorAll('[data-flow-step]').forEach(button => button.addEventListener('click', () => { void goToProcessStep(button.dataset.flowStep); }));
 
   const batch = {
@@ -1253,7 +1243,7 @@
     sessionId: 0, importBusy: false, schedulePlan: null,
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
     roster: emptyRosterState(), duplicateAudit:null,
-    handoffComplete: false, autoAdvancing: false, reviewFilter: 'all', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, preflightView:'files', supportView:'roster', attachmentManagerOpen:false, uiStep:1, planningView:'rules', reviewReturnStep:2, sourceInspectName:'', preflightFolderPath:'', preflightSearch:'', preflightReviewOnly:false, preflightPurposeFilter:'', ignoredAttachmentIdentities:new Set(), bulkSubjectPromptAutoShown:false, bulkSubjectPromptDismissed:false
+    handoffComplete: false, autoAdvancing: false, reviewFilter: 'all', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, preflightView:'files', supportView:'roster', attachmentManagerOpen:false, uiStep:1, planningView:'mails', reviewReturnStep:2, sourceInspectName:'', preflightFolderPath:'', preflightSearch:'', preflightReviewOnly:false, preflightPurposeFilter:'', ignoredAttachmentIdentities:new Set(), bulkSubjectPromptAutoShown:false, bulkSubjectPromptDismissed:false
   };
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), rosterFileEl = $('nmda-roster-file'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
@@ -1331,20 +1321,14 @@
     const input=event.target;
     if(!(input instanceof HTMLInputElement))return;
     if(input.dataset.taskEnabled){
-      const task=batch.tasks.find(item=>item.editKey===input.dataset.taskEnabled);if(!task)return;
-      setTaskEdit(task,{enabled:input.checked});
-      renderBatchSummaryControls();
-      renderScheduleCenter();
-      scheduleBatchRender({aux:false,force:true});
+      const task=dispatchTaskByKey(input.dataset.taskEnabled);if(!task)return;
+      void (async()=>{await updateDispatchTask(task,{enabled:input.checked});renderBatchSummaryControls(dispatchTasks());renderScheduleCenter();scheduleBatchRender({aux:false,force:true});})();
       return;
     }
     if(input.dataset.taskSchedule){
-      const task=batch.tasks.find(item=>item.editKey===input.dataset.taskSchedule);if(!task)return;
+      const task=dispatchTaskByKey(input.dataset.taskSchedule);if(!task)return;
       const value=input.value||'';
-      setTaskEdit(task,{scheduleAt:value,scheduleSource:value?'manual':'manual-clear',scheduleReason:value?'手工调整':''});
-      renderBatchSummaryControls();
-      renderScheduleCenter();
-      scheduleBatchRender({aux:false,force:true});
+      void (async()=>{await updateDispatchTask(task,{scheduleAt:value,scheduleSource:value?'manual':'manual-clear',scheduleReason:value?'手工调整':''});renderBatchSummaryControls(dispatchTasks());renderScheduleCenter();scheduleBatchRender({aux:false,force:true});})();
     }
   });
 
@@ -2057,8 +2041,8 @@
     const button=$('nmda-edit-batch-prep');if(button)button.textContent=supplementPreflightNeedsDecision()?'继续准备':'补充资料';
   }
 
-  function setPlanningView(view = 'rules') {
-    const next=view==='mails'?'mails':'rules';
+  function setPlanningView(view = 'mails') {
+    const next='mails';
     batch.planningView=next;
     const card=$('nmda-preview-card');
     if(card)card.dataset.planningView=next;
@@ -2070,8 +2054,8 @@
   }
 
   function openScheduleModal() {
-    if(!batch.handoffComplete || !(batch.tasks||[]).length){
-      setBatchStatus('先完成邮件审阅，再设置排期。','warn');
+    if(!dispatchTasks().length){
+      setBatchStatus('执行池为空；请先从批量草稿或邮件监测加入任务。','warn');
       return;
     }
     renderScheduleCenter();
@@ -3843,7 +3827,7 @@
   }
 
   function filteredBatchTasks() {
-    return (batch.tasks || []).filter(taskMatchesTagFilter);
+    return dispatchTasks().filter(taskMatchesTagFilter);
   }
 
   function refreshTaskCoreValidation(task) {
@@ -4641,7 +4625,7 @@
     return {rules, visible, selected, unscheduled, rounds, schoolRows, repeatSchools, audit};
   }
 
-  function renderPlanningOverview(tasks, snapshot=batchSummarySnapshot(batch.tasks||[])) {
+  function renderPlanningOverview(tasks, snapshot=batchSummarySnapshot(dispatchTasks())) {
     if(!planningOverviewEl) return;
     const data=derivePlanningGroups(tasks);
     const warnings=[];
@@ -4672,7 +4656,7 @@
   function renderScheduleCenter() {
     if (typeof renderProcessGuide === 'function') renderProcessGuide();
     const card=$('nmda-scheduler-card'); if(!card)return;
-    const tasks=batch.tasks||[], hasTasks=batch.handoffComplete&&tasks.length>0;
+    const tasks=dispatchTasks(), hasTasks=tasks.length>0;
     card.hidden=!hasTasks; if(!hasTasks)return;
     if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent=card.open?'收起':'展开';
     if(!Scheduler){if(scheduleRulePreviewEl)scheduleRulePreviewEl.textContent='自动安排暂不可用。';if(scheduleApplyEl)scheduleApplyEl.disabled=true;return;}
@@ -4708,19 +4692,20 @@
     if(scheduleClearEl)scheduleClearEl.disabled=batch.running||!tasks.some(t=>t.scheduleSource==='auto'&&t.scheduleAt);
   }
 
-  function applySmartSchedule() {
+  async function applySmartSchedule() {
     if(!Scheduler){setBatchStatus('自动安排暂不可用。','error');return;}
     try{
       const rules=readScheduleRuleControls();
-      const plan=Scheduler.buildPlan(batch.tasks||[],rules,new Date());
+      const tasks=dispatchTasks();
+      const plan=Scheduler.buildPlan(tasks,rules,new Date());
       for(const assignment of plan.assignments){
-        const prev=batch.taskEdits.get(assignment.editKey)||{};
-        batch.taskEdits.set(assignment.editKey,{...prev,scheduleAt:assignment.scheduleAt,scheduleSource:'auto',scheduleReason:assignment.reason});
+        const task=tasks.find(item=>item.editKey===assignment.editKey);if(!task)continue;
+        await updateDispatchTask(task,{scheduleAt:assignment.scheduleAt,scheduleSource:'auto',scheduleReason:assignment.reason});
       }
       batch.schedulePlan=plan;
-      rebuildTasks();
       if(window.matchMedia('(max-width: 900px)').matches)setPlanningView('mails');
-      const s=plan.summary, audit=Scheduler.audit?.(batch.tasks||[],rules)||{conflicts:[],holidayConflicts:[]};
+      const refreshed=dispatchTasks();
+      const s=plan.summary, audit=Scheduler.audit?.(refreshed,rules)||{conflicts:[],holidayConflicts:[]};
       const fallbackCount=Number(s.fallbackTasks||s.fallbackGroups||0);
       const fallback='';
       const priority=s.priorityOrderedGroups?`；${s.priorityOrderedGroups} 所院校已按总名单顺序排列`:'';
@@ -4733,20 +4718,18 @@
     }catch(error){setBatchStatus(`安排时间失败：${error.message}`,'error');}
   }
 
-  function clearAutoSchedule() {
+  async function clearAutoSchedule() {
     let cleared=0;
-    for(const task of batch.tasks||[]){
+    for(const task of dispatchTasks()){
       if(task.scheduleSource!=='auto')continue;
-      const prev={...(batch.taskEdits.get(task.editKey)||{})};
-      delete prev.scheduleAt; delete prev.scheduleSource; delete prev.scheduleReason;
-      batch.taskEdits.set(task.editKey,prev); cleared++;
+      await updateDispatchTask(task,{scheduleAt:'',scheduleSource:'',scheduleReason:''}); cleared++;
     }
     batch.schedulePlan=null;
-    rebuildTasks();
-    setBatchStatus(cleared?`已清除 ${cleared} 封任务的自动排程；导入或手工时间保持不变。`:'当前没有自动排程需要清除。',cleared?'ok':'warn');
+    setBatchStatus(cleared?`已清除 ${cleared} 封任务的自动排程；手工或原有时间保持不变。`:'当前没有自动排程需要清除。',cleared?'ok':'warn');
+    scheduleBatchRender({aux:false,force:true});
   }
 
-  function batchSummarySnapshot(tasks = batch.tasks || []) {
+  function batchSummarySnapshot(tasks = dispatchTasks()) {
     const snapshot={errors:0,done:0,selectedReady:0,selectedScheduled:0,selectedTotal:0,unselected:0};
     for(const task of tasks){
       if(task.status==='error')snapshot.errors++;
@@ -4761,8 +4744,9 @@
     return snapshot;
   }
 
-  function renderBatchSummaryControls(tasks = batch.tasks || [], snapshot = batchSummarySnapshot(tasks)) {
-    const summaryParts=[`共 <strong>${tasks.length}</strong> 封`,`本次 <strong>${snapshot.selectedTotal}</strong>`,`可创建 <strong>${snapshot.selectedReady}</strong>`];
+  function renderBatchSummaryControls(tasks = dispatchTasks(), snapshot = batchSummarySnapshot(tasks)) {
+    const sources=Dispatch?.sourceCounts?.(tasks)||{initial:tasks.filter(t=>t.dispatchKind!=='follow_up').length,followUp:tasks.filter(t=>t.dispatchKind==='follow_up').length};
+    const summaryParts=[`共 <strong>${tasks.length}</strong> 封`,`初始 <strong>${sources.initial}</strong>`,`Follow-up <strong>${sources.followUp}</strong>`,`本次 <strong>${snapshot.selectedTotal}</strong>`,`可创建 <strong>${snapshot.selectedReady}</strong>`];
     if(snapshot.selectedScheduled)summaryParts.push(`定时 ${snapshot.selectedScheduled}`);
     if(snapshot.errors)summaryParts.push(`<span class="nmda-danger">异常 ${snapshot.errors}</span>`);
     if(snapshot.done)summaryParts.push(`已完成 ${snapshot.done}`);
@@ -4774,11 +4758,11 @@
     if(attachmentChip){
       const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{issues:0};
       const localCount=attachmentPreparedFileCount();
-      attachmentChip.textContent=stats.issues?`附件待处理 ${stats.issues} 项`:localCount?`附件已在导入确认 · ${localCount} 个文件`:'导入阶段未配置附件';
+      attachmentChip.textContent=stats.issues?`附件待处理 ${stats.issues} 项`:localCount?`初始邮件附件 ${localCount} 个`:'当前执行池无本地附件';
       attachmentChip.dataset.state=stats.issues?'warn':localCount?'ok':'idle';
     }
 
-    batchStartEl.disabled=batch.running||!batch.handoffComplete||!snapshot.selectedReady;
+    batchStartEl.disabled=batch.running||!snapshot.selectedReady;
     const preflight=$('nmda-create-preflight');
     if(preflight){
       const selected=(tasks||[]).filter(task=>task.enabled&&task.status==='ready');
@@ -4801,7 +4785,7 @@
   }
 
   function renderPreview({ aux = true } = {}) {
-    const tasks=batch.tasks||[];
+    const tasks=dispatchTasks();
     const matched=filteredBatchTasks();
     const snapshot=renderBatchSummaryControls(tasks);
     const planning=derivePlanningGroups(matched);
@@ -4821,27 +4805,21 @@
       previewBodyEl.innerHTML=`${unscheduledHtml}<div class="nmda-plan-matrix-wrap"><div class="nmda-plan-matrix" style="grid-template-columns:${templateColumns}">${headers.join('')}${rows}</div></div>`;
     }
 
-    const hasTasks=batch.handoffComplete&&tasks.length>0;
-    const viewingPlanning=Number(batch.uiStep||1)===3;
+    const hasTasks=tasks.length>0;
+    const viewingPlanning=currentWorkbenchTab()==='dispatch';
     const emptyCard=$('nmda-batch-empty');
     if(emptyCard){
-      const readiness=processStepAccess(3,{fromStep:3});
-      let kicker='选择与排期',title='等待邮件任务',desc='可通过顶部导航查看其他阶段。';
-      if(tasks.length&&!batch.handoffComplete){
-        kicker='当前不可执行'; title=`已识别 ${tasks.length} 封邮件`; desc=readiness.reason||'前置核验尚未完成；本阶段可查看，但执行保持锁定。';
-      }else if(!tasks.length){
-        kicker='暂无任务'; title='还没有可安排的邮件'; desc='先在“导入资料”中加入资料；导航仍可自由切换。';
-      }
+      let kicker='选择与排期',title='等待邮件任务',desc='批量草稿审阅完成后会进入这里；Follow-up 也从邮件监测加入同一执行池。';
+      if(!tasks.length){kicker='执行池为空';title='还没有可安排的邮件';desc='从“批量草稿”完成审阅，或从“邮件监测”准备并确认 Follow-up。';}
       emptyCard.innerHTML=`<div class="nmda-card-kicker">${escapeHtml(kicker)}</div><div class="nmda-card-title">${escapeHtml(title)}</div><div class="nmda-card-desc">${escapeHtml(desc)}</div>`;
       emptyCard.hidden=!(viewingPlanning&&!hasTasks);
     }
     $('nmda-preview-card').hidden=!(viewingPlanning&&hasTasks);
     $('nmda-scheduler-card').hidden=!hasTasks;
-    const executeStage=$('nmda-stage-execute');if(executeStage)executeStage.hidden=!viewingPlanning;
-
+    renderDispatchSourceSummary(tasks);
     renderScheduleCenter();
-    setPlanningView(batch.planningView||'rules');
-    syncStageSurfaceVisibility(viewingPlanning?3:batch.uiStep);
+    setPlanningView('mails');
+    if(currentWorkbenchTab()==='batch')syncStageSurfaceVisibility(batch.uiStep);
     if(aux){
       renderTagChips(); renderAttachmentCenter(); renderImportTaskPreview(); renderRosterAudit(); renderImportHandoff(); renderReviewPageOverview(); viewPerf.batchAuxDirty=false;
     }
@@ -4875,13 +4853,19 @@
     return `<div class="nmda-plan-matrix-stack">${tasks.map(task=>renderPlanningMatrixTask(task,context)).join('')}</div>`;
   }
 
+  function dispatchKindBadge(task){
+    return task?.dispatchKind === 'follow_up'
+      ? `<span class="nmda-plan-minibadge nmda-plan-source-followup">Follow-up #${Math.max(1,Number(task.sequence||1))}</span>`
+      : '<span class="nmda-plan-minibadge nmda-plan-source-initial">初始邮件</span>';
+  }
+
   function renderPlanningMatrixTask(task, context={}){
     const state=compactPlanningState(task);
-    return `<article class="nmda-plan-matrix-task" data-state-tone="${escapeHtml(state.tone)}">
+    return `<article class="nmda-plan-matrix-task" data-state-tone="${escapeHtml(state.tone)}" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}">
       <label class="nmda-plan-matrix-toggle"><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''} ${batch.running||task.policyBlocked||task.status==='running'||task.status==='done'?'disabled':''}></label>
       <div class="nmda-plan-matrix-taskbody">
         <div class="nmda-plan-matrix-taskline"><strong>${escapeHtml(task.recipients||'—')}</strong><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span></div>
-        <div class="nmda-plan-matrix-taskmeta">${task.files?.length?`<span class="nmda-plan-minibadge">附件 ${task.files.length}</span>`:''}</div>
+        <div class="nmda-plan-matrix-taskmeta">${dispatchKindBadge(task)}${task.files?.length?`<span class="nmda-plan-minibadge">附件 ${task.files.length}</span>`:''}</div>
         <div class="nmda-plan-matrix-taskedit"><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}" ${batch.running?'disabled':''}></div>
       </div>
     </article>`;
@@ -4890,7 +4874,7 @@
   function renderPlanningLooseTask(task){
     const state=compactPlanningState(task);
     const school=Scheduler?.groupForTask?.(task)?.label||task.school||'未识别学校';
-    return `<article class="nmda-plan-loose-task"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${escapeHtml(school)}</small></div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}"></article>`;
+    return `<article class="nmda-plan-loose-task" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${dispatchKindBadge(task)} ${escapeHtml(school)}</small></div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}"></article>`;
   }
 
 
@@ -5295,7 +5279,6 @@
   $('nmda-close-schedule-modal')?.addEventListener('click',()=>closeScheduleModal());
   $('nmda-cancel-schedule-modal')?.addEventListener('click',()=>closeScheduleModal());
   $('nmda-schedule-modal')?.addEventListener('click',event=>{if(event.target===event.currentTarget)closeScheduleModal();});
-  $('nmda-back-to-planning')?.addEventListener('click',()=>goToProcessStep(3));
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('nmda-schedule-modal')?.hidden){event.preventDefault();closeScheduleModal();}});
 
   $('nmda-source-next-review')?.addEventListener('click',event=>{const source=decodeURIComponent(event.currentTarget.dataset.nextSource||'');if(source)inspectSourceInPreflight(source);});
@@ -5554,15 +5537,15 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
-  scheduleApplyEl?.addEventListener('click', () => { applySmartSchedule(); closeScheduleModal(); });
-  scheduleClearEl?.addEventListener('click', clearAutoSchedule);
+  scheduleApplyEl?.addEventListener('click', () => { void (async()=>{await applySmartSchedule();closeScheduleModal();})(); });
+  scheduleClearEl?.addEventListener('click',()=>void clearAutoSchedule());
   [scheduleStartEl,scheduleMaxSchoolEl,scheduleIntervalDaysEl,schedulePreserveEl,scheduleHolidayEl].forEach(el=>el?.addEventListener('change',()=>{readScheduleRuleControls();batch.schedulePlan=null;renderScheduleCenter();}));
   syncScheduleRuleControls();
 
   const renderBatchFilterDebounced=debounce(()=>scheduleBatchRender({aux:false}),100);
   [batchSearchEl,batchTagIncludeEl].forEach(el=>el?.addEventListener('input',renderBatchFilterDebounced));
 
-  function bulkEditFiltered(kind) {
+  async function bulkEditFiltered(kind) {
     const targets = filteredBatchTasks().filter(task => task.status !== 'running' && task.status !== 'done');
     if (!targets.length) { setBatchStatus('当前检索/筛选结果没有可编辑任务。', 'warn'); return; }
     const tagValue = $('nmda-bulk-tag-value').value;
@@ -5570,13 +5553,14 @@
     if ((kind === 'addTag' || kind === 'removeTag') && !parsed.length) {
       setBatchStatus('请输入有效的任务标记。系统状态和 Follow-up 状态不能作为任务标记。', 'warn'); return;
     }
-    let affected = 0, blockedSkipped = 0;
+    let affected = 0, blockedSkipped = 0, followUpTagSkipped = 0;
     for (const task of targets) {
       if (kind === 'enable') {
         if (task.policyBlocked) { blockedSkipped++; continue; }
-        setTaskEdit(task, { enabled: true }); affected++;
+        await updateDispatchTask(task, { enabled: true }); affected++;
       }
-      else if (kind === 'disable') { setTaskEdit(task, { enabled: false }); affected++; }
+      else if (kind === 'disable') { await updateDispatchTask(task, { enabled: false }); affected++; }
+      else if (task.dispatchKind === 'follow_up') { followUpTagSkipped++; }
       else if (kind === 'addTag') { setTaskEdit(task, { tags: Operations.mergeTags(task.tags || [], parsed) }); affected++; }
       else if (kind === 'removeTag') {
         const remove = new Set(parsed.map(tag => tag.toLocaleLowerCase('zh-CN')));
@@ -5584,24 +5568,24 @@
       }
     }
     const actionText = { enable: '纳入筛选结果', disable: '排除筛选结果', addTag: `添加标记“${tagsText(parsed)}”`, removeTag: `移除标记“${tagsText(parsed)}”` }[kind];
-    const skippedText = blockedSkipped ? `；另有 ${blockedSkipped} 封受联系保护规则拦截，无法选择` : '';
-    setBatchStatus(`已对 ${affected} 封任务执行：${actionText}${skippedText}。`, blockedSkipped ? 'warn' : 'ok');
-    scheduleBatchRender({aux:false});
+    const skippedText = [blockedSkipped ? `${blockedSkipped} 封受联系保护规则拦截` : '', followUpTagSkipped ? `${followUpTagSkipped} 条 Follow-up 不使用批次标记` : ''].filter(Boolean);
+    setBatchStatus(`已对 ${affected} 封任务执行：${actionText}${skippedText.length ? `；跳过 ${skippedText.join('、')}` : ''}。`, skippedText.length ? 'warn' : 'ok');
+    scheduleBatchRender({aux:false,force:true});
   }
 
-  $('nmda-bulk-add-tag').addEventListener('click', () => bulkEditFiltered('addTag'));
-  $('nmda-bulk-remove-tag').addEventListener('click', () => bulkEditFiltered('removeTag'));
-  $('nmda-bulk-enable').addEventListener('click', () => bulkEditFiltered('enable'));
-  $('nmda-bulk-disable').addEventListener('click', () => bulkEditFiltered('disable'));
-  $('nmda-clear-selection').addEventListener('click', () => {
+  $('nmda-bulk-add-tag').addEventListener('click', () => { void bulkEditFiltered('addTag'); });
+  $('nmda-bulk-remove-tag').addEventListener('click', () => { void bulkEditFiltered('removeTag'); });
+  $('nmda-bulk-enable').addEventListener('click', () => { void bulkEditFiltered('enable'); });
+  $('nmda-bulk-disable').addEventListener('click', () => { void bulkEditFiltered('disable'); });
+  $('nmda-clear-selection').addEventListener('click', () => { void (async()=>{
     let affected = 0;
-    for (const task of batch.tasks || []) {
+    for (const task of dispatchTasks()) {
       if (task.status === 'running' || task.status === 'done' || !task.enabled) continue;
-      setTaskEdit(task, { enabled: false }); affected++;
+      await updateDispatchTask(task, { enabled: false }); affected++;
     }
     setBatchStatus(`已排除 ${affected} 封任务；可逐封重新纳入，或使用“纳入筛选结果”。`, 'ok');
-    scheduleBatchRender({aux:false});
-  });
+    scheduleBatchRender({aux:false,force:true});
+  })(); });
   $('nmda-clear-tag-filter').addEventListener('click', () => {
     if (batchSearchEl) batchSearchEl.value = '';
     if(batchTagIncludeEl)batchTagIncludeEl.value = '';
@@ -5644,19 +5628,20 @@
 
   batchStartEl.addEventListener('click', async () => {
     if (batch.running) return;
-    if (!batch.handoffComplete) { setBatchStatus('当前邮件还没有完成必要核对，请先在批量工作台上方处理。', 'error'); return; }
-    const selectedBlocked=batch.tasks.filter(task=>task.enabled&&task.status==='error');
+    await ensureOperationStore();
+    const queue = dispatchTasks();
+    const selectedBlocked=queue.filter(task=>task.enabled&&task.status==='error');
     if(selectedBlocked.length){
       const attachmentOnly=selectedBlocked.filter(task=>{const state=taskIssueState(task);return state.attachment.length&&state.content.length===0&&state.review.length===0&&state.schedule.length===0&&state.other.length===0;});
-      if(attachmentOnly.length===selectedBlocked.length){setBatchStatus(`还有 ${selectedBlocked.length} 封已选择邮件缺少附件。请先打开“附件工作台”补齐文件或调整发送范围，或取消选择这些邮件。`,'error');}
-      else setBatchStatus(`还有 ${selectedBlocked.length} 封已选择邮件存在未解决问题。请先审阅或取消选择。`,'error');
+      if(attachmentOnly.length===selectedBlocked.length){setBatchStatus(`还有 ${selectedBlocked.length} 封已选择邮件缺少附件。请先补齐文件、调整发送范围，或取消选择这些邮件。`,'error');}
+      else setBatchStatus(`还有 ${selectedBlocked.length} 封已选择邮件存在未解决问题。请先处理或取消选择。`,'error');
       return;
     }
-    const executable = batch.tasks.filter(task => task.enabled && task.status === 'ready');
-    if (!executable.length) { setBatchStatus('没有已选择且可创建的任务。请先在列表中勾选需要创建的草稿。', 'error'); return; }
+    const executable = queue.filter(task => task.enabled && task.status === 'ready');
+    if (!executable.length) { setBatchStatus('没有已选择且可创建的任务。请先在执行池中选择需要创建的草稿。', 'error'); return; }
     const staleScheduled=executable.filter(task=>task.scheduleAt && (Scheduler?.parseLocalDateTime?.(task.scheduleAt)?.getTime()||0) <= Date.now()+60*1000);
-    if(staleScheduled.length){setBatchStatus(`有 ${staleScheduled.length} 封邮件的定时时间已过。请先在“安排时间”中更新或清空。`,'error');return;}
-    const executableKeys = new Set(executable.map(task => task.editKey)); // freeze this run at start
+    if(staleScheduled.length){setBatchStatus(`有 ${staleScheduled.length} 封邮件的定时时间已过。请先在“排期设置”中更新或清空。`,'error');return;}
+    const executableKeys = new Set(executable.map(task => task.editKey)); // freeze this dispatch run
     const mailTarget=await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL',focus:true});
     if(!mailTarget?.ok){setBatchStatus('无法打开网易邮箱页面，请先完成登录。','error');return;}
     const mailboxReady=await waitForMailboxExecutionReady();
@@ -5664,72 +5649,104 @@
       setBatchStatus('网易邮箱已打开，但尚未检测到已登录账号。请在网易邮箱完成登录后返回工作台再次开始。','error');
       return;
     }
-    batch.uiStep=3; renderProcessGuide();
     batch.running = true; batch.stopRequested = false; batchStartEl.disabled = true; batchStopEl.disabled = false;
-    await updateMailboxBatchMonitor({action:'start',total:executable.length,succeeded:0,failed:0,remaining:executable.length,items:executable.map((task,index)=>({key:task.editKey,id:task.id,index:index+1,recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||'',status:'queued'}))});
+    await updateMailboxBatchMonitor({action:'start',total:executable.length,succeeded:0,failed:0,remaining:executable.length,items:executable.map((task,index)=>({key:task.editKey,id:task.id,index:index+1,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||'',status:'queued'}))});
     importFileEl.disabled = true; if (importDirEl) importDirEl.disabled = true; if (importPackageEl) importPackageEl.disabled = true; if (rosterFileEl) rosterFileEl.disabled = true; collectionSelectEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; sharedFilesEl.disabled = true; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=true;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=true;if(draftImportEl)draftImportEl.disabled=true; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=true; });
     setBatchPlanningLocked(true);
     let succeeded = 0, failed = 0;
     try {
-      for (let i = 0; i < batch.tasks.length; i++) {
-        const task = batch.tasks[i];
-        if (!executableKeys.has(task.editKey) || task.status !== 'ready') continue;
+      for (const frozenTask of executable) {
+        if (!executableKeys.has(frozenTask.editKey)) continue;
         if (batch.stopRequested) break;
-        task.status = 'running'; scheduleBatchRender({aux:false});
+        const task = dispatchTaskByKey(frozenTask.editKey) || frozenTask;
+        if (task.status !== 'ready' || !task.enabled) continue;
+        setDispatchRuntime(task,{status:'running',runtimeError:''});
+        scheduleBatchRender({aux:false,force:true});
         const runIndex=succeeded+failed+1;
-        setBatchStatus(`正在处理 ${runIndex}/${executable.length} · ${task.id} · ${task.subject || '(无主题)'}${task.scheduleAt ? ` · 定时 ${task.scheduleAt.replace('T', ' ')}` : ' · 未定时'}`);
-        await updateMailboxBatchMonitor({action:'task-start',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-runIndex+1),task:{key:task.editKey,id:task.id,recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||''}});
+        const kindLabel=task.dispatchKind==='follow_up'?`Follow-up #${Math.max(1,Number(task.sequence||1))}`:'初始邮件';
+        setBatchStatus(`正在处理 ${runIndex}/${executable.length} · ${kindLabel} · ${task.subject || '(无主题)'}${task.scheduleAt ? ` · 定时 ${task.scheduleAt.replace('T', ' ')}` : ' · 未定时'}`);
+        await updateMailboxBatchMonitor({action:'task-start',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-runIndex+1),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||''}});
         try {
           const outcome = await executeDraftRemotely(task, {
             fresh: true,
             onProgress: progress => {
-              setBatchStatus(`任务 ${task.id}：${progress.message || '正在创建草稿…'}`);
-              void updateMailboxBatchMonitor({action:'task-progress',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-runIndex),task:{key:task.editKey,id:task.id,recipient:task.recipients||'',subject:task.subject||''},phase:progress.phase||'',message:progress.message||'正在创建草稿…'});
+              setBatchStatus(`${kindLabel}：${progress.message || '正在创建草稿…'}`);
+              void updateMailboxBatchMonitor({action:'task-progress',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-runIndex),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},phase:progress.phase||'',message:progress.message||'正在创建草稿…'});
             }
           });
+          const notes=[];
           const upload = outcome.attachment || {};
-          if (upload.verified === false && upload.missingNames?.length) {
-            task.note = [task.note, `附件已提交上传，但页面未确认：${upload.missingNames.join('、')}`].filter(Boolean).join('；');
-          }
+          if (upload.verified === false && upload.missingNames?.length) notes.push(`附件已提交上传，但页面未确认：${upload.missingNames.join('、')}`);
           if (task.scheduleAt && outcome.actualMinute !== null && outcome.actualMinute !== undefined) {
             const requestedMinute = new Date(task.scheduleAt).getMinutes();
-            if (Number(outcome.actualMinute) !== requestedMinute) task.note = [task.note, `分钟由 ${requestedMinute} 调整为 ${outcome.actualMinute}`].filter(Boolean).join('；');
+            if (Number(outcome.actualMinute) !== requestedMinute) notes.push(`分钟由 ${requestedMinute} 调整为 ${outcome.actualMinute}`);
           }
-          task.note = [task.note, `草稿已确认保存（${outcome.saveOutcome?.kind || 'remote'}）`].filter(Boolean).join('；');
+          notes.push(`草稿已确认保存（${outcome.saveOutcome?.kind || 'remote'}）`);
+          let draftRecord=null;
           if (Operations) {
-            await ensureOperationStore();
             const recorded = Operations.recordPreparedDraft(operationState.store, task, outcome);
             operationState.store = recorded.store;
+            draftRecord=recorded.record;
+            if(task.dispatchKind==='follow_up'){
+              const sourceId=task._sourceTaskId||task.id;
+              const current=operationState.store.derivedTasks?.[sourceId];
+              if(!current)throw new Error('Follow-up 执行成功，但无法回写 derived task。');
+              const targetState=task.scheduleAt?'scheduled':'confirmed';
+              const stateResult=Operations.setDerivedTaskState(operationState.store,sourceId,targetState,{
+                draftPreparedAt:new Date().toISOString(),
+                draftRecordId:draftRecord?.id||'',
+                scheduledAt:task.scheduleAt||'',
+                runtimeError:''
+              });
+              operationState.store=stateResult.store;
+              const dequeued=Operations.updateDerivedTaskDispatch(operationState.store,sourceId,{queued:false,dequeuedReason:'draft-prepared'});
+              operationState.store=dequeued.store;
+            }
             await persistOperations();
           }
-          task.status = 'done'; succeeded++;
-          await updateMailboxBatchMonitor({action:'task-done',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-succeeded-failed),task:{key:task.editKey,id:task.id,recipient:task.recipients||'',subject:task.subject||''},message:'草稿已确认保存'});
-          scheduleBatchRender({aux:false});
+          setDispatchRuntime(task,{status:'done',runtimeError:'',note:notes.join('；')});
+          if(task.dispatchKind==='follow_up') clearDispatchRuntime(task);
+          succeeded++;
+          await updateMailboxBatchMonitor({action:'task-done',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-succeeded-failed),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},message:'草稿已确认保存'});
+          scheduleBatchRender({aux:false,force:true});
           await sleep(300);
         } catch (error) {
-          console.error(`[${APP}] batch source record ${task.sourceRow}`, error);
-          task.status = 'error'; task.runtimeError = error.message || String(error); failed++; scheduleBatchRender({aux:false});
-          await updateMailboxBatchMonitor({action:'task-error',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-succeeded-failed),task:{key:task.editKey,id:task.id,recipient:task.recipients||'',subject:task.subject||''},message:task.runtimeError});
-          setBatchStatus(`任务 ${task.id} 失败，已自动停止：${task.runtimeError}。为避免页面状态异常导致串稿，不继续执行后续任务。`, 'error');
+          console.error(`[${APP}] dispatch ${task.editKey}`, error);
+          const message=error.message || String(error);
+          setDispatchRuntime(task,{status:'ready',runtimeError:message});
+          if(task.dispatchKind==='follow_up' && Operations){
+            try{
+              const sourceId=task._sourceTaskId||task.id;
+              const current=operationState.store.derivedTasks?.[sourceId];
+              if(current){
+                const updated=Operations.setDerivedTaskState(operationState.store,sourceId,current.state,{runtimeError:message});
+                operationState.store=updated.store;
+                await persistOperations();
+              }
+            }catch(persistError){console.warn(`[${APP}] persist follow-up execution error failed`,persistError);}
+          }
+          failed++; scheduleBatchRender({aux:false,force:true});
+          await updateMailboxBatchMonitor({action:'task-error',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-succeeded-failed),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},message});
+          setBatchStatus(`${kindLabel} 创建失败，已自动停止：${message}。为避免页面状态异常导致串稿，不继续执行后续任务。`, 'error');
           break;
         }
       }
-      const remaining = batch.tasks.filter(t => executableKeys.has(t.editKey) && t.status === 'ready').length;
+      const remaining = Math.max(0,executable.length-succeeded-failed);
       if (batch.stopRequested) setBatchStatus(`已停止。成功 ${succeeded}，失败 ${failed}，剩余 ${remaining}。`, 'warn');
-      else if (failed) setBatchStatus(`批量处理结束：成功 ${succeeded}，失败 ${failed}。请在网易邮箱查看错误任务。`, 'warn');
-      else setBatchStatus(`批量处理完成：成功创建并保存 ${succeeded} 封草稿。`, 'ok');
+      else if (failed) setBatchStatus(`执行结束：成功 ${succeeded}，失败 ${failed}，剩余 ${remaining}。请处理失败任务后再重试。`, 'warn');
+      else setBatchStatus(`执行完成：成功创建并保存 ${succeeded} 封草稿。`, 'ok');
       await updateMailboxBatchMonitor({action:'finish',total:executable.length,succeeded,failed,remaining,status:batch.stopRequested?'stopped':failed?'error':'done',message:batch.stopRequested?`已停止 · 成功 ${succeeded} · 剩余 ${remaining}`:failed?`执行结束 · 成功 ${succeeded} · 失败 ${failed}`:`全部完成 · ${succeeded} 封草稿已保存`});
     } finally {
       batch.running = false; batchStopEl.disabled = true;
       importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (importPackageEl) importPackageEl.disabled = false; if (rosterFileEl) rosterFileEl.disabled = false; collectionSelectEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; sharedFilesEl.disabled = false; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=false;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=false;if(draftImportEl)draftImportEl.disabled=false; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=false; });
       setBatchPlanningLocked(false);
-      scheduleBatchRender({aux:false});
+      scheduleBatchRender({aux:false,force:true});
     }
   });
 
   function applyDeepLink() {
     const raw = String(location.hash || '').replace(/^#/, '');
-    const match = raw.match(/^(batch|monitor)(?:\/([123]))?$/);
+    const match = raw.match(/^(batch|dispatch|monitor)(?:\/([12]))?$/);
     if (!match) return;
     const [, tab, step] = match;
     setWorkbenchTab(tab);

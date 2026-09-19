@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const SCHEMA_VERSION = 2;
+  const SCHEMA_VERSION = 3;
   const STORAGE_PREFIX = 'nmda.operations.v1:';
   const LEGACY_CONTACT_PREFIX = 'nmda.contacts.v1:';
   const FOLLOWUP_STATES = ['due', 'prepared', 'confirmed', 'scheduled', 'sent', 'blocked', 'cancelled'];
@@ -200,6 +200,23 @@
       const mode = GUARD_MODES.includes(guard?.mode) ? guard.mode : 'normal';
       store.recipientGuards[normalizeEmail(key)] = { ...guard, email: normalizeEmail(guard?.email || key), mode };
       if (normalizeEmail(key) !== key) delete store.recipientGuards[key];
+    }
+    for (const [key, task] of Object.entries(store.derivedTasks)) {
+      if (!task || typeof task !== 'object') continue;
+      const dispatch = task.dispatch && typeof task.dispatch === 'object' ? task.dispatch : {};
+      store.derivedTasks[key] = {
+        ...task,
+        dispatch: {
+          queued: dispatch.queued === true,
+          enabled: dispatch.enabled !== false,
+          scheduleAt: String(dispatch.scheduleAt || task.scheduledAt || ''),
+          scheduleSource: String(dispatch.scheduleSource || ''),
+          scheduleReason: String(dispatch.scheduleReason || ''),
+          queuedAt: String(dispatch.queuedAt || ''),
+          dequeuedAt: String(dispatch.dequeuedAt || ''),
+          dequeuedReason: String(dispatch.dequeuedReason || '')
+        }
+      };
     }
     return store;
   }
@@ -767,7 +784,8 @@
       confirmedAt: '',
       scheduledAt: '',
       sentOutboundId: '',
-      blocker: null
+      blocker: null,
+      dispatch: { queued: false, enabled: true, scheduleAt: '', scheduleSource: '', scheduleReason: '', queuedAt: '', dequeuedAt: '', dequeuedReason: '' }
     };
     next.derivedTasks[id] = task;
     next.updatedAt = now;
@@ -788,6 +806,9 @@
       task.confirmedVersion = null;
       task.confirmedAt = '';
       if (task.state === 'confirmed' || task.state === 'scheduled') task.state = 'prepared';
+      if (task.dispatch?.queued) {
+        task.dispatch = { ...task.dispatch, queued: false, dequeuedAt: nowIso(), dequeuedReason: 'content-changed' };
+      }
     }
     if (task.state === 'due' && (task.subject || task.body)) task.state = 'prepared';
     next.derivedTasks[taskId] = task;
@@ -819,6 +840,58 @@
     next.derivedTasks[taskId] = { ...task, ...patch, state, updatedAt: nowIso() };
     next.updatedAt = next.derivedTasks[taskId].updatedAt;
     return { store: next, task: next.derivedTasks[taskId] };
+  }
+
+
+  function queueDerivedTaskForDispatch(storeInput, taskId) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const task = next.derivedTasks[taskId];
+    if (!task) throw new Error(`找不到 derived task：${taskId}`);
+    if (['sent', 'cancelled', 'blocked'].includes(task.state)) throw new Error(`当前状态不能进入选择与排期：${task.state}`);
+    if (Number(task.confirmedVersion) !== Number(task.contentVersion)) throw new Error('内容版本未确认，不能进入选择与排期。');
+    if (!String(task.body || '').trim()) throw new Error('Follow-up 正文为空，不能进入选择与排期。');
+    const now = nowIso();
+    task.dispatch = {
+      ...(task.dispatch || {}), queued: true, enabled: task.dispatch?.enabled !== false,
+      scheduleAt: String(task.dispatch?.scheduleAt || ''), scheduleSource: String(task.dispatch?.scheduleSource || ''), scheduleReason: String(task.dispatch?.scheduleReason || ''),
+      queuedAt: task.dispatch?.queuedAt || now, dequeuedAt: '', dequeuedReason: ''
+    };
+    task.updatedAt = now;
+    next.updatedAt = now;
+    return { store: next, task };
+  }
+
+  function updateDerivedTaskDispatch(storeInput, taskId, patch = {}) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const task = next.derivedTasks[taskId];
+    if (!task) throw new Error(`找不到 derived task：${taskId}`);
+    const current = task.dispatch || {};
+    const dispatch = {
+      queued: patch.queued === undefined ? current.queued === true : patch.queued === true,
+      enabled: patch.enabled === undefined ? current.enabled !== false : patch.enabled !== false,
+      scheduleAt: patch.scheduleAt === undefined ? String(current.scheduleAt || '') : String(patch.scheduleAt || ''),
+      scheduleSource: patch.scheduleSource === undefined ? String(current.scheduleSource || '') : String(patch.scheduleSource || ''),
+      scheduleReason: patch.scheduleReason === undefined ? String(current.scheduleReason || '') : String(patch.scheduleReason || ''),
+      queuedAt: String(current.queuedAt || ''),
+      dequeuedAt: String(current.dequeuedAt || ''),
+      dequeuedReason: String(current.dequeuedReason || '')
+    };
+    const now = nowIso();
+    if (dispatch.queued && !current.queued) { dispatch.queuedAt = now; dispatch.dequeuedAt = ''; dispatch.dequeuedReason = ''; }
+    if (!dispatch.queued && current.queued) { dispatch.dequeuedAt = now; dispatch.dequeuedReason = String(patch.dequeuedReason || 'manual'); }
+    task.dispatch = dispatch;
+    task.updatedAt = now;
+    next.updatedAt = now;
+    return { store: next, task };
+  }
+
+  function queuedDerivedTasks(storeInput) {
+    const store = normalizeStore(storeInput);
+    return Object.values(store.derivedTasks)
+      .filter(task => task?.kind === 'follow_up' && task?.dispatch?.queued === true && task.state !== 'sent' && task.state !== 'cancelled')
+      .sort((a, b) => timeMs(a.dispatch?.queuedAt || a.createdAt) - timeMs(b.dispatch?.queuedAt || b.createdAt));
   }
 
   function mailboxHistoryForRecipients(storeInput, recipientsRaw) {
@@ -972,6 +1045,9 @@
     updateDerivedTaskContent,
     confirmDerivedTask,
     setDerivedTaskState,
+    queueDerivedTaskForDispatch,
+    updateDerivedTaskDispatch,
+    queuedDerivedTasks,
     mailboxHistoryForRecipients,
     monitoringRoots,
     unmonitoredOutbounds,

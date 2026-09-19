@@ -1,4 +1,4 @@
-# SmartMail Follow-up Data Model v1
+# SmartMail Follow-up Data Model v2 (v3.8.0)
 
 Version 3.6.0 removes the legacy Contact/CRM aggregate from runtime behavior. Follow-up is modeled from operational facts instead of a `contact.followUp` flag.
 
@@ -44,6 +44,17 @@ Important fields:
 - `composeMode = forward | reply | new`
 
 Changing Follow-up content increments `contentVersion` and invalidates the previous confirmation.
+
+Each Follow-up also owns a `dispatch` envelope rather than execution fields being mixed into mailbox state:
+
+- `queued`: explicitly entered the unified Selection & Scheduling pool
+- `enabled`: selected for the current execution range
+- `scheduleAt`
+- `scheduleSource`
+- `scheduleReason`
+- `queuedAt` / `dequeuedAt` / `dequeuedReason`
+
+Editing Follow-up content after confirmation automatically clears `dispatch.queued`, so an obsolete approved version cannot remain executable.
 
 ### recipientGuards
 Safety/operational constraints only. This is not a Contact entity.
@@ -108,3 +119,12 @@ Duplicate checking remains independent of the removed Contact module:
 ## Mailbox observation cadence
 
 Mailbox observation is operator-triggered. The data model stores the latest observed facts and their timestamps; it does not assume continuous or periodic monitoring. Follow-up eligibility is recalculated against the latest persisted snapshot when the operator reads the mailbox.
+
+
+## Unified dispatch boundary (v3.8.0)
+
+`derivedTasks` never call the NetEase executor directly. A confirmed Follow-up must first be explicitly queued. `dispatch.js` adapts queued Follow-up tasks and reviewed initial tasks into one executor-facing shape.
+
+The unified queue is ephemeral at render time; authoritative Follow-up dispatch intent stays in `derivedTasks[*].dispatch`, while initial batch selection continues to use the batch task edit state.
+
+After a Follow-up draft is successfully created, SmartMail records a `draftRecord`, writes `draftPreparedAt` / `draftRecordId` to the derived task, and removes it from the dispatch pool. A scheduled draft may move the derived task to `scheduled`; an unscheduled prepared draft remains confirmed. Neither is considered sent until later mailbox reconciliation.

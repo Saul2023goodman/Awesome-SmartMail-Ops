@@ -81,9 +81,10 @@
   const sections = {
     workflow: {
       name: '邮件作业',
-      desc: '批量邮件作业',
+      desc: '准备与统一执行',
       items: [
-        { target: 'batch', step: '作', title: '打开批量工作台', detail: '阶段切换统一使用工作台顶部导航', primary: true }
+        { target: 'batch', step: '稿', title: '打开批量草稿', detail: '导入资料并完成邮件审阅', primary: true },
+        { target: 'dispatch', step: '排', title: '打开选择与排期', detail: '汇合初始邮件与 Follow-up，统一创建草稿', primary: false }
       ]
     },
     monitor: {
