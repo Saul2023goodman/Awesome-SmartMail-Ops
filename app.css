@@ -5603,3 +5603,90 @@
 #nmda-root .nmda-history-evidence { background:#f7f9fb; border-style:dashed; }
 #nmda-root .nmda-history-evidence .nmda-duplicate-preview-body pre { max-height:72px; }
 @media(max-width:760px){#nmda-root .nmda-import-dedupe-head{align-items:flex-start;flex-direction:column}#nmda-root .nmda-import-dedupe-head-actions{width:100%;justify-content:space-between}}
+
+/* v3.8.5 · Draft-history hits are a compact filtering gate, not a version comparison. */
+#nmda-root .nmda-draft-history-filter {
+  border:1px solid #d9e2ec;
+  border-radius:10px;
+  background:#fbfcfe;
+  overflow:hidden;
+}
+#nmda-root .nmda-draft-history-filter[hidden] { display:none !important; }
+#nmda-root .nmda-draft-history-filter-head {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px 8px;
+  border-bottom:1px solid #e8edf2;
+}
+#nmda-root .nmda-draft-history-filter-head > div { min-width:0; display:grid; gap:2px; }
+#nmda-root .nmda-draft-history-filter-head strong { font-size:12.5px; color:#26313d; }
+#nmda-root .nmda-draft-history-filter-head strong span { font-variant-numeric:tabular-nums; }
+#nmda-root .nmda-draft-history-filter-head small { font-size:10.5px; line-height:1.45; color:#66717e; }
+#nmda-root .nmda-draft-history-filter-head > span {
+  flex:0 0 auto;
+  border:1px solid #d7e1eb;
+  background:#f2f6fa;
+  color:#506171;
+  border-radius:999px;
+  padding:3px 8px;
+  font-size:10px;
+  font-weight:750;
+}
+#nmda-root .nmda-draft-history-filter-list { display:grid; }
+#nmda-root .nmda-draft-history-filter-row {
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:9px;
+  min-height:42px;
+  padding:7px 12px;
+  border-bottom:1px solid #edf1f4;
+  cursor:pointer;
+}
+#nmda-root .nmda-draft-history-filter-row:last-child { border-bottom:0; }
+#nmda-root .nmda-draft-history-filter-row:hover { background:#f7f9fb; }
+#nmda-root .nmda-draft-history-filter-row input { margin:0; accent-color:#516b82; }
+#nmda-root .nmda-draft-history-filter-row > span { min-width:0; display:grid; gap:2px; }
+#nmda-root .nmda-draft-history-filter-row strong {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11.5px;
+  color:#27313b;
+}
+#nmda-root .nmda-draft-history-filter-row small {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:10px;
+  color:#687482;
+}
+#nmda-root .nmda-draft-history-filter-row em {
+  font-style:normal;
+  font-size:9.5px;
+  font-weight:750;
+  color:#7a5b24;
+  background:#fff6df;
+  border:1px solid #f0dfaf;
+  border-radius:999px;
+  padding:2px 7px;
+  white-space:nowrap;
+}
+#nmda-root .nmda-draft-history-filter-actions {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:8px 12px;
+  border-top:1px solid #e8edf2;
+  background:#fff;
+}
+#nmda-root .nmda-draft-history-filter-actions > small { font-size:10.5px; line-height:1.45; color:#687482; }
+#nmda-root .nmda-draft-history-filter-actions .nmda-btn { min-height:30px; }
+@media(max-width:760px){
+  #nmda-root .nmda-draft-history-filter-actions{align-items:flex-start;flex-direction:column}
+  #nmda-root .nmda-draft-history-filter-row{grid-template-columns:auto minmax(0,1fr)}
+  #nmda-root .nmda-draft-history-filter-row em{grid-column:2;justify-self:start}
+}

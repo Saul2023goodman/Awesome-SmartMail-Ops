@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.4",
-  "description": "SmartMail Ops — import-time duplicate verification, content review, manual mailbox reads, Follow-up monitoring, and unified Selection & Scheduling.",
+  "version": "3.8.5",
+  "description": "SmartMail Ops — import duplicate verification with Draft filtering, content review, manual mailbox reads, Follow-up monitoring, and unified Selection & Scheduling.",
   "permissions": [
     "storage",
     "scripting",

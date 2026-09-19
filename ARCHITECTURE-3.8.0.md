@@ -63,3 +63,15 @@ Import duplicate verification now protects the creation of **new Initial Tasks**
 Mailbox Draft import is a separate semantic path: it adopts provider drafts that already exist. Tasks with `sourceKind = mailbox-draft` bypass new-mail dedupe to avoid self-matching and accidental collapsing of legitimate provider drafts. Mailbox freshness remains manual through the Import action `读取最新邮箱` or the Mail Monitoring read actions.
 
 For new Initial Tasks, Import requires at least one persisted complete manual mailbox snapshot before Mail Review can begin. If no snapshot exists, the operator must explicitly click `读取最新邮箱`; this does not reintroduce background monitoring. Mailbox-draft adoption bypasses this prerequisite together with duplicate checking.
+
+## v3.8.5 Draft history is filtering, not comparison
+
+Import-time duplicate handling now follows the business meaning of each evidence source:
+
+`current batch duplicate → version choice`
+
+`existing Draft only → compact filtering gate`
+
+`existing Sent → outbound-history gate / Follow-up routing warning`
+
+Draft-only hits never render imported body versus mailbox Draft body. They are shown as recipient-level Draft existence facts with a suggested filter-out action and an explicit keep exception. Sent history remains a stronger external communication fact and retains an explicit decision gate.
