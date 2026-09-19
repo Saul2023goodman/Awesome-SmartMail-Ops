@@ -99,8 +99,8 @@
           <div class="nmda-brand">
             <div class="nmda-brand-mark">N</div>
             <div>
-              <div class="nmda-title">网易邮箱外联工作台</div>
-              <div class="nmda-subtitle">批量外联草稿工作台</div>
+              <div class="nmda-title">SmartMail Ops</div>
+              <div class="nmda-subtitle">批量邮件作业</div>
             </div>
           </div>
           <div class="nmda-head-actions">
@@ -5731,6 +5731,19 @@
     }
   });
 
+  function applyDeepLink() {
+    const raw = String(location.hash || '').replace(/^#/, '');
+    const match = raw.match(/^(batch|contacts)(?:\/([123]))?$/);
+    if (!match) return;
+    const [, tab, step] = match;
+    setWorkbenchTab(tab);
+    if (tab === 'batch' && step) {
+      requestAnimationFrame(() => goToProcessStep(step));
+    }
+  }
+
+  window.addEventListener('hashchange', applyDeepLink);
   invalidateBatchView(true);
   initContacts();
+  applyDeepLink();
 })();

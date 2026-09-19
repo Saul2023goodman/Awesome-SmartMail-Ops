@@ -561,18 +561,25 @@ async function connectionStatus(sender) {
   };
 }
 
-async function openApp() {
+function normalizeAppTarget(target = '') {
+  const value = String(target || '').trim().replace(/^#+/, '');
+  return /^(batch(?:\/[123])?|contacts)$/.test(value) ? value : 'batch';
+}
+
+async function openApp(target = 'batch') {
+  const hash = normalizeAppTarget(target);
+  const targetUrl = `${APP_URL}#${hash}`;
   const tabs = await chrome.tabs.query({});
   const existing = tabs.find(tab => String(tab.url || '').split('#')[0].split('?')[0] === APP_URL);
   if (existing?.id) {
-    await chrome.tabs.update(existing.id, { active:true });
+    await chrome.tabs.update(existing.id, { url: targetUrl, active:true });
     if (existing.windowId !== undefined) await chrome.windows.update(existing.windowId,{focused:true}).catch(()=>{});
     return existing;
   }
-  return chrome.tabs.create({ url: APP_URL, active:true });
+  return chrome.tabs.create({ url: targetUrl, active:true });
 }
 
-chrome.action.onClicked.addListener(() => { openApp().catch(console.error); });
+chrome.action.onClicked.addListener(() => { openApp('batch').catch(console.error); });
 chrome.runtime.onInstalled.addListener(() => { globalThis.NMDAVault?.cleanup?.().catch(()=>{}); });
 
 function broadcastConnectionChange() {
@@ -588,7 +595,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tab = await resolveMailTab(sender, { create:true, focus:message.focus !== false });
       return { ok:!!tab?.id, tabId:tab?.id || null };
     }
-    if (message?.type === 'NMDA_OPEN_APP') { const tab=await openApp(); return {ok:true,tabId:tab?.id||null}; }
+    if (message?.type === 'NMDA_OPEN_APP') { const tab=await openApp(message.target); return {ok:true,tabId:tab?.id||null}; }
     if (message?.type === 'NMDA_BATCH_MONITOR') {
       const tab=await resolveMailTab(sender,{create:false,focus:false});
       if(!tab?.id)return {ok:false,reason:'mailbox-not-connected'};

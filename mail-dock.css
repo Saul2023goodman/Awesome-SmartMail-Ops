@@ -1,0 +1,129 @@
+#nmda-mail-dock-host,
+#nmda-mail-dock-host * { box-sizing: border-box; }
+
+#nmda-mail-dock-host {
+  --nmda-accent: #356ae6;
+  --nmda-border: rgba(24, 39, 75, .12);
+  --nmda-text: #172033;
+  --nmda-muted: #697386;
+  --nmda-bg: rgba(255,255,255,.98);
+  position: fixed;
+  top: 50%;
+  right: 10px;
+  z-index: 2147483000;
+  transform: translateY(-50%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--nmda-text);
+  pointer-events: none;
+}
+
+#nmda-mail-dock-hotzone {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 20px;
+  height: 132px;
+  transform: translateY(-50%);
+  pointer-events: auto;
+  cursor: default;
+}
+
+#nmda-mail-dock-rail {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 7px;
+  height: 74px;
+  transform: translateY(-50%);
+  border-radius: 8px 0 0 8px;
+  background: rgba(53,106,230,.72);
+  box-shadow: 0 0 0 1px rgba(53,106,230,.08), 0 6px 18px rgba(38,67,135,.18);
+  opacity: .76;
+  transition: width .16s ease, opacity .16s ease, background .16s ease;
+}
+
+#nmda-mail-dock-host:hover #nmda-mail-dock-rail,
+#nmda-mail-dock-host[data-open="true"] #nmda-mail-dock-rail {
+  width: 10px;
+  opacity: 1;
+  background: var(--nmda-accent);
+}
+
+#nmda-mail-dock-panel {
+  width: 332px;
+  max-height: min(620px, calc(100vh - 48px));
+  margin-right: 14px;
+  overflow: hidden;
+  border: 1px solid var(--nmda-border);
+  border-radius: 14px;
+  background: var(--nmda-bg);
+  box-shadow: 0 18px 52px rgba(22, 34, 58, .20), 0 2px 8px rgba(22,34,58,.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateX(calc(100% + 24px));
+  transition: transform .20s cubic-bezier(.2,.7,.2,1), opacity .16s ease;
+}
+
+#nmda-mail-dock-host[data-open="true"] #nmda-mail-dock-panel {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.nmda-dock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid rgba(24,39,75,.08);
+}
+
+.nmda-dock-brand { min-width: 0; }
+.nmda-dock-brand-line { display: flex; align-items: center; gap: 8px; }
+.nmda-dock-brand strong { font-size: 14px; line-height: 1.2; font-weight: 700; letter-spacing: .1px; }
+.nmda-dock-brand small { display: block; margin-top: 4px; font-size: 11px; color: var(--nmda-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nmda-dock-mark { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; background: #eef3ff; color: var(--nmda-accent); font-weight: 800; font-size: 12px; }
+.nmda-dock-state { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 999px; background: #effaf4; color: #24744a; font-size: 10px; white-space: nowrap; }
+.nmda-dock-state::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #2ab673; }
+.nmda-dock-state[data-state="offline"] { background: #f5f6f8; color: #7a8495; }
+.nmda-dock-state[data-state="offline"]::before { background: #aeb5c2; }
+
+.nmda-dock-head-actions { display: flex; align-items: center; gap: 4px; }
+.nmda-dock-icon {
+  width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: #637086;
+  display: grid; place-items: center; cursor: pointer; font-size: 14px;
+}
+.nmda-dock-icon:hover { background: #f3f6fb; color: #26344d; }
+.nmda-dock-icon[data-active="true"] { background: #edf3ff; color: var(--nmda-accent); }
+
+.nmda-dock-body { padding: 10px; }
+.nmda-dock-section-title { margin: 4px 4px 8px; font-size: 10px; font-weight: 700; color: #8a94a6; letter-spacing: .08em; text-transform: uppercase; }
+
+.nmda-dock-list { display: grid; gap: 5px; }
+.nmda-dock-row {
+  width: 100%; min-height: 48px; border: 1px solid transparent; border-radius: 10px; background: transparent;
+  display: grid; grid-template-columns: 34px minmax(0,1fr) 16px; align-items: center; gap: 9px; padding: 7px 9px;
+  color: var(--nmda-text); text-align: left; cursor: pointer;
+}
+.nmda-dock-row:hover { background: #f6f8fc; border-color: rgba(53,106,230,.09); }
+.nmda-dock-row:active { background: #edf3ff; }
+.nmda-dock-row-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; background: #f1f4f9; color: #4b5a72; font-size: 14px; font-weight: 700; }
+.nmda-dock-row[data-primary="true"] .nmda-dock-row-icon { background: #edf3ff; color: var(--nmda-accent); }
+.nmda-dock-row-copy { min-width: 0; }
+.nmda-dock-row-copy strong { display: block; font-size: 12px; font-weight: 650; line-height: 1.35; }
+.nmda-dock-row-copy small { display: block; margin-top: 2px; color: var(--nmda-muted); font-size: 10px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nmda-dock-chevron { color: #9ba5b5; font-size: 16px; }
+
+.nmda-dock-divider { height: 1px; background: rgba(24,39,75,.08); margin: 9px 2px; }
+.nmda-dock-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 13px 11px; border-top: 1px solid rgba(24,39,75,.08); color: #8993a3; font-size: 10px; }
+.nmda-dock-footer kbd { font: inherit; color: #697386; border: 1px solid #d9dee8; background: #f7f8fa; padding: 2px 5px; border-radius: 5px; }
+
+@media (max-width: 920px) {
+  #nmda-mail-dock-panel { width: min(318px, calc(100vw - 32px)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #nmda-mail-dock-panel, #nmda-mail-dock-rail { transition: none; }
+}
