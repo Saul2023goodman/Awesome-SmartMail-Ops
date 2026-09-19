@@ -8,7 +8,6 @@
   const DEFAULT_TIMEOUT = 10000;
   const Importer = globalThis.NMDAImporter;
   const MailRecognizer = globalThis.NMDAMailRecognizer;
-  const Contacts = globalThis.NMDAContacts;
   const Scheduler = globalThis.NMDAScheduler;
   const Roster = globalThis.NMDARoster;
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));

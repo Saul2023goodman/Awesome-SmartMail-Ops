@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.5.17",
-  "description": "SmartMail Ops — fixes disappearing review toolbar by keeping the review status/search bar persistent during detail editing.",
+  "version": "3.6.0",
+  "description": "SmartMail Ops — replaces the legacy Contacts CRM with an operation-centric Follow-up domain model while preserving task and history duplicate checks.",
   "permissions": [
     "storage",
     "scripting",
