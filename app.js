@@ -2984,7 +2984,11 @@
     stashCurrentReviewDraft();
     rebuildTasks();
     const group=(batch.duplicateAudit?.groups||[]).find(item=>item.id===groupId);
-    if(!group){returnToReviewOverviewAfterDuplicateDecision('重复信息已变化，已重新核验');return;}
+    if(!group){
+      returnToReviewOverviewAfterDuplicateDecision('重复信息已变化，已重新核验');
+      await continueAfterReviewResolution('重复信息已重新核验');
+      return;
+    }
     const retained=(group.tasks||[]).filter(item=>selectedSet.has(item.editKey));
     if(!retained.length)return;
     for(const candidate of group.tasks||[]){
@@ -3000,6 +3004,7 @@
     const excludedCount=Math.max(0,(group.tasks?.length||0)-retained.length);
     const decisionSummary=`重复组已处理：保留 ${retained.length} 封${excludedCount?`，排除 ${excludedCount} 封`:''}`;
     returnToReviewOverviewAfterDuplicateDecision(decisionSummary);
+    await continueAfterReviewResolution(decisionSummary);
   }
 
   async function keepAllDuplicateCandidates() {
@@ -3008,7 +3013,11 @@
     stashCurrentReviewDraft();
     rebuildTasks();
     const group=(batch.duplicateAudit?.groups||[]).find(item=>item.id===groupId);
-    if(!group){returnToReviewOverviewAfterDuplicateDecision('重复信息已变化，已重新核验');return;}
+    if(!group){
+      returnToReviewOverviewAfterDuplicateDecision('重复信息已变化，已重新核验');
+      await continueAfterReviewResolution('重复信息已重新核验');
+      return;
+    }
     for(const candidate of group.tasks||[]){
       const prev=batch.taskEdits.get(candidate.editKey)||{};
       setTaskEdit(candidate,{duplicateConfirmedGroups:[...new Set([...(prev.duplicateConfirmedGroups||[]),groupId])]});
@@ -3019,6 +3028,7 @@
     renderImportTaskPreview();renderImportHandoff();renderRosterAudit();
     const decisionSummary=`已明确保留该组 ${group.tasks?.length||0} 封邮件（有意重复）`;
     returnToReviewOverviewAfterDuplicateDecision(decisionSummary);
+    await continueAfterReviewResolution(decisionSummary);
   }
 
   function renderReviewPageOverview() {
@@ -3035,8 +3045,8 @@
     const pendingCount=actionCount+decisionCount;
     if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='邮件审阅';
     if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=pendingCount
-      ? '核对缺失字段与重复版本；完成后“选择与排期”即可执行。'
-      : '邮件内容已通过；可继续抽查，阶段切换使用顶部导航。';
+      ? '核对缺失字段与重复版本；最后一个问题处理完成后会进入“选择与排期”。'
+      : '邮件内容已通过；可继续抽查，或直接进入“选择与排期”。';
     if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
     const reviewCounts={all:tasks.length,auto:autoPassed,pending:actionCount,decision:decisionCount,confirmed:checked};
     ui.querySelectorAll('#nmda-review-filter [data-review-filter]').forEach(button=>{
@@ -3049,9 +3059,9 @@
     const nextPendingBtn=$('nmda-review-next-pending');
     if(nextPendingBtn){
       const pendingMails=reviewTasks();
-      nextPendingBtn.hidden=!pendingMails.length;
-      nextPendingBtn.dataset.mode='next';
-      nextPendingBtn.textContent='下一个待审阅';
+      nextPendingBtn.hidden=!tasks.length;
+      nextPendingBtn.dataset.mode=pendingMails.length?'next':'dispatch';
+      nextPendingBtn.textContent=pendingMails.length?'下一个待审阅':'进入选择与排期';
     }
     if(reviewFilterEl)reviewFilterEl.hidden=false;
     ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter===batch.reviewFilter));
@@ -3143,7 +3153,13 @@
       renderReviewPageOverview();
       return false;
     }
-    return enterSelectionAndSchedule(reason);
+    const ready=await enterSelectionAndSchedule(reason);
+    if(!ready)return false;
+    hideReviewWorkspaceWithoutStash();
+    setWorkbenchTab('dispatch');
+    history.replaceState(null,'','#dispatch');
+    scheduleBatchRender({aux:false,force:true});
+    return true;
   }
 
   function unresolvedDuplicateGroupCount(){
@@ -3728,11 +3744,17 @@
       if(!goNext){
         closeImportTaskEditor();
         setImportStatus('缺失信息已补齐并通过重新校验。','ok');
+        await continueAfterReviewResolution('邮件审阅已完成');
         return;
       }
       const next=reviewTasks()[0]||null;
       if(next)openImportTaskEditor(next);
-      else{closeImportTaskEditor();renderReviewPageOverview();setImportStatus('缺失信息已补齐；当前没有其他邮件待处理。','ok');}
+      else{
+        closeImportTaskEditor();
+        renderReviewPageOverview();
+        setImportStatus('缺失信息已补齐；当前没有其他邮件待处理。','ok');
+        await continueAfterReviewResolution('邮件审阅已完成');
+      }
       return;
     }
 
@@ -3751,7 +3773,8 @@
     renderReviewPageOverview();
     if(!goNext){
       closeImportTaskEditor();
-      setImportStatus('已确认本封；返回邮件状态板继续抽查或处理其他异常。','ok');
+      setImportStatus('已确认本封；正在核对是否可以进入选择与排期。','ok');
+      await continueAfterReviewResolution('邮件审阅已完成');
       return;
     }
     const next=reviewTasks()[0]||null;
@@ -3759,7 +3782,8 @@
     else{
       closeImportTaskEditor();
       renderReviewPageOverview();
-      setImportStatus('邮件审阅完成；如需抽查仍可点击任意邮件。','ok');
+      setImportStatus('邮件审阅完成；正在进入选择与排期。','ok');
+      await continueAfterReviewResolution('邮件审阅已完成');
     }
   }
 
@@ -3773,7 +3797,7 @@
     setTaskEdit(task,{importExcluded:true});
     rebuildTasks();
     setImportStatus(`已排除「${label}」；需要时可在邮件审阅中恢复。`,'ok');
-    const next=reviewVisibleTasks()[0]||null;
+    const next=reviewTasks()[0]||null;
     if(next)openImportTaskEditor(next);else await continueAfterReviewResolution('待处理邮件已完成');
   }
 
