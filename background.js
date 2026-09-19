@@ -537,68 +537,6 @@ importScripts('file-vault.js');
 
 const APP_URL = chrome.runtime.getURL('app.html');
 
-const MONITOR_ALARM = 'nmda-followup-monitor';
-const MONITOR_PERIOD_MINUTES = 5;
-let monitorSyncPromise = null;
-
-async function syncFollowUpMonitor({ source = 'background' } = {}) {
-  if (monitorSyncPromise) return monitorSyncPromise;
-  monitorSyncPromise = (async () => {
-    const Operations = globalThis.NMDAOperations;
-    if (!Operations) return { ok:false, reason:'operations-unavailable' };
-    const tabs = await listMailTabs();
-    const tab = tabs[0] || null;
-    if (!tab?.id) return { ok:false, reason:'mailbox-not-open' };
-    try { await waitForExecutor(tab.id, 1800); } catch (_) {}
-    const account = await accountInfo(tab.id);
-    if (!account?.ok || !account.uid) return { ok:false, reason:'mailbox-not-authenticated' };
-    const snapshot = await readMailboxState(tab.id, 'quick');
-    if (!snapshot?.ok) return { ok:false, reason:snapshot?.reason || 'mailbox-read-failed', phase:snapshot?.phase || '' };
-    const loaded = await Operations.load(account.uid);
-    const applied = Operations.ingestMailboxSnapshot(
-      loaded.store,
-      snapshot.sent?.messages || [],
-      snapshot.drafts?.messages || [],
-      snapshot.inbox?.messages || [],
-      {
-        mode:'quick',
-        complete:false,
-        sentCoverage:snapshot.coverage?.sent,
-        draftCoverage:snapshot.coverage?.drafts,
-        inboxCoverage:snapshot.coverage?.inbox
-      }
-    );
-    await Operations.save(account.uid, applied.store);
-    const result = {
-      ok:true,
-      source,
-      account:account.uid,
-      syncedAt:new Date().toISOString(),
-      outboundRead:applied.outboundRead || 0,
-      draftsRead:applied.draftsRead || 0,
-      inboxRead:applied.inboxRead || 0,
-      linkedOutbounds:applied.linkedOutbounds || 0,
-      repliesAssociated:applied.repliesAssociated || 0,
-      ambiguousReplies:applied.ambiguousReplies || 0,
-      automaticReplies:applied.automaticReplies || 0,
-      humanReplies:applied.humanReplies || 0
-    };
-    chrome.runtime.sendMessage({ type:'NMDA_MONITOR_SYNCED', ...result }).catch(()=>{});
-    return result;
-  })();
-  try { return await monitorSyncPromise; }
-  finally { monitorSyncPromise = null; }
-}
-
-function ensureMonitorAlarm() {
-  try { chrome.alarms.create(MONITOR_ALARM, { delayInMinutes:1, periodInMinutes:MONITOR_PERIOD_MINUTES }); } catch (_) {}
-}
-
-chrome.runtime.onInstalled.addListener(() => ensureMonitorAlarm());
-chrome.runtime.onStartup.addListener(() => ensureMonitorAlarm());
-chrome.alarms.onAlarm.addListener(alarm => { if (alarm?.name === MONITOR_ALARM) void syncFollowUpMonitor({source:'alarm'}); });
-ensureMonitorAlarm();
-
 const MAIL_URL = 'https://mail.163.com/';
 
 async function listMailTabs() {
@@ -734,7 +672,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_READ_SENT') return readMailbox(tabId,3,message.limit ?? 200);
     if (message?.type === 'NMDA_READ_DRAFTS') return readMailbox(tabId,2,message.limit ?? 200);
     if (message?.type === 'NMDA_READ_INBOX') return readMailbox(tabId,1,message.limit ?? 200);
-    if (message?.type === 'NMDA_SYNC_FOLLOWUP_MONITOR') return syncFollowUpMonitor({source:'manual'});
     if (message?.type === 'NMDA_IMPORT_DRAFTS') return readDraftImport(tabId,message.limit ?? 300);
     return {ok:false,reason:'unknown-message'};
   })().then(sendResponse).catch(error => sendResponse({ok:false,reason:error?.message||String(error)}));

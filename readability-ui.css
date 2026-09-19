@@ -1,4 +1,4 @@
-/* SmartMail Ops v3.7.1 — readability-first UI layer
+/* SmartMail Ops v3.7.2 — readability-first UI layer
    Loaded last so the operational UI remains readable without changing business behavior. */
 
 #nmda-root.nmda-standalone #nmda-panel {
@@ -77,7 +77,6 @@
   box-shadow:0 2px 8px rgba(15,23,42,.045) !important;
 }
 #nmda-root .nmda-monitor-toolbar-copy { gap:13px !important; }
-#nmda-root .nmda-monitor-live-dot { width:11px !important; height:11px !important; box-shadow:0 0 0 5px #dcfce7 !important; }
 #nmda-root .nmda-monitor-toolbar-copy strong { font-size:15px !important; line-height:1.25 !important; color:#17202b !important; }
 #nmda-root .nmda-monitor-toolbar-copy small { margin-top:4px !important; font-size:12px !important; line-height:1.35 !important; color:#687586 !important; }
 #nmda-root .nmda-monitor-toolbar > div:last-child { display:flex; gap:8px; align-items:center; flex:0 0 auto; }

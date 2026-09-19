@@ -1,13 +1,12 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.7.1",
-  "description": "SmartMail Ops — batch outreach plus mailbox monitoring and deterministic Follow-up workflow.",
+  "version": "3.7.2",
+  "description": "SmartMail Ops — batch outreach plus on-demand mailbox reading and deterministic Follow-up workflow.",
   "permissions": [
     "storage",
     "scripting",
-    "tabs",
-    "alarms"
+    "tabs"
   ],
   "host_permissions": [
     "https://mail.163.com/*"

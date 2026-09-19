@@ -566,10 +566,10 @@
 
           <section class="nmda-tabpane nmda-page nmda-monitor-page" data-pane="monitor" hidden>
             <div class="nmda-monitor-toolbar">
-              <div class="nmda-monitor-toolbar-copy"><span class="nmda-monitor-live-dot"></span><div><strong>邮箱事实监测</strong><small id="nmda-monitor-sync-copy">连接网易邮箱后自动监测；也可以立即同步。</small></div></div>
+              <div class="nmda-monitor-toolbar-copy"><div><strong>邮件监测</strong><small id="nmda-monitor-sync-copy">按需读取邮箱；未点击读取时不会访问邮箱数据。</small></div></div>
               <div class="nmda-row nmda-wrap">
-                <button class="nmda-btn nmda-btn-small" id="nmda-monitor-sync" type="button">立即同步</button>
-                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-full-sync" type="button">完整重建</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-monitor-sync" type="button">读取邮箱</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-full-sync" type="button">完整读取</button>
               </div>
             </div>
 
@@ -696,9 +696,6 @@
   openMailEl?.addEventListener('click',async()=>{openMailEl.disabled=true;try{await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL',focus:true});}finally{openMailEl.disabled=false;setTimeout(refreshMailboxConnection,500);}});
   chrome.runtime.onMessage.addListener(message=>{
     if(message?.type==='NMDA_CONNECTION_CHANGED') refreshMailboxConnection();
-    if(message?.type==='NMDA_MONITOR_SYNCED' && operationState?.loaded){
-      ensureOperationStore(true).then(()=>{if(currentWorkbenchTab()==='monitor')renderMonitoring();invalidateBatchView(true);}).catch(()=>{});
-    }
     if(message?.type==='NMDA_EXECUTION_PROGRESS_BROADCAST'){
       const handler=executionProgressHandlers.get(String(message.executionId||'')); if(handler) handler(message);
     }
@@ -712,7 +709,7 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshMailboxConnection();});
   refreshMailboxConnection();
 
-  const operationState = { account: '', store: Operations ? Operations.createStore('default') : null, loaded: false, quickSyncedSession: 0 };
+  const operationState = { account: '', store: Operations ? Operations.createStore('default') : null, loaded: false };
 
   const REVIEW_RENDER_CHUNK = 120;
 
@@ -846,7 +843,7 @@
     if(els.syncCopy){
       const last=sync.lastQuickAt||sync.lastFullAt;
       const coverage=sync.inbox?.read!==undefined?` · 收件 ${sync.inbox.read}/${sync.inbox.total ?? sync.inbox.read}`:'';
-      els.syncCopy.textContent=last?`上次同步 ${Operations.formatDisplayTime(last)}${coverage} · 后台每 5 分钟检查一次`:'连接网易邮箱后自动监测；也可以立即同步。';
+      els.syncCopy.textContent=last?`上次人工读取 ${Operations.formatDisplayTime(last)}${coverage} · 此后未自动访问邮箱`:'尚未读取邮箱 · 点击“读取邮箱”获取当前已发送、草稿和收件箱事实。';
     }
     const query=String(monitorState.search||'').toLocaleLowerCase('zh-CN').trim();
     const visible=enriched.filter(item=>{
@@ -857,7 +854,7 @@
     });
     if(els.list){
       if(!visible.length){
-        els.list.innerHTML=`<div class="nmda-monitor-empty"><div><strong>${groups.length?'当前筛选没有邮件':'还没有纳入监测的邮件'}</strong><small>${groups.length?'切换筛选条件，或清空搜索。':'同步邮箱后，可在下方“尚未纳入监测”中选择已发送邮件；SmartMail 创建并发送的邮件也会在邮箱对账后自动进入监测。'}</small></div></div>`;
+        els.list.innerHTML=`<div class="nmda-monitor-empty"><div><strong>${groups.length?'当前筛选没有邮件':'还没有纳入监测的邮件'}</strong><small>${groups.length?'切换筛选条件，或清空搜索。':'先点击“读取邮箱”；随后可在下方“尚未纳入监测”中选择已发送邮件。之后只有再次人工读取时才刷新邮箱事实。'}</small></div></div>`;
       }else{
         els.list.innerHTML=visible.map(group=>{
           const last=group.lastOutbound, st=group.viewState, active=st.activeTask;
@@ -888,9 +885,8 @@
     monitorState.lastRenderAt=Date.now();
   }
 
-  async function loadMonitoring({sync=false}={}) {
-    await ensureOperationStore(sync);
-    if(sync)await syncMonitoringMailbox('quick');
+  async function loadMonitoring() {
+    await ensureOperationStore();
     renderMonitoring();
   }
 
@@ -899,15 +895,15 @@
     monitorState.syncing=true;
     const quick=$('nmda-monitor-sync'), full=$('nmda-monitor-full-sync');
     if(quick)quick.disabled=true;if(full)full.disabled=true;
-    setMonitorNotice(mode==='full'?'正在完整读取已发送、草稿和收件箱…':'正在同步已发送、草稿和收件箱…');
+    setMonitorNotice(mode==='full'?'正在完整读取已发送、草稿和收件箱…':'正在读取当前已发送、草稿和收件箱…');
     try{
       const result=await syncMailboxOperations(mode);
       const extra=result?`已发送 ${result.outboundRead||0} · 收件 ${result.inboxRead||0} · 关联回复 ${result.repliesAssociated||0}`:'同步完成';
-      setMonitorNotice(`同步完成：${extra}`,'ok');
+      setMonitorNotice(`读取完成：${extra}`,'ok');
       renderMonitoring();
       return result;
     }catch(error){
-      setMonitorNotice(`同步失败：${error?.message||String(error)}`,'error');
+      setMonitorNotice(`读取失败：${error?.message||String(error)}`,'error');
       throw error;
     }finally{
       monitorState.syncing=false;if(quick)quick.disabled=false;if(full)full.disabled=false;
@@ -1036,7 +1032,7 @@
 
   function bindMonitoringUI() {
     $('nmda-monitor-sync')?.addEventListener('click',()=>void syncMonitoringMailbox('quick'));
-    $('nmda-monitor-full-sync')?.addEventListener('click',()=>{if(confirm('完整重建会读取全部已发送、草稿和收件箱，继续吗？'))void syncMonitoringMailbox('full');});
+    $('nmda-monitor-full-sync')?.addEventListener('click',()=>{if(confirm('完整读取会重新读取全部已发送、草稿和收件箱，继续吗？'))void syncMonitoringMailbox('full');});
     $('nmda-monitor-save-policy')?.addEventListener('click',async()=>{
       await ensureOperationStore();
       const result=Operations.setFollowUpPolicy(operationState.store,'',{delayDays:Number($('nmda-monitor-delay').value||0),maxAttempts:Number($('nmda-monitor-max').value||0),composeMode:$('nmda-monitor-compose-mode').value||'forward'});
@@ -3800,15 +3796,9 @@
   async function ensureCurrentBatchOperations(sessionToken = batch.sessionId) {
     if (!Operations || !isCurrentBatchSession(sessionToken)) return false;
     try {
+      // Only load the last persisted mailbox facts here. Mailbox access is explicitly user-triggered
+      // from the Mail Monitoring module via “读取邮箱 / 完整读取”.
       await ensureOperationStore();
-      if (operationState.quickSyncedSession !== Number(sessionToken)) {
-        try {
-          await syncMailboxOperations('quick');
-          operationState.quickSyncedSession = Number(sessionToken);
-        } catch (syncError) {
-          console.warn(`[${APP}] mailbox quick sync skipped`, syncError);
-        }
-      }
       return isCurrentBatchSession(sessionToken);
     } catch (error) {
       console.warn(`[${APP}] operations initialization failed`, error);

@@ -18,3 +18,11 @@
 - Added native NetEase Forward / Reply context execution plus New message mode.
 - Follow-up drafts are reconciled against Sent records so subsequent attempts restart from the latest outbound.
 - Dedupe remains independent of the removed Contact runtime model.
+
+
+## v3.7.2 — On-demand Mail Monitoring
+
+- Removed the 5-minute background monitor and the `alarms` permission.
+- Mailbox reads now happen only after an explicit operator action: “读取邮箱” or “完整读取”.
+- Entering batch/review/dispatch flows no longer performs an implicit quick mailbox read.
+- Follow-up eligibility uses the most recently persisted mailbox facts until the operator reads the mailbox again.

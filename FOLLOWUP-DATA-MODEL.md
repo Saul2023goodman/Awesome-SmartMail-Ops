@@ -103,3 +103,8 @@ Duplicate checking remains independent of the removed Contact module:
 - probable name + institution duplicates: `roster.js`
 - historical mailbox hits: `outboundRecords` / `draftRecords`
 
+
+
+## Mailbox observation cadence
+
+Mailbox observation is operator-triggered. The data model stores the latest observed facts and their timestamps; it does not assume continuous or periodic monitoring. Follow-up eligibility is recalculated against the latest persisted snapshot when the operator reads the mailbox.
