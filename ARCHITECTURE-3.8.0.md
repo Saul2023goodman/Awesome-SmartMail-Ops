@@ -90,3 +90,12 @@ Unexecuted Follow-up tasks created by the old template-auto-confirm path are mig
 ## v3.8.15 Review routing fix
 
 The Review workspace resolves every visible card through the unified Review task registry (`reviewTaskByKey`) rather than the Initial-only `batch.tasks` collection. Follow-up cards therefore open the same first-class editor, remain navigable under search/filter changes, and refresh after content edits. Initial-only subject propagation helpers are explicitly disabled for Follow-up tasks.
+
+
+## v3.8.18 Human-managed conversation boundary
+
+A human reply is a terminal automation boundary for the same deterministic conversation, not merely a blocker relative to the most recent outbound. Conversation identity is derived without NLP from the exact normalized recipient set plus the normalized subject thread key (Re/Fw prefixes removed).
+
+`human reply -> conversation becomes human-managed -> later operator Sent is recorded only -> no Follow-up timer restart`
+
+Mail Monitoring collapses duplicate mailbox roots that belong to the same human-managed conversation into one operational row. A later message with a genuinely different normalized subject remains a separate outreach root. Automatic replies do not close automation; ambiguous replies remain reversible blockers. Any queued Follow-up that becomes human-blocked is removed from Dispatch.

@@ -46,3 +46,14 @@ Follow-up Pass 是授权边界：Pass 时确认当前 `contentVersion`，写入 
 - 执行失败停止，不盲重试。
 - Draft success ≠ Sent；Sent 由邮箱事实确认。
 - 旧版“模板生成后自动 confirmed + queued”的未执行任务升级后会退回 `prepared / 待审阅`。旧版明确人工确认过的 Follow-up 保留其人工授权语义。
+
+
+## v3.8.18 真人回复后的人工沟通
+
+真人回复现在是 conversation 级别的自动化终止条件。conversation 使用确定性键：标准化后的完整收件人集合 + 去除 Re/Fw 等前缀后的主题。
+
+- 同一 conversation 一旦出现 `human` reply，之后 operator 手工发送的 Sent 继续被读取并记录，但不会创建新的自动 Follow-up root，也不会重启 delay 计时。
+- 邮件监测会把同一已回复 conversation 下历史上被误拆成多个 mailbox root 的记录折叠为一行，最近人工 Sent 显示为“人工沟通”。
+- 已经生成但尚未执行的 Follow-up 会被阻断；若已进入 Dispatch，会自动退池。
+- `automatic` reply 不终止 Follow-up；`ambiguous` 仍保持可人工改判的阻断。
+- 新的规范化主题仍视为新的 outreach，不继承旧 conversation 的真人回复终止状态。

@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const SCHEMA_VERSION = 6;
+  const SCHEMA_VERSION = 7;
   const STORAGE_PREFIX = 'nmda.operations.v1:';
   const FOLLOWUP_STATES = ['due', 'prepared', 'confirmed', 'scheduled', 'sent', 'blocked', 'cancelled'];
   const REPLY_KINDS = ['human', 'automatic', 'ambiguous', 'bounce', 'system'];
@@ -106,6 +106,34 @@
 
   function recipientKey(recipients = []) {
     return [...new Set((recipients || []).map(item => normalizeEmail(item?.email || item?.address)).filter(Boolean))].sort().join(';');
+  }
+
+  function conversationKeyForOutbound(record = {}) {
+    const recipients = recipientKey(record.recipients || []);
+    const subject = subjectThreadKey(record.subject || '');
+    return recipients && subject ? `${recipients}|${subject}` : '';
+  }
+
+  function conversationContextFromStore(store, rootTaskId) {
+    const ownOutbounds = Object.values(store?.outboundRecords || {}).filter(record => record?.rootTaskId === String(rootTaskId) && record?.status === 'sent');
+    const keys = new Set(ownOutbounds.map(conversationKeyForOutbound).filter(Boolean));
+    const rootIds = new Set([String(rootTaskId)]);
+    if (keys.size) {
+      for (const outbound of Object.values(store?.outboundRecords || {})) {
+        if (!outbound?.rootTaskId || outbound.status !== 'sent') continue;
+        const key = conversationKeyForOutbound(outbound);
+        if (key && keys.has(key)) rootIds.add(String(outbound.rootTaskId));
+      }
+    }
+    const observations = Object.values(store?.replyObservations || {})
+      .filter(obs => obs?.rootTaskId && rootIds.has(String(obs.rootTaskId)))
+      .sort((a, b) => timeMs(a.receivedAt) - timeMs(b.receivedAt));
+    const human = [...observations].reverse().find(obs => obs.kind === 'human') || null;
+    return { keys: [...keys], rootIds: [...rootIds], observations, human };
+  }
+
+  function conversationContextForRoot(storeInput, rootTaskId) {
+    return conversationContextFromStore(normalizeStore(storeInput), rootTaskId);
   }
 
   function truthyFlag(flags, patterns = []) {
@@ -554,7 +582,8 @@
     const linked = reconcileOutboundsToDrafts(next);
     const monitored = ensureMonitoringRoots(linked.store);
     const replies = reconcileInboundReplies(monitored.store);
-    const finalStore = replies.store;
+    const refreshed = refreshDerivedTaskBlocks(replies.store);
+    const finalStore = refreshed.store;
     finalStore.mailboxSync = {
       ...finalStore.mailboxSync,
       lastMode: full ? 'full' : 'quick',
@@ -577,6 +606,8 @@
       ambiguousReplies: replies.ambiguous,
       automaticReplies: replies.automatic,
       humanReplies: replies.human,
+      followUpsBlocked: refreshed.blockedTasks,
+      followUpsDequeued: refreshed.dequeuedTasks,
       failedMessages,
       draftsWithoutRecipient,
       inboundWithoutSender
@@ -839,7 +870,8 @@
       observedAt: nowIso()
     };
     next.updatedAt = nowIso();
-    return { store: next, observation: next.replyObservations[id] };
+    const refreshed = refreshDerivedTaskBlocks(next);
+    return { store: refreshed.store, observation: refreshed.store.replyObservations[id] };
   }
 
   function outboundForRoot(storeInput, rootTaskId) {
@@ -858,19 +890,27 @@
   function refreshDerivedTaskBlocks(storeInput) {
     const store = normalizeStore(storeInput);
     const next = clone(store);
-    let blockedTasks = 0, restoredTasks = 0;
+    let blockedTasks = 0, restoredTasks = 0, dequeuedTasks = 0;
     for (const task of Object.values(next.derivedTasks)) {
       if (!task || task.kind !== 'follow_up' || task.state === 'sent' || task.state === 'cancelled') continue;
-      const parent = next.outboundRecords[task.parentOutboundId] || outboundForRoot(next, task.rootTaskId).find(item => Number(item.sequence || 0) === Number(task.sequence || 0) - 1) || null;
+      const rootOutbounds = Object.values(next.outboundRecords).filter(record => record?.rootTaskId === String(task.rootTaskId) && record?.status === 'sent').sort((a, b) => timeMs(a.sentAt) - timeMs(b.sentAt));
+      const parent = next.outboundRecords[task.parentOutboundId] || rootOutbounds.find(item => Number(item.sequence || 0) === Number(task.sequence || 0) - 1) || null;
       const after = parent?.sentAt || '';
-      const guard = guardForRecipients(next, (task.recipients || []).map(item => item.email).join(';'));
-      const replies = observationsAfter(next, task.rootTaskId, after);
-      const blockingObservation = replies.find(item => item.kind === 'human' || item.kind === 'ambiguous') || null;
+      const recipientEmails = (task.recipients || []).map(item => normalizeEmail(item?.email || item?.address)).filter(Boolean);
+      const guardMatches = recipientEmails.map(email => next.recipientGuards[email]).filter(guard => guard && guard.mode !== 'normal');
+      const guard = { blocked: guardMatches.length > 0, modes: [...new Set(guardMatches.map(item => item.mode))], reasons: guardMatches.map(item => `${item.email}：${item.mode === 'do-not-contact' ? '不再联系' : '暂停'}`) };
+      const conversation = conversationContextFromStore(next, task.rootTaskId);
+      const human = conversation.human;
+      const threshold = timeMs(after);
+      const replies = Object.values(next.replyObservations).filter(obs => obs?.rootTaskId === String(task.rootTaskId) && timeMs(obs.receivedAt) >= threshold).sort((a, b) => timeMs(a.receivedAt) - timeMs(b.receivedAt));
+      const ambiguous = replies.find(item => item.kind === 'ambiguous') || null;
       const blocker = guard.blocked
         ? { type: 'recipient-guard', modes: guard.modes, reasons: guard.reasons }
-        : blockingObservation
-          ? { type: 'reply', observationId: blockingObservation.id, kind: blockingObservation.kind, subject: blockingObservation.subject || '' }
-          : null;
+        : human
+          ? { type: 'human-conversation', observationId: human.id, kind: 'human', subject: human.subject || '', receivedAt: human.receivedAt || '' }
+          : ambiguous
+            ? { type: 'reply', observationId: ambiguous.id, kind: 'ambiguous', subject: ambiguous.subject || '' }
+            : null;
       if (blocker) {
         if (task.state !== 'blocked') {
           task.blockedFromState = task.state;
@@ -878,8 +918,17 @@
           blockedTasks++;
         }
         task.blocker = blocker;
+        if (human && task.dispatch?.queued === true) {
+          task.dispatch.queued = false;
+          task.dispatch.dequeuedAt = nowIso();
+          task.dispatch.dequeuedReason = 'human-reply';
+          task.dispatch.scheduleSource = '';
+          task.dispatch.scheduleReason = 'human-managed-conversation';
+          task.dispatch.queuedAt = '';
+          dequeuedTasks++;
+        }
         task.updatedAt = nowIso();
-      } else if (task.state === 'blocked' && task.blocker && ['reply', 'recipient-guard'].includes(task.blocker.type)) {
+      } else if (task.state === 'blocked' && task.blocker && ['reply', 'human-conversation', 'recipient-guard'].includes(task.blocker.type)) {
         task.state = task.blockedFromState && task.blockedFromState !== 'blocked' ? task.blockedFromState : (task.body || task.subject ? 'prepared' : 'due');
         task.blockedFromState = '';
         task.blocker = null;
@@ -888,7 +937,7 @@
       }
     }
     next.updatedAt = nowIso();
-    return { store: next, blockedTasks, restoredTasks };
+    return { store: next, blockedTasks, restoredTasks, dequeuedTasks };
   }
 
   function existingFollowUp(storeInput, rootTaskId, sequence) {
@@ -906,12 +955,13 @@
     if (!outbound.length) return { eligible: false, hardBlocked: true, reason: 'no-sent-outbound', policy };
     const lastOutbound = outbound[outbound.length - 1];
     const sequence = Math.max(1, Number(lastOutbound.sequence || 0) + 1);
+    const conversation = conversationContextForRoot(store, rootTaskId);
+    const human = conversation.human;
+    if (human) return { eligible: false, hardBlocked: true, reason: 'human-managed-conversation', policy, lastOutbound, sequence, blockingObservation: human, conversationRootIds: conversation.rootIds };
     if (Number(lastOutbound.sequence || 0) >= policy.maxAttempts) return { eligible: false, hardBlocked: true, reason: 'max-attempts-reached', policy, lastOutbound, sequence };
     const guard = guardForRecipients(store, (lastOutbound.recipients || []).map(item => item.email).join(';'));
     if (guard.blocked) return { eligible: false, hardBlocked: true, reason: 'recipient-guard', policy, lastOutbound, sequence, guard };
     const replies = observationsAfter(store, rootTaskId, lastOutbound.sentAt);
-    const human = replies.find(item => item.kind === 'human');
-    if (human) return { eligible: false, hardBlocked: true, reason: 'human-reply', policy, lastOutbound, sequence, blockingObservation: human };
     const ambiguous = replies.find(item => item.kind === 'ambiguous');
     if (ambiguous) return { eligible: false, hardBlocked: true, reason: 'ambiguous-reply', policy, lastOutbound, sequence, blockingObservation: ambiguous };
     const existing = existingFollowUp(store, rootTaskId, sequence);
@@ -1093,7 +1143,7 @@
   function queuedDerivedTasks(storeInput) {
     const store = normalizeStore(storeInput);
     return Object.values(store.derivedTasks)
-      .filter(task => task?.kind === 'follow_up' && task?.dispatch?.queued === true && task.state !== 'sent' && task.state !== 'cancelled')
+      .filter(task => task?.kind === 'follow_up' && task?.dispatch?.queued === true && !['sent', 'cancelled', 'blocked'].includes(task.state) && !task.blocker)
       .sort((a, b) => timeMs(a.dispatch?.queuedAt || a.createdAt) - timeMs(b.dispatch?.queuedAt || b.createdAt));
   }
 
@@ -1109,21 +1159,56 @@
 
   function monitoringRoots(storeInput) {
     const store = normalizeStore(storeInput);
-    const groups = new Map();
+    const base = new Map();
     for (const outbound of Object.values(store.outboundRecords)) {
       if (!outbound?.rootTaskId || outbound.status !== 'sent') continue;
-      if (!groups.has(outbound.rootTaskId)) groups.set(outbound.rootTaskId, []);
-      groups.get(outbound.rootTaskId).push(outbound);
+      if (!base.has(outbound.rootTaskId)) base.set(outbound.rootTaskId, []);
+      base.get(outbound.rootTaskId).push(outbound);
     }
-    return [...groups.entries()].map(([rootTaskId, outbounds]) => {
-      outbounds.sort((a, b) => timeMs(a.sentAt) - timeMs(b.sentAt));
+    for (const outbounds of base.values()) outbounds.sort((a, b) => timeMs(a.sentAt) - timeMs(b.sentAt));
+
+    const conversationBuckets = new Map();
+    for (const [rootTaskId, outbounds] of base.entries()) {
+      const key = conversationKeyForOutbound(outbounds[0] || outbounds[outbounds.length - 1]);
+      if (!key) continue;
+      if (!conversationBuckets.has(key)) conversationBuckets.set(key, []);
+      conversationBuckets.get(key).push(rootTaskId);
+    }
+
+    const consumed = new Set();
+    const result = [];
+    for (const [conversationKey, rootIds] of conversationBuckets.entries()) {
+      const humanObservations = Object.values(store.replyObservations)
+        .filter(obs => obs?.kind === 'human' && rootIds.includes(String(obs.rootTaskId)))
+        .sort((a, b) => timeMs(a.receivedAt) - timeMs(b.receivedAt));
+      if (!humanObservations.length) continue;
+      const humanReply = humanObservations[humanObservations.length - 1];
+      const canonicalRootId = rootIds.includes(String(humanReply.rootTaskId)) ? String(humanReply.rootTaskId) : rootIds[0];
+      const outbounds = rootIds.flatMap(id => base.get(id) || []).sort((a, b) => timeMs(a.sentAt) - timeMs(b.sentAt));
+      const lastOutbound = outbounds[outbounds.length - 1];
+      const replies = Object.values(store.replyObservations)
+        .filter(obs => obs?.rootTaskId && rootIds.includes(String(obs.rootTaskId)))
+        .sort((a, b) => timeMs(a.receivedAt) - timeMs(b.receivedAt));
+      const tasks = Object.values(store.derivedTasks)
+        .filter(task => task?.rootTaskId && rootIds.includes(String(task.rootTaskId)))
+        .sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
+      const eligibility = evaluateFollowUpEligibility(store, canonicalRootId);
+      const policy = policyForRoot(store, canonicalRootId);
+      const operatorContinued = !!lastOutbound && timeMs(lastOutbound.sentAt) > timeMs(humanReply.receivedAt);
+      result.push({ rootTaskId: canonicalRootId, conversationKey, conversationRootIds: rootIds.slice(), outbounds, lastOutbound, replies, tasks, eligibility, policy, humanManaged: true, humanReply, operatorContinued });
+      rootIds.forEach(id => consumed.add(id));
+    }
+
+    for (const [rootTaskId, outbounds] of base.entries()) {
+      if (consumed.has(rootTaskId)) continue;
       const lastOutbound = outbounds[outbounds.length - 1];
       const replies = observationsAfter(store, rootTaskId, lastOutbound.sentAt);
       const tasks = Object.values(store.derivedTasks).filter(task => task?.rootTaskId === rootTaskId).sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
       const eligibility = evaluateFollowUpEligibility(store, rootTaskId);
       const policy = policyForRoot(store, rootTaskId);
-      return { rootTaskId, outbounds, lastOutbound, replies, tasks, eligibility, policy };
-    }).sort((a, b) => timeMs(b.lastOutbound.sentAt) - timeMs(a.lastOutbound.sentAt));
+      result.push({ rootTaskId, conversationKey: conversationKeyForOutbound(lastOutbound), conversationRootIds: [rootTaskId], outbounds, lastOutbound, replies, tasks, eligibility, policy, humanManaged: false, humanReply: null, operatorContinued: false });
+    }
+    return result.sort((a, b) => timeMs(b.lastOutbound?.sentAt) - timeMs(a.lastOutbound?.sentAt));
   }
 
   async function load(account) {
@@ -1137,6 +1222,13 @@
     if (monitored.adopted) {
       store = reconcileInboundReplies(monitored.store).store;
       migration = { ...(migration || {}), autoMonitoringRoots: monitored.adopted };
+    } else {
+      store = monitored.store;
+    }
+    const refreshed = refreshDerivedTaskBlocks(store);
+    store = refreshed.store;
+    if (refreshed.blockedTasks || refreshed.restoredTasks || refreshed.dequeuedTasks) {
+      migration = { ...(migration || {}), humanConversationReview: { blocked: refreshed.blockedTasks, restored: refreshed.restoredTasks, dequeued: refreshed.dequeuedTasks } };
     }
     if (migration) await chrome.storage.local.set({ [key]: store });
     return { store, migration };
@@ -1166,6 +1258,8 @@
     formatDisplayTime,
     stableHash,
     subjectThreadKey,
+    conversationKeyForOutbound,
+    conversationContextForRoot,
     classifyInboundMessage,
     createStore,
     normalizeStore,

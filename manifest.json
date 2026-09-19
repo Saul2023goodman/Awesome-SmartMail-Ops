@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.17",
-  "description": "SmartMail Ops — unified Initial + Follow-up review with first-class full-workspace detail editing, template-driven Follow-up preparation, manual mailbox monitoring, strict NetEase readhtml hydration, and unified dispatch.",
+  "version": "3.8.18",
+  "description": "SmartMail Ops — unified Initial + Follow-up review, deterministic conversation-level reply gating, manual mailbox monitoring, strict NetEase readhtml hydration, and unified dispatch.",
   "permissions": [
     "storage",
     "scripting",

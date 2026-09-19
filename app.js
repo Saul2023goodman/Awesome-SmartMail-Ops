@@ -581,7 +581,7 @@
                 <label><span>方式</span><select id="nmda-monitor-compose-mode"><option value="forward">Forward</option><option value="reply">Reply</option><option value="new">New message</option></select></label>
                 <button class="nmda-btn nmda-btn-small" id="nmda-monitor-save-policy" type="button">保存规则</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-open-template" type="button">编辑模板 →</button>
               </div>
-              <small class="nmda-monitor-rule-note">真人回复停止后续 Follow-up；自动回复不阻断。到期后生成模板初稿，并进入“邮件审阅”。</small>
+              <small class="nmda-monitor-rule-note">真人回复永久关闭同一 conversation 的自动 Follow-up；之后 operator 的人工 Sent 只记录、不重启计时。自动回复不阻断。到期后生成模板初稿，并进入“邮件审阅”。</small>
             </div>
 
             <div class="nmda-monitor-filterbar">
@@ -854,10 +854,13 @@
 
   function monitorGroupState(group) {
     const activeTask=[...(group.tasks||[])].reverse().find(task=>!['sent','cancelled'].includes(task.state)) || null;
-    const human=[...(group.replies||[])].reverse().find(item=>item.kind==='human') || null;
+    const human=[...(group.replies||[])].reverse().find(item=>item.kind==='human') || group.humanReply || null;
     const ambiguous=[...(group.replies||[])].reverse().find(item=>item.kind==='ambiguous') || null;
     const automatic=[...(group.replies||[])].reverse().find(item=>item.kind==='automatic') || null;
-    if(human)return {key:'replied',tone:'replied',label:'已真人回复',detail:human.subject||'已停止后续 Follow-up',observation:human,activeTask};
+    if(human){
+      const operatorContinued=group.operatorContinued===true;
+      return {key:'replied',tone:'replied',label:operatorContinued?'已真人回复 · 人工沟通':'已真人回复',detail:operatorContinued?'后续 Sent 仅作为人工沟通记录，不再派生 Follow-up':(human.subject||'已停止后续 Follow-up'),observation:human,activeTask,humanManaged:group.humanManaged===true};
+    }
     if(ambiguous)return {key:'blocked',tone:'blocked',label:'回复待判断',detail:ambiguous.subject||'需要人工确认',observation:ambiguous,activeTask};
     if(activeTask?.state==='blocked')return {key:'blocked',tone:'blocked',label:'跟进已阻断',detail:activeTask.blocker?.kind==='human'?'收到真人回复':'需要处理阻断原因',activeTask};
     if(activeTask){
@@ -868,6 +871,7 @@
     }
     if(group.eligibility?.eligible)return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:automatic?'收到自动回复，不阻断':'可以创建跟进任务',automatic};
     if(group.eligibility?.reason==='waiting')return {key:'waiting',tone:'',label:'等待中',detail:`到期 ${Operations.formatDisplayTime(group.eligibility.dueAt)}`,automatic};
+    if(group.eligibility?.reason==='human-managed-conversation')return {key:'replied',tone:'replied',label:group.operatorContinued?'已真人回复 · 人工沟通':'已真人回复',detail:group.operatorContinued?'后续 Sent 仅作为人工沟通记录，不再派生 Follow-up':'真人回复已永久关闭此 conversation 的自动 Follow-up',observation:group.eligibility.blockingObservation||null,humanManaged:true};
     if(group.eligibility?.reason==='follow-up-disabled')return {key:'blocked',tone:'',label:'Follow-up 已暂停',detail:'仍检测回复，只暂停生成新的 Follow-up'};
     if(group.eligibility?.reason==='max-attempts-reached')return {key:'replied',tone:'',label:'已达跟进上限',detail:`最多 ${group.policy.maxAttempts} 次 Follow-up`};
     if(group.eligibility?.reason==='recipient-guard')return {key:'blocked',tone:'blocked',label:'联系规则阻断',detail:(group.eligibility.guard?.reasons||[]).join('；')||'已暂停联系'};
@@ -895,7 +899,7 @@
     const groups=Operations.monitoringRoots(operationState.store);
     const enriched=groups.map(group=>({...group,viewState:monitorGroupState(group)}));
     const due=enriched.filter(item=>item.viewState.key==='due').length;
-    const replied=enriched.filter(item=>item.viewState.key==='replied' && item.viewState.label==='已真人回复').length;
+    const replied=enriched.filter(item=>item.viewState.key==='replied' && item.viewState.observation?.kind==='human').length;
     const blocked=enriched.filter(item=>item.viewState.key==='blocked').length;
     const waiting=enriched.filter(item=>item.viewState.key==='waiting').length;
     if(els.stats)els.stats.innerHTML=`
@@ -941,14 +945,14 @@
           const dueAt=group.eligibility?.dueAt || active?.dueAt || '';
           const enabled=group.policy?.enabled!==false;
           const actions=[];
-          if(active){
+          if(!group.humanManaged && active){
             if(active.dispatch?.queued)actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-dispatch="${escapeHtml(active.id)}">查看排期</button>`);
             else actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-review="${escapeHtml(active.id)}">去审阅</button>`);
             if(!['sent','cancelled'].includes(active.state))actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-monitor-cancel-followup="${escapeHtml(active.id)}">取消跟进</button>`);
           }
-          else if(group.eligibility?.eligible)actions.push(`<button class="nmda-btn nmda-btn-primary nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}">模板生成</button>`);
+          else if(!group.humanManaged && group.eligibility?.eligible)actions.push(`<button class="nmda-btn nmda-btn-primary nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}">模板生成</button>`);
           else if(group.eligibility?.reason==='waiting')actions.push(`<button class="nmda-btn nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}" data-manual="1">模板提前生成</button>`);
-          if(!['human-reply','max-attempts-reached','recipient-guard'].includes(group.eligibility?.reason)){
+          if(!['human-reply','human-managed-conversation','max-attempts-reached','recipient-guard'].includes(group.eligibility?.reason)){
             actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-monitor-toggle="${escapeHtml(group.rootTaskId)}" data-enabled="${enabled?'1':'0'}">${enabled?'暂停 Follow-up':'恢复 Follow-up'}</button>`);
           }
           let evidence='';
@@ -960,7 +964,7 @@
           const selectionCell=selectable?`<label class="nmda-monitor-row-select" title="选择生成 Follow-up"><input type="checkbox" data-monitor-select="${escapeHtml(group.rootTaskId)}" ${selected.has(group.rootTaskId)?'checked':''}><span class="sr-only">选择此邮件</span></label>`:`<span class="nmda-monitor-row-select-placeholder" aria-hidden="true"></span>`;
           return `<article class="nmda-monitor-row${selectable?' is-selectable':''}" data-tone="${escapeHtml(st.tone||'')}">
             ${selectionCell}
-            <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(last.kind==='follow_up'?`最近发送 Follow-up #${last.sequence}`:'初始 outreach')}</small><div class="nmda-monitor-subject" title="${escapeHtml(last.subject||'')}">${escapeHtml(last.subject||'(无主题)')}</div></div>
+            <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(group.humanManaged&&group.operatorContinued?'人工沟通':(last.kind==='follow_up'?`最近发送 Follow-up #${last.sequence}`:'初始 outreach'))}</small><div class="nmda-monitor-subject" title="${escapeHtml(last.subject||'')}">${escapeHtml(last.subject||'(无主题)')}</div></div>
             <div class="nmda-monitor-row-state"><span class="nmda-monitor-badge" data-tone="${escapeHtml(st.tone||'')}">${escapeHtml(st.label)}</span><small>${escapeHtml(st.detail||'')}</small></div>
             <div class="nmda-monitor-row-time"><div><span>最近发送</span><strong>${escapeHtml(Operations.formatDisplayTime(last.sentAt))}</strong></div><div><span>下一节点</span><strong>${dueAt?escapeHtml(Operations.formatDisplayTime(dueAt)):'—'}</strong></div></div>
             <div class="nmda-monitor-row-actions">${actions.join('')}</div>${evidence}</article>`;
