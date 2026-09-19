@@ -709,11 +709,63 @@ async function readDraftImport(tabId, requested = 300) {
   };
 }
 
-importScripts('file-vault.js');
 
 const APP_URL = chrome.runtime.getURL('app.html');
 
 const MAIL_URL = 'https://mail.163.com/';
+
+
+let runtimeFileSourcePort = null;
+const runtimeFileRequests = new Map();
+
+function rejectRuntimeFileRequests(reason = 'runtime-file-source-disconnected') {
+  for (const [requestId, pending] of runtimeFileRequests.entries()) {
+    clearTimeout(pending.timer);
+    pending.resolve({ ok:false, reason });
+    runtimeFileRequests.delete(requestId);
+  }
+}
+
+chrome.runtime.onConnect.addListener(port => {
+  if (port.name !== 'NMDA_RUNTIME_FILE_SOURCE') return;
+  if (runtimeFileSourcePort && runtimeFileSourcePort !== port) {
+    try { runtimeFileSourcePort.disconnect(); } catch (_) {}
+  }
+  runtimeFileSourcePort = port;
+  port.onMessage.addListener(message => {
+    if (message?.type !== 'NMDA_RUNTIME_FILE_RESPONSE') return;
+    const requestId = String(message.requestId || '');
+    const pending = runtimeFileRequests.get(requestId);
+    if (!pending) return;
+    runtimeFileRequests.delete(requestId);
+    clearTimeout(pending.timer);
+    pending.resolve(message);
+  });
+  port.onDisconnect.addListener(() => {
+    if (runtimeFileSourcePort === port) runtimeFileSourcePort = null;
+    rejectRuntimeFileRequests();
+  });
+});
+
+function requestRuntimeFile(action, payload = {}) {
+  if (!runtimeFileSourcePort) return Promise.resolve({ ok:false, reason:'runtime-file-source-unavailable' });
+  const requestId = crypto.randomUUID();
+  return new Promise(resolve => {
+    const timer = setTimeout(() => {
+      if (!runtimeFileRequests.has(requestId)) return;
+      runtimeFileRequests.delete(requestId);
+      resolve({ ok:false, reason:'runtime-file-source-timeout' });
+    }, 15000);
+    runtimeFileRequests.set(requestId, { resolve, timer });
+    try {
+      runtimeFileSourcePort.postMessage({ type:'NMDA_RUNTIME_FILE_REQUEST', requestId, action, ...payload });
+    } catch (error) {
+      clearTimeout(timer);
+      runtimeFileRequests.delete(requestId);
+      resolve({ ok:false, reason:error?.message||String(error) });
+    }
+  });
+}
 
 async function listMailTabs() {
   const tabs = await chrome.tabs.query({ url: ['https://mail.163.com/*'] });
@@ -782,7 +834,6 @@ async function openApp(target = 'batch') {
 }
 
 chrome.action.onClicked.addListener(() => { openApp('batch').catch(console.error); });
-chrome.runtime.onInstalled.addListener(() => { globalThis.NMDAVault?.cleanup?.().catch(()=>{}); });
 
 function broadcastConnectionChange() {
   chrome.runtime.sendMessage({ type:'NMDA_CONNECTION_CHANGED' }).catch(()=>{});
@@ -810,13 +861,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return {ok:true};
     }
 
-    if (message?.type === 'NMDA_VAULT_META') {
-      const meta = await globalThis.NMDAVault.meta(message.id);
-      return meta ? { ok:true, ...meta } : { ok:false, reason:'vault-file-not-found' };
+    if (message?.type === 'NMDA_RUNTIME_FILE_META') {
+      const result = await requestRuntimeFile('meta', { id:String(message.id||'') });
+      return result?.ok ? { ok:true, id:result.id, name:result.name, type:result.typeName, size:result.size, lastModified:result.lastModified } : result;
     }
-    if (message?.type === 'NMDA_VAULT_CHUNK') {
-      const base64 = await globalThis.NMDAVault.chunkBase64(message.id, Number(message.offset||0), Number(message.length||262144));
-      return base64 === null ? {ok:false,reason:'vault-file-not-found'} : {ok:true,base64};
+    if (message?.type === 'NMDA_RUNTIME_FILE_CHUNK') {
+      return requestRuntimeFile('chunk', { id:String(message.id||''), offset:Number(message.offset||0), length:Number(message.length||262144) });
     }
     if (message?.type === 'NMDA_EXECUTION_PROGRESS') {
       chrome.runtime.sendMessage({ ...message, type:'NMDA_EXECUTION_PROGRESS_BROADCAST', tabId:sender.tab?.id || null }).catch(()=>{});

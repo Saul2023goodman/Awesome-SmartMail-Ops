@@ -23,25 +23,71 @@
     return [...map.values()];
   }
 
-  async function prepareVaultRefs(files) {
+  const runtimeExecutionFiles = new Map();
+  let runtimeFileSourcePort = null;
+
+  function bytesToBase64(bytes) {
+    let binary = '';
+    const step = 0x8000;
+    for (let i = 0; i < bytes.length; i += step) binary += String.fromCharCode(...bytes.subarray(i, Math.min(bytes.length, i + step)));
+    return btoa(binary);
+  }
+
+  function ensureRuntimeFileSourcePort() {
+    if (runtimeFileSourcePort) return runtimeFileSourcePort;
+    const port = chrome.runtime.connect({ name: 'NMDA_RUNTIME_FILE_SOURCE' });
+    runtimeFileSourcePort = port;
+    port.onMessage.addListener(message => {
+      if (message?.type !== 'NMDA_RUNTIME_FILE_REQUEST') return;
+      void (async () => {
+        const requestId = String(message.requestId || '');
+        const id = String(message.id || '');
+        const file = runtimeExecutionFiles.get(id) || null;
+        if (!file) {
+          port.postMessage({ type:'NMDA_RUNTIME_FILE_RESPONSE', requestId, ok:false, reason:'runtime-file-not-found' });
+          return;
+        }
+        if (message.action === 'meta') {
+          port.postMessage({ type:'NMDA_RUNTIME_FILE_RESPONSE', requestId, ok:true, id, name:String(file.name||'attachment'), typeName:String(file.type||'application/octet-stream'), size:Number(file.size||0), lastModified:Number(file.lastModified||Date.now()) });
+          return;
+        }
+        if (message.action === 'chunk') {
+          const offset = Math.max(0, Number(message.offset || 0));
+          const length = Math.max(1, Number(message.length || 262144));
+          const bytes = new Uint8Array(await file.slice(offset, offset + length).arrayBuffer());
+          port.postMessage({ type:'NMDA_RUNTIME_FILE_RESPONSE', requestId, ok:true, base64:bytesToBase64(bytes) });
+          return;
+        }
+        port.postMessage({ type:'NMDA_RUNTIME_FILE_RESPONSE', requestId, ok:false, reason:'unknown-runtime-file-action' });
+      })().catch(error => {
+        try { port.postMessage({ type:'NMDA_RUNTIME_FILE_RESPONSE', requestId:String(message?.requestId||''), ok:false, reason:error?.message||String(error) }); } catch (_) {}
+      });
+    });
+    port.onDisconnect.addListener(() => { if (runtimeFileSourcePort === port) runtimeFileSourcePort = null; });
+    return port;
+  }
+
+  async function prepareRuntimeFileRefs(files) {
     const refs = [];
+    if ((files || []).length) ensureRuntimeFileSourcePort();
     for (const file of files || []) {
       if (!file) continue;
-      const meta = await globalThis.NMDAVault.putFile(file);
-      refs.push({ id: meta.id, name: meta.name, size: meta.size, type: meta.type, lastModified: meta.lastModified });
+      const id = crypto.randomUUID();
+      runtimeExecutionFiles.set(id, file);
+      refs.push({ id, name:String(file.name||'attachment'), size:Number(file.size||0), type:String(file.type||'application/octet-stream'), lastModified:Number(file.lastModified||Date.now()) });
     }
+    if (refs.length) await sleep(20);
     return refs;
   }
 
-  async function releaseVaultRefs(refs) {
-    const ids = (refs || []).map(ref => ref?.id).filter(Boolean);
-    if (!ids.length) return;
-    try { await globalThis.NMDAVault.removeMany(ids); } catch (_) {}
+  function releaseRuntimeFileRefs(refs) {
+    for (const ref of refs || []) if (ref?.id) runtimeExecutionFiles.delete(String(ref.id));
   }
+
 
   async function executeDraftRemotely(task, { fresh = true, onProgress = () => {} } = {}) {
     const executionId = crypto.randomUUID();
-    const refs = await prepareVaultRefs(task.files || []);
+    const refs = await prepareRuntimeFileRefs(task.files || []);
     executionProgressHandlers.set(executionId, onProgress);
     try {
       const connection = await chrome.runtime.sendMessage({ type: 'NMDA_CONNECTION_STATUS' });
@@ -62,7 +108,7 @@
       return result.outcome || {};
     } finally {
       executionProgressHandlers.delete(executionId);
-      await releaseVaultRefs(refs);
+      releaseRuntimeFileRefs(refs);
     }
   }
 
@@ -707,19 +753,52 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshMailboxConnection();});
   refreshMailboxConnection();
 
-  const operationState = { account: '', store: Operations ? Operations.createStore('default') : null, loaded: false };
+  const FOLLOWUP_PREFS_KEY = 'nmda.followup.settings.v1';
+
+  function readFollowUpPrefs() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(FOLLOWUP_PREFS_KEY) || '{}');
+      return {
+        enabled: raw.enabled !== false,
+        delayDays: Math.max(0, Number(raw.delayDays ?? Operations?.DEFAULT_FOLLOWUP_POLICY?.delayDays ?? 7) || 0),
+        maxAttempts: Math.max(0, Math.floor(Number(raw.maxAttempts ?? Operations?.DEFAULT_FOLLOWUP_POLICY?.maxAttempts ?? 2) || 0)),
+        composeMode: ['forward','reply','new'].includes(raw.composeMode) ? raw.composeMode : (Operations?.DEFAULT_FOLLOWUP_POLICY?.composeMode || 'forward'),
+        templateBody: String(raw.templateBody || '').replace(/\r\n?/g, '\n').trim(),
+        templateVersion: Math.max(0, Math.floor(Number(raw.templateVersion || 0) || 0))
+      };
+    } catch (_) { return { ...(Operations?.DEFAULT_FOLLOWUP_POLICY || {}) }; }
+  }
+
+  function applyFollowUpPrefs(store) {
+    if (!Operations || !store) return store;
+    const prefs = readFollowUpPrefs();
+    const result = Operations.setFollowUpPolicy(store, '', prefs);
+    if (prefs.templateVersion > 0) result.store.followUpPolicies.default.templateVersion = prefs.templateVersion;
+    return result.store;
+  }
+
+  function writeFollowUpPrefs(policy) {
+    if (!policy) return;
+    try {
+      localStorage.setItem(FOLLOWUP_PREFS_KEY, JSON.stringify({
+        enabled: policy.enabled !== false, delayDays:Number(policy.delayDays||0), maxAttempts:Number(policy.maxAttempts||0),
+        composeMode:String(policy.composeMode||'forward'), templateBody:String(policy.templateBody||''), templateVersion:Number(policy.templateVersion||0)
+      }));
+    } catch (_) {}
+  }
+
+  const operationState = { account: '', store: Operations ? applyFollowUpPrefs(Operations.createStore('default')) : null, loaded: false };
 
   const REVIEW_RENDER_CHUNK = 120;
 
-  // Navigation stays a cheap visibility change. Domain state is persisted separately
-  // from the batch UI so mailbox facts and Follow-up lineage survive batch resets.
+  // All mailbox facts, Review tasks, Follow-up lineage and Dispatch state are runtime-only.
+  // Closing/reloading SmartMail discards them. Only tool preferences such as templates/rules persist.
   const viewPerf = {
     batchDirty: true,
     batchAuxDirty: true,
     batchFrame: 0,
     reviewRenderLimit: REVIEW_RENDER_CHUNK,
     formSaveTimer: 0,
-    operationPersistPromise: null
   };
 
   function debounce(fn, delay = 120) {
@@ -763,24 +842,19 @@
     if (!Operations) return operationState;
     const account = await detectAccount();
     if (force || !operationState.loaded || operationState.account !== account) {
-      const loaded = await Operations.load(account);
       operationState.account = account;
-      operationState.store = loaded.store;
+      operationState.store = applyFollowUpPrefs(Operations.createStore(account));
       operationState.loaded = true;
-      if (loaded.migration?.migrated) {
-        console.info(`[${APP}] migrated v3.5 contact facts into operations store`, loaded.migration);
-      }
+      dispatchRuntime?.clear?.();
     }
     return operationState;
   }
 
-  async function persistOperations() {
-    if (!Operations || !operationState.loaded) return;
-    const pending = Operations.save(operationState.account, operationState.store);
-    viewPerf.operationPersistPromise = pending;
-    try { operationState.store = await pending; }
-    finally { if (viewPerf.operationPersistPromise === pending) viewPerf.operationPersistPromise = null; }
+  async function commitRuntimeOperations() {
+    // Deliberately no persistence: domain state belongs to the current app session only.
+    return operationState.store;
   }
+
 
   const dispatchRuntime = new Map();
 
@@ -803,7 +877,7 @@
       await ensureOperationStore();
       const result = Operations.updateDerivedTaskDispatch(operationState.store, task._sourceTaskId || task.id, patch);
       operationState.store = result.store;
-      await persistOperations();
+      await commitRuntimeOperations();
       return Dispatch?.followUpTaskToDispatch?.(result.task, operationState.store) || null;
     }
     const original=(batch.tasks||[]).find(item=>String(item.editKey)===String(task.editKey)) || task;
@@ -1070,7 +1144,7 @@
       }
     }
 
-    await persistOperations();
+    await commitRuntimeOperations();
     return roots.map(rootTaskId=>{
       const rendered=Operations.renderFollowUpTemplate(operationState.store,rootTaskId);
       return {rootTaskId,rendered,reasonText:rendered?.ok?'':followUpTemplateReasonText(rendered?.reason,rendered?.reasonDetail)};
@@ -1087,7 +1161,7 @@
       if(!prep?.ok){setMonitorNotice(`无法模板生成：${hydrated[0]?.reasonText||followUpTemplateReasonText(prep?.reason,prep?.reasonDetail)}`,'error');return;}
       const created=Operations.createFollowUpTask(operationState.store,rootTaskId,{manual});
       operationState.store=created.store;
-      await persistOperations();
+      await commitRuntimeOperations();
       renderMonitoring();
       setMonitorNotice(`Follow-up #${created.task.sequence} 已按模板生成，等待在“邮件审阅”中 Pass。`,'ok');
       renderReviewPageOverview();
@@ -1107,7 +1181,7 @@
       const hydrateSkipped=hydrated.filter(item=>!item.rendered?.ok).map(item=>({rootTaskId:item.rootTaskId,reason:item.rendered?.reason||'initial-body-missing',reasonText:item.reasonText||followUpTemplateReasonText(item.rendered?.reason,item.rendered?.reasonDetail)}));
       const result=Operations.createFollowUpTasks(operationState.store,readyRoots);
       operationState.store=result.store;
-      await persistOperations();
+      await commitRuntimeOperations();
       monitorSelectedIds().clear();
       renderMonitoring();
       const createSkipped=(result.skipped||[]).map(item=>({...item,reasonText:followUpTemplateReasonText(item.reason)}));
@@ -1125,7 +1199,7 @@
     if(!confirm(`取消 Follow-up #${task.sequence}？已创建的网易草稿不会被自动删除。`))return;
     try{
       const result=Operations.setDerivedTaskState(operationState.store,taskId,'cancelled');
-      operationState.store=result.store;await persistOperations();renderMonitoring();renderReviewPageOverview();setMonitorNotice('本次 Follow-up 已取消；如仍符合规则，可按当前模板重新生成。','ok');
+      operationState.store=result.store;await commitRuntimeOperations();renderMonitoring();renderReviewPageOverview();setMonitorNotice('本次 Follow-up 已取消；如仍符合规则，可按当前模板重新生成。','ok');
     }catch(error){setMonitorNotice(error?.message||String(error),'error');}
   }
 
@@ -1136,7 +1210,7 @@
     $('nmda-monitor-save-policy')?.addEventListener('click',async()=>{
       await ensureOperationStore();
       const result=Operations.setFollowUpPolicy(operationState.store,'',{delayDays:Number($('nmda-monitor-delay').value||0),maxAttempts:Number($('nmda-monitor-max').value||0),composeMode:$('nmda-monitor-compose-mode').value||'forward'});
-      operationState.store=result.store;await persistOperations();renderMonitoring();setMonitorNotice('Follow-up 规则已保存；模板正文在“邮件审阅”中维护。','ok');
+      operationState.store=result.store;writeFollowUpPrefs(result.policy);await commitRuntimeOperations();renderMonitoring();setMonitorNotice('Follow-up 规则已保存；模板正文在“邮件审阅”中维护。','ok');
     });
     $('nmda-monitor-open-template')?.addEventListener('click',()=>void openReviewWorkspace({pendingOnly:false}));
     ui.querySelectorAll('[data-monitor-filter]').forEach(button=>button.addEventListener('click',()=>{monitorState.filter=button.dataset.monitorFilter||'all';ui.querySelectorAll('[data-monitor-filter]').forEach(item=>item.classList.toggle('is-active',item===button));renderMonitoring();}));
@@ -1166,8 +1240,8 @@
       const dispatch=event.target.closest('[data-monitor-dispatch]');if(dispatch){setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});return;}
       const review=event.target.closest('[data-monitor-review]');if(review){void openReviewWorkspace({pendingOnly:false,taskKey:`fu-review:${review.dataset.monitorReview}`});return;}
       const cancelFollowUp=event.target.closest('[data-monitor-cancel-followup]');if(cancelFollowUp){void cancelMonitorFollowUp(cancelFollowUp.dataset.monitorCancelFollowup);return;}
-      const toggle=event.target.closest('[data-monitor-toggle]');if(toggle){void (async()=>{await ensureOperationStore();const enabled=toggle.dataset.enabled!=='1';const result=Operations.setFollowUpPolicy(operationState.store,toggle.dataset.monitorToggle,{enabled});operationState.store=result.store;await persistOperations();renderMonitoring();setMonitorNotice(enabled?'已恢复 Follow-up；邮件检测始终保持在读取范围内。':'已暂停新的 Follow-up；邮件检测仍会继续记录回复事实。','ok');})();return;}
-      const disposition=event.target.closest('[data-reply-disposition]');if(disposition){void (async()=>{await ensureOperationStore();const result=Operations.setReplyObservationDisposition(operationState.store,disposition.dataset.replyId,disposition.dataset.replyDisposition);operationState.store=result.store;await persistOperations();renderMonitoring();renderReviewPageOverview();setMonitorNotice('回复判断已更新，并重新计算 Follow-up 阻断状态。','ok');})();}
+      const toggle=event.target.closest('[data-monitor-toggle]');if(toggle){void (async()=>{await ensureOperationStore();const enabled=toggle.dataset.enabled!=='1';const result=Operations.setFollowUpPolicy(operationState.store,toggle.dataset.monitorToggle,{enabled});operationState.store=result.store;await commitRuntimeOperations();renderMonitoring();setMonitorNotice(enabled?'已恢复 Follow-up；邮件检测始终保持在读取范围内。':'已暂停新的 Follow-up；邮件检测仍会继续记录回复事实。','ok');})();return;}
+      const disposition=event.target.closest('[data-reply-disposition]');if(disposition){void (async()=>{await ensureOperationStore();const result=Operations.setReplyObservationDisposition(operationState.store,disposition.dataset.replyId,disposition.dataset.replyDisposition);operationState.store=result.store;await commitRuntimeOperations();renderMonitoring();renderReviewPageOverview();setMonitorNotice('回复判断已更新，并重新计算 Follow-up 阻断状态。','ok');})();}
     });
   }
 
@@ -2737,7 +2811,7 @@
       if(changed && operationState.loaded){
         const result=Operations.updateDerivedTaskContent(operationState.store,task.derivedTaskId,{recipients:Operations.parseRecipients(patch.recipients),subject:patch.subject,body:patch.body});
         operationState.store=result.store;
-        void persistOperations();
+        void commitRuntimeOperations();
       }
       return task;
     }
@@ -2811,7 +2885,7 @@
       batch.taskEdits.set(task.editKey,{...prev,reviewConfirmed:true,reviewDraftPending:false,rosterConfirmed:(task.rosterIssues||[]).length?true:!!prev.rosterConfirmed});
       confirmed++;
     }
-    if(followUpConfirmed)await persistOperations();
+    if(followUpConfirmed)await commitRuntimeOperations();
     batch.reviewSelected.clear();
     rebuildTasks();
     renderReviewPageOverview();
@@ -3218,7 +3292,7 @@
       for(const group of unresolvedDuplicateGroups(task))if(group?.id)ids.add(group.id);
     }
     // New Initial Tasks must be checked against mailbox Draft + Sent at least once.
-    // This remains operator-triggered: the Import gate waits for a persisted manual snapshot.
+    // This remains operator-triggered: the Import gate waits for a complete manual snapshot in the current app session.
     const mailboxUnread=checkable.length>0&&!mailboxDedupeSnapshotAvailable();
     const draftHits=mailboxUnread?0:unresolvedDraftHistoryHits(checkable).length;
     return ids.size+draftHits+(mailboxUnread?1:0);
@@ -3758,7 +3832,7 @@
       try{
         const passed=Operations.passDerivedTaskReview(operationState.store,task.derivedTaskId);
         operationState.store=passed.store;
-        await persistOperations();
+        await commitRuntimeOperations();
       }catch(error){if(reviewFeedbackEl){reviewFeedbackEl.hidden=false;reviewFeedbackEl.textContent=error?.message||String(error);}return;}
       batch.reviewSelected?.delete?.(key);
       renderReviewPageOverview();renderMonitoring();scheduleBatchRender({aux:false,force:true});
@@ -3851,7 +3925,7 @@
     if(isFollowUpReviewTask(task)){
       await ensureOperationStore();
       const result=Operations.setDerivedTaskState(operationState.store,task.derivedTaskId,'cancelled');
-      operationState.store=result.store;await persistOperations();
+      operationState.store=result.store;await commitRuntimeOperations();
       setImportStatus(`已取消 Follow-up #${Math.max(1,Number(task.sequence||1))}。`,'ok');
       renderMonitoring();
     }else{
@@ -3868,7 +3942,7 @@
   async function ensureCurrentBatchOperations(sessionToken = batch.sessionId) {
     if (!Operations || !isCurrentBatchSession(sessionToken)) return false;
     try {
-      // Only load the last persisted mailbox facts here. Mailbox access is explicitly user-triggered
+      // Only use mailbox facts already read in the current app session. Mailbox access is explicitly user-triggered
       // from the Mail Monitoring module via “读取邮箱 / 完整读取”.
       await ensureOperationStore();
       return isCurrentBatchSession(sessionToken);
@@ -5441,7 +5515,7 @@
       setImportStatus('Follow-up 模板只填写中间正文；称呼和署名会从 root Initial 邮件继承。','warn');return;
     }
     const result=Operations.setFollowUpPolicy(operationState.store,'',{templateBody});
-    operationState.store=result.store;await persistOperations();renderReviewPageOverview();renderMonitoring();
+    operationState.store=result.store;writeFollowUpPrefs(result.policy);await commitRuntimeOperations();renderReviewPageOverview();renderMonitoring();
     setImportStatus(templateBody?`Follow-up 模板 v${result.policy.templateVersion} 已保存；之后生成的 Follow-up 将先进入邮件审阅。`:'Follow-up 模板已清空；重新填写前不会生成新的 Follow-up。',templateBody?'ok':'warn');
   })());
 
@@ -5690,7 +5764,7 @@
       draftCoverage:result.coverage?.drafts||{read:result.drafts.messages?.length||0,total:result.drafts.total||0,complete:true,pages:result.drafts.pages||0}
     });
     operationState.store=applied.store;
-    await persistOperations();
+    await commitRuntimeOperations();
     if(batch.dataset)rebuildTasks();
     invalidateBatchView(true);
     return applied;
@@ -5711,7 +5785,7 @@
       inboxCoverage: result.coverage?.inbox || { read: inbox.messages?.length || 0, total: inbox.total || 0, complete: !!inbox.complete, pages: inbox.pages || 0 }
     });
     operationState.store = applied.store;
-    await persistOperations();
+    await commitRuntimeOperations();
     if(batch.dataset)rebuildTasks();
     invalidateBatchView(true);
     return applied;
@@ -5806,7 +5880,7 @@
               const dequeued=Operations.updateDerivedTaskDispatch(operationState.store,sourceId,{queued:false,dequeuedReason:'draft-prepared'});
               operationState.store=dequeued.store;
             }
-            await persistOperations();
+            await commitRuntimeOperations();
           }
           setDispatchRuntime(task,{status:'done',runtimeError:'',note:notes.join('；')});
           if(task.dispatchKind==='follow_up') clearDispatchRuntime(task);
@@ -5825,7 +5899,7 @@
               if(current){
                 const updated=Operations.setDerivedTaskState(operationState.store,sourceId,current.state,{runtimeError:message});
                 operationState.store=updated.store;
-                await persistOperations();
+                await commitRuntimeOperations();
               }
             }catch(persistError){console.warn(`[${APP}] persist follow-up execution error failed`,persistError);}
           }

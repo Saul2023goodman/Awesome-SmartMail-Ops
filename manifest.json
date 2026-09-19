@@ -1,10 +1,9 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.18",
-  "description": "SmartMail Ops — unified Initial + Follow-up review, deterministic conversation-level reply gating, manual mailbox monitoring, strict NetEase readhtml hydration, and unified dispatch.",
+  "version": "3.8.19",
+  "description": "SmartMail Ops — runtime-only batch execution: no persisted mailbox/task/history state; Initial + Follow-up review, manual mailbox reads, deterministic conversation gating, and unified dispatch.",
   "permissions": [
-    "storage",
     "scripting",
     "tabs"
   ],

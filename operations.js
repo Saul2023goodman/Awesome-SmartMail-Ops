@@ -1,8 +1,6 @@
 (() => {
   'use strict';
 
-  const SCHEMA_VERSION = 7;
-  const STORAGE_PREFIX = 'nmda.operations.v1:';
   const FOLLOWUP_STATES = ['due', 'prepared', 'confirmed', 'scheduled', 'sent', 'blocked', 'cancelled'];
   const REPLY_KINDS = ['human', 'automatic', 'ambiguous', 'bounce', 'system'];
   const GUARD_MODES = ['normal', 'paused', 'do-not-contact'];
@@ -164,10 +162,6 @@
     return { kind: 'human', evidence: { rule: 'ordinary-inbound' } };
   }
 
-  function storageKey(account) {
-    return `${STORAGE_PREFIX}${normalizeEmail(account) || 'default'}`;
-  }
-
   function nowIso() { return new Date().toISOString(); }
 
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -175,7 +169,6 @@
   function createStore(account = 'default') {
     const now = nowIso();
     return {
-      schemaVersion: SCHEMA_VERSION,
       account: normalizeEmail(account) || 'default',
       createdAt: now,
       updatedAt: now,
@@ -186,8 +179,7 @@
       derivedTasks: {},
       recipientGuards: {},
       followUpPolicies: { default: { ...DEFAULT_FOLLOWUP_POLICY }, overrides: {} },
-      mailboxSync: {},
-      migration: {}
+      mailboxSync: {}
     };
   }
 
@@ -206,7 +198,6 @@
     const store = {
       ...base,
       ...raw,
-      schemaVersion: SCHEMA_VERSION,
       account: normalizeEmail(raw.account || account) || 'default',
       outboundRecords: raw.outboundRecords && typeof raw.outboundRecords === 'object' ? raw.outboundRecords : {},
       draftRecords: raw.draftRecords && typeof raw.draftRecords === 'object' ? raw.draftRecords : {},
@@ -218,8 +209,7 @@
         default: normalizePolicy(raw.followUpPolicies?.default || DEFAULT_FOLLOWUP_POLICY),
         overrides: raw.followUpPolicies?.overrides && typeof raw.followUpPolicies.overrides === 'object' ? raw.followUpPolicies.overrides : {}
       },
-      mailboxSync: raw.mailboxSync && typeof raw.mailboxSync === 'object' ? raw.mailboxSync : {},
-      migration: raw.migration && typeof raw.migration === 'object' ? raw.migration : {}
+      mailboxSync: raw.mailboxSync && typeof raw.mailboxSync === 'object' ? raw.mailboxSync : {}
     };
     for (const [key, guard] of Object.entries(store.recipientGuards)) {
       const mode = GUARD_MODES.includes(guard?.mode) ? guard.mode : 'normal';
@@ -1211,38 +1201,12 @@
     return result.sort((a, b) => timeMs(b.lastOutbound?.sentAt) - timeMs(a.lastOutbound?.sentAt));
   }
 
-  async function load(account) {
-    const key = storageKey(account);
-    const result = await chrome.storage.local.get(key);
-    const raw = result[key];
-    const previousSchema = Number(raw?.schemaVersion || 0);
-    let store = normalizeStore(raw, account);
-    let migration = previousSchema < SCHEMA_VERSION ? { schemaFrom: previousSchema, schemaTo: SCHEMA_VERSION } : null;
-    const monitored = ensureMonitoringRoots(store);
-    if (monitored.adopted) {
-      store = reconcileInboundReplies(monitored.store).store;
-      migration = { ...(migration || {}), autoMonitoringRoots: monitored.adopted };
-    } else {
-      store = monitored.store;
-    }
-    const refreshed = refreshDerivedTaskBlocks(store);
-    store = refreshed.store;
-    if (refreshed.blockedTasks || refreshed.restoredTasks || refreshed.dequeuedTasks) {
-      migration = { ...(migration || {}), humanConversationReview: { blocked: refreshed.blockedTasks, restored: refreshed.restoredTasks, dequeued: refreshed.dequeuedTasks } };
-    }
-    if (migration) await chrome.storage.local.set({ [key]: store });
-    return { store, migration };
-  }
-
-  async function save(account, storeInput) {
-    const store = normalizeStore(storeInput, account);
-    store.updatedAt = nowIso();
-    await chrome.storage.local.set({ [storageKey(account)]: store });
-    return store;
-  }
+  // Runtime-only domain state. SmartMail is a batch execution tool, not a local database.
+  // Mailbox facts, Review tasks, Follow-up lineage and Dispatch state live only in the
+  // currently open app page and are discarded on reload/close. Persistent preferences
+  // (templates/rules) are owned by app.js separately from this domain store.
 
   globalThis.NMDAOperations = {
-    SCHEMA_VERSION,
     FOLLOWUP_STATES,
     REPLY_KINDS,
     GUARD_MODES,
@@ -1263,8 +1227,6 @@
     classifyInboundMessage,
     createStore,
     normalizeStore,
-    load,
-    save,
     ingestMailboxSnapshot,
     ingestMailboxDedupeSnapshot,
     reconcileOutboundsToDrafts,

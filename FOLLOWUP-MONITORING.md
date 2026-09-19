@@ -57,3 +57,8 @@ Follow-up Pass 是授权边界：Pass 时确认当前 `contentVersion`，写入 
 - 已经生成但尚未执行的 Follow-up 会被阻断；若已进入 Dispatch，会自动退池。
 - `automatic` reply 不终止 Follow-up；`ambiguous` 仍保持可人工改判的阻断。
 - 新的规范化主题仍视为新的 outreach，不继承旧 conversation 的真人回复终止状态。
+
+
+## v3.8.19 运行时工作集
+
+Follow-up 不再是持久化待办。每次人工读取邮箱后，在当前页面内生成本次工作集；模板生成的 Follow-up 只在本次会话进入邮件审阅和选择与排期。关闭/刷新 SmartMail 后，Follow-up Task、回复 observation、mailbox snapshot 与排期状态全部清空。模板与全局规则属于工具设置，可跨会话保留。

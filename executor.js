@@ -643,15 +643,15 @@
     return bytes;
   }
 
-  async function readVaultFile(ref) {
+  async function readRuntimeFile(ref) {
     const id = String(ref?.id || '');
-    if (!id) throw new Error('附件临时引用缺少 id。');
-    const meta = await chrome.runtime.sendMessage({ type: 'NMDA_VAULT_META', id });
-    if (!meta?.ok) throw new Error(`无法读取附件 ${ref?.name || id}：${meta?.reason || '临时文件不存在'}`);
+    if (!id) throw new Error('附件运行时引用缺少 id。');
+    const meta = await chrome.runtime.sendMessage({ type: 'NMDA_RUNTIME_FILE_META', id });
+    if (!meta?.ok) throw new Error(`无法读取附件 ${ref?.name || id}：${meta?.reason || '运行时文件不存在'}`);
     const chunkSize = 256 * 1024;
     const parts = [];
     for (let offset = 0; offset < meta.size; offset += chunkSize) {
-      const chunk = await chrome.runtime.sendMessage({ type: 'NMDA_VAULT_CHUNK', id, offset, length: Math.min(chunkSize, meta.size - offset) });
+      const chunk = await chrome.runtime.sendMessage({ type: 'NMDA_RUNTIME_FILE_CHUNK', id, offset, length: Math.min(chunkSize, meta.size - offset) });
       if (!chunk?.ok) throw new Error(`读取附件 ${meta.name} 失败：${chunk?.reason || 'chunk-error'}`);
       parts.push(bytesFromBase64(chunk.base64));
     }
@@ -693,7 +693,7 @@
       reportProgress(executionId, 'attachments', `正在准备 ${refs.length} 个新增附件…`);
       const files = [];
       for (let i = 0; i < refs.length; i++) {
-        files.push(await readVaultFile(refs[i]));
+        files.push(await readRuntimeFile(refs[i]));
         reportProgress(executionId, 'attachments', `正在读取附件 ${i + 1}/${refs.length} · ${refs[i]?.name || ''}`);
       }
       attachmentResult = await addAttachments(root, files, (done, total, name) => {

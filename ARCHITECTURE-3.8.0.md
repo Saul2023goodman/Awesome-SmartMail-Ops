@@ -99,3 +99,9 @@ A human reply is a terminal automation boundary for the same deterministic conve
 `human reply -> conversation becomes human-managed -> later operator Sent is recorded only -> no Follow-up timer restart`
 
 Mail Monitoring collapses duplicate mailbox roots that belong to the same human-managed conversation into one operational row. A later message with a genuinely different normalized subject remains a separate outreach root. Automatic replies do not close automation; ambiguous replies remain reversible blockers. Any queued Follow-up that becomes human-blocked is removed from Dispatch.
+## v3.8.19 runtime-only product boundary
+
+SmartMail no longer persists operational/mailbox/task state. The current app page owns an in-memory working set only: imports, mailbox observations, dedupe facts, Follow-up Derived Tasks, Review state and Dispatch state disappear when the page is closed or reloaded. Only reusable tool preferences (Follow-up template/global rules and scheduling rules) persist. Attachments are streamed from in-memory `File` objects during execution and are not stored in IndexedDB.
+
+This changes Follow-up from a durable queue into a current-session batch: manual mailbox read → generate candidates → Review → Dispatch → create drafts. A new app session starts with no operational history and requires a new operator-triggered mailbox read.
+
