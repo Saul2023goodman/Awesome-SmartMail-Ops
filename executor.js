@@ -730,92 +730,9 @@
 
 
 
-  const batchMonitorState={total:0,current:0,succeeded:0,failed:0,remaining:0,status:'idle',task:null,message:'',items:[],events:[]};
-
-  function ensureBatchMonitor(){
-    let root=document.getElementById('nmda-mail-batch-monitor');
-    if(root)return root;
-    const style=document.createElement('style');style.id='nmda-mail-batch-monitor-style';style.textContent=`
-      #nmda-mail-batch-monitor{position:fixed;right:18px;top:68px;z-index:2147483646;width:min(360px,calc(100vw - 28px));font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#1f2937;background:#fff;border:1px solid #d7dee7;border-radius:14px;box-shadow:0 18px 50px rgba(15,23,42,.18);overflow:hidden;isolation:isolate}
-      #nmda-mail-batch-monitor *{box-sizing:border-box}
-      #nmda-mail-batch-monitor[data-minimized="1"] .nmda-mbm-body,#nmda-mail-batch-monitor[data-minimized="1"] .nmda-mbm-foot{display:none}
-      .nmda-mbm-head{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 13px 9px;background:linear-gradient(180deg,#fbfdff,#f7faff);border-bottom:1px solid #e8edf3}
-      .nmda-mbm-logo{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#1264d7;color:#fff;font-weight:800;box-shadow:inset 0 -1px 0 rgba(0,0,0,.1)}
-      .nmda-mbm-title{min-width:0}.nmda-mbm-title strong{display:block;font-size:13px;font-weight:800;color:#182230}.nmda-mbm-title small{display:block;margin-top:2px;color:#748092;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .nmda-mbm-min{border:0;background:transparent;color:#697586;font-size:18px;line-height:1;width:30px;height:30px;border-radius:8px;cursor:pointer}.nmda-mbm-min:hover{background:#edf2f7}
-      .nmda-mbm-progress{height:4px;background:#e9eef5;overflow:hidden}.nmda-mbm-progress>i{display:block;height:100%;width:0;background:#1264d7;transition:width .25s ease}
-      #nmda-mail-batch-monitor[data-state="done"] .nmda-mbm-progress>i{background:#16803c}#nmda-mail-batch-monitor[data-state="error"] .nmda-mbm-progress>i{background:#c2410c}#nmda-mail-batch-monitor[data-state="stopped"] .nmda-mbm-progress>i{background:#9a6700}
-      .nmda-mbm-body{padding:12px 13px;display:grid;gap:10px}.nmda-mbm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.nmda-mbm-stat{padding:7px 8px;border:1px solid #e4e9ef;border-radius:9px;background:#fbfcfe}.nmda-mbm-stat span{display:block;color:#7a8796;font-size:10px}.nmda-mbm-stat strong{display:block;margin-top:1px;font-size:14px;font-weight:800;color:#253044}
-      .nmda-mbm-current{padding:10px;border:1px solid #d9e5f5;border-radius:10px;background:#f6f9fe}.nmda-mbm-current-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}.nmda-mbm-current-head span{font-size:10px;font-weight:800;color:#1264d7}.nmda-mbm-current-head b{font-size:10px;font-weight:700;color:#708090}.nmda-mbm-recipient,.nmda-mbm-subject{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nmda-mbm-recipient{font-size:12px;font-weight:750;color:#1f2937}.nmda-mbm-subject{margin-top:2px;color:#697586;font-size:11px}.nmda-mbm-message{margin-top:7px;padding-top:7px;border-top:1px dashed #cfdaea;color:#4b5d73;font-size:11px}
-      .nmda-mbm-events{display:grid;gap:5px;max-height:142px;overflow:auto}.nmda-mbm-event{display:grid;grid-template-columns:15px minmax(0,1fr);gap:7px;align-items:start;color:#5d6b7a;font-size:10.5px}.nmda-mbm-event i{width:7px;height:7px;margin:4px 0 0 3px;border-radius:50%;background:#94a3b8;box-shadow:0 0 0 3px #f1f5f9}.nmda-mbm-event[data-kind="done"] i{background:#16a34a;box-shadow:0 0 0 3px #dcfce7}.nmda-mbm-event[data-kind="error"] i{background:#dc2626;box-shadow:0 0 0 3px #fee2e2}.nmda-mbm-event[data-kind="running"] i{background:#2563eb;box-shadow:0 0 0 3px #dbeafe}.nmda-mbm-event strong{font-weight:750;color:#344054}.nmda-mbm-event small{display:block;color:#7b8794;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .nmda-mbm-foot{display:flex;justify-content:flex-end;gap:7px;padding:9px 13px 11px;border-top:1px solid #edf0f3;background:#fbfcfd}.nmda-mbm-btn{min-height:30px;padding:0 10px;border:1px solid #d4dae2;border-radius:8px;background:#fff;color:#435266;font:inherit;font-size:11px;font-weight:700;cursor:pointer}.nmda-mbm-btn:hover{background:#f5f7fa}.nmda-mbm-btn[data-role="stop"]{color:#9a3412;border-color:#fed7aa;background:#fffaf5}.nmda-mbm-btn[data-role="workspace"]{color:#fff;background:#1264d7;border-color:#1264d7}.nmda-mbm-btn[hidden]{display:none}
-      @media(max-width:760px){#nmda-mail-batch-monitor{right:8px;top:54px;width:calc(100vw - 16px)}}
-    `;document.documentElement.appendChild(style);
-    root=document.createElement('section');root.id='nmda-mail-batch-monitor';root.dataset.state='running';root.innerHTML=`<header class="nmda-mbm-head"><span class="nmda-mbm-logo">N</span><div class="nmda-mbm-title"><strong>批量草稿正在执行</strong><small>工作台已交接到网易邮箱</small></div><button class="nmda-mbm-min" type="button" title="收起">−</button></header><div class="nmda-mbm-progress"><i></i></div><div class="nmda-mbm-body"><div class="nmda-mbm-stats"><div class="nmda-mbm-stat"><span>进度</span><strong data-stat="progress">0 / 0</strong></div><div class="nmda-mbm-stat"><span>已完成</span><strong data-stat="done">0</strong></div><div class="nmda-mbm-stat"><span>剩余</span><strong data-stat="remaining">0</strong></div></div><div class="nmda-mbm-current"><div class="nmda-mbm-current-head"><span>当前任务</span><b data-current-index>—</b></div><div class="nmda-mbm-recipient" data-current-recipient>等待开始…</div><div class="nmda-mbm-subject" data-current-subject></div><div class="nmda-mbm-message" data-current-message>正在准备执行队列。</div></div><div class="nmda-mbm-events" data-events></div></div><footer class="nmda-mbm-foot"><button class="nmda-mbm-btn" data-role="stop" type="button">当前封后停止</button><button class="nmda-mbm-btn" data-role="workspace" type="button" hidden>返回工作台</button></footer>`;
-    document.body.appendChild(root);
-    root.querySelector('.nmda-mbm-min')?.addEventListener('click',()=>{root.dataset.minimized=root.dataset.minimized==='1'?'0':'1';root.querySelector('.nmda-mbm-min').textContent=root.dataset.minimized==='1'?'+':'−';});
-    root.querySelector('[data-role="stop"]')?.addEventListener('click',async event=>{event.currentTarget.disabled=true;event.currentTarget.textContent='已请求停止';await chrome.runtime.sendMessage({type:'NMDA_BATCH_STOP_REQUEST'}).catch(()=>{});});
-    root.querySelector('[data-role="workspace"]')?.addEventListener('click',()=>chrome.runtime.sendMessage({type:'NMDA_OPEN_APP'}).catch(()=>{}));
-    return root;
-  }
-
-  function batchMonitorEvent(kind,title,detail=''){
-    batchMonitorState.events.unshift({kind,title,detail,time:Date.now()});
-    batchMonitorState.events=batchMonitorState.events.slice(0,6);
-  }
-
-  function renderBatchMonitor(){
-    const root=ensureBatchMonitor(),state=batchMonitorState;
-    root.dataset.state=state.status||'running';
-    const finished=state.status==='done'||state.status==='error'||state.status==='stopped';
-    const doneCount=Math.max(0,Number(state.succeeded||0)+Number(state.failed||0));
-    const pct=state.total?Math.min(100,Math.max(0,(doneCount/Number(state.total))*100)):0;
-    root.querySelector('.nmda-mbm-progress>i').style.width=`${finished&&state.status==='done'?100:pct}%`;
-    root.querySelector('[data-stat="progress"]').textContent=`${Math.min(doneCount,Number(state.total||0))} / ${Number(state.total||0)}`;
-    root.querySelector('[data-stat="done"]').textContent=String(Number(state.succeeded||0));
-    root.querySelector('[data-stat="remaining"]').textContent=String(Math.max(0,Number(state.remaining||0)));
-    const title=root.querySelector('.nmda-mbm-title strong'),subtitle=root.querySelector('.nmda-mbm-title small');
-    if(finished){title.textContent=state.status==='done'?'批量草稿已完成':state.status==='error'?'批量执行已停止':'批量执行已停止';subtitle.textContent=state.message||`成功 ${state.succeeded} · 失败 ${state.failed}`;}else{title.textContent='批量草稿正在执行';subtitle.textContent=`正在网易邮箱处理 ${Number(state.current||0)}/${Number(state.total||0)}`;}
-    root.querySelector('[data-current-index]').textContent=state.current&&state.total?`${state.current} / ${state.total}`:'—';
-    root.querySelector('[data-current-recipient]').textContent=state.task?.recipient|| (finished?'本批次执行结束':'等待下一封邮件');
-    root.querySelector('[data-current-subject]').textContent=state.task?.subject||'';
-    root.querySelector('[data-current-message]').textContent=state.message|| (finished?'可以返回工作台查看批次状态。':'正在准备执行队列。');
-    const events=root.querySelector('[data-events]');events.innerHTML='';
-    for(const item of state.events){const row=document.createElement('div');row.className='nmda-mbm-event';row.dataset.kind=item.kind||'';const dot=document.createElement('i');const copy=document.createElement('div');const strong=document.createElement('strong');strong.textContent=item.title||'';const small=document.createElement('small');small.textContent=item.detail||'';copy.append(strong,small);row.append(dot,copy);events.appendChild(row);}
-    const stop=root.querySelector('[data-role="stop"]'),workspace=root.querySelector('[data-role="workspace"]');if(stop)stop.hidden=finished;if(workspace)workspace.hidden=!finished;
-  }
-
-  function updateBatchMonitor(payload={}){
-    const action=String(payload.action||'');
-    if(action==='start'){
-      Object.assign(batchMonitorState,{total:Number(payload.total||0),current:0,succeeded:0,failed:0,remaining:Number(payload.remaining??payload.total??0),status:'running',task:null,message:'正在准备第一封邮件。',items:Array.isArray(payload.items)?payload.items:[],events:[]});
-      batchMonitorEvent('running','执行已开始',`共 ${batchMonitorState.total} 封邮件`);
-    }else if(action==='task-start'){
-      Object.assign(batchMonitorState,{current:Number(payload.current||0),total:Number(payload.total||batchMonitorState.total),succeeded:Number(payload.succeeded||0),failed:Number(payload.failed||0),remaining:Number(payload.remaining??batchMonitorState.remaining),status:'running',task:payload.task||null,message:'正在打开写信页…'});
-      batchMonitorEvent('running',`开始 ${payload.task?.id||`第 ${payload.current} 封`}`,payload.task?.subject||payload.task?.recipient||'');
-    }else if(action==='task-progress'){
-      Object.assign(batchMonitorState,{current:Number(payload.current||batchMonitorState.current),total:Number(payload.total||batchMonitorState.total),succeeded:Number(payload.succeeded??batchMonitorState.succeeded),failed:Number(payload.failed??batchMonitorState.failed),remaining:Number(payload.remaining??batchMonitorState.remaining),task:payload.task||batchMonitorState.task,message:String(payload.message||'正在处理…')});
-    }else if(action==='task-done'){
-      Object.assign(batchMonitorState,{current:Number(payload.current||batchMonitorState.current),succeeded:Number(payload.succeeded||batchMonitorState.succeeded),failed:Number(payload.failed||batchMonitorState.failed),remaining:Number(payload.remaining??batchMonitorState.remaining),task:payload.task||batchMonitorState.task,message:String(payload.message||'草稿已保存')});
-      batchMonitorEvent('done',`${payload.task?.id||'当前邮件'} 已完成`,payload.task?.subject||payload.task?.recipient||'');
-    }else if(action==='task-error'){
-      Object.assign(batchMonitorState,{current:Number(payload.current||batchMonitorState.current),succeeded:Number(payload.succeeded||batchMonitorState.succeeded),failed:Number(payload.failed||batchMonitorState.failed),remaining:Number(payload.remaining??batchMonitorState.remaining),task:payload.task||batchMonitorState.task,message:String(payload.message||'执行失败'),status:'error'});
-      batchMonitorEvent('error',`${payload.task?.id||'当前邮件'} 执行失败`,payload.message||'');
-    }else if(action==='finish'){
-      Object.assign(batchMonitorState,{total:Number(payload.total||batchMonitorState.total),succeeded:Number(payload.succeeded||0),failed:Number(payload.failed||0),remaining:Number(payload.remaining||0),status:String(payload.status||'done'),message:String(payload.message||'执行结束')});
-      batchMonitorEvent(batchMonitorState.status==='done'?'done':'error',batchMonitorState.status==='done'?'全部完成':'执行结束',batchMonitorState.message);
-    }
-    renderBatchMonitor();
-    return {ok:true};
-  }
-
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_PING') {
       sendResponse({ ok: true, role: 'netease-mail-executor', composeOpen: !!findComposeRoot() });
-      return;
-    }
-    if (message?.type === 'NMDA_BATCH_MONITOR') {
-      try { sendResponse(updateBatchMonitor(message.payload||{})); } catch (error) { sendResponse({ok:false,reason:error?.message||String(error)}); }
       return;
     }
     if (message?.type === 'NMDA_EXECUTE_DRAFT') {
