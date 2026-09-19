@@ -2080,3 +2080,11 @@ html.nmda-app-document body.nmda-app-body {
     grid-template-rows:30px 34px max-content minmax(0,1fr) !important;
   }
 }
+
+/* v3.5 ToB unified review: the former ingest-result summary now lives inside Mail Review. */
+#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="2"] .nmda-ingest-workspace-v2:has(#nmda-inline-review:not([hidden])) #nmda-ingest-result-card {
+  display:grid !important;
+  grid-row:auto !important;
+  overflow:visible !important;
+  min-height:0 !important;
+}

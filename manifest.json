@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SmartMail Ops",
   "version": "3.5.0",
-  "description": "网易邮箱批量邮件作业工具：资料导入、核验、排期、草稿创建与联系人记录。",
+  "description": "网易邮箱批量邮件作业工具：资料导入、邮件审阅、排期、草稿创建与联系人记录。",
   "permissions": [
     "storage",
     "scripting",

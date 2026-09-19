@@ -1737,3 +1737,14 @@
   #nmda-root.nmda-standalone #nmda-preview-card > .nmda-planning-head { align-items:flex-start !important; }
   #nmda-root.nmda-standalone .nmda-planning-head-actions { max-width:64%; }
 }
+
+/* Unified review modal: overview + queue belong to the same operational frame. */
+#nmda-root.nmda-standalone .nmda-inline-review:not([hidden]) {
+  grid-template-rows:auto auto minmax(0,1fr) !important;
+}
+#nmda-root.nmda-standalone .nmda-inline-review > .nmda-review-overview {
+  min-height:0;
+  max-height:180px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}

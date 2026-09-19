@@ -5510,3 +5510,38 @@
 @media (max-width:720px){.nmda-attachment-workspace-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.nmda-attachment-workspace-row{grid-template-columns:28px minmax(0,1fr)!important;align-items:start!important}.nmda-attachment-workspace-row .nmda-attachment-file-main{grid-column:2}.nmda-attachment-scope{grid-column:1/-1;align-items:stretch}.nmda-attachment-scope label{min-width:0;flex:1}.nmda-attachment-asset-actions{grid-column:1/-1;justify-content:flex-end!important}.nmda-attachment-requirement-row{grid-template-columns:minmax(0,1fr) auto}.nmda-attachment-requirement-row select{grid-column:1/-1}.nmda-attachment-manager-addbar .nmda-hint{width:100%;margin-left:0;text-align:left}}
 @media (max-width:460px){.nmda-attachment-manager-overlay{padding:0 8px!important}.nmda-attachment-manager{width:calc(100% - 4px)!important;margin:8px 0!important;border-radius:12px!important}.nmda-attachment-manager-head{padding:13px 12px 10px!important}.nmda-attachment-manager-head p{font-size:8px!important}.nmda-attachment-manager-body{padding:10px 11px 12px!important}.nmda-attachment-manager-drop{grid-template-columns:30px minmax(0,1fr);min-height:62px;padding:9px}.nmda-attachment-manager-drop-icon{width:30px;height:30px}.nmda-attachment-manager-drop-action{display:none}.nmda-attachment-manager-foot{padding:9px 11px!important;align-items:stretch!important;flex-direction:column-reverse!important}.nmda-attachment-manager-foot>.nmda-row{justify-content:space-between}.nmda-attachment-manager-foot .nmda-hint{max-width:none;text-align:left}.nmda-attachment-scope{flex-direction:column;align-items:stretch}.nmda-attachment-scope-state{max-width:none;width:max-content}.nmda-attachment-target-toolbar{align-items:stretch;flex-wrap:wrap}.nmda-attachment-target-toolbar label{flex:1 0 100%}}
 .nmda-attachment-assets-more{font-size:9px!important;}
+
+/* v3.5 ToB unified review: Step 2 has one surface only. */
+.nmda-review-overview {
+  display:grid;
+  gap:7px;
+  padding:8px 12px 9px;
+  border-bottom:1px solid #e5eaf0;
+  background:#fbfcfe;
+}
+.nmda-review-overview-line {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-width:0;
+}
+.nmda-review-overview .nmda-ingest-health {
+  margin:0;
+  min-width:0;
+  flex:1 1 auto;
+}
+.nmda-review-overview .nmda-review-guidance {
+  margin:0;
+}
+.nmda-review-overview .nmda-attachment-context-cue,
+.nmda-review-overview .nmda-attachment-library-bar,
+.nmda-review-overview .nmda-attachment-gateway {
+  margin-top:0;
+}
+.nmda-bulk-workbench.is-review-focus #nmda-ingest-result-card {
+  display:grid !important;
+}
+@media (max-width:760px) {
+  .nmda-review-overview-line { align-items:flex-start; flex-direction:column; }
+}

@@ -33,7 +33,7 @@
             <span class="nmda-dock-row-icon">入</span><span class="nmda-dock-row-copy"><strong>资料导入</strong><small>邮件、名单与附件</small></span><span class="nmda-dock-chevron">›</span>
           </button>
           <button class="nmda-dock-row" data-target="batch/2" type="button">
-            <span class="nmda-dock-row-icon">核</span><span class="nmda-dock-row-copy"><strong>待办核验</strong><small>内容、去重与附件</small></span><span class="nmda-dock-chevron">›</span>
+            <span class="nmda-dock-row-icon">审</span><span class="nmda-dock-row-copy"><strong>邮件审阅</strong><small>内容、重复与附件状态</small></span><span class="nmda-dock-chevron">›</span>
           </button>
           <button class="nmda-dock-row" data-target="batch/3" type="button">
             <span class="nmda-dock-row-icon">排</span><span class="nmda-dock-row-copy"><strong>排期与执行</strong><small>选择、排期与批量创建</small></span><span class="nmda-dock-chevron">›</span>
