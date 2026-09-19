@@ -143,7 +143,6 @@
                 <div class="nmda-card-head"><div><div class="nmda-card-title" id="nmda-import-card-title">导入邮件资料</div><div class="nmda-card-desc" id="nmda-import-card-desc">把本批次邮件资料放进来。</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" id="nmda-import-busy-badge" hidden>正在处理…</span><button class="nmda-btn nmda-btn-small" id="nmda-open-supplement-preflight" type="button" hidden>批次准备</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button" hidden>清空本批次</button></div></div>
                 <input id="nmda-import-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip,.pdf,.ppt,.pptx,.rtf,.png,.jpg,.jpeg,.gif,.webp,.svg,.rar,.7z">
                 <input id="nmda-import-dir" type="file" webkitdirectory multiple hidden>
-                <input id="nmda-import-package" type="file" hidden accept=".zip">
                 <input id="nmda-roster-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
                 <div class="nmda-import-drop-zone" id="nmda-import-drop-zone" role="button" tabindex="0" aria-label="拖入邮件资料，或点击选择文件">
                   <div class="nmda-import-drop-zone-icon" aria-hidden="true"><span>↓</span></div>
@@ -153,7 +152,6 @@
                 <div class="nmda-source-action-grid nmda-source-action-grid-compact">
                   <label class="nmda-source-action" for="nmda-import-file"><span class="nmda-source-action-icon">＋</span><strong>选择文件</strong><small>从电脑选择资料</small></label>
                   <label class="nmda-source-action" for="nmda-import-dir"><span class="nmda-source-action-icon">▤</span><strong>选择文件夹</strong><small>批量加入整个文件夹</small></label>
-                  <label class="nmda-source-action nmda-source-action-legacy" for="nmda-import-package" hidden><span class="nmda-source-action-icon">▣</span><strong>打开 ZIP</strong></label>
                   <button class="nmda-source-action nmda-source-action-button" id="nmda-show-paste" type="button"><span class="nmda-source-action-icon">⌘</span><strong>粘贴内容</strong><small>粘贴邮件文本或表格</small></button>
                   <button class="nmda-source-action nmda-source-action-button nmda-source-action-mailbox" id="nmda-import-drafts" type="button"><span class="nmda-source-action-icon">✉</span><strong>读取草稿箱</strong><small>识别正文、主题、定时与附件</small></button>
                 </div>
@@ -288,25 +286,6 @@
                         <div class="nmda-source-inspector-actions" id="nmda-source-inspector-actions"></div>
                         <div class="nmda-source-inspector-content" id="nmda-source-inspector-content"></div>
                         <button class="nmda-source-next-review" id="nmda-source-next-review" type="button" hidden>查看下一个待确认 →</button>
-                        <div class="nmda-source-inspector-legacy-tools" id="nmda-ingest-diagnostics" hidden aria-hidden="true">
-                          <div class="nmda-diagnostics-grid">
-                            <div class="nmda-ingest-structure-card" id="nmda-structure-card" hidden>
-                              <div class="nmda-card-subtitle">读取内容</div>
-                              <div class="nmda-field nmda-inspector-collection-list-field"><span class="nmda-label">文件内内容</span><div id="nmda-collection-list" class="nmda-collection-list"></div></div>
-                              <label class="nmda-field" id="nmda-collection-field"><span class="nmda-label">当前内容</span><select id="nmda-collection-select"></select></label>
-                              <div id="nmda-structure-summary" class="nmda-structure-summary"></div>
-                              <div class="nmda-raw-preview-wrap"><div id="nmda-structure-preview" class="nmda-structure-preview"></div></div>
-                            </div>
-                            <div class="nmda-ingest-mapping-card" id="nmda-mapping-card" hidden>
-                              <div class="nmda-card-subtitle">邮件内容对应</div>
-                              <div id="nmda-header-info" class="nmda-hint nmda-semantic-detection"></div>
-                              <div id="nmda-semantic-summary" class="nmda-semantic-summary"></div>
-                              <div class="nmda-row nmda-wrap nmda-mapping-actions"><button class="nmda-btn nmda-btn-small" id="nmda-apply-profile" type="button" hidden>使用已有设置</button><button class="nmda-btn nmda-btn-small" id="nmda-save-profile" type="button" hidden>保存当前设置</button><button class="nmda-btn nmda-btn-small" id="nmda-toggle-mapping" type="button">调整读取内容</button></div>
-                              <div id="nmda-profile-info" class="nmda-hint"></div>
-                              <div id="nmda-mapping" class="nmda-mapping nmda-semantic-mapping" hidden></div>
-                            </div>
-                          </div>
-                        </div>
                       </div>
                     </aside>
                     </div>
@@ -379,7 +358,6 @@
                       <label class="nmda-btn nmda-btn-small" for="nmda-attachment-dir">选择文件夹</label>
                       <input id="nmda-attachment-files" type="file" multiple hidden>
                       <input id="nmda-attachment-dir" type="file" webkitdirectory multiple hidden>
-                      <input id="nmda-shared-files" type="file" multiple hidden aria-hidden="true">
                       <span id="nmda-file-index-info" class="nmda-hint">尚未选择本地附件。</span>
                     </div>
                     <section class="nmda-attachment-workspace-section">
@@ -1021,7 +999,7 @@
       'sent-read-unavailable':'当前 163 页面无法调用邮件读取接口',
       'sent-read-failed':'读取 Initial 已发送正文失败',
       'sent-read-empty':'163 返回的 Initial 邮件详情为空',
-      'sent-body-parse-failed':'已读取 Initial 邮件，但未解析出正文',
+      'sent-readhtml-url-unavailable':'网易页面未提供 Initial 正文读取地址',
       'sent-readhtml-failed':'读取 Initial 正文页失败',
       'sent-readhtml-parse-failed':'已读取 Initial 正文页，但未解析出邮件正文',
       'initial-body-missing':'Initial 正文尚未缓存',
@@ -1077,12 +1055,7 @@
           operationState.store=failed.store;
           continue;
         }
-        if(!String(detail.body||'').trim()){
-          const failed=Operations.setOutboundContentReadFailure(operationState.store,item.outboundId,'sent-body-parse-failed',detail.reason||'readMessage 未返回可用正文');
-          operationState.store=failed.store;
-          continue;
-        }
-        const updated=Operations.setOutboundContentSnapshot(operationState.store,item.outboundId,{body:detail.body,bodyHtml:detail.bodyHtml||'',isHtml:detail.isHtml===true,source:`sent-message-detail:${detail.bodySource||detail.requestShape||'readMessage'}`});
+        const updated=Operations.setOutboundContentSnapshot(operationState.store,item.outboundId,{body:detail.body,bodyHtml:detail.bodyHtml||'',isHtml:detail.isHtml===true,source:`sent-message-detail:${detail.bodySource}`});
         operationState.store=updated.store;
       }
     }
@@ -1344,16 +1317,16 @@
 
   const batch = {
     dataset: null, collectionIndex: 0, collectionConfigs: new Map(), detection: null, mapping: {}, tasks: [],
-    directoryFiles: [], taskFiles: [], routedAttachmentFiles: [], sharedFiles: [], fileIndex: Importer?.buildFileIndex?.([]),
+    directoryFiles: [], taskFiles: [], routedAttachmentFiles: [], fileIndex: Importer?.buildFileIndex?.([]),
     attachmentOverrides: new Map(), attachmentPolicies: new Map(), attachmentTargetEditing:'', attachmentTargetSearch:'', taskEdits: new Map(), running: false, stopRequested: false,
-    importMeta: null, profileSuggestion: null,
+    importMeta: null,
     sessionId: 0, importBusy: false, schedulePlan: null,
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
     roster: emptyRosterState(), duplicateAudit:null,
     handoffComplete: false, autoAdvancing: false, reviewFilter: 'all', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, preflightView:'files', supportView:'roster', attachmentManagerOpen:false, uiStep:1, planningView:'mails', reviewReturnStep:2, sourceInspectName:'', preflightFolderPath:'', preflightSearch:'', preflightReviewOnly:false, preflightPurposeFilter:'', ignoredAttachmentIdentities:new Set(), bulkSubjectPromptAutoShown:false, bulkSubjectPromptDismissed:false
   };
 
-  const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), importPackageEl = $('nmda-import-package'), rosterFileEl = $('nmda-roster-file'), collectionSelectEl = $('nmda-collection-select'), mappingEl = $('nmda-mapping'), mappingToggleEl = $('nmda-toggle-mapping');
+  const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), rosterFileEl = $('nmda-roster-file');
   const pasteSourceEl = $('nmda-paste-source');
   const subjectAssistEl = $('nmda-subject-assist'), subjectAssistTitleEl = $('nmda-subject-assist-title'), subjectAssistCopyEl = $('nmda-subject-assist-copy');
   const importEditorOverlayEl = $('nmda-import-editor-overlay'), importEditRecipientsEl = $('nmda-import-edit-recipients'), importEditSubjectEl = $('nmda-import-edit-subject'), importEditBodyEl = $('nmda-import-edit-body'), importEditAttachmentsEl = $('nmda-import-edit-attachments'), importEditScheduleEl = $('nmda-import-edit-schedule'), importEditTagsEl = $('nmda-import-edit-tags'), importEditorEvidenceEl = $('nmda-import-editor-evidence');
@@ -1365,7 +1338,7 @@
   const reviewFillSubjectsEl=$('nmda-review-fill-subjects'), reviewSubjectPromptEl=$('nmda-review-subject-prompt'), reviewSubjectPromptTitleEl=$('nmda-review-subject-prompt-title'), reviewSubjectPromptCopyEl=$('nmda-review-subject-prompt-copy'), reviewBulkSubjectInputEl=$('nmda-review-bulk-subject-input'), reviewBulkSubjectApplyEl=$('nmda-review-bulk-subject-apply');
   const duplicateDecisionEl=$('nmda-duplicate-decision'), duplicateDecisionTitleEl=$('nmda-duplicate-decision-title'), duplicateDecisionCopyEl=$('nmda-duplicate-decision-copy'), duplicateDecisionKindEl=$('nmda-duplicate-decision-kind'), duplicateCandidatesEl=$('nmda-duplicate-candidates'), duplicateDecisionHintEl=$('nmda-duplicate-decision-hint'), duplicateKeepSelectedEl=$('nmda-duplicate-keep-selected'), duplicateKeepAllEl=$('nmda-duplicate-keep-all');
   const draftHistoryFilterEl=$('nmda-draft-history-filter'), draftHistoryCountEl=$('nmda-draft-history-count'), draftHistoryListEl=$('nmda-draft-history-list'), draftHistoryHintEl=$('nmda-draft-history-hint'), draftHistoryExcludeEl=$('nmda-draft-history-exclude'), draftHistoryKeepEl=$('nmda-draft-history-keep');
-  const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files'), sharedFilesEl = $('nmda-shared-files');
+  const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files');
   const draftImportEl = $('nmda-import-drafts'), preSendMatchFilesEl = $('nmda-pre-send-match-files'), preSendSharedFilesEl = $('nmda-pre-send-shared-files');
   const previewBodyEl = $('nmda-preview-body'), batchSummaryEl = $('nmda-batch-summary'), batchStatusEl = $('nmda-batch-status'), importStatusEl = $('nmda-import-status');
   const planningOverviewEl = $('nmda-planning-overview');
@@ -1415,13 +1388,6 @@
     batch.scheduleRules=rules; saveScheduleRulePrefs(rules); return rules;
   }
   batch.scheduleRules = freshScheduleRules();
-  (async()=>{
-    try{
-      if(localStorage.getItem(SCHEDULE_PREFS_KEY))return;
-      const legacy=await chrome.runtime.sendMessage({type:'NMDA_LEGACY_PREFS'});
-      if(legacy?.ok&&legacy.scheduleRules){localStorage.setItem(SCHEDULE_PREFS_KEY,legacy.scheduleRules);batch.scheduleRules=freshScheduleRules();syncScheduleRuleControls();}
-    }catch(_){}
-  })();
 
   // One delegated handler replaces hundreds of row listeners that used to be
   // destroyed and rebound after every table refresh.
@@ -1504,12 +1470,9 @@
     return 'prepare';
   }
 
-  function rosterContextNeedsDecision() {
-    return rosterContextState()==='pending';
-  }
 
   function attachmentPreparedFileCount() {
-    return uniqueFiles([...(batch.directoryFiles||[]), ...(batch.taskFiles||[]), ...(batch.routedAttachmentFiles||[]), ...(batch.sharedFiles||[])]).length;
+    return uniqueFiles([...(batch.directoryFiles||[]), ...(batch.taskFiles||[]), ...(batch.routedAttachmentFiles||[])]).length;
   }
 
   function attachmentPreflightState() {
@@ -1565,32 +1528,24 @@
     const id=Importer.fileIdentity(file),has=items=>(items||[]).some(item=>Importer.fileIdentity(item)===id);
     if(has(batch.directoryFiles))return 'directory';
     if(has(batch.routedAttachmentFiles))return 'routed';
-    if(has(batch.sharedFiles))return 'shared';
     return 'task';
   }
 
   function syncAttachmentPolicies(){
     const store=attachmentPolicyStore(),valid=new Set();
-    const groups=[['directory',batch.directoryFiles||[],'文件夹'],['task',batch.taskFiles||[],'手动添加'],['routed',batch.routedAttachmentFiles||[],'随资料导入'],['shared',batch.sharedFiles||[],'旧版配置']];
+    const groups=[['directory',batch.directoryFiles||[],'文件夹'],['task',batch.taskFiles||[],'手动添加'],['routed',batch.routedAttachmentFiles||[],'随资料导入']];
     for(const [kind,files,source] of groups)for(const file of files){const id=Importer.fileIdentity(file);if(!id)continue;valid.add(id);ensureAttachmentPolicy(file,kind,{source});}
     for(const id of [...store.keys()])if(!valid.has(id))store.delete(id);
   }
 
   function attachmentPolicyForFile(file){syncAttachmentPolicies();return ensureAttachmentPolicy(file,attachmentKindForFile(file));}
 
-  function attachmentPolicyLabel(policy,used=0){
-    if(policy.mode==='all')return `全部邮件`;
-    if(policy.mode==='selected')return `指定 ${Array.isArray(policy.targets)?policy.targets.length:0} 封`;
-    return used?`自动匹配 ${used} 封`:'自动匹配';
-  }
-
   function attachmentAssetEntries() {
     syncAttachmentPolicies();
     const groups=[
       ['directory',batch.directoryFiles||[],'文件夹导入'],
       ['task',batch.taskFiles||[],'手动添加'],
-      ['routed',batch.routedAttachmentFiles||[],'随资料导入'],
-      ['shared',batch.sharedFiles||[],'旧版配置']
+      ['routed',batch.routedAttachmentFiles||[],'随资料导入']
     ];
     const out=[],seen=new Set();
     for(const [kind,files,source] of groups) for(const file of files){
@@ -1671,7 +1626,7 @@
     clearStaleOverrides();
     batch.fileIndex=Importer.buildFileIndex(allAttachmentFiles());
     rebuildTasks();
-    renderSourceInventory();renderCollectionList();renderPreflightSourceRoles();renderAttachmentAssetViews();renderSupplementPreflight();
+    renderSourceInventory();renderPreflightSourceRoles();renderAttachmentAssetViews();renderSupplementPreflight();
     const label={mail:'邮件',roster:'参考总名单',attachment:'附件',ignored:'暂不使用'}[purpose];
     setImportStatus(`已将 ${resolvedFileName||sourceName} 调整为${label}，本批次结果已重新整理。`,'ok');
   }
@@ -1812,80 +1767,12 @@
       ||items[0]||null;
   }
 
-  function sourceCollectionSnippet(decision,maxLength=86) {
-    const item=sourcePrimaryCollection(decision),collection=item?.collection,rows=collection?.rows||[];
-    if(!rows.length)return'';
-    if(collection?.meta?.oneFileTask&&rows[1]){
-      const subject=String(rows[1]?.[3]??'').replace(/\s+/g,' ').trim();
-      const body=String(rows[1]?.[4]??'').replace(/\s+/g,' ').trim();
-      const text=subject?`主题：${subject}${body?` · ${body}`:''}`:body;
-      return text.length>maxLength?`${text.slice(0,maxLength)}…`:text;
-    }
-    const values=[];
-    for(const row of rows.slice(0,6)){
-      for(const cell of (row||[]).slice(0,6)){
-        const text=String(cell??'').replace(/\s+/g,' ').trim();
-        if(!text||values.includes(text))continue;
-        values.push(text);
-        if(values.join(' · ').length>=maxLength)break;
-      }
-      if(values.join(' · ').length>=maxLength)break;
-    }
-    const text=values.join(' · ');
-    return text.length>maxLength?`${text.slice(0,maxLength)}…`:text;
-  }
-
   function sourceTasksForDecision(decision) {
     const sourceName=sourceIdentityKey(decision?.sourceName),fileName=sourceIdentityKey(decision?.file?.name||String(sourceName).split('/').pop());
     const bySource=(batch.tasks||[]).filter(task=>!task.importExcluded&&sourceIdentityMatches(task.sourceFile,sourceName,fileName));
     if(bySource.length)return bySource;
     const indexes=new Set((decision?.items||[]).map(item=>item.index));
     return (batch.tasks||[]).filter(task=>indexes.has(Number(task.collectionIndex))&&!task.importExcluded);
-  }
-
-  function sourceRosterListHint(decision) {
-    const item=sourcePrimaryCollection(decision),rows=item?.collection?.rows||[];
-    if(rows.length<2)return'';
-    const rosterDetection=typeof Importer.detectRosterHeader==='function'?Importer.detectRosterHeader(item.collection):null;
-    const fallback=Importer.detectHeader(rows),headerIndex=rosterDetection&&Number(rosterDetection.index)>=0?Number(rosterDetection.index):Math.max(0,Number(fallback.index||0)),headers=(rows[headerIndex]||fallback.headers||[]).map(v=>String(v??'').trim());
-    const records=Math.max(0,rows.length-headerIndex-1),sample=(rows[headerIndex+1]||[]).map(v=>String(v??'').replace(/\s+/g,' ').trim()).filter(Boolean);
-    const usefulHeaders=headers.filter(Boolean).filter(h=>/学校|院校|大学|导师|教授|姓名|邮箱|方向|研究|联系人|university|school|supervisor|professor|name|email|research/i.test(h));
-    const headerSummary=usefulHeaders.slice(0,3).join(' / ');
-    const sampleSummary=sample.slice(0,2).join(' / ');
-    return `${records} 条${headerSummary?` · ${headerSummary}`:''}${sampleSummary?` · 示例：${sampleSummary}`:''}`;
-  }
-
-  function sourceListContentHint(decision) {
-    // The middle column exists only to answer “do I need to correct this file?”.
-    // It intentionally shows a role-specific verification cue instead of dumping
-    // raw headers/content that the user can inspect in the right pane.
-    const tasks=sourceTasksForDecision(decision);
-    if(decision.purpose==='mail'&&!decision.needsReview&&tasks.length){
-      const task=tasks[0],subject=String(task.subject||'').replace(/\s+/g,' ').trim(),recipient=String(task.recipients||'').trim();
-      if(recipient&&subject)return `${recipient} · ${subject}`;
-      if(recipient)return `收件人 ${recipient}`;
-      if(subject)return `主题 ${subject}`;
-    }
-    if(decision.purpose==='roster'&&!decision.needsReview){
-      const rosterHint=sourceRosterListHint(decision);if(rosterHint)return rosterHint;
-    }
-    if(decision.needsReview){
-      const rosterHint=sourceRosterListHint(decision);
-      if(rosterHint)return `待确认 · ${rosterHint}`;
-      return sourceFriendlyReason(decision);
-    }
-    const primary=sourcePrimaryCollection(decision),snippet=sourceCollectionSnippet(decision,72);
-    if(decision.purpose==='attachment'){
-      if(primary?.collection?.meta?.kind==='asset')return'—';
-      return snippet?snippet:'—';
-    }
-    return snippet||'点击查看内容';
-  }
-
-  function sourceDecisionStateText(decision) {
-    if(decision.userConfirmed)return'已修正';
-    if(decision.needsReview)return'待确认';
-    return decision.confidence>=85?'已识别':'建议看一眼';
   }
 
   function sourceDirectoryPath(sourceName) {
@@ -1924,7 +1811,7 @@
       collection.meta={...(collection.meta||{}),purposeOverride:'',sourcePurpose:'ambiguous',purposeConfidence:0,purposeReasons:['已标记为待确认']};
     }
     batch.handoffComplete=false;syncRoutedSources();clearStaleOverrides();batch.fileIndex=Importer.buildFileIndex(allAttachmentFiles());rebuildTasks();
-    renderSourceInventory();renderCollectionList();renderPreflightSourceRoles();renderAttachmentAssetViews();renderSupplementPreflight();
+    renderSourceInventory();renderPreflightSourceRoles();renderAttachmentAssetViews();renderSupplementPreflight();
     setImportStatus(`已将 ${resolvedFileName||sourceName} 标记为待确认。`,'ok');
   }
 
@@ -1997,10 +1884,7 @@
     if(!items.length)return;
     batch.sourceInspectName=sourceName;
     const first=items.find(({index})=>ensureCollectionConfig(index)?.purpose==='mail')||items[0];
-    collectionSelectEl.innerHTML=items.map(({collection,index})=>{const config=ensureCollectionConfig(index),kind=collectionKind(collection,config?.purpose),detection=config?.detection||Importer.detectHeader(collection.rows||[]),records=Math.max(0,(collection.rows||[]).length-detection.index-1);return `<option value="${index}" ${index===first.index?'selected':''}>${escapeHtml(collection.name)} · ${escapeHtml(kind.label)} · ${records} 条</option>`;}).join('');
-    $('nmda-collection-field').hidden=items.length<=1;
     configureCollection(first.index,false);
-    const diagnostics=$('nmda-ingest-diagnostics');if(diagnostics){diagnostics.hidden=true;diagnostics.open=false;}
     renderPreflightSourceRoles();
   }
 
@@ -2125,7 +2009,7 @@
     if(!identity)return;
     const keep=file=>Importer.fileIdentity(file)!==identity;
     batch.ignoredAttachmentIdentities.add(identity);
-    batch.directoryFiles=(batch.directoryFiles||[]).filter(keep);batch.taskFiles=(batch.taskFiles||[]).filter(keep);batch.routedAttachmentFiles=(batch.routedAttachmentFiles||[]).filter(keep);batch.sharedFiles=(batch.sharedFiles||[]).filter(keep);
+    batch.directoryFiles=(batch.directoryFiles||[]).filter(keep);batch.taskFiles=(batch.taskFiles||[]).filter(keep);batch.routedAttachmentFiles=(batch.routedAttachmentFiles||[]).filter(keep);
     batch.attachmentPolicies?.delete(identity);if(batch.attachmentTargetEditing===identity)batch.attachmentTargetEditing='';
     batch.attachmentPrepChoice=attachmentPreparedFileCount()?'added':(batch.supplementPreflightDone?'skipped':'pending');
     refreshFileIndex(false);renderSupplementPreflight();renderAttachmentAssetViews();
@@ -2133,8 +2017,8 @@
 
   function clearAttachmentAssets() {
     for(const file of batch.routedAttachmentFiles||[])batch.ignoredAttachmentIdentities.add(Importer.fileIdentity(file));
-    if(dirEl)dirEl.value='';if(taskFilesEl)taskFilesEl.value='';if(sharedFilesEl)sharedFilesEl.value='';if(preSendMatchFilesEl)preSendMatchFilesEl.value='';if(preSendSharedFilesEl)preSendSharedFilesEl.value='';
-    batch.directoryFiles=[];batch.taskFiles=[];batch.routedAttachmentFiles=[];batch.sharedFiles=[];batch.attachmentOverrides.clear();batch.attachmentPolicies=new Map();batch.attachmentTargetEditing='';
+    if(dirEl)dirEl.value='';if(taskFilesEl)taskFilesEl.value='';if(preSendMatchFilesEl)preSendMatchFilesEl.value='';if(preSendSharedFilesEl)preSendSharedFilesEl.value='';
+    batch.directoryFiles=[];batch.taskFiles=[];batch.routedAttachmentFiles=[];batch.attachmentOverrides.clear();batch.attachmentPolicies=new Map();batch.attachmentTargetEditing='';
     batch.attachmentPrepChoice=batch.supplementPreflightDone?'skipped':'pending';refreshFileIndex(true);renderSupplementPreflight();renderAttachmentAssetViews();
   }
 
@@ -2325,28 +2209,6 @@
     }
   }
 
-  function renderAttachmentContextCue() {
-    const cue=$('nmda-attachment-context-cue');if(!cue)return;
-    const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{total:0,matched:0,issues:0};
-    const contextPending=typeof supplementPreflightNeedsDecision==='function'&&supplementPreflightNeedsDecision();
-    const shouldShow=!!batch.dataset && stats.total>0 && stats.issues>0 && !batch.attachmentPromptDeferred && !contextPending;
-    cue.hidden=!shouldShow;
-    const bar=$('nmda-attachment-library-bar'),barTitle=$('nmda-attachment-library-bar-title'),barCopy=$('nmda-attachment-library-bar-copy'),prepared=attachmentPreparedFileCount();
-    const showBar=!!batch.dataset&&!contextPending&&!shouldShow&&(prepared>0||stats.total>0);
-    if(bar)bar.hidden=!showBar;
-    if(showBar){if(barTitle)barTitle.textContent=`附件工作台 · ${prepared} 个文件`;if(barCopy)barCopy.textContent=stats.total?`邮件附件要求已覆盖 ${Math.max(0,stats.total-stats.issues)}/${stats.total}；发送范围可逐个文件调整。`:'附件发送范围可随时在同一工作台调整。';}
-    if(!shouldShow)return;
-    const title=$('nmda-attachment-context-title'),copy=$('nmda-attachment-context-copy'),later=$('nmda-attachment-later'),sendAction=$('nmda-attachment-send-action'),dirAction=$('nmda-attachment-dir-action');
-    const mailPending=typeof reviewTasks==='function'&&reviewTasks().length>0;
-    if(sendAction){sendAction.classList.add('nmda-btn-primary');sendAction.classList.remove('nmda-btn-quiet');}
-    if(dirAction){dirAction.classList.remove('nmda-btn-primary');dirAction.classList.add('nmda-btn-quiet');}
-    if(title)title.textContent=`还有 ${stats.issues} 项附件要求待处理`;
-    if(copy)copy.textContent=mailPending
-      ? `这是发送前必须完成的附件检查。打开附件工作台，拖入文件并确认每个文件的适用范围。`
-      : `这是当前最后一项附件检查。补齐后“选择与排期”即可执行。`;
-    if(later)later.hidden=!mailPending;
-  }
-
   function renderImportLifecycleState() {
     if (typeof renderProcessGuide === 'function') renderProcessGuide();
     const active = !!batch.dataset || !!batch.importBusy || !!batch.roster?.entries?.length;
@@ -2376,7 +2238,6 @@
     }
     const prepButton=$('nmda-open-supplement-preflight');if(prepButton)prepButton.hidden=!batch.dataset;
     renderRosterContextCue();
-    renderAttachmentContextCue();
     renderBatchPrepStrip();
     renderSupplementPreflight();
     renderAttachmentAssetViews();
@@ -2424,7 +2285,7 @@
       const detection = Importer.detectHeader(collection.rows || []);
       const classified=String(collection.meta?.sourcePurpose||'ambiguous');
       const purpose=['mail','roster','attachment','ignored'].includes(classified)?classified:'ignored';
-      config = { purpose, enabled: purpose==='mail', detection, mapping: { ...detection.mapping }, profileSuggestion: null };
+      config = { purpose, enabled: purpose==='mail', detection, mapping: { ...detection.mapping } };
       batch.collectionConfigs.set(Number(index) || 0, config);
     }
     return config;
@@ -2520,81 +2381,6 @@
     const warningHtml = warnings.length ? `<details class="nmda-ingest-warnings"><summary>读取细节（${warnings.length}）</summary>${warnings.slice(0,20).map(w => `<div>${escapeHtml(w)}</div>`).join('')}${warnings.length > 20 ? `<div>另有 ${warnings.length - 20} 条未展开。</div>` : ''}</details>` : '';
     box.innerHTML = `<details class="nmda-source-inventory-details"><summary><span><strong>导入详情</strong><small>${summaryParts.filter(Boolean).join(' · ')}</small></span><span class="nmda-source-inventory-open">查看</span></summary>${containerHtml}<div class="nmda-source-list">${sourceRows}</div>${dedupeHtml}${embeddedCount?`<div class="nmda-source-detail-note">已从资料包中加入 ${embeddedCount} 个附件文件。</div>`:''}${warningHtml}</details>`;
     box.hidden = false;
-  }
-
-  function renderCollectionList() {
-    const box = $('nmda-collection-list');
-    if (!box) return;
-    const sets = recordSets();
-    const focus=String(batch.sourceInspectName||'');
-    const visible=sets.map((collection,index)=>({collection,index})).filter(({collection})=>!focus||collectionMatchesSource(collection,focus,focus.split('/').pop()||''));
-    box.innerHTML = visible.map(({collection,index}) => {
-      const config = ensureCollectionConfig(index);
-      const kind = collectionKind(collection,config?.purpose);
-      const detection = config?.detection || Importer.detectHeader(collection.rows || []);
-      const count = Math.max(0, (collection.rows || []).length - detection.index - 1);
-      const active = index === batch.collectionIndex;
-      const scan = collection.meta?.mailScan;
-      const detail = config?.purpose==='mail'&&collection.meta?.mailFrames && scan
-        ? `${kind.label} · ${scan.records || count} 封 · ${scan.complete || 0} 可用 · ${scan.missingRecipients || 0} 待补邮箱`
-        : `${kind.label} · ${count} 条记录${collection.meta?.sourcePurpose==='ambiguous'&&config?.purpose==='ignored'?' · 自动识别未采用':''}`;
-      const option=(value,label)=>`<option value="${value}" ${config?.purpose===value?'selected':''}>${label}</option>`;
-      const purposeControl=focus?'':`<label class="nmda-source-purpose-control"><span class="sr-only">资料用途</span><select data-source-purpose="${index}">${option('mail','作为邮件')}${option('roster','作为总名单')}${option('attachment','作为附件候选')}${option('ignored','暂不使用')}</select></label>`;
-      return `<div class="nmda-collection-row ${active ? 'is-active' : ''}" data-purpose="${escapeHtml(config?.purpose||'ignored')}"><span class="nmda-collection-kind">${escapeHtml(kind.icon)}</span><span class="nmda-collection-main"><strong>${escapeHtml(collection.name || `内容 ${index + 1}`)}</strong><small>${escapeHtml(detail)}</small></span>${purposeControl}<button type="button" class="nmda-btn nmda-btn-small" data-inspect-collection="${index}">${active ? '正在查看' : '查看'}</button></div>`;
-    }).join('')||'<div class="nmda-empty-inline">这个文件没有可展开的结构化内容。</div>';
-    box.querySelectorAll('[data-source-purpose]').forEach(input => input.addEventListener('change', () => {
-      const index = Number(input.dataset.sourcePurpose);
-      const config = ensureCollectionConfig(index);
-      if (!config) return;
-      config.purpose=input.value;config.enabled=config.purpose==='mail';
-      batch.handoffComplete=false;
-      syncRoutedSources();refreshFileIndex(false);configureCollection(index,false);renderSourceInventory();renderCollectionList();renderPreflightSourceRoles();
-    }));
-    box.querySelectorAll('[data-inspect-collection]').forEach(button => button.addEventListener('click', () => {
-      const index = Number(button.dataset.inspectCollection);
-      collectionSelectEl.value = String(index);configureCollection(index, false);renderCollectionList();
-    }));
-  }
-
-  function renderCollectionOverview() {
-    const collection = currentCollection();
-    const summary = $('nmda-structure-summary');
-    const preview = $('nmda-structure-preview');
-    if (!collection || !summary || !preview) return;
-    const kind = collectionKind(collection,ensureCollectionConfig(batch.collectionIndex)?.purpose);
-    const rows = collection.rows || [];
-    const detection = batch.detection || Importer.detectHeader(rows);
-    const dataCount = Math.max(0, rows.length - (detection.index + 1));
-    const width = Math.max(0, ...rows.slice(0, 50).map(row => row?.length || 0));
-    const source = collection.source || sourceFileName(batch.dataset?.sourceFiles?.[0]);
-    const scan = collection.meta?.mailScan;
-    const metricHtml = collection.meta?.mailFrames && scan
-      ? `<span><strong>${scan.records || dataCount}</strong> 封邮件</span><span><strong>${scan.complete || 0}</strong> 可用</span><span><strong>${scan.missingRecipients || 0}</strong> 待补邮箱</span>`
-      : `<span><strong>${dataCount}</strong> 条候选记录</span><span><strong>${width}</strong> 个来源字段</span>`;
-    summary.innerHTML = `
-      <div class="nmda-structure-identity" data-tone="${escapeHtml(kind.tone)}"><span>${escapeHtml(kind.icon)}</span><div><strong>${escapeHtml(kind.label)}</strong><small>${escapeHtml(collection.name || '未命名内容')}</small></div></div>
-      <div class="nmda-structure-metrics">${metricHtml}<span title="${escapeHtml(String(source || ''))}"><strong>来源</strong> ${escapeHtml(String(source || '—'))}</span></div>`;
-    const rawStart = Math.max(0, Math.min(detection.index, rows.length - 1));
-    const sampleRows = rows.slice(rawStart, rawStart + 6);
-    if (!sampleRows.length) { preview.innerHTML = '<div class="nmda-empty-inline">这里没有可预览的内容。</div>'; return; }
-    const maxCols = Math.min(8, Math.max(...sampleRows.map(r => r?.length || 0), 1));
-    preview.innerHTML = `<table><tbody>${sampleRows.map((row, ri) => `<tr class="${ri === 0 ? 'is-structure-head' : ''}">${Array.from({length:maxCols},(_,ci)=>`<td title="${escapeHtml(String(row?.[ci] ?? ''))}">${escapeHtml(String(row?.[ci] ?? '') || '—')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-  }
-
-  function renderSemanticSummary() {
-    const box = $('nmda-semantic-summary');
-    if (!box || !batch.detection) return;
-    const headers = batch.detection.headers || [];
-    const mapping = batch.mapping || {};
-    const confidence = batch.detection.confidence || {};
-    const items = Importer.FIELD_DEFS.map(field => {
-      const index = mapping[field.key];
-      const mapped = index != null;
-      const score = mapped ? Number(confidence[field.key] || 0) : 0;
-      const tone = !mapped ? 'none' : score >= 90 ? 'high' : score >= 70 ? 'medium' : 'low';
-      return `<div class="nmda-semantic-item" data-confidence="${tone}"><span>${escapeHtml(field.label)}</span><strong>${mapped ? escapeHtml(headers[index] || `来源字段 ${Number(index)+1}`) : '未映射'}</strong>${mapped ? `<small>${score ? '已匹配' : '已设置'}</small>` : '<small>不会写入任务</small>'}</div>`;
-    });
-    box.innerHTML = items.join('');
   }
 
   function recipientLooksValid(value) {
@@ -3002,13 +2788,6 @@
     if(/邮件落款后|邮件边界|称呼|落款|置信度|请检查/.test(text))return '正文边界待核对';
     if(/总名单|联系人|院校/.test(text))return '联系人待核对';
     return text==='修改待确认'?'修改待确认':text;
-  }
-
-  function primaryReviewIssue(task){
-    const issues=unresolvedImportIssues(task);
-    const patterns=[/收件人存在多个|多个相近候选/,/未定位收件人|收件人邮箱|缺少收件人/,/主题为空|未找到 Subject|缺少主题/,/缺少正文|正文过短/,/总名单|联系人|院校/,/邮件落款后|邮件边界|称呼|落款|置信度|请检查/,/修改待确认/];
-    for(const pattern of patterns){const found=issues.find(issue=>pattern.test(String(issue||'')));if(found)return found;}
-    return issues[0]||'';
   }
 
   function unresolvedDuplicateAuditGroups() {
@@ -3574,15 +3353,10 @@
     const bodyOk=!!body.trim();
     const openingWarn=/称呼|邮件起点|开头|边界|请检查/.test(issueText)&&!task.reviewConfirmed;
     const closingWarn=/落款|邮件终点|结尾|边界|请检查/.test(issueText)&&!task.reviewConfirmed;
-    const attachmentCount=(task.files||[]).length || (task.attachmentRefs||[]).length;
-    const attachmentIssues=taskIssueState(task).attachment.length || (task.attachmentDetails||[]).filter(item=>item?.status&&item.status!=='matched').length;
     setAuditCheck('nmda-audit-check-recipient',recipientOk?'ok':'warn',recipientOk?'已识别':'需修正');
     setAuditCheck('nmda-audit-check-subject',subjectOk?'ok':'warn',subjectOk?'已识别':'缺失');
     setAuditCheck('nmda-audit-check-opening',bodyOk&&boundary.hasOpening&&!openingWarn?'ok':bodyOk?'review':'warn',bodyOk?(boundary.hasOpening&&!openingWarn?'称呼已定位':'重点核对'):'正文缺失');
     setAuditCheck('nmda-audit-check-closing',bodyOk&&boundary.hasClosing&&!closingWarn?'ok':bodyOk?'review':'warn',bodyOk?(boundary.hasClosing&&!closingWarn?'收尾已定位':'重点核对'):'正文缺失');
-    const remoteAttachmentCount=(task.remoteAttachments||[]).length;
-    const attachmentOkText=remoteAttachmentCount?`原草稿 ${remoteAttachmentCount} 个`:attachmentCount?`${attachmentCount} 个附件`:'无附件';
-    setAuditCheck('nmda-audit-check-attachment',attachmentIssues?'warn':'ok',attachmentIssues?`${attachmentIssues} 项异常`:attachmentOkText);
     const recipientEl=$('nmda-audit-recipient'),subjectEl=$('nmda-audit-subject'),openingEl=$('nmda-audit-opening'),closingEl=$('nmda-audit-closing'),fullEl=$('nmda-audit-full-body');
     renderReviewSemanticLegend(task);
     if(recipientEl)recipientEl.innerHTML=semanticHighlightHtml(recipient||'未识别收件人',task);
@@ -3759,7 +3533,6 @@
     const excluded=excludedImportCount();
     const restoreExcluded=$('nmda-restore-excluded');
     if(restoreExcluded){restoreExcluded.hidden=!excluded;restoreExcluded.textContent=excluded?`恢复已排除（${excluded}）`:'恢复已排除';}
-    renderAttachmentContextCue();
   }
 
   function updateReviewMailNavigation(task) {
@@ -3955,12 +3728,6 @@
     return Operations?.parseTags?.(value) || [];
   }
 
-  function taskEffectiveClassifications(task) {
-    return parseTaskClassifications(task?.tags || []);
-  }
-
-  // Backward-compatible internal alias: task custom classifications are still stored in `tags`.
-  function taskEffectiveTags(task) { return taskEffectiveClassifications(task); }
 
   function normalizedSearchText(value) {
     return String(value || '').toLocaleLowerCase('zh-CN').replace(/\s+/g, ' ').trim();
@@ -4057,20 +3824,6 @@
     if (patch.recipients != null || patch.subject != null || patch.body != null || patch.school != null || patch.scheduleAt != null || patch.tags != null) refreshTaskSearchStatic(task);
   }
 
-  function mappingSelectHtml(field, headers) {
-    const selected = batch.mapping[field.key];
-    const options = [`<option value="">— 不导入 —</option>`, ...headers.map((header, index) => `<option value="${index}" ${Number(selected) === index ? 'selected' : ''}>${escapeHtml(header || `来源字段${index + 1}`)}</option>`)].join('');
-    return `<label class="nmda-map-row"><span>${escapeHtml(field.label)}</span><select data-map-field="${field.key}">${options}</select></label>`;
-  }
-
-  function setMappingEditorOpen(open) {
-    if (!mappingEl || !mappingToggleEl) return;
-    const isOpen = !!open;
-    mappingEl.hidden = !isOpen;
-    mappingToggleEl.setAttribute('aria-expanded', String(isOpen));
-    mappingToggleEl.textContent = isOpen ? '收起调整' : '调整对应内容';
-  }
-
   function configureCollection(index, useAuto = true) {
     batch.collectionIndex = Number(index) || 0;
     const collection = currentCollection();
@@ -4078,48 +3831,12 @@
     const config = ensureCollectionConfig(batch.collectionIndex, { reset: useAuto });
     batch.detection = config.detection;
     batch.mapping = config.mapping;
-    const headers = batch.detection.headers || [];
-    const detectedCount = Object.keys(batch.mapping || {}).length;
-    const hasCore = batch.mapping.recipients != null && (batch.mapping.subject != null || batch.mapping.body != null);
-    const avgConfidence = Math.round(batch.detection.avgConfidence || 0);
-    const lowFields = Object.entries(batch.detection.confidence || {}).filter(([key, score]) => batch.mapping[key] != null && score < 70).map(([key]) => Importer.FIELD_DEFS.find(x => x.key === key)?.label || key);
-    const kind = collectionKind(collection,config.purpose);
-    const isMail=config.purpose==='mail';
-    const advancedMappingCard=$('nmda-mapping-card'); if(advancedMappingCard)advancedMappingCard.hidden=!isMail||!!collection.meta?.mailFrames;
-    const originWord = collection.meta?.wordTaskRows;
-    const mailScan = collection.meta?.mailScan;
-    const originText = collection.meta?.mailFrames
-      ? `已整理邮件内容${mailScan ? `（${mailScan.records || 0} 封）` : ''}`
-      : originWord ? '已整理来源内容' : '已找到可用内容';
-    $('nmda-header-info').textContent = isMail
-      ? `${kind.label} · 已识别 ${detectedCount} 项内容${lowFields.length ? `；建议检查：${lowFields.join('、')}` : ''}${hasCore ? '。' : '；收件人、主题或正文仍需调整。'}`
-      : `${kind.label} · ${(collection.meta?.purposeReasons||[]).join('；')||'该组内容不会生成邮件任务。'}`;
-    mappingEl.innerHTML = isMail?Importer.FIELD_DEFS.map(field => mappingSelectHtml(field, headers)).join(''):'';
-    const format = collection.meta?.format || batch.dataset?.format || '';
-    config.profileSuggestion = isMail?(Importer.suggestProfile?.({ format, headers }) || null):null;
-    batch.profileSuggestion = config.profileSuggestion;
-    const applyProfileBtn = $('nmda-apply-profile');
-    const profileInfo = $('nmda-profile-info');
-    if (applyProfileBtn) applyProfileBtn.hidden = !(config.profileSuggestion?.score >= 0.72);
-    if (profileInfo) profileInfo.textContent = config.profileSuggestion?.score >= 0.72 ? `可以使用已保存设置“${config.profileSuggestion.profile.name}”。` : '';
-    setMappingEditorOpen(isMail&&(!hasCore || lowFields.length > 0));
-    renderCollectionList();
-    renderCollectionOverview();
-    renderSemanticSummary();
-    mappingEl.querySelectorAll('select[data-map-field]').forEach(select => select.addEventListener('change', () => {
-      const field = select.dataset.mapField;
-      if (select.value === '') delete config.mapping[field]; else config.mapping[field] = Number(select.value);
-      batch.mapping = config.mapping;
-      batch.handoffComplete=false;
-      renderSemanticSummary();
-      rebuildTasks();
-    }));
     rebuildTasks();
   }
 
   function allAttachmentFiles() {
     syncAttachmentPolicies();
-    return uniqueFiles([...batch.directoryFiles, ...batch.taskFiles, ...batch.routedAttachmentFiles, ...batch.sharedFiles]);
+    return uniqueFiles([...batch.directoryFiles, ...batch.taskFiles, ...batch.routedAttachmentFiles]);
   }
 
   function attachmentFileEligibleForTask(file,taskKey){
@@ -4515,7 +4232,7 @@
     batch.rosterPromptChoice=batch.dataset&&batch.tasks?.length?'pending':'idle';
     const status=$('nmda-roster-source-status');if(status)status.textContent='未添加参考总名单。';
     const remove=$('nmda-roster-remove');if(remove)remove.hidden=true;
-    if(batch.dataset){rebuildTasks();renderSourceInventory();renderCollectionList();}else renderRosterAudit();
+    if(batch.dataset){rebuildTasks();renderSourceInventory();}else renderRosterAudit();
     renderImportLifecycleState();
   }
 
@@ -4957,15 +4674,12 @@
       if(window.matchMedia('(max-width: 900px)').matches)setPlanningView('mails');
       const refreshed=dispatchTasks();
       const s=plan.summary, audit=Scheduler.audit?.(refreshed,rules)||{conflicts:[],holidayConflicts:[]};
-      const fallbackCount=Number(s.fallbackTasks||s.fallbackGroups||0);
-      const fallback='';
       const priority=s.priorityOrderedGroups?`；${s.priorityOrderedGroups} 所院校已按总名单顺序排列`:'';
       const holiday=s.holidayAdjusted?`；${s.holidayAdjusted} 封为避开节假日/周末自动顺延`:'';
-      const unsupported='';
       const conflicts=(audit.conflicts?.length||0)+(audit.holidayConflicts?.length||0);
       const conflict=audit.conflicts?.length?`；保留的已有时间仍有 ${audit.conflicts.length} 个同校规则冲突，请手工调整或关闭“保留已有时间”后重排`:'';
       const holidayConflict=audit.holidayConflicts?.length?`；${audit.holidayConflicts.length} 个保留时间仍落在节假日/周末`:'';
-      setBatchStatus(`时间已安排：${s.selected} 封邮件，自动安排 ${s.auto} 封，保留已有 ${s.preserved} 封，共 ${s.rounds} 轮${priority}${holiday}${fallback}${unsupported}${conflict}${holidayConflict}。`,conflicts?'warn':'ok');
+      setBatchStatus(`时间已安排：${s.selected} 封邮件，自动安排 ${s.auto} 封，保留已有 ${s.preserved} 封，共 ${s.rounds} 轮${priority}${holiday}${conflict}${holidayConflict}。`,conflicts?'warn':'ok');
     }catch(error){setBatchStatus(`安排时间失败：${error.message}`,'error');}
   }
 
@@ -5270,10 +4984,10 @@
     batch.attachmentAttentionShown=false;
     batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.attachmentPrepChoice='pending';batch.sourceInspectName='';batch.preflightFolderPath='';batch.preflightSearch='';batch.preflightReviewOnly=false;batch.preflightPurposeFilter='';
     closeImportTaskEditor();
-    batch.directoryFiles = []; batch.taskFiles = uniqueFiles(dataset?.embeddedFiles || []); batch.routedAttachmentFiles=[]; batch.sharedFiles = []; batch.attachmentOverrides.clear(); batch.attachmentPolicies=new Map(); batch.attachmentTargetEditing=''; batch.attachmentTargetSearch=''; batch.ignoredAttachmentIdentities=new Set(); batch.attachmentManagerOpen=false;
+    batch.directoryFiles = []; batch.taskFiles = uniqueFiles(dataset?.embeddedFiles || []); batch.routedAttachmentFiles=[]; batch.attachmentOverrides.clear(); batch.attachmentPolicies=new Map(); batch.attachmentTargetEditing=''; batch.attachmentTargetSearch=''; batch.ignoredAttachmentIdentities=new Set(); batch.attachmentManagerOpen=false;
     for(const file of batch.taskFiles)ensureAttachmentPolicy(file,'task',{source:'随资料导入',mode:'smart'});
     batch.fileIndex = Importer.buildFileIndex(batch.taskFiles);
-    dirEl.value = ''; taskFilesEl.value = ''; sharedFilesEl.value = '';
+    dirEl.value = ''; taskFilesEl.value = '';
     if (batchSearchEl) batchSearchEl.value = '';
     if (batchTagIncludeEl) batchTagIncludeEl.value = '';
     try{await ensureOperationStore();}catch(error){console.warn(`[${APP}] duplicate history store load failed`,error);}
@@ -5284,17 +4998,6 @@
     const mailIndexes=sets.map((_,index)=>index).filter(index=>ensureCollectionConfig(index)?.purpose==='mail');
     const bestIndex=(mailIndexes.map(index=>({index,score:Number(Importer.detectHeader(sets[index]?.rows||[]).score||0)})).sort((a,b)=>b.score-a.score)[0]?.index)??0;
     batch.collectionIndex = bestIndex;
-    collectionSelectEl.innerHTML = sets.map((collection, i) => {
-      const config=ensureCollectionConfig(i),kind = collectionKind(collection,config?.purpose);
-      const detection = Importer.detectHeader(collection.rows || []);
-      const records = Math.max(0, (collection.rows || []).length - detection.index - 1);
-      return `<option value="${i}" ${i === bestIndex ? 'selected' : ''}>${escapeHtml(collection.name)} · ${escapeHtml(kind.label)} · ${records} 条</option>`;
-    }).join('');
-    $('nmda-collection-field').hidden = sets.length <= 1;
-    $('nmda-structure-card').hidden = false;
-    $('nmda-mapping-card').hidden = false;
-    $('nmda-ingest-diagnostics').hidden = true;
-    const legacyAttachmentsCard=$('nmda-attachments-card'); if(legacyAttachmentsCard) legacyAttachmentsCard.hidden = true;
     configureCollection(bestIndex, false);
     renderSourceInventory();
     clearStaleOverrides();
@@ -5338,7 +5041,6 @@
     batch.directoryFiles = [];
     batch.taskFiles = [];
     batch.routedAttachmentFiles = [];
-    batch.sharedFiles = [];
     batch.ignoredAttachmentIdentities = new Set();
     batch.attachmentManagerOpen = false;
     batch.attachmentOverrides.clear();
@@ -5360,7 +5062,6 @@
     batch.attachmentPrepChoice='idle';
     batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.preflightView='files';batch.planningView='rules';batch.sourceInspectName='';batch.preflightFolderPath='';batch.preflightSearch='';batch.preflightReviewOnly=false;batch.preflightPurposeFilter='';
     batch.fileIndex = Importer.buildFileIndex([]);
-    batch.profileSuggestion = null;
     batch.stopRequested = false;
     batch.schedulePlan = null;
     batch.scheduleRules = freshScheduleRules();
@@ -5368,27 +5069,18 @@
     syncScheduleRuleControls();
 
     closeImportTaskEditor();
-    [importFileEl, importDirEl, importPackageEl, rosterFileEl, dirEl, taskFilesEl, sharedFilesEl].forEach(el => { if (el) el.value = ''; });
+    [importFileEl, importDirEl, rosterFileEl, dirEl, taskFilesEl].forEach(el => { if (el) el.value = ''; });
     if (pasteSourceEl) pasteSourceEl.value = '';
     const pastePanel = $('nmda-paste-panel'); if (pastePanel) pastePanel.hidden = true;
-    const diagnostics = $('nmda-ingest-diagnostics'); if (diagnostics) { diagnostics.hidden = true; diagnostics.open = false; }
 
     if (batchSearchEl) batchSearchEl.value = '';
     if (batchTagIncludeEl) batchTagIncludeEl.value = '';
     const bulkTag = $('nmda-bulk-tag-value'); if (bulkTag) bulkTag.value = '';
 
-    ['nmda-structure-card','nmda-mapping-card','nmda-ingest-diagnostics','nmda-roster-audit-card','nmda-attachments-card','nmda-import-handoff-card','nmda-preview-card','nmda-scheduler-card'].forEach(id => {
+    ['nmda-roster-audit-card','nmda-import-handoff-card','nmda-preview-card','nmda-scheduler-card'].forEach(id => {
       const el = $(id); if (el) el.hidden = true;
     });
     const inventory = $('nmda-source-inventory'); if (inventory) { inventory.hidden = true; inventory.innerHTML = ''; }
-    if (collectionSelectEl) collectionSelectEl.innerHTML = '';
-    const collectionList = $('nmda-collection-list'); if (collectionList) collectionList.innerHTML = '';
-    const structureSummary = $('nmda-structure-summary'); if (structureSummary) structureSummary.innerHTML = '';
-    const headerInfo = $('nmda-header-info'); if (headerInfo) headerInfo.textContent = '';
-    const profileInfo = $('nmda-profile-info'); if (profileInfo) profileInfo.textContent = '';
-    const mapping = $('nmda-mapping'); if (mapping) { mapping.innerHTML = ''; mapping.hidden = true; }
-    const semantic = $('nmda-semantic-summary'); if (semantic) semantic.innerHTML = '';
-    const structure = $('nmda-structure-preview'); if (structure) structure.innerHTML = '';
     if (reviewQueueEl) reviewQueueEl.innerHTML = '';
     if (reviewSourceContextEl) reviewSourceContextEl.innerHTML = '';
     if (reviewSourceMetaEl) reviewSourceMetaEl.innerHTML = '';
@@ -5501,18 +5193,6 @@
     finally { finishImportSession(token); if (importDirEl) importDirEl.value = ''; }
   });
 
-  importPackageEl?.addEventListener('change', async () => {
-    const file = importPackageEl.files?.[0];
-    if (!file || !Importer) return;
-    const token = beginImportSession(`正在读取 ZIP ${file.name}…`);
-    try {
-      const dataset = await Importer.parseFile(file);
-      if (!isCurrentBatchSession(token)) return;
-      await applyImportedDataset(dataset, `ZIP ${file.name}`, token);
-    } catch (error) { clearImportOnError(error, token); }
-    finally { finishImportSession(token); if (importPackageEl) importPackageEl.value = ''; }
-  });
-
 
   rosterFileEl?.addEventListener('change', async () => {
     const files=[...(rosterFileEl.files||[])];
@@ -5523,7 +5203,7 @@
   $('nmda-edit-batch-prep')?.addEventListener('click',()=>openSupplementPreflight('support'));
   $('nmda-close-supplement-preflight')?.addEventListener('click',()=>{batch.supplementPreflightOpen=false;renderSupplementPreflight();setImportStatus('已返回上传区。','ok');});
   $('nmda-preflight-source-search')?.addEventListener('input',event=>{batch.preflightSearch=String(event.target.value||'');renderPreflightSourceRoles();});
-  $('nmda-source-inspector-close')?.addEventListener('click',()=>{batch.sourceInspectName='';const diagnostics=$('nmda-ingest-diagnostics');if(diagnostics){diagnostics.hidden=true;diagnostics.open=false;}renderPreflightSourceRoles();});
+  $('nmda-source-inspector-close')?.addEventListener('click',()=>{batch.sourceInspectName='';renderPreflightSourceRoles();});
   ui.querySelectorAll('[data-preflight-view]').forEach(button=>button.addEventListener('click',()=>setPreflightView(button.dataset.preflightView)));
   ui.querySelectorAll('button[data-support-view]').forEach(button=>button.addEventListener('click',()=>setSupportView(button.dataset.supportView)));
   ui.querySelectorAll('[data-planning-view]').forEach(button=>button.addEventListener('click',()=>setPlanningView(button.dataset.planningView)));
@@ -5552,7 +5232,6 @@
   });
   $('nmda-attachment-later')?.addEventListener('click',()=>{
     batch.attachmentPromptDeferred=true;
-    renderAttachmentContextCue();
     setImportStatus('附件检查已保留；可先处理邮件内容。','ok');
   });
   $('nmda-roster-enabled')?.addEventListener('change', e => {
@@ -5723,58 +5402,6 @@
     rebuildTasks();
   });
 
-  mappingToggleEl?.addEventListener('click', () => setMappingEditorOpen(mappingEl.hidden));
-  $('nmda-save-profile')?.addEventListener('click', () => {
-    const collection = currentCollection();
-    if (!collection || !batch.detection) return;
-    const defaultName = `${collection.name || '内容'} 识别模板`;
-    const name = prompt('为这套导入设置命名：', defaultName);
-    if (!name) return;
-    const headers = batch.detection.headers || [];
-    const fieldHeaders = {};
-    for (const [field, index] of Object.entries(batch.mapping || {})) fieldHeaders[field] = headers[index] || '';
-    const profile = Importer.createProfile({
-      name,
-      format: collection.meta?.format || batch.dataset?.format || '',
-      collectionName: collection.name || '',
-      headers,
-      mapping: batch.mapping,
-      confidence: batch.detection.confidence || {}
-    });
-    profile.fieldHeaders = fieldHeaders;
-    Importer.saveProfile(profile);
-    $('nmda-profile-info').textContent = `已保存当前导入设置“${name}”。`;
-  });
-  $('nmda-apply-profile')?.addEventListener('click', () => {
-    const suggestion = batch.profileSuggestion;
-    const collection = currentCollection();
-    if (!suggestion?.profile || !collection || !batch.detection) return;
-    const headers = batch.detection.headers || [];
-    const normalized = headers.map(Importer.normalizeHeader);
-    const next = {};
-    const profile = suggestion.profile;
-    for (const [field, oldIndex] of Object.entries(profile.mapping || {})) {
-      const wanted = Importer.normalizeHeader(profile.fieldHeaders?.[field] || profile.headers?.[oldIndex] || '');
-      const currentIndex = wanted ? normalized.indexOf(wanted) : -1;
-      if (currentIndex >= 0) next[field] = currentIndex;
-      else if (Number(oldIndex) < headers.length) next[field] = Number(oldIndex);
-    }
-    const config = ensureCollectionConfig(batch.collectionIndex);
-    config.mapping = next;
-    batch.mapping = config.mapping;
-    mappingEl.innerHTML = Importer.FIELD_DEFS.map(field => mappingSelectHtml(field, headers)).join('');
-    mappingEl.querySelectorAll('select[data-map-field]').forEach(select => select.addEventListener('change', () => {
-      const field = select.dataset.mapField;
-      if (select.value === '') delete config.mapping[field]; else config.mapping[field] = Number(select.value);
-      batch.mapping = config.mapping;
-      batch.handoffComplete=false;
-      renderSemanticSummary(); rebuildTasks();
-    }));
-    setMappingEditorOpen(true);
-    renderSemanticSummary(); rebuildTasks();
-    $('nmda-profile-info').textContent = `已使用导入设置“${profile.name}”。请检查邮件结果。`;
-  });
-  collectionSelectEl.addEventListener('change', () => { configureCollection(collectionSelectEl.value, false); renderCollectionList(); });
   dirEl?.addEventListener('change', () => {
     const files=uniqueFiles([...(dirEl.files||[])]);for(const file of files)batch.ignoredAttachmentIdentities.delete(Importer.fileIdentity(file));
     batch.directoryFiles=uniqueFiles([...(batch.directoryFiles||[]),...files]);for(const file of files)ensureAttachmentPolicy(file,'directory',{source:'选择文件夹',mode:'smart'});
@@ -5783,7 +5410,6 @@
   preSendMatchFilesEl?.addEventListener('change',()=>{const files=[...(preSendMatchFilesEl.files||[])];preSendMatchFilesEl.value='';addAttachmentFiles(files,{source:'发送前添加',mode:'smart'});});
   preSendSharedFilesEl?.addEventListener('change',()=>{const files=[...(preSendSharedFilesEl.files||[])];preSendSharedFilesEl.value='';addAttachmentFiles(files,{source:'发送前添加'});});
   taskFilesEl?.addEventListener('change',()=>{const files=[...(taskFilesEl.files||[])];taskFilesEl.value='';const count=addAttachmentFiles(files,{source:'选择文件'});if(count)setBatchStatus(`已加入 ${count} 个附件；请在附件工作台确认适用范围。`,'ok');});
-  sharedFilesEl?.addEventListener('change',()=>{const files=[...(sharedFilesEl.files||[])];sharedFilesEl.value='';addAttachmentFiles(files,{source:'兼容导入',mode:'all'});});
 
   const attachmentManagerDrop=$('nmda-attachment-manager-drop');
   attachmentManagerDrop?.addEventListener('click',()=>taskFilesEl?.click());
@@ -5932,7 +5558,6 @@
 
   function setBatchPlanningLocked(locked) {
     [batchSearchEl, batchTagIncludeEl].forEach(el => { if (el) el.disabled = !!locked; });
-    if (mappingToggleEl) mappingToggleEl.disabled = !!locked;
     ['nmda-clear-tag-filter','nmda-bulk-add-tag','nmda-bulk-remove-tag','nmda-bulk-enable','nmda-bulk-disable','nmda-clear-selection','nmda-rule-start-at','nmda-rule-max-school','nmda-rule-interval-days','nmda-rule-preserve-existing','nmda-rule-skip-holidays','nmda-apply-schedule','nmda-clear-auto-schedule'].forEach(id => {
       const el = $(id); if (el) el.disabled = !!locked;
     });
@@ -5963,7 +5588,7 @@
     }
     batch.running = true; batch.stopRequested = false; batchStartEl.disabled = true; batchStopEl.disabled = false;
     await updateMailboxBatchMonitor({action:'start',total:executable.length,succeeded:0,failed:0,remaining:executable.length,items:executable.map((task,index)=>({key:task.editKey,id:task.id,index:index+1,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||'',status:'queued'}))});
-    importFileEl.disabled = true; if (importDirEl) importDirEl.disabled = true; if (importPackageEl) importPackageEl.disabled = true; if (rosterFileEl) rosterFileEl.disabled = true; collectionSelectEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; sharedFilesEl.disabled = true; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=true;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=true;if(draftImportEl)draftImportEl.disabled=true; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=true; });
+    importFileEl.disabled = true; if (importDirEl) importDirEl.disabled = true; if (rosterFileEl) rosterFileEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=true;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=true;if(draftImportEl)draftImportEl.disabled=true; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=true; });
     setBatchPlanningLocked(true);
     let succeeded = 0, failed = 0;
     try {
@@ -6050,7 +5675,7 @@
       await updateMailboxBatchMonitor({action:'finish',total:executable.length,succeeded,failed,remaining,status:batch.stopRequested?'stopped':failed?'error':'done',message:batch.stopRequested?`已停止 · 成功 ${succeeded} · 剩余 ${remaining}`:failed?`执行结束 · 成功 ${succeeded} · 失败 ${failed}`:`全部完成 · ${succeeded} 封草稿已保存`});
     } finally {
       batch.running = false; batchStopEl.disabled = true;
-      importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (importPackageEl) importPackageEl.disabled = false; if (rosterFileEl) rosterFileEl.disabled = false; collectionSelectEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; sharedFilesEl.disabled = false; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=false;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=false;if(draftImportEl)draftImportEl.disabled=false; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=false; });
+      importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (rosterFileEl) rosterFileEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=false;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=false;if(draftImportEl)draftImportEl.disabled=false; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=false; });
       setBatchPlanningLocked(false);
       scheduleBatchRender({aux:false,force:true});
     }

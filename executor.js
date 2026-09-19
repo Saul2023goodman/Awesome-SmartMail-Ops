@@ -4,7 +4,6 @@
   if (window.top !== window) return;
 
   const APP = 'NetEase Mail Draft Assistant';
-  const STORAGE_KEY = 'nmda.form.v2';
   const DEFAULT_TIMEOUT = 10000;
   const Importer = globalThis.NMDAImporter;
   const MailRecognizer = globalThis.NMDAMailRecognizer;
@@ -742,13 +741,6 @@
         sendResponse({ ok: false, reason: error?.message || String(error) });
       });
       return true;
-    }
-    if (message?.type === 'NMDA_LEGACY_PREFS') {
-      try {
-        sendResponse({ ok: true, scheduleRules: localStorage.getItem('nmda.schedule.rules.v1') || '' });
-      } catch (error) {
-        sendResponse({ ok: false, reason: error?.message || String(error) });
-      }
     }
   });
 

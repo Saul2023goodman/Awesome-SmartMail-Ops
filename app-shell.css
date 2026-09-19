@@ -22,7 +22,7 @@ body.nmda-app-body{min-width:640px;}
 .nmda-mail-connection[data-state="offline"] .nmda-mail-connection-dot{background:#cf222e;box-shadow:0 0 0 3px #ffebe9;}
 .nmda-mail-open-button{min-height:28px!important;height:28px;padding:4px 8px!important;white-space:nowrap;font-size:9px!important;}
 @media (max-width:1120px){.nmda-mail-connection{min-width:210px;}.nmda-mail-connection-copy small{display:none;}}
-@media (max-width:880px){#nmda-root.nmda-standalone #nmda-panel{grid-template-columns:64px minmax(0,1fr)!important;}.nmda-tabs .nmda-nav-label{display:none!important;}.nmda-mail-connection{min-width:0;grid-template-columns:10px auto;}.nmda-mail-connection-copy{display:none;}.nmda-safe-badge{display:none!important;}#nmda-root.nmda-standalone .nmda-head{padding-left:10px;padding-right:10px;}}
+@media (max-width:880px){#nmda-root.nmda-standalone #nmda-panel{grid-template-columns:64px minmax(0,1fr)!important;}.nmda-tabs .nmda-nav-label{display:none!important;}.nmda-mail-connection{min-width:0;grid-template-columns:10px auto;}.nmda-mail-connection-copy{display:none;}#nmda-root.nmda-standalone .nmda-head{padding-left:10px;padding-right:10px;}}
 /* Standalone pages do not need host-page layout containment. Keeping it would turn
    descendant position:fixed dialogs into main-column-relative overlays. */
 #nmda-root.nmda-standalone #nmda-panel,

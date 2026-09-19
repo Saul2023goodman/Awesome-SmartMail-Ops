@@ -18,7 +18,6 @@
     ['england','UK'],['wales','UK'],
     ['newzealand','NZ'],['nz','NZ'],['新西兰','NZ'],['新西蘭','NZ']
   ]);
-  const COUNTRY_LABELS={US:'美国',CA:'加拿大',AU:'澳大利亚',UK:'英国',NZ:'新西兰'};
 
   function pad(n){ return String(n).padStart(2,'0'); }
   function formatLocalDateTime(date){
@@ -246,10 +245,8 @@
       groups.get(group.key).tasks.push(task);
     }
 
-    const assignments=[], preserved=[]; let maxRound=0, fallbackGroups=0, fallbackTasks=0, priorityOrderedGroups=0, prioritizedTasks=0, holidayAdjusted=0, holidayShiftDays=0;
-    const unsupportedCountries=new Set();
+    const assignments=[], preserved=[]; let maxRound=0, priorityOrderedGroups=0, holidayAdjusted=0;
     for(const group of groups.values()){
-      if(group.source==='domain'||group.source==='unknown'){fallbackGroups++;fallbackTasks+=group.tasks.length;}
       const occupancy=new Map();
       const autoQueue=[];
       for(const task of group.tasks){
@@ -267,7 +264,7 @@
         }else autoQueue.push(task);
       }
       const withPriority=autoQueue.filter(task=>priorityForTask(task).has);
-      if(withPriority.length){prioritizedTasks+=withPriority.length;if(autoQueue.length>1)priorityOrderedGroups++;}
+      if(withPriority.length&&autoQueue.length>1)priorityOrderedGroups++;
       autoQueue.sort((a,b)=>{
         const pa=priorityForTask(a),pb=priorityForTask(b);
         if(pa.has!==pb.has)return pa.has?-1:1;
@@ -280,8 +277,7 @@
         const slot=occupancy.get(cursorRound)||0;
         const rawWhen=new Date(start.getTime()+cursorRound*intervalMs+slot*rules.intraRoundMinutes*60*1000);
         const adjusted=adjustForNonWorkingDay(rawWhen,task,rules),when=adjusted.date;
-        if(adjusted.shiftedDays){holidayAdjusted++;holidayShiftDays+=adjusted.shiftedDays;}
-        if(rules.skipHolidays&&adjusted.country.raw&&!adjusted.countrySupported)unsupportedCountries.add(adjusted.country.raw);
+        if(adjusted.shiftedDays)holidayAdjusted++;
         occupancy.set(cursorRound,slot+1); maxRound=Math.max(maxRound,cursorRound);
         const priority=priorityForTask(task),reasonParts=[`${group.label} · 第 ${cursorRound+1} 轮${rules.maxPerGroupPerRound>1?` · 轮内第 ${slot+1} 位`:''}`];
         if(priority.has)reasonParts.push(`名单顺序 ${priority.raw||priority.rank}`);
@@ -297,7 +293,7 @@
     }
     return {
       rules, assignments, preserved,
-      summary:{selected:candidates.length,groups:groups.size,auto:assignments.length,preserved:preserved.length,rounds:maxRound+1,fallbackGroups,fallbackTasks,priorityOrderedGroups,prioritizedTasks,holidayAdjusted,holidayShiftDays,unsupportedCountries:[...unsupportedCountries]}
+      summary:{selected:candidates.length,groups:groups.size,auto:assignments.length,preserved:preserved.length,rounds:maxRound+1,priorityOrderedGroups,holidayAdjusted}
     };
   }
 

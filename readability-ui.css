@@ -15,7 +15,7 @@
 #nmda-root .nmda-mail-connection { min-height:38px !important; min-width:285px !important; padding:4px 5px 4px 11px !important; }
 #nmda-root .nmda-mail-connection-copy strong { font-size:12.5px !important; }
 #nmda-root .nmda-mail-open-button { min-height:31px !important; height:31px !important; padding:0 11px !important; font-size:12px !important; }
-#nmda-root .nmda-safe-badge { min-height:32px !important; padding:0 11px !important; font-size:12px !important; }
+
 
 #nmda-root.nmda-standalone .nmda-tabs { padding:12px 8px !important; gap:9px !important; }
 #nmda-root .nmda-tab { min-height:66px !important; gap:6px !important; padding:8px 5px !important; border-radius:12px !important; }
@@ -49,9 +49,9 @@
 #nmda-root #nmda-batch-status { font-size:12px !important; line-height:1.5 !important; }
 
 /* Tables are still dense, but no longer microtype. */
-#nmda-root .nmda-table { font-size:11.5px !important; }
-#nmda-root .nmda-table th { font-size:10.5px !important; padding:9px 9px !important; }
-#nmda-root .nmda-table td { padding:9px 9px !important; }
+
+
+
 #nmda-root .nmda-tag-chip { min-height:27px !important; font-size:10.5px !important; }
 #nmda-root .nmda-tag-chip small { font-size:9.5px !important; }
 
@@ -93,20 +93,15 @@
 #nmda-root .nmda-monitor-stat strong { margin-top:7px !important; font-size:28px !important; line-height:1 !important; letter-spacing:-.03em; }
 #nmda-root .nmda-monitor-stat small { margin-top:8px !important; font-size:11.5px !important; line-height:1.35 !important; color:#8893a1 !important; }
 
-#nmda-root .nmda-monitor-policy,
-#nmda-root .nmda-monitor-unlinked {
+#nmda-root .nmda-monitor-policy{
   border-color:#dfe5eb !important;
   border-radius:13px !important;
 }
-#nmda-root .nmda-monitor-policy > summary,
-#nmda-root .nmda-monitor-unlinked > summary { padding:14px 16px !important; min-height:62px; }
-#nmda-root .nmda-monitor-policy > summary strong,
-#nmda-root .nmda-monitor-unlinked > summary strong { font-size:13.5px !important; line-height:1.25; }
-#nmda-root .nmda-monitor-policy > summary small,
-#nmda-root .nmda-monitor-unlinked > summary small { margin-top:4px !important; font-size:11.5px !important; line-height:1.35; }
-#nmda-root .nmda-monitor-policy > summary > span:last-child,
-#nmda-root .nmda-monitor-unlinked > summary > span:last-child { font-size:12px !important; }
-#nmda-root .nmda-monitor-policy-grid { gap:14px !important; padding:15px 16px 17px !important; }
+#nmda-root .nmda-monitor-policy > summary{ padding:14px 16px !important; min-height:62px; }
+#nmda-root .nmda-monitor-policy > summary strong{ font-size:13.5px !important; line-height:1.25; }
+#nmda-root .nmda-monitor-policy > summary small{ margin-top:4px !important; font-size:11.5px !important; line-height:1.35; }
+#nmda-root .nmda-monitor-policy > summary > span:last-child{ font-size:12px !important; }
+
 
 #nmda-root .nmda-monitor-filterbar {
   position:sticky;
@@ -196,10 +191,10 @@
   font-size:11.5px !important;
 }
 
-#nmda-root .nmda-monitor-unlinked-list { max-height:380px !important; }
-#nmda-root .nmda-monitor-unlinked-row { gap:14px !important; min-height:68px; padding:11px 15px !important; }
-#nmda-root .nmda-monitor-unlinked-row strong { font-size:12.5px !important; line-height:1.35; }
-#nmda-root .nmda-monitor-unlinked-row small { margin-top:3px; font-size:11px !important; line-height:1.35; }
+
+
+
+
 
 @media (max-width:1180px) {
   #nmda-root .nmda-monitor-row {
@@ -213,7 +208,7 @@
   #nmda-root.nmda-standalone #nmda-panel { grid-template-columns:76px minmax(0,1fr) !important; }
   #nmda-root .nmda-monitor-page { padding:14px 16px 24px !important; }
   #nmda-root .nmda-monitor-stats { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
-  #nmda-root .nmda-monitor-policy-grid { grid-template-columns:1fr 1fr !important; }
+  
   #nmda-root .nmda-monitor-row { grid-template-columns:minmax(0,1fr) auto !important; }
   #nmda-root .nmda-monitor-row-state { grid-column:1; }
   #nmda-root .nmda-monitor-row-time { grid-column:1; grid-row:auto; max-width:none; }
@@ -236,7 +231,7 @@
   #nmda-root .nmda-monitor-row-actions { grid-column:1 !important; grid-row:auto !important; }
   #nmda-root .nmda-monitor-row-actions { min-width:0; justify-content:flex-start !important; }
   #nmda-root .nmda-monitor-row-time { grid-template-columns:1fr 1fr; }
-  #nmda-root .nmda-followup-two-col { grid-template-columns:1fr !important; }
+  
 }
 
 /* --------------------------------------------------------------------------

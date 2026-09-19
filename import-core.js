@@ -17,7 +17,6 @@
     { key: 'tags', label: '任务标记', aliases: ['标签','邮件标签','联系人标签','任务标签','批次','分组','类别','分类','tag','tags','label','labels','group','batch','category','categories'] }
   ];
 
-  const FIELD_KEYS = FIELD_DEFS.map(x => x.key);
   const CORE_FIELDS = ['recipients','subject','body','attachments','scheduleAt'];
 
   function normalizeHeader(value) {
@@ -236,22 +235,10 @@
     }
   }
 
-  function confidenceLabel(score) { return score>=90?'高':score>=70?'中':'低'; }
-
-  function profileSimilarity(a,b) {
-    if (!a || !b) return 0;
-    const ah=new Set((a.headers||[]).map(normalizeHeader).filter(Boolean));
-    const bh=new Set((b.headers||[]).map(normalizeHeader).filter(Boolean));
-    const union=new Set([...ah,...bh]);
-    let inter=0; for(const x of ah) if(bh.has(x)) inter++;
-    const j=union.size?inter/union.size:0;
-    const formatBonus = a.format && b.format && a.format === b.format ? 0.12 : 0;
-    return Math.min(1,j+formatBonus);
-  }
 
   globalThis.NMDAImportCore={
-    FIELD_DEFS, FIELD_KEYS, CORE_FIELDS, normalizeHeader, matchHeader, mappingForHeaders,
+    FIELD_DEFS, CORE_FIELDS, normalizeHeader, matchHeader, mappingForHeaders,
     parseDateLoose, detectHeader, detectBestSheet, detectBestRecordSet, analyzeColumns, profileColumn,
-    NormalizedRecordSet, NormalizedDataset, confidenceLabel, profileSimilarity, normalizeRows
+    NormalizedRecordSet, NormalizedDataset, normalizeRows
   };
 })();

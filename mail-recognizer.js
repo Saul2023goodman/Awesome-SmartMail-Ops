@@ -89,14 +89,6 @@
     return out;
   }
 
-  function isNoiseBlock(value) {
-    const text = cleanBlockText(value);
-    if (!text) return true;
-    if (HARD_NOISE_RE.test(text)) return true;
-    if (/^\s*(?:📧\s*)?[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\s*$/i.test(text)) return true;
-    if (NUMBER_ONLY_RE.test(text)) return true;
-    return false;
-  }
 
   function subjectAnchor(value) {
     const text=cleanBlockText(value);
@@ -612,10 +604,6 @@
     return{records,stats,blocks};
   }
 
-  function recognizeMailText(text,options={}) {
-    const blocks=String(text??'').replace(/\r\n?/g,'\n').split(/\n+/).map(t=>({type:'text-line',text:t}));
-    return recognizeMailFrames(blocks,options);
-  }
 
   function recordsToRows(records) {
     const headers=['编号','收件人','学校 / 机构','主题','正文','附件','定时时间','任务分类','来源文件'];
@@ -628,5 +616,5 @@
     return meta;
   }
 
-  globalThis.NMDAMailRecognizer={EMAIL_RE,extractEmails,isNoiseBlock,subjectAnchor,salutationAnchor,closeAnchor,metadataAnchor,isLikelySignatureLine,classifyBoundaryBlock,mailDiscourseEvidence,sanitizeRecognizedBody,resolveRecipientContext:nearestRecipientContext,recognizeMailFrames,recognizeMailText,recordsToRows,rowMetaFromRecords,cleanInlineMarkup,institutionFromHeading};
+  globalThis.NMDAMailRecognizer={EMAIL_RE,extractEmails,subjectAnchor,salutationAnchor,closeAnchor,metadataAnchor,isLikelySignatureLine,classifyBoundaryBlock,mailDiscourseEvidence,sanitizeRecognizedBody,resolveRecipientContext:nearestRecipientContext,recognizeMailFrames,recordsToRows,rowMetaFromRecords,cleanInlineMarkup,institutionFromHeading};
 })();

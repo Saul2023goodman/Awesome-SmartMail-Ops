@@ -78,10 +78,6 @@
     return String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
   }
 
-  function isExecutionActive() {
-    return execution.status === 'running';
-  }
-
   function isExecutionFinished() {
     return ['done', 'error', 'stopped'].includes(execution.status);
   }

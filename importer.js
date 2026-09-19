@@ -3,7 +3,6 @@
   const Core=globalThis.NMDAImportCore, A=globalThis.NMDAImportAdapters;
   if(!Core||!A)throw new Error('Universal Import Engine 初始化失败：核心模块未加载。');
 
-  const PROFILE_KEY='nmda.import.profiles.v1';
   const detector=new A.FormatDetector();
   const FILE_HASH_CACHE=new WeakMap();
 
@@ -13,25 +12,11 @@
     // an extra full copy of every large ZIP/DOCX for the whole import session.
     return file.arrayBuffer();
   }
-  function hashFallback(bytes){
-    // FNV-1a x2 is only a compatibility fallback for runtimes without SubtleCrypto.
-    // Normal Chrome paths use SHA-256 below.
-    let a=0x811c9dc5,b=0x9e3779b9;
-    for(let i=0;i<bytes.length;i++){
-      const v=bytes[i];a^=v;a=Math.imul(a,0x01000193)>>>0;
-      b^=(v+i)&255;b=Math.imul(b,0x85ebca6b)>>>0;
-    }
-    return `fallback-${a.toString(16).padStart(8,'0')}${b.toString(16).padStart(8,'0')}-${bytes.length}`;
-  }
   async function contentHashFromBuffer(buffer){
     const bytes=buffer instanceof Uint8Array?buffer:new Uint8Array(buffer);
-    try{
-      if(globalThis.crypto?.subtle?.digest){
-        const digest=await globalThis.crypto.subtle.digest('SHA-256',bytes);
-        return [...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
-      }
-    }catch(_){}
-    return hashFallback(bytes);
+    if(!globalThis.crypto?.subtle?.digest)throw new Error('当前 Chrome 环境不支持 SHA-256 文件指纹。');
+    const digest=await globalThis.crypto.subtle.digest('SHA-256',bytes);
+    return [...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
   }
   async function fileContentHash(file,buffer=null){
     if(!file)return'';
@@ -512,15 +497,6 @@
   async function parseFiles(files){return engine.parseFiles(files);}
   async function parseDirectory(files){return engine.parseDirectory(files);}
 
-  function createProfile({name='',format='',collectionName='',sheetName='',headers=[],mapping={},confidence={}}={}){
-    const sourceCollection = collectionName || sheetName || '';
-    return {id:`profile_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,name:name||`导入模板 ${new Date().toLocaleDateString()}`,format,collectionName:sourceCollection,sheetName:sourceCollection,headers:[...headers],normalizedHeaders:headers.map(Core.normalizeHeader),mapping:{...mapping},confidence:{...confidence},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-  }
-  function loadProfiles(){try{return JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]').filter(x=>x&&x.id);}catch(_){return[];}}
-  function saveProfile(profile){const all=loadProfiles(),i=all.findIndex(x=>x.id===profile.id),next={...profile,updatedAt:new Date().toISOString()};if(i>=0)all[i]=next;else all.push(next);localStorage.setItem(PROFILE_KEY,JSON.stringify(all.slice(-50)));return next;}
-  function deleteProfile(id){const all=loadProfiles().filter(x=>x.id!==id);localStorage.setItem(PROFILE_KEY,JSON.stringify(all));}
-  function suggestProfile({format='',headers=[]}={}){const target={format,headers};return loadProfiles().map(p=>({profile:p,score:Core.profileSimilarity(p,target)})).sort((a,b)=>b.score-a.score)[0]||null;}
-
   function splitAttachments(value){return String(value??'').split(/[;；|\n]+/).map(v=>v.trim()).filter(Boolean);}
   function normalizeFileKey(value){return String(value??'').normalize('NFKC').trim().replace(/\\/g,'/').replace(/^\.\//,'').replace(/^\/+/, '').replace(/\/{2,}/g,'/').toLowerCase();}
   function baseName(value){const key=normalizeFileKey(value);return key.split('/').filter(Boolean).pop()||'';}
@@ -530,16 +506,14 @@
   function addIndex(map,key,file){if(!key)return;if(!map.has(key))map.set(key,[]);const list=map.get(key);if(!list.some(x=>fileIdentity(x)===fileIdentity(file)))list.push(file);}
   function buildFileIndex(files){const exact=new Map(),byName=new Map(),relaxedByName=new Map(),unique=new Map();for(const file of files||[]){if(!file)continue;unique.set(fileIdentity(file),file);const relative=normalizeFileKey(filePath(file)),withoutRoot=relative.includes('/')?relative.split('/').slice(1).join('/'):'';for(const path of [file.name,relative,withoutRoot].filter(Boolean).map(normalizeFileKey))addIndex(exact,path,file);const name=baseName(file.name);addIndex(byName,name,file);addIndex(relaxedByName,relaxedFileName(name),file);}return{exact,byName,relaxedByName,files:[...unique.values()]};}
   function resolveOneFile(ref,index){const key=normalizeFileKey(ref);if(!key)return{ref,status:'missing',candidates:[],method:'empty'};let matches=index?.exact?.get(key)||[];if(matches.length===1)return{ref,status:'matched',file:matches[0],candidates:matches,method:'exact'};if(matches.length>1)return{ref,status:'ambiguous',candidates:matches,method:'exact'};const basename=baseName(key);matches=index?.byName?.get(basename)||[];if(matches.length===1)return{ref,status:'matched',file:matches[0],candidates:matches,method:'basename'};if(matches.length>1)return{ref,status:'ambiguous',candidates:matches,method:'basename'};const relaxed=relaxedFileName(basename);matches=index?.relaxedByName?.get(relaxed)||[];if(matches.length===1)return{ref,status:'matched',file:matches[0],candidates:matches,method:'relaxed-copy-suffix'};if(matches.length>1)return{ref,status:'ambiguous',candidates:matches,method:'relaxed-copy-suffix'};return{ref,status:'missing',candidates:[],method:'none'};}
-  function candidateScore(ref,file){const w=baseName(ref),a=baseName(file?.name);if(!w||!a)return 0;if(w===a)return 100;if(relaxedFileName(w)===relaxedFileName(a))return 90;const ws=w.replace(/\.[^.]+$/,''),as=a.replace(/\.[^.]+$/,'');if(ws&&as&&(ws.includes(as)||as.includes(ws)))return 65;const t=new Set(ws.split(/[^\p{L}\p{N}]+/u).filter(x=>x.length>1)),o=new Set(as.split(/[^\p{L}\p{N}]+/u).filter(x=>x.length>1));let overlap=0;for(const x of t)if(o.has(x))overlap++;return overlap?30+Math.min(30,overlap*10):0;}
-  function suggestFiles(ref,index,limit=12){return[...(index?.files||[])].map(file=>({file,score:candidateScore(ref,file)})).sort((a,b)=>b.score-a.score||String(a.file.name).localeCompare(String(b.file.name))).slice(0,Math.max(1,limit));}
   function resolveFiles(refs,index){const files=[],missing=[],ambiguous=[],details=[];for(const ref of refs||[]){const d=resolveOneFile(ref,index||buildFileIndex([]));details.push(d);if(d.status==='matched')files.push(d.file);else if(d.status==='missing')missing.push(ref);else ambiguous.push(ref);}return{files,missing,ambiguous,details};}
 
   globalThis.NMDAImporter={
     version:'1.47.0', engine, UniversalImportEngine,
     FIELD_DEFS:Core.FIELD_DEFS, normalizeHeader:Core.normalizeHeader, mappingForHeaders:Core.mappingForHeaders,
     detectHeader:Core.detectHeader, detectBestSheet:Core.detectBestSheet, detectBestRecordSet:Core.detectBestRecordSet, parseFile, parseFiles, parseDirectory,
-    parseDateValue,formatLocalDateTime,createProfile,loadProfiles,saveProfile,deleteProfile,suggestProfile,
-    splitAttachments,normalizeFileKey,relaxedFileName,fileIdentity,fileContentHash,buildFileIndex,resolveOneFile,suggestFiles,resolveFiles,
+    parseDateValue,formatLocalDateTime,
+    splitAttachments,normalizeFileKey,relaxedFileName,fileIdentity,fileContentHash,buildFileIndex,resolveOneFile,resolveFiles,
     supportedFormats:['XLSX','ODS','FODS','DOCX/DOCM/DOTX','CSV','TSV','PSV','TXT','JSON','JSONL/NDJSON','HTML table','Excel 2003 XML','ZIP batch'],
     candidateDataFile:A.candidateDataFile,directAttachmentFile,
     SOURCE_PURPOSES,sourceRoleCandidates,detectMailHeader,detectRosterHeader,analyzeMailDiscourse,analyzeMaterialStructure,classifyRecordSet,annotateRecordSet,summarizeSourceRouting,prepareDataset,mergeWordTaskRecordSets

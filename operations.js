@@ -3,7 +3,6 @@
 
   const SCHEMA_VERSION = 5;
   const STORAGE_PREFIX = 'nmda.operations.v1:';
-  const LEGACY_CONTACT_PREFIX = 'nmda.contacts.v1:';
   const FOLLOWUP_STATES = ['due', 'prepared', 'confirmed', 'scheduled', 'sent', 'blocked', 'cancelled'];
   const REPLY_KINDS = ['human', 'automatic', 'ambiguous', 'bounce', 'system'];
   const GUARD_MODES = ['normal', 'paused', 'do-not-contact'];
@@ -139,10 +138,6 @@
 
   function storageKey(account) {
     return `${STORAGE_PREFIX}${normalizeEmail(account) || 'default'}`;
-  }
-
-  function legacyStorageKey(account) {
-    return `${LEGACY_CONTACT_PREFIX}${normalizeEmail(account) || 'default'}`;
   }
 
   function nowIso() { return new Date().toISOString(); }
@@ -1116,74 +1111,17 @@
     }).sort((a, b) => timeMs(b.lastOutbound.sentAt) - timeMs(a.lastOutbound.sentAt));
   }
 
-  function migrateLegacyContacts(storeInput, legacyContacts = {}) {
-    const store = normalizeStore(storeInput);
-    if (store.migration?.contactsV1At) return { store, migrated: false, outbound: 0, drafts: 0, guards: 0 };
-    const next = clone(store);
-    let outbound = 0, drafts = 0, guards = 0;
-    for (const [rawEmail, contact] of Object.entries(legacyContacts || {})) {
-      const email = normalizeEmail(contact?.email || rawEmail);
-      if (!email) continue;
-      const policy = contact?.policy;
-      if (policy === '暂停' || policy === '不再联系') {
-        next.recipientGuards[email] = { email, mode: policy === '不再联系' ? 'do-not-contact' : 'paused', reason: '从 v3.5 联系策略迁移', source: 'legacy-contact-migration', changedAt: nowIso() };
-        guards++;
-      }
-      for (const item of contact?.history || []) {
-        const providerId = String(item.id || '').trim();
-        const id = providerId
-          ? `outbound:legacy-provider:${stableHash(providerId)}`
-          : `outbound:legacy:${stableHash(`${item.sentAt || ''}|${item.subject || ''}|${email}`)}`;
-        const previous = next.outboundRecords[id];
-        if (previous) {
-          const seen = new Set((previous.recipients || []).map(recipient => recipient.email));
-          if (!seen.has(email)) previous.recipients.push({ email, name: String(contact?.name || '') });
-          continue;
-        }
-        next.outboundRecords[id] = {
-          id, providerMessageId: providerId, source: 'legacy-contact-migration', status: 'sent', kind: 'unlinked', taskId: '', rootTaskId: '', parentTaskId: '', parentOutboundId: '', sequence: 0,
-          recipients: [{ email, name: String(contact?.name || '') }], subject: String(item.subject || ''), sentAt: isoTime(item.sentAt), observedAt: nowIso(), mailboxFolder: 'sent'
-        };
-        outbound++;
-      }
-      for (const item of contact?.draftHistory || []) {
-        const providerId = String(item.id || '').trim();
-        const id = providerId
-          ? `draft:legacy-provider:${stableHash(providerId)}`
-          : `draft:legacy:${stableHash(`${item.savedAt || ''}|${item.subject || ''}|${email}`)}`;
-        const previous = next.draftRecords[id];
-        if (previous) {
-          const seen = new Set((previous.recipients || []).map(recipient => recipient.email));
-          if (!seen.has(email)) previous.recipients.push({ email, name: String(contact?.name || '') });
-          continue;
-        }
-        next.draftRecords[id] = {
-          id, providerMessageId: providerId, source: 'legacy-contact-migration', status: 'present', kind: 'unlinked', taskId: '', rootTaskId: '', parentTaskId: '', parentOutboundId: '', sequence: 0,
-          recipients: [{ email, name: String(contact?.name || '') }], subject: String(item.subject || ''), savedAt: isoTime(item.savedAt), scheduleAt: '', observedAt: nowIso(), mailboxFolder: 'draft'
-        };
-        drafts++;
-      }
-    }
-    next.migration = { ...next.migration, contactsV1At: nowIso(), contactsV1RetainedForRollback: true };
-    next.updatedAt = nowIso();
-    return { store: next, migrated: true, outbound, drafts, guards };
-  }
-
   async function load(account) {
     const key = storageKey(account);
-    const result = await chrome.storage.local.get([key, legacyStorageKey(account)]);
+    const result = await chrome.storage.local.get(key);
     let store = normalizeStore(result[key], account);
     let migration = null;
-    if (!result[key] && result[legacyStorageKey(account)] && typeof result[legacyStorageKey(account)] === 'object') {
-      migration = migrateLegacyContacts(store, result[legacyStorageKey(account)]);
-      store = migration.store;
-    }
     const monitored = ensureMonitoringRoots(store);
     if (monitored.adopted) {
       store = reconcileInboundReplies(monitored.store).store;
-      migration = { ...(migration || {}), autoMonitoringRoots: monitored.adopted };
+      migration = { autoMonitoringRoots: monitored.adopted };
+      await chrome.storage.local.set({ [key]: store });
     }
-    if (migration) await chrome.storage.local.set({ [key]: store });
     return { store, migration };
   }
 
@@ -1248,7 +1186,6 @@
     updateDerivedTaskDispatch,
     queuedDerivedTasks,
     mailboxHistoryForRecipients,
-    monitoringRoots,
-    migrateLegacyContacts
+    monitoringRoots
   };
 })();

@@ -347,18 +347,13 @@ async function readDraftDetail(tabId, summary = {}) {
           .replace(/<\s*br\s*\/?\s*>/gi,'\n')
           .replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi,'\n')
           .replace(/<\s*li\b[^>]*>/gi,'• ');
-        try {
-          const doc = new DOMParser().parseFromString(raw, 'text/html');
-          doc.querySelectorAll('script,style,noscript').forEach(el => el.remove());
-          return String(doc.body?.textContent || '')
-            .replace(/\u00a0/g,' ')
-            .replace(/[ \t]+\n/g,'\n')
-            .replace(/\n{3,}/g,'\n\n')
-            .trim();
-        } catch (_) {
-          const div = document.createElement('div'); div.innerHTML = raw;
-          return String(div.textContent || '').replace(/\u00a0/g,' ').trim();
-        }
+        const doc = new DOMParser().parseFromString(raw, 'text/html');
+        doc.querySelectorAll('script,style,noscript').forEach(el => el.remove());
+        return String(doc.body?.textContent || '')
+          .replace(/\u00a0/g,' ')
+          .replace(/[ \t]+\n/g,'\n')
+          .replace(/\n{3,}/g,'\n\n')
+          .trim();
       }
 
       function recipientText(value) {
@@ -416,80 +411,36 @@ async function readDraftDetail(tabId, summary = {}) {
         });
       }
 
-      let response, source = 'mbox:restoreDraft', restoreError = null;
+      let response;
       try {
         response = await request('mbox:restoreDraft', { id });
       } catch (error) {
-        restoreError = error;
+        return resolve({ ok:false, id, reason:error?.message || 'mbox:restoreDraft 读取失败', detailSource:'mbox:restoreDraft' });
       }
 
-      // Compatibility fallback only. It is deliberately second-choice because the
-      // ComposeModule source proves restoreDraft is the native draft-loading endpoint.
-      if (!response) {
-        source = 'mbox:readMessage-fallback';
-        let lastError = restoreError;
-        for (const body of [{ mid:id }, { id }]) {
-          try { response = await request('mbox:readMessage', body); if (response) break; }
-          catch (error) { lastError = error; }
-        }
-        if (!response) return resolve({ ok:false, id, reason:lastError?.message || '读取草稿详情失败', detailSource:source });
+      const successCode = window.$?.S_OK;
+      if (response?.code !== undefined && successCode !== undefined && response.code !== successCode) {
+        return resolve({ ok:false, id, reason:`mbox:restoreDraft code=${String(response.code)}`, detailSource:'mbox:restoreDraft' });
       }
-
-      const root = response?.var ?? response;
-      if (!root || typeof root !== 'object') {
-        return resolve({ ok:false, id, reason:'草稿详情响应为空', detailSource:source });
+      const direct = response?.var;
+      if (!direct || typeof direct !== 'object' || Array.isArray(direct)) {
+        return resolve({ ok:false, id, reason:'mbox:restoreDraft 返回的 var 为空或格式错误', detailSource:'mbox:restoreDraft' });
       }
 
       // Native restoreDraft schema consumed by ComposeBase.fillContent():
       // account, to, cc, bcc, showOneRcpt, subject, priority,
       // requestReadReceipt, scheduleDate, content, isHtml, attachments, link.
-      const direct = root && !Array.isArray(root) ? root : {};
-      let subject = String(direct.subject ?? summaryArg?.subject ?? '').trim();
-      let recipients = recipientText(direct.to) || String(summaryArg?.toRaw || '').trim();
-      let cc = recipientText(direct.cc);
-      let bcc = recipientText(direct.bcc);
-      let bodyHtml = direct.content == null ? '' : String(direct.content);
-      let isHtml = direct.isHtml !== false;
-      let body = htmlToText(bodyHtml, isHtml);
-      let attachments = [
+      const subject = String(direct.subject ?? summaryArg?.subject ?? '').trim();
+      const recipients = recipientText(direct.to) || String(summaryArg?.toRaw || '').trim();
+      const cc = recipientText(direct.cc);
+      const bcc = recipientText(direct.bcc);
+      const bodyHtml = direct.content == null ? '' : String(direct.content);
+      const isHtml = direct.isHtml !== false;
+      const body = htmlToText(bodyHtml, isHtml);
+      const attachments = [
         ...attachmentList(direct.attachments, 'attachment'),
         ...attachmentList(direct.link, 'cloud-link')
       ];
-
-      // If NetEase changes the shape, preserve the old defensive traversal as a
-      // forward-compatible salvage path rather than returning an empty draft.
-      if (!subject || !recipients || !bodyHtml) {
-        const keyNorm = value => String(value || '').replace(/[\s_\-]/g,'').toLowerCase();
-        const objectQueue = [], seen = new Set();
-        if (root && typeof root === 'object') objectQueue.push(root);
-        for (let i=0; i<objectQueue.length && i<600; i++) {
-          const node = objectQueue[i];
-          if (!node || typeof node !== 'object' || seen.has(node)) continue;
-          seen.add(node);
-          const values = Array.isArray(node) ? node : Object.values(node);
-          for (const value of values) if (value && typeof value === 'object') objectQueue.push(value);
-        }
-        function first(keys, {allowObject=false}={}) {
-          const wanted = new Set(keys.map(keyNorm));
-          for (const node of objectQueue) {
-            if (Array.isArray(node)) continue;
-            for (const [key,value] of Object.entries(node)) {
-              if (!wanted.has(keyNorm(key)) || value == null) continue;
-              if (typeof value === 'object' && !allowObject) continue;
-              if (typeof value === 'string' && !value.trim()) continue;
-              return value;
-            }
-          }
-          return '';
-        }
-        if (!subject) subject = String(first(['subject','mailSubject','title']) || summaryArg?.subject || '').trim();
-        if (!recipients) recipients = recipientText(first(['to','recipients','recipient','toList'],{allowObject:true})) || String(summaryArg?.toRaw||'').trim();
-        if (!bodyHtml) {
-          const candidate = first(['content','body','mailContent','html','contentHtml','bodyHtml','text','plainText','mailBody']);
-          bodyHtml = String(candidate || '');
-          body = htmlToText(bodyHtml, isHtml);
-        }
-      }
 
       const scheduledByList = !!summaryArg?.flags?.scheduleDelivery || !!summaryArg?.scheduledDraft;
       // Match NetEase's own Compose restore behavior: for a scheduled draft the list
@@ -509,8 +460,8 @@ async function readDraftDetail(tabId, summary = {}) {
         priority:Number(direct.priority || 0) || 0,
         requestReadReceipt:!!direct.requestReadReceipt,
         showOneRcpt:!!direct.showOneRcpt,
-        detailSource:source,
-        directSchema:source === 'mbox:restoreDraft',
+        detailSource:'mbox:restoreDraft',
+        directSchema:true,
         rawKeys
       });
     } catch (error) {
@@ -552,19 +503,13 @@ async function readSentDetail(tabId, messageId) {
           .replace(/<\s*br\s*\/?\s*>/gi,'\n')
           .replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi,'\n')
           .replace(/<\s*li\b[^>]*>/gi,'• ');
-        try {
-          const doc = new DOMParser().parseFromString(raw,'text/html');
-          doc.querySelectorAll('script,style,noscript').forEach(el=>el.remove());
-          return String(doc.body?.textContent || '')
-            .replace(/\u00a0/g,' ')
-            .replace(/[ \t]+\n/g,'\n')
-            .replace(/\n{3,}/g,'\n\n')
-            .trim();
-        } catch (_) {
-          const div=document.createElement('div');
-          div.innerHTML=raw;
-          return String(div.textContent||'').replace(/\u00a0/g,' ').trim();
-        }
+        const doc = new DOMParser().parseFromString(raw,'text/html');
+        doc.querySelectorAll('script,style,noscript').forEach(el=>el.remove());
+        return String(doc.body?.textContent || '')
+          .replace(/\u00a0/g,' ')
+          .replace(/[ \t]+\n/g,'\n')
+          .replace(/\n{3,}/g,'\n\n')
+          .trim();
       }
 
       // 1) Read metadata using NetEase's own ReadAction contract. The provider's
@@ -585,67 +530,38 @@ async function readSentDetail(tabId, messageId) {
         },
         supportTNEF:false
       };
-      const attempts = [officialBody, {id:idArg}];
-      let response = null;
-      let lastFailure = '';
-      let requestShape = '';
-      for (let index=0; index<attempts.length; index++) {
-        try {
-          const candidate = await requestReadMessage(attempts[index]);
-          const successCode = window.$?.S_OK;
-          const hasCode = candidate && candidate.code !== undefined && candidate.code !== null;
-          const codeOk = !hasCode || successCode === undefined || candidate.code === successCode;
-          if (!codeOk) {
-            lastFailure = `mbox:readMessage code=${String(candidate.code)}`;
-            continue;
-          }
-          if (!candidate || candidate.var == null) {
-            lastFailure = 'mbox:readMessage response.var empty';
-            continue;
-          }
-          response = candidate;
-          requestShape = index === 0 ? 'netease-read-action' : 'minimal-id-fallback';
-          break;
-        } catch (error) {
-          lastFailure = error?.message || String(error);
-        }
+      let response;
+      try {
+        response = await requestReadMessage(officialBody);
+      } catch (error) {
+        return resolve({ ok:false, id:idArg, reasonCode:'sent-read-failed', reason:error?.message || String(error) });
       }
-      if (!response) return resolve({ ok:false, id:idArg, reasonCode:'sent-read-failed', reason:lastFailure || '读取已发送邮件详情失败' });
-
-      const root = response.var;
+      const successCode = window.$?.S_OK;
+      if (response?.code !== undefined && successCode !== undefined && response.code !== successCode) {
+        return resolve({ ok:false, id:idArg, reasonCode:'sent-read-failed', reason:`mbox:readMessage code=${String(response.code)}` });
+      }
+      const root = response?.var;
       if (!root || typeof root !== 'object') return resolve({ ok:false, id:idArg, reasonCode:'sent-read-empty', reason:'mbox:readMessage 返回的 var 为空' });
-      const subject = String(root?.subject || root?.mailSubject || root?.title || '').trim();
+      const subject = String(root?.subject || '').trim();
 
       // 2) NetEase's MailReader loads the actual body in a separate readhtml frame.
       // Mirror the provider's own MailReader.initialize() URL construction:
       //   $.Ext.read_noSsidRead ? read/readhtml3.jsp?mid=... : $G.environment.readUrl + &mid=...
       function buildReadHtmlUrl() {
-        try {
-          const dollar = window.$;
-          const globalG = window.$G || (typeof $G !== 'undefined' ? $G : null);
-          let base = '';
-          if (dollar?.Ext?.read_noSsidRead) {
-            let path = 'read/readhtml3.jsp';
-            try { if (dollar?.Browser?.isIE?.()) path = 'read/readhtml.jsp'; } catch (_) {}
-            base = `${path}?mid=${encodeURIComponent(idArg)}`;
-          } else {
-            const providerReadUrl = String(globalG?.environment?.readUrl || '').trim();
-            if (providerReadUrl) {
-              base = `${providerReadUrl}${providerReadUrl.includes('?') ? '&' : '?'}mid=${encodeURIComponent(idArg)}`;
-            }
-          }
-          // Defensive fallback matches the no-ssid route observed in NetEase source.
-          if (!base) base = `read/readhtml3.jsp?mid=${encodeURIComponent(idArg)}`;
-
-          try {
-            const getState = window.$S || (typeof $S !== 'undefined' ? $S : null);
-            const userType = String(getState?.('ad')?.userType || '').trim();
-            if (userType) base += `${base.includes('?') ? '&' : '?'}userType=${encodeURIComponent(userType)}`;
-          } catch (_) {}
-          return new URL(base, window.location.href).href;
-        } catch (_) {
-          return new URL(`read/readhtml3.jsp?mid=${encodeURIComponent(idArg)}`, window.location.href).href;
+        const dollar = window.$;
+        const globalG = window.$G || (typeof $G !== 'undefined' ? $G : null);
+        let base = '';
+        if (dollar?.Ext?.read_noSsidRead) {
+          base = `read/readhtml3.jsp?mid=${encodeURIComponent(idArg)}`;
+        } else {
+          const providerReadUrl = String(globalG?.environment?.readUrl || '').trim();
+          if (!providerReadUrl) return '';
+          base = `${providerReadUrl}${providerReadUrl.includes('?') ? '&' : '?'}mid=${encodeURIComponent(idArg)}`;
         }
+        const getState = window.$S || (typeof $S !== 'undefined' ? $S : null);
+        const userType = String(getState?.('ad')?.userType || '').trim();
+        if (userType) base += `${base.includes('?') ? '&' : '?'}userType=${encodeURIComponent(userType)}`;
+        return new URL(base, window.location.href).href;
       }
 
       function parseReadHtml(rawHtml) {
@@ -654,19 +570,9 @@ async function readSentDetail(tabId, messageId) {
         try {
           const doc = new DOMParser().parseFromString(html,'text/html');
           const template = doc.querySelector('template#contentTemplate');
-          let mailRoot = null;
-          if (template?.content?.querySelector) {
-            mailRoot = template.content.querySelector('[data-ntes="ntes_mail_body_root"]');
-          }
-          // Some DOMParser implementations expose template.innerHTML more reliably
-          // than template.content. Parse that fragment as a compatibility path.
-          if (!mailRoot && template) {
-            const holder = doc.createElement('div');
-            holder.innerHTML = template.innerHTML || '';
-            mailRoot = holder.querySelector('[data-ntes="ntes_mail_body_root"]');
-          }
-          if (!mailRoot) mailRoot = doc.querySelector('[data-ntes="ntes_mail_body_root"]');
-          if (!mailRoot) return { ok:false, reason:'readhtml 中缺少 contentTemplate / ntes_mail_body_root' };
+          if (!template?.content?.querySelector) return { ok:false, reason:'readhtml 中缺少 template#contentTemplate' };
+          const mailRoot = template.content.querySelector('[data-ntes="ntes_mail_body_root"]');
+          if (!mailRoot) return { ok:false, reason:'contentTemplate 中缺少 ntes_mail_body_root' };
 
           const bodyHtml = String(mailRoot.innerHTML || '');
           const body = htmlToText(bodyHtml, true);
@@ -682,6 +588,7 @@ async function readSentDetail(tabId, messageId) {
       let readHtmlFetched = false;
       try {
         const readHtmlUrl = buildReadHtmlUrl();
+        if (!readHtmlUrl) return resolve({ ok:false, id:idArg, subject, reasonCode:'sent-readhtml-url-unavailable', reason:'网易页面未提供 readhtml URL', detailSource:'readhtml', responseCode:response.code });
         const bodyResponse = await fetch(readHtmlUrl, {
           method:'GET',
           credentials:'include',
@@ -705,7 +612,6 @@ async function readSentDetail(tabId, messageId) {
               isHtml:true,
               bodySource:parsed.bodySource,
               detailSource:'readhtml',
-              requestShape,
               responseCode:response.code,
               readHtmlStatus
             });
@@ -716,65 +622,6 @@ async function readSentDetail(tabId, messageId) {
         readHtmlFailure = error?.message || String(error);
       }
 
-      // 3) Compatibility fallback only: older/alternate NetEase deployments may
-      // embed content in readMessage. Do not depend on this for normal js6 MailReader.
-      const directHtml = typeof root?.html?.content === 'string' ? root.html.content : '';
-      const directText = typeof root?.text?.content === 'string' ? root.text.content : '';
-      let bodyHtml = directHtml;
-      let body = directText ? htmlToText(directText, false) : (directHtml ? htmlToText(directHtml, true) : '');
-      let bodySource = directText ? 'var.text.content' : (directHtml ? 'var.html.content' : '');
-
-      if (!body) {
-        const keyNorm = value => String(value || '').replace(/[\s_\-]/g,'').toLowerCase();
-        const preferredKeys = new Map([
-          ['content',10],['body',9],['mailcontent',9],['mailbody',9],['plaintext',8],['bodyhtml',8],['contenthtml',8],['html',6],['text',6]
-        ]);
-        const queue = [{node:root,path:'var'}], seen = new Set(), candidates = [];
-        for (let i=0; i<queue.length && i<1000; i++) {
-          const entry = queue[i], node = entry.node;
-          if (!node || typeof node !== 'object' || seen.has(node)) continue;
-          seen.add(node);
-          const entries = Array.isArray(node) ? node.map((value,index)=>[String(index),value]) : Object.entries(node);
-          for (const [key,value] of entries) {
-            const path = `${entry.path}.${key}`;
-            if (value && typeof value === 'object') { queue.push({node:value,path}); continue; }
-            if (typeof value !== 'string' || !value.trim()) continue;
-            const norm = keyNorm(key);
-            if (!preferredKeys.has(norm)) continue;
-            const raw = value.trim();
-            if (/^data:[^;]+;base64,/i.test(raw)) continue;
-            const text = htmlToText(raw, null);
-            if (!text) continue;
-            const score = preferredKeys.get(norm) * 100000 + Math.min(text.length, 99999);
-            candidates.push({raw,text,path,score,looksHtml:/<[a-z][\s\S]*>/i.test(raw)});
-          }
-        }
-        candidates.sort((a,b)=>b.score-a.score);
-        const best = candidates[0];
-        if (best) {
-          body = best.text;
-          bodyHtml = best.looksHtml ? best.raw : '';
-          bodySource = best.path;
-        }
-      }
-
-      if (body) {
-        return resolve({
-          ok:true,
-          id:idArg,
-          subject,
-          body,
-          bodyHtml,
-          isHtml:!!bodyHtml,
-          bodySource,
-          detailSource:'mbox:readMessage-compatibility-fallback',
-          requestShape,
-          responseCode:response.code,
-          readHtmlStatus,
-          readHtmlWarning:readHtmlFailure
-        });
-      }
-
       return resolve({
         ok:false,
         id:idArg,
@@ -782,7 +629,6 @@ async function readSentDetail(tabId, messageId) {
         reasonCode: readHtmlFetched ? 'sent-readhtml-parse-failed' : 'sent-readhtml-failed',
         reason: readHtmlFailure || 'readhtml3.jsp 未返回可解析正文',
         detailSource:'readhtml',
-        requestShape,
         responseCode:response.code,
         readHtmlStatus,
         rawKeys:Object.keys(root).slice(0,80)
@@ -959,10 +805,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       await waitForExecutor(tabId);
       return chrome.tabs.sendMessage(tabId, message);
     }
-    if (message?.type === 'NMDA_LEGACY_PREFS') {
-      await waitForExecutor(tabId);
-      return chrome.tabs.sendMessage(tabId, {type:'NMDA_LEGACY_PREFS'});
-    }
     if (message?.type === 'NMDA_OPEN_COMPOSE') {
       return runMain(tabId, () => {
         try {
@@ -974,10 +816,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_ACCOUNT_INFO') return accountInfo(tabId);
     if (message?.type === 'NMDA_READ_MAILBOX_STATE') return readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick');
     if (message?.type === 'NMDA_READ_DEDUPE_HISTORY') return readDedupeHistory(tabId);
-    if (message?.type === 'NMDA_READ_SENT') return readMailbox(tabId,3,message.limit ?? 200);
     if (message?.type === 'NMDA_READ_SENT_DETAILS') return readSentDetails(tabId, message.messageIds || []);
-    if (message?.type === 'NMDA_READ_DRAFTS') return readMailbox(tabId,2,message.limit ?? 200);
-    if (message?.type === 'NMDA_READ_INBOX') return readMailbox(tabId,1,message.limit ?? 200);
     if (message?.type === 'NMDA_IMPORT_DRAFTS') return readDraftImport(tabId,message.limit ?? 300);
     return {ok:false,reason:'unknown-message'};
   })().then(sendResponse).catch(error => sendResponse({ok:false,reason:error?.message||String(error)}));
