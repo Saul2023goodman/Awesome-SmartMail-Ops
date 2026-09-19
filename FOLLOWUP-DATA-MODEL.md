@@ -129,20 +129,20 @@ The unified queue is ephemeral at render time; authoritative Follow-up dispatch 
 
 After a Follow-up draft is successfully created, SmartMail records a `draftRecord`, writes `draftPreparedAt` / `draftRecordId` to the derived task, and removes it from the dispatch pool. A scheduled draft may move the derived task to `scheduled`; an unscheduled prepared draft remains confirmed. Neither is considered sent until later mailbox reconciliation.
 
-## v3.8.14 template generation + Review gate
+## v3.8.20 template generation + unified Review classifier
 
-The reusable `templateBody` is still versioned, but template generation is preparation rather than authorization. New Follow-up tasks are created with:
-
-- `state = prepared`
-- `confirmedVersion = null`
-- `reviewedAt = ''`
-- `dispatch.queued = false`
-- `dispatch.scheduleReason = awaiting-review`
-
-The generated body remains deterministic:
+The reusable `templateBody` remains versioned and generates deterministic content:
 
 `Initial salutation + templateBody + Initial signature`
 
-Each task records `generatedFromTemplateVersion` and the personalization snapshot used. Review Pass atomically sets `confirmedVersion = contentVersion`, records `confirmedAt / reviewedAt`, changes `state` to `confirmed`, and queues the task with `scheduleSource = review` / `scheduleReason = review-passed`.
+Review is an exception-detection layer rather than a mandatory per-message approval step. When generated output is complete and unblocked, the task is immediately stamped with the exact current version:
 
-Editing recipients, subject, body or compose mode after Pass increments `contentVersion`, clears `confirmedVersion / reviewedAt`, returns the task to `prepared`, and dequeues it. This makes Review the single content authorization boundary for both Initial and Follow-up mail.
+- `state = confirmed`
+- `confirmedVersion = contentVersion`
+- `confirmedAt = reviewedAt = now`
+- `reviewDecision = auto`
+- `dispatch.queued = true`
+- `dispatch.scheduleSource = review-auto`
+- `dispatch.scheduleReason = review-auto-passed`
+
+A task that fails deterministic checks remains `prepared / awaiting-review`. Manual confirmation records `reviewDecision = manual` and `review-passed`. Editing recipients, subject, body, or compose mode always increments `contentVersion`, clears the previous decision, returns the task to `prepared`, and dequeues it.

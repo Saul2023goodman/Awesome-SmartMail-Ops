@@ -178,7 +178,7 @@
             <div><h2>选择与排期</h2><p>汇合初始邮件与 Follow-up → 选择范围 → 安排时间 → 统一执行</p></div>
           </div>
           <div class="nmda-page-head" data-page-head="monitor" hidden>
-            <div><h2>邮件监测</h2><p>已发送 → 回复识别 → Follow-up 到期 → 生成待审阅任务</p></div>
+            <div><h2>邮件监测</h2><p>已发送 → 回复识别 → Follow-up 到期 → 模板生成 → 统一审阅</p></div>
           </div>
           <section class="nmda-tabpane nmda-page nmda-ingest-page nmda-bulk-workbench" data-pane="batch" data-phase="empty">
             <div class="nmda-workflow-stage-head" id="nmda-stage-prepare">
@@ -436,7 +436,7 @@
                   <div class="nmda-inline-review-actions"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个待审阅</button></div>
                 </div>
                 <div class="nmda-review-followup-template" id="nmda-review-followup-template-card">
-                  <div class="nmda-review-followup-template-copy"><strong>Follow-up 模板</strong><small id="nmda-review-followup-template-meta">模板用于批量生成初稿，只影响之后生成的 Follow-up；每封仍需在本页 Pass。</small></div>
+                  <div class="nmda-review-followup-template-copy"><strong>Follow-up 模板</strong><small id="nmda-review-followup-template-meta">模板用于批量生成 Follow-up；字段完整且无阻断时自动通过，只有异常项进入“需处理”。</small></div>
                   <label class="nmda-review-followup-template-field"><span>中间正文</span><textarea id="nmda-review-followup-template" rows="3" placeholder="只填写 Follow-up 中间正文；称呼和署名从 root Initial 邮件继承。"></textarea></label>
                   <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-review-followup-template-save" type="button">保存模板</button>
                 </div>
@@ -547,7 +547,7 @@
 
           <section class="nmda-tabpane nmda-page nmda-dispatch-page" data-pane="dispatch" hidden>
             <div class="nmda-dispatch-intro">
-              <div><strong>统一执行池</strong><small>Initial 与 Follow-up 都必须在“邮件审阅”Pass 后进入这里。</small></div>
+              <div><strong>统一执行池</strong><small>Initial 与 Follow-up 都经过同一邮件审阅规则；完整项自动通过，异常项处理后进入这里。</small></div>
               <div class="nmda-dispatch-source-summary" id="nmda-dispatch-source-summary"></div>
             </div>
             <div class="nmda-batch-empty" id="nmda-batch-empty" hidden></div>
@@ -627,7 +627,7 @@
                 <label><span>方式</span><select id="nmda-monitor-compose-mode"><option value="forward">Forward</option><option value="reply">Reply</option><option value="new">New message</option></select></label>
                 <button class="nmda-btn nmda-btn-small" id="nmda-monitor-save-policy" type="button">保存规则</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-open-template" type="button">编辑模板 →</button>
               </div>
-              <small class="nmda-monitor-rule-note">真人回复永久关闭同一 conversation 的自动 Follow-up；之后 operator 的人工 Sent 只记录、不重启计时。自动回复不阻断。到期后生成模板初稿，并进入“邮件审阅”。</small>
+              <small class="nmda-monitor-rule-note">真人回复永久关闭同一 conversation 的自动 Follow-up；之后 operator 的人工 Sent 只记录、不重启计时。自动回复不阻断。到期后按模板生成，并由“邮件审阅”统一检查：完整项自动通过，异常项待处理。</small>
             </div>
 
             <div class="nmda-monitor-filterbar">
@@ -939,8 +939,10 @@
     if(activeTask?.state==='blocked')return {key:'blocked',tone:'blocked',label:'跟进已阻断',detail:activeTask.blocker?.kind==='human'?'收到真人回复':'需要处理阻断原因',activeTask};
     if(activeTask){
       const reviewed=!!activeTask.reviewedAt && Number(activeTask.confirmedVersion)===Number(activeTask.contentVersion);
-      const label=activeTask.dispatch?.queued?`Follow-up #${activeTask.sequence} · 已通过审阅`:reviewed?`Follow-up #${activeTask.sequence} · 已通过审阅`:`Follow-up #${activeTask.sequence} · 待审阅`;
-      const detail=activeTask.draftPreparedAt?'草稿已创建':activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:'已进入选择与排期'):(reviewed?'等待进入选择与排期':(automatic?'收到自动回复，不阻断；请到邮件审阅 Pass':'模板初稿已生成，请到邮件审阅 Pass'));
+      const autoReviewed=reviewed && activeTask.reviewDecision==='auto';
+      const reviewLabel=autoReviewed?'自动通过':reviewed?'已确认':'需处理';
+      const label=`Follow-up #${activeTask.sequence} · ${reviewLabel}`;
+      const detail=activeTask.draftPreparedAt?'草稿已创建':activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:(autoReviewed?'模板检查完整，已进入选择与排期':'已进入选择与排期')):(reviewed?'等待进入选择与排期':(automatic?'收到自动回复，不阻断；当前 Follow-up 仍需处理':'模板生成后检测到异常，请到邮件审阅处理'));
       return {key:'due',tone:'due',label,detail,activeTask,automatic};
     }
     if(group.eligibility?.eligible)return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:automatic?'收到自动回复，不阻断':'可以创建跟进任务',automatic};
@@ -1163,7 +1165,10 @@
       operationState.store=created.store;
       await commitRuntimeOperations();
       renderMonitoring();
-      setMonitorNotice(`Follow-up #${created.task.sequence} 已按模板生成，等待在“邮件审阅”中 Pass。`,'ok');
+      const autoPassed=created.task.reviewDecision==='auto' && created.task.dispatch?.queued===true;
+      setMonitorNotice(autoPassed
+        ? `Follow-up #${created.task.sequence} 已按模板生成并自动通过审阅，已进入“选择与排期”。`
+        : `Follow-up #${created.task.sequence} 已按模板生成；检测到异常，请到“邮件审阅”处理。`,autoPassed?'ok':'warn');
       renderReviewPageOverview();
     }catch(error){setMonitorNotice(error?.message||String(error),'error');}
   }
@@ -1187,7 +1192,10 @@
       const createSkipped=(result.skipped||[]).map(item=>({...item,reasonText:followUpTemplateReasonText(item.reason)}));
       const allSkipped=[...hydrateSkipped,...createSkipped];
       const reasons=[...new Set(allSkipped.map(item=>item.reasonText||item.reason).filter(Boolean))];
-      setMonitorNotice(`已按模板生成 ${result.created.length} 个 Follow-up Task，等待在“邮件审阅”中 Pass${allSkipped.length?`；${allSkipped.length} 个未生成${reasons.length?`（${reasons.slice(0,4).join('；')}${reasons.length>4?'；…':''}）`:''}`:''}。`,result.created.length?'ok':'warn');
+      const autoPassed=result.created.filter(task=>task.reviewDecision==='auto'&&task.dispatch?.queued===true).length;
+      const needsReview=result.created.length-autoPassed;
+      const generatedCopy=`已按模板生成 ${result.created.length} 个 Follow-up：${autoPassed} 个自动通过${needsReview?`，${needsReview} 个需处理`:''}`;
+      setMonitorNotice(`${generatedCopy}${allSkipped.length?`；${allSkipped.length} 个未生成${reasons.length?`（${reasons.slice(0,4).join('；')}${reasons.length>4?'；…':''}）`:''}`:''}。`,result.created.length?'ok':'warn');
       renderReviewPageOverview();
     }catch(error){setMonitorNotice(`批量生成失败：${error?.message||String(error)}`,'error');}
   }
@@ -2486,6 +2494,11 @@
     return task?.reviewKind === 'follow_up' || task?.sourceKind === 'follow-up-review';
   }
 
+  function followUpSubjectValid(task, value = task?.subject) {
+    if(!isFollowUpReviewTask(task) || task?.composeMode!=='new')return true;
+    return !!String(value||'').replace(/^(?:(?:re|fw|fwd)\s*:\s*)+/i,'').trim();
+  }
+
   function followUpReviewAdapter(task) {
     if (!task || task.kind !== 'follow_up') return null;
     const parent=operationState.store?.outboundRecords?.[task.parentOutboundId] || null;
@@ -2496,7 +2509,7 @@
       editKey:`fu-review:${task.id}`, id:`Follow-up #${Math.max(1,Number(task.sequence||1))}`,
       collectionName:'Follow-up', recipients, subject:String(task.subject||parent?.subject||''), body:String(task.body||''),
       composeMode:task.composeMode||'forward', sequence:Number(task.sequence||1), reviewConfirmed:reviewed,
-      reviewDraftPending:false, importExcluded:false, importConfidence:100, importIssues:[], rosterIssues:[], errors:[],
+      reviewDecision:String(task.reviewDecision||''), reviewDraftPending:false, importExcluded:false, importConfidence:100, importIssues:[], rosterIssues:[], errors:[],
       policyBlocked:task.state==='blocked'||!!task.blocker, attachmentRefs:[], scheduleAt:String(task.dispatch?.scheduleAt||''), tags:['Follow-up'],
       sourceFile:`Follow-up template v${Number(task.generatedFromTemplateVersion||0)}`,
       generatedFromTemplateVersion:Number(task.generatedFromTemplateVersion||0), personalization:task.personalization||{},
@@ -2535,7 +2548,7 @@
     if(isFollowUpReviewTask(task)){
       if(!String(task?.recipients||'').trim())out.push('缺少收件人');
       else if(!recipientLooksValid(task.recipients))out.push('收件人邮箱格式无效');
-      if(task?.composeMode==='new' && !String(task?.subject||'').trim())out.push('缺少主题');
+      if(task?.composeMode==='new' && !followUpSubjectValid(task))out.push('缺少主题');
       if(!String(task?.body||'').trim())out.push('缺少正文');
       if(task?.policyBlocked)out.push('Follow-up 已阻断');
       if(!task?.reviewConfirmed && !out.includes('请检查 Follow-up 内容'))out.push('请检查 Follow-up 内容');
@@ -2582,7 +2595,7 @@
   }
 
   function taskNeedsImportReview(task) { return !task?.importExcluded && unresolvedImportIssues(task).length > 0; }
-  function taskCoreValid(task) { return recipientLooksValid(task?.recipients||'') && (isFollowUpReviewTask(task)&&task?.composeMode!=='new' ? true : !!String(task?.subject||'').trim()) && !!String(task?.body||'').trim() && !task?.policyBlocked; }
+  function taskCoreValid(task) { return recipientLooksValid(task?.recipients||'') && (isFollowUpReviewTask(task) ? followUpSubjectValid(task) : !!String(task?.subject||'').trim()) && !!String(task?.body||'').trim() && !task?.policyBlocked; }
   function directCorrectionFields(task) {
     if(!task || task?.importExcluded)return [];
     const issues=unresolvedImportIssues(task);
@@ -2943,7 +2956,7 @@
     if(/未定位收件人|收件人邮箱|缺少收件人/.test(text))return '缺收件人';
     if(/主题为空|未找到 Subject|缺少主题/.test(text))return '缺主题';
     if(/缺少正文|正文过短/.test(text))return '正文缺失';
-    if(/请检查 Follow-up 内容/.test(text))return 'Follow-up 待审阅';
+    if(/请检查 Follow-up 内容/.test(text))return 'Follow-up 需确认';
     if(/Follow-up 已阻断/.test(text))return 'Follow-up 已阻断';
     if(/邮件落款后|邮件边界|称呼|落款|置信度|请检查/.test(text))return '正文边界待核对';
     if(/总名单|联系人|院校/.test(text))return '联系人待核对';
@@ -3125,7 +3138,7 @@
     if(document.activeElement!==reviewFollowUpTemplateEl)reviewFollowUpTemplateEl.value=policy.templateBody||'';
     if(reviewFollowUpTemplateMetaEl){
       const pending=followUpReviewTasks().filter(taskNeedsImportReview).length;
-      reviewFollowUpTemplateMetaEl.textContent=`模板 v${Number(policy.templateVersion||0)} · 生成结构：Initial 称呼 + 模板正文 + Initial 署名${pending?` · 当前 ${pending} 封 Follow-up 待审阅`:''}`;
+      reviewFollowUpTemplateMetaEl.textContent=`模板 v${Number(policy.templateVersion||0)} · Initial 称呼 + 模板正文 + Initial 署名 · 完整项自动通过${pending?` · ${pending} 封异常待处理`:''}`;
     }
   }
 
@@ -3143,8 +3156,8 @@
     const pendingCount=actionCount;
     if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='邮件审阅';
     if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=pendingCount
-      ? `Initial ${initialCount} · Follow-up ${followUpCount} · 还有 ${pendingCount} 封需要 Pass`
-      : tasks.length ? `Initial ${initialCount} · Follow-up ${followUpCount} · ${tasks.length}/${tasks.length} 已 Pass · 可以进入选择与排期` : 'Initial 与 Follow-up 都在这里完成内容确认。';
+      ? `Initial ${initialCount} · Follow-up ${followUpCount} · 还有 ${pendingCount} 封需要处理`
+      : tasks.length ? `Initial ${initialCount} · Follow-up ${followUpCount} · 全部通过审阅 · 可以进入选择与排期` : 'Initial 与 Follow-up 共用同一审阅规则：完整项自动通过，异常项人工处理。';
     if(reviewInlineEl)reviewInlineEl.dataset.reviewState=tasks.length&&pendingCount===0?'complete':pendingCount?'pending':'empty';
     if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
     const reviewCounts={all:tasks.length,auto:autoPassed,pending:actionCount,confirmed:checked};
@@ -3154,7 +3167,7 @@
       const countEl=button.querySelector('strong');
       if(countEl)countEl.textContent=String(value);
     });
-    if(reviewPageEmptyEl){reviewPageEmptyEl.hidden=!!tasks.length;reviewPageEmptyEl.textContent='导入 Initial 邮件，或在“邮件监测”生成 Follow-up 后，这里会显示待审阅邮件。';}
+    if(reviewPageEmptyEl){reviewPageEmptyEl.hidden=!!tasks.length;reviewPageEmptyEl.textContent='导入 Initial 邮件，或在“邮件监测”生成 Follow-up 后，这里会统一显示自动通过与需处理邮件。';}
     renderReviewFollowUpTemplate();
     const nextPendingBtn=$('nmda-review-next-pending');
     if(nextPendingBtn){
@@ -3233,7 +3246,7 @@
     if(batch.running || batch.autoAdvancing)return false;
     await ensureOperationStore();
     const pendingFollowUps=followUpReviewTasks().filter(taskNeedsImportReview);
-    if(pendingFollowUps.length){setImportStatus(`还有 ${pendingFollowUps.length} 封 Follow-up 未通过邮件审阅。`,'warn');return false;}
+    if(pendingFollowUps.length){setImportStatus(`还有 ${pendingFollowUps.length} 封 Follow-up 存在审阅异常。`,'warn');return false;}
 
     const initialReady=initialReviewGateReady() && !!batch.tasks?.length;
     if(initialReady){
@@ -3349,9 +3362,10 @@
     const direct=directCorrectionFields(task);
     if(direct.length)return {key:'action',label:'信息缺失',detail:'点击后直接补齐',icon:'!',issues,direct};
     if(issues.length)return isFollowUpReviewTask(task)
-      ? {key:'action',label:'Follow-up 待审阅',detail:'模板初稿 · Pass 后进入排期',icon:'!',issues,direct:[]}
+      ? {key:'action',label:'Follow-up 需处理',detail:'模板生成异常 · 修正后确认',icon:'!',issues,direct:[]}
       : {key:'action',label:'需核对',detail:'点击审阅完整邮件',icon:'!',issues,direct:[]};
-    if(task.reviewConfirmed||task.rosterConfirmed)return {key:'confirmed',label:'已确认',detail:isFollowUpReviewTask(task)?'Follow-up 已 Pass':'已人工审阅',icon:'✓',issues:[]};
+    if(isFollowUpReviewTask(task) && task.reviewConfirmed && task.reviewDecision==='auto')return {key:'auto',label:'自动通过',detail:'模板生成完整 · 已进入排期',icon:'✓',issues:[]};
+    if(task.reviewConfirmed||task.rosterConfirmed)return {key:'confirmed',label:'已确认',detail:isFollowUpReviewTask(task)?'Follow-up 已人工确认':'已人工审阅',icon:'✓',issues:[]};
     return {key:'auto',label:'自动通过',detail:'识别完整',icon:'✓',issues:[]};
   }
 
@@ -3664,7 +3678,7 @@
     const correctionMode=mode==='correction';
     const directMode=mode==='direct';
     const editing=correctionMode||directMode;
-    const liveSubjectOk=isFollowUpReviewTask(task)&&task?.composeMode!=='new' ? true : !!String(importEditSubjectEl?.value||'').trim();
+    const liveSubjectOk=isFollowUpReviewTask(task) ? followUpSubjectValid(task,importEditSubjectEl?.value||'') : !!String(importEditSubjectEl?.value||'').trim();
     const coreValid=editing
       ? recipientLooksValid(importEditRecipientsEl?.value||'') && liveSubjectOk && !!String(importEditBodyEl?.value||'').trim()
       : !!task&&taskCoreValid(task);
@@ -3676,7 +3690,7 @@
     if(back)back.hidden=!correctionMode;
     const copy=reviewActionsEl?.querySelector('.nmda-review-action-copy');
     if(copy)copy.textContent=isFollowUpReviewTask(task)
-      ? (directMode?'补齐缺失信息后重新核对 Follow-up。':correctionMode?'修正后返回完整 Follow-up 审阅；任何修改都会使旧 Pass 失效。':coreValid?'核对模板正文、Initial 称呼与署名；Pass 后自动进入选择与排期。':'Follow-up 有必填信息缺失，需先修正。')
+      ? (directMode?'补齐缺失信息后重新核对 Follow-up。':correctionMode?'修正后返回完整 Follow-up 审阅；任何修改都会使旧 Pass 失效。':coreValid?'该 Follow-up 因异常或人工修改进入审阅；确认当前版本后进入选择与排期。':'Follow-up 有必填信息缺失，需先修正。')
       : duplicateActive?'先完成重复邮件取舍。':directMode?'缺失项已直接展开；补齐后保存，系统会立即重新核验。':correctionMode?'修正后保存，再返回完整审阅结果。':coreValid?'重点核对开头称呼、结尾署名及邮件边界；确认无误后继续。':'识别到必填内容缺失，已直接展开可修正字段。';
   }
 
@@ -3699,7 +3713,7 @@
     const problems=[];
     const recipientOk=recipientLooksValid(importEditRecipientsEl?.value||'');
     const currentTask=reviewCurrentTask();
-    const subjectOk=isFollowUpReviewTask(currentTask)&&currentTask?.composeMode!=='new' ? true : !!String(importEditSubjectEl?.value||'').trim();
+    const subjectOk=isFollowUpReviewTask(currentTask) ? followUpSubjectValid(currentTask,importEditSubjectEl?.value||'') : !!String(importEditSubjectEl?.value||'').trim();
     const bodyOk=!!String(importEditBodyEl?.value||'').trim();
     const states=[['nmda-review-field-recipients',recipientOk,'收件人邮箱'],['nmda-review-field-subject',subjectOk,'主题'],['nmda-review-field-body',bodyOk,'正文']];
     for(const [id,ok,label] of states){const el=$(id);if(el){el.dataset.issue=ok?'0':'1';el.dataset.resolved=ok?'1':'0';}if(!ok)problems.push(label);}
@@ -3779,7 +3793,7 @@
     if(importEditorEvidenceEl){
       const scheduleNote=task.scheduleAt?`${scheduleSourceLabel(task)}：${String(task.scheduleAt).replace('T',' ')}`:'';
       if(isFollowUpReviewTask(task)){
-        importEditorEvidenceEl.textContent=`Follow-up #${Math.max(1,Number(task.sequence||1))} · 模板 v${Number(task.generatedFromTemplateVersion||0)} · 称呼与署名来自 root Initial；Pass 后自动进入选择与排期。`;
+        importEditorEvidenceEl.textContent=`Follow-up #${Math.max(1,Number(task.sequence||1))} · 模板 v${Number(task.generatedFromTemplateVersion||0)} · 称呼与署名来自 root Initial；完整模板任务会自动通过，当前项仅在异常/修改时需要确认。`;
       }else importEditorEvidenceEl.textContent=directFields.length
         ? `系统已定位缺失：${directFields.map(key=>({recipients:'收件人',subject:'主题',body:'正文'}[key]||key)).join(' · ')}；无需再点“修正”，可直接补齐。${scheduleNote?` ${scheduleNote}。`:''}`
         : issues.length
@@ -5002,7 +5016,7 @@
     const viewingPlanning=currentWorkbenchTab()==='dispatch';
     const emptyCard=$('nmda-batch-empty');
     if(emptyCard){
-      let kicker='选择与排期',title='等待邮件任务',desc='Initial 与 Follow-up 都在邮件审阅 Pass 后进入这里。';
+      let kicker='选择与排期',title='等待邮件任务',desc='Initial 与 Follow-up 都经邮件审阅规则通过后进入这里。';
       if(!tasks.length){kicker='执行池为空';title='还没有可安排的邮件';desc='先在“邮件审阅”完成 Initial / Follow-up 的 Pass。';}
       emptyCard.innerHTML=`<div class="nmda-card-kicker">${escapeHtml(kicker)}</div><div class="nmda-card-title">${escapeHtml(title)}</div><div class="nmda-card-desc">${escapeHtml(desc)}</div>`;
       emptyCard.hidden=!(viewingPlanning&&!hasTasks);

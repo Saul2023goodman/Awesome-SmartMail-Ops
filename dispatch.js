@@ -14,7 +14,7 @@
     const blocked = task.state === 'blocked' || !!task.blocker;
     const done = !!task.draftPreparedAt;
     const errors = [];
-    if (!reviewed) errors.push('Follow-up 尚未通过邮件审阅');
+    if (!reviewed) errors.push('Follow-up 尚未通过邮件审阅规则');
     if (blocked) errors.push(task.blocker?.kind === 'human' ? '收到真人回复' : task.blocker?.type === 'recipient-guard' ? '联系规则阻断' : '回复状态需要处理');
     if ((task.composeMode === 'forward' || task.composeMode === 'reply') && !parent?.providerMessageId) errors.push('原始 Sent 邮件缺少 provider message id');
     const recipients = recipientText(task.recipients || []);

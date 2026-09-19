@@ -1,10 +1,10 @@
-# SmartMail 邮件监测 / Follow-up（v3.8.14）
+# SmartMail 邮件监测 / Follow-up（v3.8.20）
 
 ## 模块定位
 
-“邮件监测”只负责人工读取并解释邮箱事实、判断 Follow-up eligibility，以及按已保存模板生成 **待审阅** 的 Follow-up Derived Task。它不拥有内容授权、排期或执行。
+“邮件监测”只负责人工读取并解释邮箱事实、判断 Follow-up eligibility，以及按已保存模板生成 Follow-up Derived Task。生成结果随后走与 Initial 相同的 Review classifier：完整项自动通过，异常项进入“需处理”。
 
-邮箱读取仍采用人工唤醒：只有操作者点击“读取邮箱”或“完整读取”时，扩展才访问 163 的 Sent / Drafts / Inbox；其余时间只使用上一次持久化快照。
+邮箱读取仍采用人工唤醒：只有操作者点击“读取邮箱”或“完整读取”时，扩展才访问 163 的 Sent / Drafts / Inbox；其余时间只使用当前打开页面内存中的最近一次读取结果。
 
 ## 当前主链路
 
@@ -15,8 +15,8 @@
 5. 到期线程可单条或批量生成 Follow-up Task。
 6. 若 root Initial 正文尚未缓存，按 provider message id 读取网易 `readhtml` 文档，并从完整的 `template#contentTemplate.content` DocumentFragment 获取真实正文。
 7. 从 root Initial 提取称呼与署名，组合为 `Initial 称呼 + Follow-up 模板正文 + Initial 署名`。
-8. 生成结果仅为 `prepared` Follow-up，不确认、不入执行池。
-9. Follow-up 出现在一级“邮件审阅”中；人工 Pass 后才确认当前 content version 并进入“选择与排期”。
+8. 生成后立即运行统一 Review classifier：收件人、主题规则、正文和 blocker 均正常时自动确认当前 content version 并进入“选择与排期”。
+9. 只有异常或之后被 operator 修改的 Follow-up 才停留在“邮件审阅 → 需处理”，由人工确认当前版本。
 10. Dispatch 使用网易原生 Forward / Reply / New 创建普通或定时草稿。
 11. 草稿创建成功仍不等于 Sent；后续再次人工读取邮箱进行 reconciliation。
 
@@ -24,7 +24,7 @@
 
 ### 邮件监测
 
-拥有：人工邮箱读取、Sent/Draft/Inbox facts、reply association、eligibility、批量生成 Follow-up prepared task。
+拥有：人工邮箱读取、Sent/Draft/Inbox facts、reply association、eligibility、批量生成 Follow-up runtime task。
 
 不拥有：模板撰写、内容 Pass、排期、草稿创建。
 
@@ -32,7 +32,7 @@
 
 拥有：Initial 与 Follow-up 的统一内容核验。Follow-up 模板正文也在这里维护；模板只影响之后新生成的任务。
 
-Follow-up Pass 是授权边界：Pass 时确认当前 `contentVersion`，写入 `reviewedAt`，并将该 task 加入统一 Dispatch queue。修改 Follow-up 的收件人、主题或正文会增加 content version、清除 Review Pass 并自动退出执行池。
+Review 的目的不是逐封审批。确定性检查完整的 Follow-up 自动记录 `reviewDecision = auto` 并入 Dispatch；异常项或 operator 修改后的版本才需要人工确认，人工确认记录 `reviewDecision = manual`。任何后续内容修改都会增加 content version、清除旧 Review decision 并自动退出执行池。
 
 ### 选择与排期
 
@@ -40,12 +40,11 @@ Follow-up Pass 是授权边界：Pass 时确认当前 `contentVersion`，写入 
 
 ## 安全边界
 
-- 模板生成不是授权。
+- 模板生成本身不是理由；只有模板输出通过统一确定性 Review classifier 才会自动入池。
 - Human reply / ambiguous reply / recipient guard 仍是硬阻断。
 - Forward / Reply 需要原始 Sent provider message id。
 - 执行失败停止，不盲重试。
 - Draft success ≠ Sent；Sent 由邮箱事实确认。
-- 旧版“模板生成后自动 confirmed + queued”的未执行任务升级后会退回 `prepared / 待审阅`。旧版明确人工确认过的 Follow-up 保留其人工授权语义。
 
 
 ## v3.8.18 真人回复后的人工沟通
@@ -62,3 +61,12 @@ Follow-up Pass 是授权边界：Pass 时确认当前 `contentVersion`，写入 
 ## v3.8.19 运行时工作集
 
 Follow-up 不再是持久化待办。每次人工读取邮箱后，在当前页面内生成本次工作集；模板生成的 Follow-up 只在本次会话进入邮件审阅和选择与排期。关闭/刷新 SmartMail 后，Follow-up Task、回复 observation、mailbox snapshot 与排期状态全部清空。模板与全局规则属于工具设置，可跨会话保留。
+
+
+## v3.8.20 统一自动审阅
+
+Follow-up 不再默认逐封 Pass。模板生成后，系统使用与 Initial 相同的“正常自动通过、异常人工处理”原则：
+
+`模板生成 -> deterministic Review classifier -> 自动通过/进入排期 OR 需处理/人工确认`
+
+自动通过仍然记录 exact content version；operator 后续编辑会使该自动通过立即失效并退回“需处理”。

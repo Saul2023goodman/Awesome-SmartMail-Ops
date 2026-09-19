@@ -222,6 +222,7 @@
       const normalizedTask = {
         ...task,
         reviewedAt: String(task.reviewedAt || ''),
+        reviewDecision: ['auto', 'manual'].includes(task.reviewDecision) ? task.reviewDecision : (task.reviewedAt ? 'manual' : ''),
         dispatch: {
           queued: dispatch.queued === true,
           enabled: dispatch.enabled !== false,
@@ -233,25 +234,6 @@
           dequeuedReason: String(dispatch.dequeuedReason || '')
         }
       };
-      // v3.8.14: template generation produces a draft for Review, not an authorization.
-      // Pull back only the old auto-confirmed template tasks that have not executed yet.
-      if (normalizedTask.kind === 'follow_up' && !normalizedTask.reviewedAt) {
-        if (!normalizedTask.draftPreparedAt && !['sent', 'cancelled', 'blocked'].includes(normalizedTask.state)
-            && normalizedTask.dispatch.scheduleReason === 'template-generated') {
-          normalizedTask.state = 'prepared';
-          normalizedTask.confirmedVersion = null;
-          normalizedTask.confirmedAt = '';
-          normalizedTask.dispatch.queued = false;
-          normalizedTask.dispatch.dequeuedAt = normalizedTask.dispatch.dequeuedAt || nowIso();
-          normalizedTask.dispatch.dequeuedReason = 'review-gate-upgrade';
-          normalizedTask.dispatch.scheduleSource = '';
-          normalizedTask.dispatch.scheduleReason = 'awaiting-review';
-          normalizedTask.dispatch.queuedAt = '';
-        } else if (Number(normalizedTask.confirmedVersion) === Number(normalizedTask.contentVersion) && normalizedTask.confirmedAt) {
-          // Pre-template manual confirmation was already an explicit human content decision.
-          normalizedTask.reviewedAt = String(normalizedTask.confirmedAt);
-        }
-      }
       store.derivedTasks[key] = normalizedTask;
     }
     return store;
@@ -964,6 +946,42 @@
     return { eligible: true, hardBlocked: false, reason: due ? 'due' : 'manual-early', policy, lastOutbound, sequence, dueAt, automaticReplies: replies.filter(item => item.kind === 'automatic') };
   }
 
+  function followUpReviewIssues(task) {
+    const issues = [];
+    if (!task || task.kind !== 'follow_up') return ['invalid-follow-up-task'];
+    if (!recipientKey(task.recipients || [])) issues.push('missing-recipient');
+    if (!String(task.body || '').trim()) issues.push('missing-body');
+    if (task.composeMode === 'new') {
+      const subject = String(task.subject || '').replace(/^(?:(?:re|fw|fwd)\s*:\s*)+/i, '').trim();
+      if (!subject) issues.push('missing-subject');
+    }
+    if (task.state === 'blocked' || task.blocker) issues.push('blocked');
+    return issues;
+  }
+
+  function applyFollowUpReviewDecision(task, decision = 'manual', at = nowIso()) {
+    const issues = followUpReviewIssues(task);
+    if (issues.length) return { ok: false, issues, task };
+    task.confirmedVersion = Math.max(1, Number(task.contentVersion || 1));
+    task.confirmedAt = at;
+    task.reviewedAt = at;
+    task.reviewDecision = decision === 'auto' ? 'auto' : 'manual';
+    task.state = 'confirmed';
+    task.dispatch = {
+      ...(task.dispatch || {}),
+      queued: true,
+      enabled: task.dispatch?.enabled !== false,
+      scheduleAt: String(task.dispatch?.scheduleAt || ''),
+      scheduleSource: decision === 'auto' ? 'review-auto' : 'review',
+      scheduleReason: decision === 'auto' ? 'review-auto-passed' : 'review-passed',
+      queuedAt: task.dispatch?.queuedAt || at,
+      dequeuedAt: '',
+      dequeuedReason: ''
+    };
+    task.updatedAt = at;
+    return { ok: true, issues: [], task };
+  }
+
   function createFollowUpTask(storeInput, rootTaskId, options = {}) {
     const store = normalizeStore(storeInput);
     const eligibility = evaluateFollowUpEligibility(store, rootTaskId, { now: options.now, ignoreTiming: options.manual === true });
@@ -994,6 +1012,7 @@
       confirmedVersion: null,
       confirmedAt: '',
       reviewedAt: '',
+      reviewDecision: '',
       generatedFromTemplateVersion: policy.templateVersion,
       personalization: { salutation: rendered.personalization.salutation, signature: rendered.personalization.signature, initialOutboundId: rendered.initial.id },
       scheduledAt: '',
@@ -1001,9 +1020,14 @@
       blocker: null,
       dispatch: { queued: false, enabled: true, scheduleAt: '', scheduleSource: '', scheduleReason: 'awaiting-review', queuedAt: '', dequeuedAt: '', dequeuedReason: '' }
     };
+    const review = applyFollowUpReviewDecision(task, 'auto', now);
+    if (!review.ok) {
+      task.state = 'prepared';
+      task.dispatch = { ...task.dispatch, queued: false, scheduleSource: '', scheduleReason: 'awaiting-review', queuedAt: '' };
+    }
     next.derivedTasks[id] = task;
     next.updatedAt = now;
-    return { store: next, task, eligibility };
+    return { store: next, task, eligibility, review };
   }
 
   function createFollowUpTasks(storeInput, rootTaskIds = [], options = {}) {
@@ -1029,12 +1053,17 @@
         recipients: (lastOutbound.recipients || []).map(item => ({ ...item })),
         subject: policy.composeMode === 'new' ? `Re: ${lastOutbound.subject || ''}`.trim() : String(lastOutbound.subject || ''),
         body: rendered.body, composeMode: policy.composeMode,
-        contentVersion: 1, confirmedVersion: null, confirmedAt: '', reviewedAt: '',
+        contentVersion: 1, confirmedVersion: null, confirmedAt: '', reviewedAt: '', reviewDecision: '',
         generatedFromTemplateVersion: policy.templateVersion,
         personalization: { salutation: rendered.personalization.salutation, signature: rendered.personalization.signature, initialOutboundId: rendered.initial.id },
         scheduledAt: '', sentOutboundId: '', blocker: null,
         dispatch: { queued: false, enabled: true, scheduleAt: '', scheduleSource: '', scheduleReason: 'awaiting-review', queuedAt: '', dequeuedAt: '', dequeuedReason: '' }
       };
+      const review = applyFollowUpReviewDecision(task, 'auto', now);
+      if (!review.ok) {
+        task.state = 'prepared';
+        task.dispatch = { ...task.dispatch, queued: false, scheduleSource: '', scheduleReason: 'awaiting-review', queuedAt: '' };
+      }
       next.derivedTasks[id] = task;
       next.updatedAt = now;
       created.push(task);
@@ -1056,6 +1085,7 @@
       task.confirmedVersion = null;
       task.confirmedAt = '';
       task.reviewedAt = '';
+      task.reviewDecision = '';
       if (task.state === 'confirmed' || task.state === 'scheduled') task.state = 'prepared';
       if (task.dispatch?.queued) {
         task.dispatch = { ...task.dispatch, queued: false, dequeuedAt: nowIso(), dequeuedReason: 'content-changed' };
@@ -1073,22 +1103,14 @@
     const task = next.derivedTasks[taskId];
     if (!task) throw new Error(`找不到 derived task：${taskId}`);
     if (['sent', 'cancelled', 'blocked'].includes(task.state)) throw new Error(`当前状态不能通过审阅：${task.state}`);
-    if (!recipientKey(task.recipients || [])) throw new Error('Follow-up 缺少收件人，不能通过审阅。');
-    if (!String(task.body || '').trim()) throw new Error('Follow-up 正文为空，不能通过审阅。');
-    if (task.composeMode === 'new' && !String(task.subject || '').trim()) throw new Error('新邮件模式缺少主题，不能通过审阅。');
     const now = nowIso();
-    task.confirmedVersion = Math.max(1, Number(task.contentVersion || 1));
-    task.confirmedAt = now;
-    task.reviewedAt = now;
-    task.state = 'confirmed';
-    task.dispatch = {
-      ...(task.dispatch || {}), queued: true, enabled: task.dispatch?.enabled !== false,
-      scheduleAt: String(task.dispatch?.scheduleAt || ''), scheduleSource: 'review', scheduleReason: 'review-passed',
-      queuedAt: task.dispatch?.queuedAt || now, dequeuedAt: '', dequeuedReason: ''
-    };
-    task.updatedAt = now;
+    const review = applyFollowUpReviewDecision(task, 'manual', now);
+    if (!review.ok) {
+      const labels = review.issues.map(issue => ({'missing-recipient':'缺少收件人','missing-body':'正文为空','missing-subject':'新邮件模式缺少主题','blocked':'Follow-up 已阻断'}[issue] || issue));
+      throw new Error(`${labels.join('；')}，不能通过审阅。`);
+    }
     next.updatedAt = now;
-    return { store: next, task };
+    return { store: next, task, review };
   }
 
 

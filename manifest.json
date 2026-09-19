@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.19",
-  "description": "SmartMail Ops — runtime-only batch execution: no persisted mailbox/task/history state; Initial + Follow-up review, manual mailbox reads, deterministic conversation gating, and unified dispatch.",
+  "version": "3.8.20",
+  "description": "SmartMail Ops — runtime-only batch execution with unified auto-review for Initial + Follow-up, manual mailbox reads, deterministic conversation gating, and unified dispatch.",
   "permissions": [
     "scripting",
     "tabs"

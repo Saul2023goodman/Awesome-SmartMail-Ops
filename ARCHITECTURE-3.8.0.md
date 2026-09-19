@@ -55,7 +55,7 @@ When root Initial body content is not cached, SmartMail reads NetEase MailReader
 
 ## Authority boundaries
 
-- `operations.js`: durable mailbox facts, Follow-up policy/state, content-version and Review authorization state.
+- `operations.js`: runtime mailbox facts, Follow-up policy/state, content-version and Review state for the current open SmartMail session.
 - `dispatch.js`: adapter from passed domain records into one executor-facing queue.
 - `scheduler.js`: scheduling rules over that unified queue.
 - `executor.js`: NetEase UI execution only; no Follow-up eligibility or content decisions.
@@ -63,28 +63,21 @@ When root Initial body content is not cached, SmartMail reads NetEase MailReader
 
 ## Follow-up state contract
 
-Template generation creates:
+Template generation and Review now use the same rule as Initial mail: complete deterministic output auto-passes; only exceptions require operator confirmation.
 
-- `state = prepared`
-- `confirmedVersion = null`
-- `reviewedAt = ''`
-- `dispatch.queued = false`
-- `dispatch.scheduleReason = awaiting-review`
+A complete generated Follow-up creates:
 
-Review Pass creates:
-
+- `state = confirmed`
 - `confirmedVersion = contentVersion`
 - `confirmedAt = reviewedAt = now`
-- `state = confirmed`
+- `reviewDecision = auto`
 - `dispatch.queued = true`
-- `dispatch.scheduleSource = review`
-- `dispatch.scheduleReason = review-passed`
+- `dispatch.scheduleSource = review-auto`
+- `dispatch.scheduleReason = review-auto-passed`
 
-Any later change to Follow-up recipients, subject, body, or compose mode increments `contentVersion`, clears authorization, returns the task to `prepared`, and removes it from Dispatch.
+If a generated task is missing a required field or otherwise fails the deterministic Review classifier, it remains `prepared / awaiting-review` and appears under Review → 需处理. Manual confirmation uses `reviewDecision = manual` and `scheduleReason = review-passed`.
 
-## Upgrade behavior
-
-Unexecuted Follow-up tasks created by the old template-auto-confirm path are migrated back to `prepared / awaiting-review`. Older Follow-up tasks that had an explicit human confirmation before template auto-confirm existed retain that confirmation as their Review authorization. Executed/sent history is never rewritten.
+Any later operator change to Follow-up recipients, subject, body, or compose mode increments `contentVersion`, clears the previous auto/manual Review decision, returns the task to `prepared`, and removes it from Dispatch until the edited version is confirmed.
 
 
 ## v3.8.15 Review routing fix
@@ -105,3 +98,8 @@ SmartMail no longer persists operational/mailbox/task state. The current app pag
 
 This changes Follow-up from a durable queue into a current-session batch: manual mailbox read → generate candidates → Review → Dispatch → create drafts. A new app session starts with no operational history and requires a new operator-triggered mailbox read.
 
+
+
+## v3.8.20 Unified auto-review
+
+Initial and Follow-up now share the same Review intent: detect exceptions, not force per-message approval. Deterministically complete Follow-up template output is auto-reviewed and queued immediately; only missing/invalid fields, blockers, or operator-edited versions require manual confirmation. Review remains the common visibility surface for both auto-passed and exception items.
