@@ -1487,26 +1487,6 @@
 }
 
 /* Opening one mail stays inside Review instead of becoming a viewport modal. */
-#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) {
-  grid-template-rows:auto auto minmax(0,1fr) !important;
-}
-/* Root-cause fix (v3.5.17): the review toolbar disappeared because single-mail mode
-   hid .nmda-review-boardbar whenever the detail editor was visible. Keep the toolbar
-   persistent and only collapse the queue/auxiliary rows. */
-
-#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > .nmda-review-subject-prompt,
-#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > .nmda-review-batchbar,
-#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > .nmda-review-page-empty,
-#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > #nmda-review-queue {
-  display:none !important;
-}
-#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > .nmda-review-boardbar {
-  display:grid !important;
-  grid-row:2 !important;
-  position:sticky !important;
-  top:0 !important;
-  z-index:3 !important;
-}
 #nmda-root.nmda-standalone #nmda-import-editor-overlay:not([hidden]) {
   position:relative !important;
   inset:auto !important;
@@ -1777,11 +1757,6 @@
 #nmda-root.nmda-standalone .nmda-review-load-more:hover { border-color:#b8c8dc; background:#f6f9fd; color:#344054; }
 #nmda-root.nmda-standalone .nmda-review-load-more span { font-size:8.5px; font-weight:720; }
 #nmda-root.nmda-standalone .nmda-review-load-more small { font-size:7.6px; color:#98a2b3; }
-/* Detail mode replaces the board. Keep its existing internal editor scroll model. */
-#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) #nmda-import-editor-overlay {
-  grid-row:2 !important;
-  min-height:0 !important;
-}
 @media (max-width:680px) {
   #nmda-root.nmda-standalone .nmda-review-load-more { flex-direction:column; gap:2px; }
 }
@@ -2496,10 +2471,6 @@
   #nmda-root.nmda-standalone .nmda-plan-loose-task > input { grid-column:2; }
 }
 
-#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) .nmda-review-boardbar-unified .nmda-review-queue-tools {
-  grid-template-columns:minmax(170px,1fr) auto auto !important;
-}
-
 /* v3.8.7 · First-class Review + guided handoffs */
 #nmda-root.nmda-standalone [data-pane="batch"].nmda-bulk-workbench {
   grid-template-rows:minmax(0,1fr) auto !important;
@@ -2759,4 +2730,46 @@
   #nmda-root.nmda-standalone .nmda-review-main-page #nmda-review-queue.nmda-review-mail-grid {
     grid-template-columns:1fr !important;
   }
+}
+
+
+/* v3.8.16 · First-class Review detail state
+   A selected mail replaces the board instead of sharing legacy grid rows with it.
+   JS owns the explicit board/detail state; no :has()-driven implicit placement. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] {
+  grid-template-columns:minmax(0,1fr) !important;
+  grid-template-rows:minmax(0,1fr) !important;
+  gap:0 !important;
+  overflow:hidden !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] > .nmda-inline-review-top,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] > .nmda-review-followup-template,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] > .nmda-review-boardbar,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] > .nmda-review-subject-prompt,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] > .nmda-review-batchbar,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] > .nmda-review-page-empty,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] > #nmda-review-queue {
+  display:none !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] > #nmda-import-editor-overlay:not([hidden]) {
+  grid-column:1 !important;
+  grid-row:1 !important;
+  align-self:stretch !important;
+  justify-self:stretch !important;
+  width:100% !important;
+  height:100% !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  display:block !important;
+  overflow:hidden !important;
+  border:0 !important;
+  border-radius:0 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] #nmda-import-editor-overlay > .nmda-review-detail-dialog,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] #nmda-import-editor-overlay .nmda-review-layout,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="detail"] #nmda-import-editor-overlay .nmda-review-edit-pane {
+  width:100% !important;
+  height:100% !important;
+  min-width:0 !important;
+  min-height:0 !important;
 }

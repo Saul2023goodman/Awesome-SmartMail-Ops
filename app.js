@@ -2682,6 +2682,11 @@
     return key ? reviewTaskByKey(key) : null;
   }
 
+  function setReviewSurface(mode='board') {
+    if(!reviewInlineEl)return;
+    reviewInlineEl.dataset.reviewView=mode==='detail'?'detail':'board';
+  }
+
   function otherMissingSubjectTasks(currentKey='') {
     return (batch.tasks||[]).filter(task=>!task?.importExcluded && task.editKey!==currentKey && !String(task?.subject||'').trim());
   }
@@ -3091,7 +3096,7 @@
       if(reviewSubjectPromptTitleEl)reviewSubjectPromptTitleEl.textContent=missingSubjects.length>=3?`检测到 ${missingSubjects.length} 封邮件缺少主题`:`还有 ${missingSubjects.length} 封邮件缺少主题`;
       if(reviewBulkSubjectApplyEl)reviewBulkSubjectApplyEl.textContent=`一键补齐 ${missingSubjects.length} 封`;
     }
-    if(!tasks.length){if(importEditorOverlayEl)importEditorOverlayEl.hidden=true;renderReviewBatchActions();return;}
+    if(!tasks.length){if(importEditorOverlayEl)importEditorOverlayEl.hidden=true;setReviewSurface('board');renderReviewBatchActions();return;}
     renderReviewBatchActions();
     if(reviewInlineEl && !reviewInlineEl.hidden)renderReviewQueue(importEditorOverlayEl?.dataset.editKey||'');
   }
@@ -3101,6 +3106,7 @@
       batch.reviewFilter=options.pendingOnly?'pending':'all';
       setWorkbenchTab('review');
       if(reviewInlineEl)reviewInlineEl.hidden=false;
+      setReviewSurface('board');
       renderReviewPageOverview();
       if(options.taskKey){const target=reviewTaskByKey(options.taskKey);if(target)openImportTaskEditor(target);}
       history.replaceState(null,'','#review');
@@ -3142,6 +3148,7 @@
     hideSubjectAssist();
     if(reviewInlineEl)reviewInlineEl.hidden=false;
     if(importEditorOverlayEl){importEditorOverlayEl.hidden=true;delete importEditorOverlayEl.dataset.editKey;}
+    setReviewSurface('board');
   }
 
   async function enterSelectionAndSchedule(reason='检查完成') {
@@ -3673,6 +3680,7 @@
     if(reviewMoreMenuEl)reviewMoreMenuEl.open=false;
     setWorkbenchTab('review');
     if(reviewInlineEl) reviewInlineEl.hidden=false;
+    setReviewSurface('detail');
     importEditorOverlayEl.dataset.editKey=task.editKey;
     importEditorOverlayEl.dataset.mode='audit';
     importEditRecipientsEl.value=task.recipients||'';
@@ -3720,6 +3728,7 @@
     stashCurrentReviewDraft();
     hideSubjectAssist();
     if(importEditorOverlayEl){importEditorOverlayEl.hidden=true;importEditorOverlayEl.setAttribute('aria-hidden','true');delete importEditorOverlayEl.dataset.editKey;}
+    setReviewSurface('board');
     syncModalState();
     renderReviewQueue('');
   }
