@@ -51,7 +51,7 @@ Monitoring is operator-triggered. It owns mailbox facts, reply association, elig
 
 `-> later mailbox reconciliation`
 
-When root Initial body content is not cached, SmartMail reads NetEase MailReader's authenticated `readhtml` document and extracts the body from `template#contentTemplate > [data-ntes="ntes_mail_body_root"]`. `mbox:readMessage` is retained for provider message metadata/context, not as a speculative body source.
+When root Initial body content is not cached, SmartMail reads NetEase MailReader's authenticated `readhtml` document and extracts the body from the complete `template#contentTemplate.content` DocumentFragment. `mbox:readMessage` is retained for provider message metadata/context, not as a speculative body source.
 
 ## Authority boundaries
 

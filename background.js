@@ -495,19 +495,40 @@ async function readSentDetail(tabId, messageId) {
       }
 
       function htmlToText(value, forceHtml = null) {
-        let raw = String(value ?? '');
+        const raw = String(value ?? '');
         if (!raw) return '';
         const looksHtml = forceHtml === true || (forceHtml !== false && /<[a-z][\s\S]*>/i.test(raw));
         if (!looksHtml) return raw.replace(/\r\n?/g,'\n').replace(/\u00a0/g,' ').trim();
-        raw = raw
-          .replace(/<\s*br\s*\/?\s*>/gi,'\n')
-          .replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi,'\n')
-          .replace(/<\s*li\b[^>]*>/gi,'• ');
         const doc = new DOMParser().parseFromString(raw,'text/html');
         doc.querySelectorAll('script,style,noscript').forEach(el=>el.remove());
-        return String(doc.body?.textContent || '')
-          .replace(/\u00a0/g,' ')
+
+        // Convert DOM to rendered-text semantics instead of using textContent directly.
+        // This matters for Word/Office HTML: source line wrapping inside <span> nodes
+        // is collapsible whitespace in the browser, while <p>/<div>/<br> carry the
+        // semantic paragraph breaks that Follow-up personalization needs.
+        const blockTags = new Set(['P','DIV','LI','TR','H1','H2','H3','H4','H5','H6','BLOCKQUOTE']);
+        function renderNode(node) {
+          if (!node) return '';
+          if (node.nodeType === Node.TEXT_NODE) {
+            return String(node.nodeValue || '').replace(/[\u00a0\t\r\n ]+/g,' ');
+          }
+          if (node.nodeType !== Node.ELEMENT_NODE) return '';
+          const tag = String(node.tagName || '').toUpperCase();
+          if (tag === 'BR') return '\n';
+          if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return '';
+          let text = '';
+          for (const child of node.childNodes || []) text += renderNode(child);
+          if (tag === 'LI') text = `• ${text}`;
+          if (blockTags.has(tag)) text += '\n\n';
+          return text;
+        }
+
+        let text = '';
+        for (const child of doc.body?.childNodes || []) text += renderNode(child);
+        return text
           .replace(/[ \t]+\n/g,'\n')
+          .replace(/\n[ \t]+/g,'\n')
+          .replace(/ {2,}/g,' ')
           .replace(/\n{3,}/g,'\n\n')
           .trim();
       }
@@ -570,14 +591,19 @@ async function readSentDetail(tabId, messageId) {
         try {
           const doc = new DOMParser().parseFromString(html,'text/html');
           const template = doc.querySelector('template#contentTemplate');
-          if (!template?.content?.querySelector) return { ok:false, reason:'readhtml 中缺少 template#contentTemplate' };
-          const mailRoot = template.content.querySelector('[data-ntes="ntes_mail_body_root"]');
-          if (!mailRoot) return { ok:false, reason:'contentTemplate 中缺少 ntes_mail_body_root' };
+          if (!template?.content) return { ok:false, reason:'readhtml 中缺少 template#contentTemplate' };
 
-          const bodyHtml = String(mailRoot.innerHTML || '');
+          // Provider contract: NetEase's own readhtml script appends the complete
+          // contentTemplate.content fragment into #content. The fragment itself is
+          // therefore authoritative; data-ntes=ntes_mail_body_root is only one
+          // Compose serialization shape and is not required (Word/Mso HTML omits it).
+          const container = doc.createElement('div');
+          container.appendChild(template.content.cloneNode(true));
+          const bodyHtml = String(container.innerHTML || '');
+          if (!bodyHtml.trim()) return { ok:false, reason:'contentTemplate 正文内容为空' };
           const body = htmlToText(bodyHtml, true);
-          if (!body.trim()) return { ok:false, reason:'readhtml 已命中正文节点，但正文为空' };
-          return { ok:true, body, bodyHtml, bodySource:'readhtml:template#contentTemplate>[data-ntes=ntes_mail_body_root]' };
+          if (!body.trim()) return { ok:false, reason:'contentTemplate 未产生可读正文' };
+          return { ok:true, body, bodyHtml, bodySource:'readhtml:template#contentTemplate' };
         } catch (error) {
           return { ok:false, reason:error?.message || String(error) };
         }

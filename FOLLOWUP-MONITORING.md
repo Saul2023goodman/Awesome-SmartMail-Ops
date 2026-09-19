@@ -13,7 +13,7 @@
 3. 回复分类为 `human / automatic / ambiguous / bounce / system`。
 4. `human` 和 `ambiguous` 阻断新的 Follow-up；`automatic` 不阻断。
 5. 到期线程可单条或批量生成 Follow-up Task。
-6. 若 root Initial 正文尚未缓存，按 provider message id 读取网易 `readhtml` 文档，并从 `template#contentTemplate > [data-ntes="ntes_mail_body_root"]` 获取真实正文。
+6. 若 root Initial 正文尚未缓存，按 provider message id 读取网易 `readhtml` 文档，并从完整的 `template#contentTemplate.content` DocumentFragment 获取真实正文。
 7. 从 root Initial 提取称呼与署名，组合为 `Initial 称呼 + Follow-up 模板正文 + Initial 署名`。
 8. 生成结果仅为 `prepared` Follow-up，不确认、不入执行池。
 9. Follow-up 出现在一级“邮件审阅”中；人工 Pass 后才确认当前 content version 并进入“选择与排期”。

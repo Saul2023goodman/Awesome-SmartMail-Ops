@@ -10,7 +10,7 @@ Remove code paths that are either unreachable in the current architecture or con
 
 The only supported body path is now:
 
-`mbox:readMessage (metadata/context) -> provider readhtml URL -> template#contentTemplate -> [data-ntes="ntes_mail_body_root"]`
+`mbox:readMessage (metadata/context) -> provider readhtml URL -> template#contentTemplate.content`
 
 Removed:
 
