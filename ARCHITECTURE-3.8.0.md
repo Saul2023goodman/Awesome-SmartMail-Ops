@@ -55,3 +55,11 @@ Duplicate verification is an intake/data-quality responsibility rather than a me
 `sources → classification/normalization → duplicate verification → clean tasks → mail review → dispatch`
 
 Current-batch duplicate decisions are blocking at Import. Historical mailbox hits are evidence and warnings only. Mail Review no longer contains a duplicate decision mode.
+
+## v3.8.4 Dedupe semantics
+
+Import duplicate verification now protects the creation of **new Initial Tasks** across three evidence scopes: the current import batch, existing mailbox Draft records, and existing Sent records. Mailbox-history hits are explicit Import gates rather than passive hints.
+
+Mailbox Draft import is a separate semantic path: it adopts provider drafts that already exist. Tasks with `sourceKind = mailbox-draft` bypass new-mail dedupe to avoid self-matching and accidental collapsing of legitimate provider drafts. Mailbox freshness remains manual through the Import action `读取最新邮箱` or the Mail Monitoring read actions.
+
+For new Initial Tasks, Import requires at least one persisted complete manual mailbox snapshot before Mail Review can begin. If no snapshot exists, the operator must explicitly click `读取最新邮箱`; this does not reintroduce background monitoring. Mailbox-draft adoption bypasses this prerequisite together with duplicate checking.

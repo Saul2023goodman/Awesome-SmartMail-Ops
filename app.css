@@ -5594,3 +5594,12 @@
   overflow-y:auto !important;
   overscroll-behavior:contain;
 }
+
+
+/* v3.8.4 · Import dedupe distinguishes new outreach from adopted mailbox drafts. */
+#nmda-root .nmda-import-dedupe-head-actions { display:flex; align-items:center; gap:7px; flex:0 0 auto; }
+#nmda-root .nmda-import-dedupe-head-actions > small { font-size:11px; font-weight:750; color:#7b5b19; background:#fff5d8; border:1px solid #f0d894; border-radius:999px; padding:3px 8px; white-space:nowrap; }
+#nmda-root .nmda-import-dedupe-head-actions .nmda-btn { min-height:28px; padding:4px 9px; }
+#nmda-root .nmda-history-evidence { background:#f7f9fb; border-style:dashed; }
+#nmda-root .nmda-history-evidence .nmda-duplicate-preview-body pre { max-height:72px; }
+@media(max-width:760px){#nmda-root .nmda-import-dedupe-head{align-items:flex-start;flex-direction:column}#nmda-root .nmda-import-dedupe-head-actions{width:100%;justify-content:space-between}}

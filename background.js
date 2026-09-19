@@ -253,9 +253,24 @@ function readMailbox(tabId, fid, requested) {
   }), [fid, requestedLimit]);
 }
 
+async function readDedupeHistory(tabId) {
+  const sent = await readMailbox(tabId, 3, -1);
+  if (!sent?.ok) return { ok:false, phase:'sent', reason:sent?.reason||'读取已发送失败', sent };
+  const drafts = await readMailbox(tabId, 2, -1);
+  if (!drafts?.ok) return { ok:false, phase:'drafts', reason:drafts?.reason||'读取草稿箱失败', sent, drafts };
+  const complete = !!sent.complete && !!drafts.complete;
+  return {
+    ok:true, uid:sent.uid||drafts.uid||'', sent, drafts, complete,
+    coverage:{
+      sent:{read:sent.messages?.length||0,total:sent.total||0,complete:!!sent.complete,pages:sent.pages||0},
+      drafts:{read:drafts.messages?.length||0,total:drafts.total||0,complete:!!drafts.complete,pages:drafts.pages||0}
+    }
+  };
+}
+
 async function readMailboxState(tabId, mode = 'quick') {
   const full = mode === 'full';
-  const requested = full ? 'all' : 500;
+  const requested = full ? -1 : 500;
   const sent = await readMailbox(tabId, 3, requested);
   if (!sent?.ok) return { ok: false, phase: 'sent', reason: sent?.reason || '读取已发送失败', sent };
   const drafts = await readMailbox(tabId, 2, requested);
@@ -669,6 +684,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message?.type === 'NMDA_ACCOUNT_INFO') return accountInfo(tabId);
     if (message?.type === 'NMDA_READ_MAILBOX_STATE') return readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick');
+    if (message?.type === 'NMDA_READ_DEDUPE_HISTORY') return readDedupeHistory(tabId);
     if (message?.type === 'NMDA_READ_SENT') return readMailbox(tabId,3,message.limit ?? 200);
     if (message?.type === 'NMDA_READ_DRAFTS') return readMailbox(tabId,2,message.limit ?? 200);
     if (message?.type === 'NMDA_READ_INBOX') return readMailbox(tabId,1,message.limit ?? 200);

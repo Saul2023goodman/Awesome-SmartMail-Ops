@@ -565,6 +565,74 @@
     };
   }
 
+
+  function ingestMailboxDedupeSnapshot(storeInput, sentMessages = [], draftMessages = [], options = {}) {
+    if (options.complete !== true) throw new Error('导入查重要求已发送与草稿箱完整读取，避免遗漏历史重复。');
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const observedAt = nowIso();
+    const incomingOutbound = {};
+    const incomingDrafts = {};
+    let failedMessages = 0;
+    let draftsWithoutRecipient = 0;
+
+    for (const message of sentMessages || []) {
+      if (message?.failed) { failedMessages++; continue; }
+      const record = outboundFromMailbox(message);
+      if (!record.recipients.length) continue;
+      const existing = next.outboundRecords[record.id] || {};
+      incomingOutbound[record.id] = {
+        ...existing, ...record, observedAt,
+        taskId: existing.taskId || record.taskId || '',
+        rootTaskId: existing.rootTaskId || record.rootTaskId || '',
+        parentTaskId: existing.parentTaskId || record.parentTaskId || '',
+        parentOutboundId: existing.parentOutboundId || record.parentOutboundId || '',
+        sequence: existing.rootTaskId ? Number(existing.sequence || 0) : Number(record.sequence || 0),
+        kind: existing.rootTaskId ? (existing.kind || 'initial') : record.kind
+      };
+    }
+    for (const message of draftMessages || []) {
+      const record = draftFromMailbox(message);
+      if (!record.recipients.length) { draftsWithoutRecipient++; continue; }
+      const existing = next.draftRecords[record.id] || {};
+      incomingDrafts[record.id] = {
+        ...existing, ...record, observedAt,
+        taskId: existing.taskId || record.taskId || '',
+        rootTaskId: existing.rootTaskId || record.rootTaskId || '',
+        parentTaskId: existing.parentTaskId || record.parentTaskId || '',
+        parentOutboundId: existing.parentOutboundId || record.parentOutboundId || '',
+        sequence: existing.rootTaskId ? Number(existing.sequence || 0) : Number(record.sequence || 0),
+        kind: existing.rootTaskId ? (existing.kind || 'initial') : record.kind
+      };
+    }
+
+    const linkedOutbound = Object.fromEntries(Object.entries(next.outboundRecords).filter(([, record]) => record?.source !== 'mailbox' || record?.taskId || record?.rootTaskId));
+    const linkedDrafts = Object.fromEntries(Object.entries(next.draftRecords).filter(([, record]) => record?.source !== 'mailbox' || record?.taskId || record?.rootTaskId));
+    next.outboundRecords = { ...linkedOutbound, ...incomingOutbound };
+    next.draftRecords = { ...linkedDrafts, ...incomingDrafts };
+
+    const linked = reconcileOutboundsToDrafts(next);
+    const monitored = ensureMonitoringRoots(linked.store);
+    const finalStore = monitored.store;
+    finalStore.mailboxSync = {
+      ...finalStore.mailboxSync,
+      lastDedupeAt: observedAt,
+      dedupeComplete: true,
+      sent: options.sentCoverage || { read: Object.keys(incomingOutbound).length, complete: true },
+      drafts: options.draftCoverage || { read: Object.keys(incomingDrafts).length, complete: true }
+    };
+    finalStore.updatedAt = observedAt;
+    return {
+      store: finalStore,
+      outboundRead: Object.keys(incomingOutbound).length,
+      draftsRead: Object.keys(incomingDrafts).length,
+      autoMonitored: monitored.adopted,
+      linkedOutbounds: linked.linked,
+      failedMessages,
+      draftsWithoutRecipient
+    };
+  }
+
   function recordPreparedDraft(storeInput, task = {}, outcome = {}) {
     const store = normalizeStore(storeInput);
     const next = clone(store);
@@ -1025,6 +1093,7 @@
     load,
     save,
     ingestMailboxSnapshot,
+    ingestMailboxDedupeSnapshot,
     reconcileOutboundsToDrafts,
     reconcileInboundReplies,
     ensureMonitoringRoots,

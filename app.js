@@ -189,7 +189,7 @@
                 <div id="nmda-import-status" class="nmda-summary nmda-import-status">还没有添加资料。</div>
                 <div id="nmda-source-inventory" class="nmda-source-inventory" hidden></div>
                 <section class="nmda-import-dedupe-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
-                  <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>先清理重复，再进入邮件审阅</strong></div><small id="nmda-import-dedupe-state">正在核验</small></div>
+                  <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>批次重复 + 邮箱历史防重</strong></div><div class="nmda-import-dedupe-head-actions"><small id="nmda-import-dedupe-state">正在核验</small><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">读取最新邮箱</button></div></div>
                   <input id="nmda-roster-enabled" type="checkbox" checked hidden>
                   <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
                   <input id="nmda-roster-strict" type="checkbox" hidden>
@@ -2911,11 +2911,50 @@
     const groups=unresolvedDuplicateAuditGroups();
     const group=groups[0]||null;
     const stateEl=$('nmda-import-dedupe-state');
-    if(stateEl)stateEl.textContent=group?`${groups.length} 组待处理`:'查重完成';
-    if(!group){
-      duplicateDecisionEl.hidden=true;delete duplicateDecisionEl.dataset.groupId;
+    const syncAt=operationState.store?.mailboxSync?.lastDedupeAt||operationState.store?.mailboxSync?.lastFullAt||'';
+    const checkable=(batch.tasks||[]).filter(task=>!task?.importExcluded&&taskNeedsDuplicateGate(task));
+    const mailboxUnread=checkable.length>0&&!syncAt;
+    if(stateEl)stateEl.textContent=mailboxUnread?'邮箱历史待读取':group?`${groups.length} 组待处理`:`查重完成 · 邮箱 ${Operations.formatDisplayTime(syncAt)}`;
+    if(mailboxUnread){
+      duplicateDecisionEl.hidden=false;delete duplicateDecisionEl.dataset.groupId;duplicateDecisionEl.dataset.scope='mailbox-read';
+      if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent='前置核验';duplicateDecisionKindEl.dataset.tone='strong';}
+      if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent='先读取邮箱历史，再进入邮件审阅';
+      if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent='新的 Initial Task 必须核对网易邮箱里的已有草稿和已发送记录。点击上方“读取最新邮箱”；系统不会自动访问邮箱。';
+      if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent='“读取草稿箱”导入属于接管现有草稿，不受此门控。';
+      duplicateCandidatesEl.dataset.count='0';
+      duplicateCandidatesEl.innerHTML='<article class="nmda-duplicate-candidate nmda-history-evidence"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>等待人工读取</strong></div></div><div class="nmda-duplicate-preview-body"><pre>核验范围：已有草稿 · 已发送</pre></div></article>';
+      if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.hidden=true;
+      if(duplicateKeepAllEl)duplicateKeepAllEl.hidden=true;
       return;
     }
+    if(!group){
+      duplicateDecisionEl.hidden=true;delete duplicateDecisionEl.dataset.groupId;delete duplicateDecisionEl.dataset.scope;
+      if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.hidden=false;
+      if(duplicateKeepAllEl)duplicateKeepAllEl.hidden=false;
+      return;
+    }
+    duplicateDecisionEl.hidden=false;duplicateDecisionEl.dataset.groupId=group.id;duplicateDecisionEl.dataset.scope=group.scope||'batch';
+    if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.hidden=false;
+    if(duplicateKeepAllEl)duplicateKeepAllEl.hidden=false;
+
+    if(group.scope==='mailbox-history'){
+      const task=group.task||group.tasks?.[0];
+      const facts=[group.draftCount?`已有草稿 ${group.draftCount}`:'',group.sentCount?`已发送 ${group.sentCount}`:''].filter(Boolean).join(' · ');
+      if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent=group.type==='history-both'?'草稿 + 已发送':group.type==='history-sent'?'已发送':'已有草稿';duplicateDecisionKindEl.dataset.tone='strong';}
+      if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent=`${String(task?.recipients||'该收件人')} 命中邮箱历史`;
+      if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent=`${facts}。当前导入会创建一封新的初始邮件；若这是继续联系，应该从“邮件监测”创建 Follow-up。`;
+      if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=groups.length>1?`明确本封后继续处理剩余 ${groups.length-1} 组。`:'这是最后一组历史冲突；处理后即可进入邮件审阅。';
+      if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.textContent='排除当前新邮件';
+      if(duplicateKeepAllEl)duplicateKeepAllEl.textContent='仍保留本封';
+      duplicateCandidatesEl.dataset.count='1';
+      const currentBody=String(task?.body||'').trim();
+      const current=`<article class="nmda-duplicate-candidate is-selected"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>本次导入 · 新 Initial Task</strong><em>待决策</em></div><span class="nmda-duplicate-preview-recipient">${escapeHtml(task?.recipients||'')}</span></div><div class="nmda-duplicate-preview-body"><pre>${escapeHtml(currentBody||task?.subject||'正文为空')}</pre></div></article>`;
+      const records=[...(group.drafts||[]).slice(0,3).map(record=>({kind:'已有草稿',time:record.savedAt,subject:record.subject,id:record.providerMessageId||record.id})),...(group.sent||[]).slice(0,3).map(record=>({kind:'已发送',time:record.sentAt,subject:record.subject,id:record.providerMessageId||record.id}))];
+      const history=records.map(record=>`<article class="nmda-duplicate-candidate nmda-history-evidence"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>${escapeHtml(record.kind)}</strong></div><span class="nmda-duplicate-preview-recipient">${escapeHtml(Operations.formatDisplayTime(record.time)||'时间未知')}</span></div><div class="nmda-duplicate-preview-body"><pre>${escapeHtml(record.subject||'(无主题)')}${record.id?`\nID: ${escapeHtml(record.id)}`:''}</pre></div></article>`).join('');
+      duplicateCandidatesEl.innerHTML=current+history;
+      return;
+    }
+
     const recommended=recommendedDuplicateTask(group);
     const validKeys=new Set((group.tasks||[]).filter(item=>!item?.importExcluded).map(item=>item.editKey));
     const savedRaw=batch.duplicateSelections?.get?.(group.id);
@@ -2924,7 +2963,6 @@
     if(!selectedKeys.size){const fallback=recommended?.editKey||[...validKeys][0]||'';if(fallback)selectedKeys.add(fallback);}
     if(batch.duplicateSelections instanceof Map)batch.duplicateSelections.set(group.id,[...selectedKeys]);
     if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.textContent=`保留所选（${selectedKeys.size}）`;
-    duplicateDecisionEl.hidden=false;duplicateDecisionEl.dataset.groupId=group.id;
     if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent=group.type==='exact-email'?'同一邮箱':'疑似同一联系人';duplicateDecisionKindEl.dataset.tone=group.type==='exact-email'?'strong':'soft';}
     if(duplicateKeepAllEl)duplicateKeepAllEl.textContent=group.type==='exact-email'?'明确全部保留':'不是同一联系人，全部保留';
     if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent=group.type==='exact-email'
@@ -2962,10 +3000,17 @@
 
   async function keepSelectedDuplicateCandidate() {
     const groupId=duplicateDecisionEl?.dataset.groupId||'';if(!groupId)return;
-    const selectedKeys=[...(duplicateCandidatesEl?.querySelectorAll('input[data-duplicate-pick]:checked')||[])].map(input=>input.dataset.duplicatePick).filter(Boolean);
-    if(!selectedKeys.length){if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent='至少保留一封；如果本组都不需要，请回到来源分类中移除相应邮件。';return;}
     const group=(batch.duplicateAudit?.groups||[]).find(item=>item.id===groupId);
     if(!group){finishImportDuplicateDecision('重复信息已变化，已重新核验');return;}
+    if(group.scope==='mailbox-history'){
+      const task=group.task||group.tasks?.[0];
+      if(task)setTaskEdit(task,{importExcluded:true});
+      batch.duplicateSelections?.delete?.(groupId);
+      finishImportDuplicateDecision('已排除命中邮箱历史的当前新邮件');
+      return;
+    }
+    const selectedKeys=[...(duplicateCandidatesEl?.querySelectorAll('input[data-duplicate-pick]:checked')||[])].map(input=>input.dataset.duplicatePick).filter(Boolean);
+    if(!selectedKeys.length){if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent='至少保留一封；如果本组都不需要，请回到来源分类中移除相应邮件。';return;}
     const selectedSet=new Set(selectedKeys),retained=(group.tasks||[]).filter(item=>selectedSet.has(item.editKey));
     for(const candidate of group.tasks||[]){
       if(selectedSet.has(candidate.editKey)){
@@ -2982,6 +3027,13 @@
     const groupId=duplicateDecisionEl?.dataset.groupId||'';if(!groupId)return;
     const group=(batch.duplicateAudit?.groups||[]).find(item=>item.id===groupId);
     if(!group){finishImportDuplicateDecision('重复信息已变化，已重新核验');return;}
+    if(group.scope==='mailbox-history'){
+      const task=group.task||group.tasks?.[0];
+      if(task){const prev=batch.taskEdits.get(task.editKey)||{};setTaskEdit(task,{duplicateConfirmedGroups:[...new Set([...(prev.duplicateConfirmedGroups||[]),groupId])],importExcluded:false});}
+      batch.duplicateSelections?.delete?.(groupId);
+      finishImportDuplicateDecision('已明确保留该新邮件；邮箱历史冲突已记录为人工例外');
+      return;
+    }
     for(const candidate of group.tasks||[]){
       const prev=batch.taskEdits.get(candidate.editKey)||{};
       setTaskEdit(candidate,{duplicateConfirmedGroups:[...new Set([...(prev.duplicateConfirmedGroups||[]),groupId])],importExcluded:false});
@@ -3132,11 +3184,14 @@
 
   function unresolvedDuplicateGroupCount(){
     const ids=new Set();
-    for(const task of (batch.tasks||[])){
-      if(task?.importExcluded)continue;
+    const checkable=(batch.tasks||[]).filter(task=>!task?.importExcluded&&taskNeedsDuplicateGate(task));
+    for(const task of checkable){
       for(const group of unresolvedDuplicateGroups(task))if(group?.id)ids.add(group.id);
     }
-    return ids.size;
+    // New Initial Tasks must be checked against mailbox Draft + Sent at least once.
+    // This remains operator-triggered: the Import gate waits for a persisted manual snapshot.
+    const mailboxUnread=checkable.length>0&&!mailboxDedupeSnapshotAvailable();
+    return ids.size+(mailboxUnread?1:0);
   }
 
 
@@ -4030,22 +4085,80 @@
     batch.routedAttachmentFiles=uniqueFiles((batch.dataset?.sourceFiles||[]).filter(file=>(attachmentSources.has(sourceFileName(file))||attachmentSources.has(String(file?.name||'')))&&!batch.ignoredAttachmentIdentities.has(Importer.fileIdentity(file))));
   }
 
+  function taskNeedsDuplicateGate(task){
+    return !!task && task.sourceKind !== 'mailbox-draft';
+  }
+
+  function mailboxDedupeSnapshotAvailable(){
+    const sync=operationState.store?.mailboxSync||{};
+    return !!(sync.lastDedupeAt||sync.lastFullAt);
+  }
+
+  function mailboxHistoryForTask(task){
+    if(!Operations || !operationState.loaded || !taskNeedsDuplicateGate(task))return {sent:[],drafts:[],sentCount:0,draftCount:0,lastSentAt:'',lastDraftAt:'',lastSubject:'',lastDraftSubject:''};
+    const raw=Operations.mailboxHistoryForRecipients(operationState.store,task?.recipients||'');
+    const selfKey=String(task?.editKey||task?.id||'');
+    const sent=(raw.sent||[]).filter(record=>String(record?.taskId||'')!==selfKey);
+    const drafts=(raw.drafts||[]).filter(record=>String(record?.taskId||'')!==selfKey);
+    return {
+      sent,drafts,sentCount:sent.length,draftCount:drafts.length,
+      lastSentAt:sent[0]?.sentAt||'',lastDraftAt:drafts[0]?.savedAt||'',
+      lastSubject:sent[0]?.subject||'',lastDraftSubject:drafts[0]?.subject||''
+    };
+  }
+
+  function mailboxHistoryDuplicateGroups(tasks){
+    if(!Operations || !operationState.loaded)return [];
+    const groups=[];
+    for(const task of tasks||[]){
+      if(!taskNeedsDuplicateGate(task) || task?.importExcluded)continue;
+      const history=mailboxHistoryForTask(task);
+      if(!history.sentCount && !history.draftCount)continue;
+      const stamp=[history.sentCount,history.draftCount,history.lastSentAt||'-',history.lastDraftAt||'-'].join('|');
+      const type=history.sentCount&&history.draftCount?'history-both':history.sentCount?'history-sent':'history-draft';
+      groups.push({
+        id:`history:${task.editKey}:${stamp}`,scope:'mailbox-history',type,
+        label:String(task.recipients||task.id||'当前邮件'),tasks:[task],task,
+        sent:history.sent,drafts:history.drafts,sentCount:history.sentCount,draftCount:history.draftCount,
+        lastSentAt:history.lastSentAt,lastDraftAt:history.lastDraftAt,lastSubject:history.lastSubject,lastDraftSubject:history.lastDraftSubject
+      });
+    }
+    return groups;
+  }
+
   function applyBatchDuplicateAudit(tasks){
-    for(const task of tasks||[]){task.duplicateIssues=[];task.duplicateGroupIds=[];task.batchDuplicate=false;}
-    const audit=Roster?.auditTaskDuplicates?.(tasks||[])||{groups:[],summary:{tasks:(tasks||[]).length,groups:0,exact:0,probable:0,affectedTasks:0}};
-    for(const group of audit.groups||[]){
+    for(const task of tasks||[]){task.duplicateIssues=[];task.duplicateGroupIds=[];task.batchDuplicate=false;task.historyDuplicate=false;task.duplicateBypass=task?.sourceKind==='mailbox-draft'?'mailbox-draft':'';}
+    const checkable=(tasks||[]).filter(taskNeedsDuplicateGate);
+    const batchAudit=Roster?.auditTaskDuplicates?.(checkable)||{groups:[],summary:{tasks:checkable.length,groups:0,exact:0,probable:0,affectedTasks:0}};
+    const batchGroups=(batchAudit.groups||[]).map(group=>({...group,scope:'batch'}));
+    const historyGroups=mailboxHistoryDuplicateGroups(checkable);
+    const groups=[...batchGroups,...historyGroups];
+    for(const group of groups){
       const count=group.tasks?.length||0;
-      const message=group.type==='exact-email'
-        ? `当前批次重复：${group.email||group.label||'同一收件人'} 有 ${count} 封邮件，需选择保留版本`
-        : `当前批次疑似重复：${group.label||'同一联系人'} 有 ${count} 封邮件，需确认是否为同一联系人`;
+      let message='';
+      if(group.scope==='mailbox-history'){
+        const facts=[group.draftCount?`已有草稿 ${group.draftCount}`:'',group.sentCount?`已发送 ${group.sentCount}`:''].filter(Boolean).join(' · ');
+        message=`邮箱历史冲突：${facts}，需明确是否仍创建新的初始邮件`;
+      }else{
+        message=group.type==='exact-email'
+          ? `当前批次重复：${group.email||group.label||'同一收件人'} 有 ${count} 封邮件，需选择保留版本`
+          : `当前批次疑似重复：${group.label||'同一联系人'} 有 ${count} 封邮件，需确认是否为同一联系人`;
+      }
       for(const task of group.tasks||[]){
-        if(!task)continue;task.batchDuplicate=true;
+        if(!task)continue;
+        if(group.scope==='mailbox-history')task.historyDuplicate=true;else task.batchDuplicate=true;
         if(!task.duplicateGroupIds.includes(group.id))task.duplicateGroupIds.push(group.id);
-        if(!task.duplicateIssues.some(item=>item.id===group.id))task.duplicateIssues.push({id:group.id,message,type:group.type});
+        if(!task.duplicateIssues.some(item=>item.id===group.id))task.duplicateIssues.push({id:group.id,message,type:group.type,scope:group.scope});
       }
     }
-    batch.duplicateAudit=audit;
-    return audit;
+    const affected=new Set(groups.flatMap(group=>(group.tasks||[]).map(task=>task?.editKey).filter(Boolean)));
+    batch.duplicateAudit={
+      ...batchAudit,groups,
+      summary:{...(batchAudit.summary||{}),tasks:checkable.length,groups:groups.length,batchGroups:batchGroups.length,historyGroups:historyGroups.length,affectedTasks:affected.size,
+        historyDraftTasks:historyGroups.filter(group=>group.draftCount).length,historySentTasks:historyGroups.filter(group=>group.sentCount).length,
+        bypassedDraftImports:(tasks||[]).filter(task=>task?.sourceKind==='mailbox-draft').length}
+    };
+    return batch.duplicateAudit;
   }
 
   function applyRosterCrossCheck(tasks) {
@@ -4082,7 +4195,7 @@
         const task=byKey.get(m.task?.editKey);if(!task)continue;
         const edit=batch.taskEdits.get(task.editKey)||{};
         task.rosterDuplicate=true;
-        if(!task.batchDuplicate && !edit.rosterConfirmed && !task.rosterIssues.includes('总名单核验：同一导师对应多封当前邮件'))task.rosterIssues.push('总名单核验：同一导师对应多封当前邮件');
+        if(taskNeedsDuplicateGate(task) && !task.batchDuplicate && !edit.rosterConfirmed && !task.rosterIssues.includes('总名单核验：同一导师对应多封当前邮件'))task.rosterIssues.push('总名单核验：同一导师对应多封当前邮件');
       }
     }
     for(const task of tasks||[]){
@@ -4099,16 +4212,17 @@
   }
 
   function operationHistoryAudit(tasks){
-    if(!Operations||!operationState.loaded)return {loaded:false,rows:[],affectedTasks:0,sentTasks:0,draftTasks:0};
-    const rows=[];const affected=new Set(),sentTasks=new Set(),draftTasks=new Set();
+    if(!Operations||!operationState.loaded)return {loaded:false,rows:[],affectedTasks:0,sentTasks:0,draftTasks:0,bypassed:0};
+    const rows=[];const affected=new Set(),sentTasks=new Set(),draftTasks=new Set();let bypassed=0;
     for(const task of tasks||[]){
+      if(!taskNeedsDuplicateGate(task)){bypassed++;continue;}
       const taskKey=String(task?.editKey||task?.id||'');
-      const history=Operations.mailboxHistoryForRecipients(operationState.store,task?.recipients||'');
+      const history=mailboxHistoryForTask(task);
       if(!history.sentCount&&!history.draftCount)continue;
       affected.add(taskKey);if(history.sentCount)sentTasks.add(taskKey);if(history.draftCount)draftTasks.add(taskKey);
-      rows.push({task,sentCount:history.sentCount,draftCount:history.draftCount,lastSentAt:history.lastSentAt,lastDraftAt:history.lastDraftAt,lastSubject:history.lastSubject,lastDraftSubject:history.lastDraftSubject});
+      rows.push({task,email:String(task?.recipients||''),sentCount:history.sentCount,draftCount:history.draftCount,lastSentAt:history.lastSentAt,lastDraftAt:history.lastDraftAt,lastSubject:history.lastSubject,lastDraftSubject:history.lastDraftSubject});
     }
-    return {loaded:true,rows,affectedTasks:affected.size,sentTasks:sentTasks.size,draftTasks:draftTasks.size};
+    return {loaded:true,rows,affectedTasks:affected.size,sentTasks:sentTasks.size,draftTasks:draftTasks.size,bypassed};
   }
 
   function renderRosterAudit(){
@@ -4117,7 +4231,8 @@
     if(enabledEl)enabledEl.checked=state.enabled!==false;if(schoolEl)schoolEl.checked=state.autoSchool!==false;if(strictEl)strictEl.checked=!!state.strict;
     if(!card)return;
     const tasks=batch.tasks||[];
-    card.hidden=!tasks.length&&!state.entries.length;
+    const dedupeTasks=tasks.filter(taskNeedsDuplicateGate);
+    card.hidden=!dedupeTasks.length&&!state.entries.length;
     if(card.hidden)return;
 
     const duplicateAudit=batch.duplicateAudit || Roster?.auditTaskDuplicates?.(tasks) || {groups:[],summary:{tasks:tasks.length,groups:0,exact:0,probable:0,affectedTasks:0}};
@@ -4126,6 +4241,7 @@
     const dx=duplicateAudit.summary||{},pendingDuplicates=unresolvedDuplicateGroupCount();
     const metrics=[];
     if(tasks.length)metrics.push(`<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>当前邮件</span></div>`);
+    if(dx.bypassedDraftImports)metrics.push(`<div class="nmda-import-metric"><strong>${dx.bypassedDraftImports}</strong><span>草稿接管 · 跳过查重</span></div>`);
     metrics.push(`<div class="nmda-import-metric ${pendingDuplicates?'is-warn':''}"><strong>${pendingDuplicates}</strong><span>待处理重复</span></div>`);
     if(history.loaded&&history.affectedTasks)metrics.push(`<div class="nmda-import-metric"><strong>${history.affectedTasks}</strong><span>已有记录</span></div>`);
     if(state.entries.length)metrics.push(`<div class="nmda-import-metric"><strong>${state.entries.length}</strong><span>参考名单</span></div>`);
@@ -4139,10 +4255,14 @@
 
     if(note){
       const parts=[];
-      if(pendingDuplicates)parts.push(`发现 <strong>${pendingDuplicates}</strong> 组当前批次重复，请在导入阶段先决定实际保留版本`);
-      else if(dx.groups)parts.push(`本批次发现过 <strong>${dx.groups}</strong> 组重复，当前已全部处理`);
-      else if(tasks.length)parts.push('当前批次未发现重复任务');
-      if(history.loaded&&history.affectedTasks)parts.push(`<strong>${history.affectedTasks}</strong> 封任务命中历史发送或草稿记录；历史命中用于提醒，不替代当前批次取舍`);
+      const mailboxUnread=dedupeTasks.length>0&&!mailboxDedupeSnapshotAvailable();
+      const decisionGroups=Math.max(0,pendingDuplicates-(mailboxUnread?1:0));
+      if(mailboxUnread)parts.push('尚未读取邮箱历史；新的 Initial Task 需要先核对已有草稿和已发送记录');
+      if(decisionGroups)parts.push(`发现 <strong>${decisionGroups}</strong> 组查重冲突，请先完成批次版本取舍或邮箱历史决策`);
+      else if(dx.groups&&!mailboxUnread)parts.push(`本次发现过 <strong>${dx.groups}</strong> 组查重冲突，当前已全部处理`);
+      else if(tasks.length&&!mailboxUnread)parts.push('当前批次未发现重复任务');
+      if(history.loaded&&history.affectedTasks)parts.push(`<strong>${history.affectedTasks}</strong> 封新邮件命中已有草稿或已发送记录，必须明确排除或仍保留`);
+      if(dx.bypassedDraftImports)parts.push(`从网易草稿箱识别的 <strong>${dx.bypassedDraftImports}</strong> 封属于“接管现有草稿”，不参与新邮件查重`);
       if(rosterAudit){
         const x=rosterAudit.summary||{};
         const rosterParts=[];
@@ -4157,15 +4277,15 @@
     if(details){
       const section=(title,items,render,more=0)=>`<div class="nmda-roster-diff-section"><strong>${escapeHtml(title)}</strong>${items.length?`<div>${items.map(render).join('')}</div>`:'<small>无</small>'}${more>items.length?`<small>另有 ${more-items.length} 条未展开</small>`:''}</div>`;
       let html='';
-      const duplicateGroups=(duplicateAudit.groups||[]).slice(0,12);
+      const duplicateGroups=(duplicateAudit.groups||[]).filter(group=>group.scope!=='mailbox-history').slice(0,12);
       html+=section('当前批次查重',duplicateGroups,g=>{
         const ids=(g.tasks||[]).map(task=>task.id||task.recipients||'邮件').slice(0,4).join('、');
         const kind=g.type==='exact-email'?'同一邮箱':'同名同院校';
         return `<span>${escapeHtml(g.label||g.email||'联系人')} · ${escapeHtml(kind)} · ${g.tasks?.length||0} 封${ids?` · ${escapeHtml(ids)}`:''}</span>`;
-      },duplicateAudit.groups?.length||0);
+      },(duplicateAudit.groups||[]).filter(group=>group.scope!=='mailbox-history').length);
       if(history.loaded){
         const historyRows=history.rows.slice(0,12);
-        html+=section('邮箱历史（提示）',historyRows,row=>{
+        html+=section('邮箱历史查重',historyRows,row=>{
           const fact=[row.sentCount?`已发送 ${row.sentCount}`:'',row.draftCount?`已有草稿 ${row.draftCount}`:''].filter(Boolean).join(' · ');
           const subject=row.lastDraftSubject||row.lastSubject||'';
           return `<span>${escapeHtml(row.email)} · ${escapeHtml(fact)}${subject?` · ${escapeHtml(subject)}`:''}</span>`;
@@ -4982,6 +5102,7 @@
     dirEl.value = ''; taskFilesEl.value = ''; sharedFilesEl.value = '';
     if (batchSearchEl) batchSearchEl.value = '';
     if (batchTagIncludeEl) batchTagIncludeEl.value = '';
+    try{await ensureOperationStore();}catch(error){console.warn(`[${APP}] duplicate history store load failed`,error);}
     const sets = recordSets();
     sets.forEach((_, index) => ensureCollectionConfig(index, { reset: true }));
     syncRoutedSources();
@@ -5333,6 +5454,17 @@
   });
   $('nmda-duplicate-keep-selected')?.addEventListener('click',()=>void keepSelectedDuplicateCandidate());
   $('nmda-duplicate-keep-all')?.addEventListener('click',()=>void keepAllDuplicateCandidates());
+  $('nmda-dedupe-refresh-mailbox')?.addEventListener('click',()=>void (async()=>{
+    const button=$('nmda-dedupe-refresh-mailbox');if(button)button.disabled=true;
+    try{
+      setImportStatus('正在人工完整读取邮箱历史，用于核对已有草稿和已发送记录…');
+      const result=await syncMailboxDedupeHistory();
+      renderRosterAudit();renderProcessGuide();
+      const pending=unresolvedDuplicateGroupCount();
+      setImportStatus(`邮箱历史已更新${result?`：已发送 ${result.outboundRead||0} · 草稿 ${result.draftsRead||0}`:''}${pending?`；还有 ${pending} 组查重待处理。`:'；当前查重已完成。'}`,pending?'warn':'ok');
+    }catch(error){setImportStatus(`邮箱历史读取失败：${error.message}`,'error');}
+    finally{if(button)button.disabled=false;}
+  })());
   $('nmda-import-editor-close')?.addEventListener('click', closeImportTaskEditor);
   $('nmda-import-editor-save')?.addEventListener('click', () => saveImportTaskEditor(false));
   $('nmda-import-editor-next')?.addEventListener('click', () => saveImportTaskEditor(true));
@@ -5543,6 +5675,24 @@
     scheduleBatchRender({aux:false});
   });
 
+  async function syncMailboxDedupeHistory(){
+    if(!Operations)return null;
+    await ensureOperationStore();
+    const result=await chrome.runtime.sendMessage({type:'NMDA_READ_DEDUPE_HISTORY'});
+    if(!result?.ok)throw new Error(`${result?.phase?`${result.phase}：`:''}${result?.reason||'邮箱历史读取失败'}`);
+    if(!result.complete||!result.sent?.complete||!result.drafts?.complete)throw new Error('已发送或草稿箱未完整读取，拒绝将不完整结果用于导入查重。');
+    const applied=Operations.ingestMailboxDedupeSnapshot(operationState.store,result.sent.messages||[],result.drafts.messages||[],{
+      complete:true,
+      sentCoverage:result.coverage?.sent||{read:result.sent.messages?.length||0,total:result.sent.total||0,complete:true,pages:result.sent.pages||0},
+      draftCoverage:result.coverage?.drafts||{read:result.drafts.messages?.length||0,total:result.drafts.total||0,complete:true,pages:result.drafts.pages||0}
+    });
+    operationState.store=applied.store;
+    await persistOperations();
+    if(batch.dataset)rebuildTasks();
+    invalidateBatchView(true);
+    return applied;
+  }
+
   async function syncMailboxOperations(mode = 'quick') {
     if (!Operations) return null;
     const full = mode === 'full';
@@ -5559,6 +5709,7 @@
     });
     operationState.store = applied.store;
     await persistOperations();
+    if(batch.dataset)rebuildTasks();
     invalidateBatchView(true);
     return applied;
   }
