@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.13",
-  "description": "SmartMail Ops — strict NetEase provider contracts, readhtml-based Sent body hydration, first-class import/review/dispatch, manual mailbox monitoring, and unified execution.",
+  "version": "3.8.14",
+  "description": "SmartMail Ops — first-class Initial + Follow-up review, template-driven Follow-up preparation, manual mailbox monitoring, strict NetEase readhtml hydration, and unified dispatch.",
   "permissions": [
     "storage",
     "scripting",

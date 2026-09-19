@@ -1,103 +1,87 @@
-# SmartMail Ops v3.8.0 Architecture
+# SmartMail Ops — Current Architecture (v3.8.14)
 
-## Three top-level operational modules
+## First-class workspaces
 
-### 1. 批量草稿 / Batch Preparation
+### 1. 导入资料 / Import
 
-`Sources -> Normalize -> Duplicate Check -> Review -> Ready Initial Tasks`
+`Sources -> Normalize -> Duplicate Gate -> Attachment Preparation -> Ready Initial Tasks`
 
-The module prepares initial outreach. It does not own scheduling or execution anymore.
+Import owns source recognition and the prevention of duplicate Initial outreach. Current-batch duplicates are resolved here; mailbox Draft hits are filtering facts; Sent history is an outbound-history gate. Provider Draft import is adoption of an existing mailbox object and bypasses new-mail dedupe.
 
-### 2. 邮件监测 / Mail Monitoring
+### 2. 邮件审阅 / Review
 
-`Manual Mailbox Read -> Observations -> Reply Association -> Eligibility -> Follow-up Derived Task -> Prepare -> Confirm -> Queue`
+`Ready Initial + Prepared Follow-up -> Audit / Correct -> Pass`
 
-The module owns mailbox facts and Follow-up decisions. It never calls the executor directly.
+Review is the single content authorization boundary. It owns Initial message review, Follow-up template writing, Follow-up generated-draft review, correction, batch Pass, and exact-version authorization.
+
+- Initial mail is exposed to Review only after its Import gate is complete.
+- Follow-up may be reviewed independently of an unrelated unfinished Initial import batch.
+- The Follow-up template stores only the middle body; salutation and signature come from the root Initial message.
+- Template generation is preparation, not authorization.
+- Follow-up Pass atomically confirms the current content version and queues the task for Dispatch.
+- Editing a passed Follow-up invalidates the Pass and dequeues it.
 
 ### 3. 选择与排期 / Selection & Scheduling
 
-`Reviewed Initial Tasks + Queued Follow-up -> Unified Queue -> Select -> Schedule -> Executor -> Draft Record`
+`Passed Initial + Passed Follow-up -> Unified Queue -> Select -> Schedule -> Executor -> Draft Record`
 
-This is the only user-facing execution module.
+This is the only execution-planning surface. A dispatch run freezes its executable keys before opening NetEase Mail. Failure stops the run; there is no blind continuation/retry. Draft creation is reconciled later against mailbox facts; Sent remains mailbox-authoritative.
 
-## Execution contracts
+### 4. 邮件监测 / Mail Monitoring
 
-- Initial mail enters the pool only after Batch handoff is complete.
-- Follow-up enters only after its current `contentVersion` is confirmed and the operator clicks “加入选择与排期”.
-- Editing a queued Follow-up automatically dequeues it.
-- Selection and schedule edits for Follow-up are persisted under `derivedTask.dispatch`.
-- A dispatch run freezes its executable keys before opening NetEase Mail.
-- Failure stops the run; no blind continuation/retry.
-- Draft creation is reconciled later against mailbox facts. Sent remains mailbox-authoritative.
+`Manual Mailbox Read -> Observations -> Reply Association -> Eligibility -> Prepared Follow-up Task`
+
+Monitoring is operator-triggered. It owns mailbox facts, reply association, eligibility, Follow-up policy timing/attempt/mode settings, and single/batch creation of prepared Follow-up tasks. It does not own template writing, content Pass, scheduling, or execution.
+
+## Follow-up path
+
+`Sent Initial`
+
+`-> manual mailbox read`
+
+`-> reply / eligibility evaluation`
+
+`-> template draft generation`
+
+`-> Review Pass`
+
+`-> Selection & Scheduling`
+
+`-> NetEase native Forward / Reply / New draft`
+
+`-> later mailbox reconciliation`
+
+When root Initial body content is not cached, SmartMail reads NetEase MailReader's authenticated `readhtml` document and extracts the body from `template#contentTemplate > [data-ntes="ntes_mail_body_root"]`. `mbox:readMessage` is retained for provider message metadata/context, not as a speculative body source.
 
 ## Authority boundaries
 
-- `operations.js`: durable operational facts and Follow-up domain state.
-- `dispatch.js`: pure adapter from domain records to executor-facing unified queue.
-- `scheduler.js`: scheduling rules over the unified queue.
-- `executor.js`: NetEase UI execution only; no Follow-up business decisions.
-- `app.js`: orchestration/UI; Mail Monitoring cannot bypass Dispatch.
+- `operations.js`: durable mailbox facts, Follow-up policy/state, content-version and Review authorization state.
+- `dispatch.js`: adapter from passed domain records into one executor-facing queue.
+- `scheduler.js`: scheduling rules over that unified queue.
+- `executor.js`: NetEase UI execution only; no Follow-up eligibility or content decisions.
+- `app.js`: orchestration and first-class Import / Review / Dispatch / Monitoring UI.
 
+## Follow-up state contract
 
-## v3.8.2 Monitoring scope refinement
+Template generation creates:
 
-- Monitoring membership is no longer a user-selectable state.
-- Every Sent record read from the mailbox automatically receives/retains a root lineage.
-- Mail Monitoring continues to record mailbox facts even when Follow-up is paused.
-- The operator controls Follow-up policy and exceptions, not whether an already-read Sent message is observed.
-- The old manual adoption / unmonitored-outbound UI path has been removed.
+- `state = prepared`
+- `confirmedVersion = null`
+- `reviewedAt = ''`
+- `dispatch.queued = false`
+- `dispatch.scheduleReason = awaiting-review`
 
+Review Pass creates:
 
-## v3.8.3 Import owns duplicate verification
+- `confirmedVersion = contentVersion`
+- `confirmedAt = reviewedAt = now`
+- `state = confirmed`
+- `dispatch.queued = true`
+- `dispatch.scheduleSource = review`
+- `dispatch.scheduleReason = review-passed`
 
-Duplicate verification is an intake/data-quality responsibility rather than a message-content review responsibility. The batch path is now:
+Any later change to Follow-up recipients, subject, body, or compose mode increments `contentVersion`, clears authorization, returns the task to `prepared`, and removes it from Dispatch.
 
-`sources → classification/normalization → duplicate verification → clean tasks → mail review → dispatch`
+## Upgrade behavior
 
-Current-batch duplicate decisions are blocking at Import. Historical mailbox hits are evidence and warnings only. Mail Review no longer contains a duplicate decision mode.
-
-## v3.8.4 Dedupe semantics
-
-Import duplicate verification now protects the creation of **new Initial Tasks** across three evidence scopes: the current import batch, existing mailbox Draft records, and existing Sent records. Mailbox-history hits are explicit Import gates rather than passive hints.
-
-Mailbox Draft import is a separate semantic path: it adopts provider drafts that already exist. Tasks with `sourceKind = mailbox-draft` bypass new-mail dedupe to avoid self-matching and accidental collapsing of legitimate provider drafts. Mailbox freshness remains manual through the Import action `读取最新邮箱` or the Mail Monitoring read actions.
-
-For new Initial Tasks, Import requires at least one persisted complete manual mailbox snapshot before Mail Review can begin. If no snapshot exists, the operator must explicitly click `读取最新邮箱`; this does not reintroduce background monitoring. Mailbox-draft adoption bypasses this prerequisite together with duplicate checking.
-
-## v3.8.5 Draft history is filtering, not comparison
-
-Import-time duplicate handling now follows the business meaning of each evidence source:
-
-`current batch duplicate → version choice`
-
-`existing Draft only → compact filtering gate`
-
-`existing Sent → outbound-history gate / Follow-up routing warning`
-
-Draft-only hits never render imported body versus mailbox Draft body. They are shown as recipient-level Draft existence facts with a suggested filter-out action and an explicit keep exception. Sent history remains a stronger external communication fact and retains an explicit decision gate.
-
-
-## v3.8.6 Monitoring batch preparation
-
-邮件监测支持对当前已到期且 eligible 的线程进行批量选择并创建 Derived Follow-up Tasks。批量生成属于 Task preparation，不属于 Dispatch；生成后的 Follow-up 仍需独立内容确认后进入统一“选择与排期”。邮件监测页面拥有独立纵向滚动容器，其他工作区继续保持单视口布局。
-
-## v3.8.7 navigation refinement
-
-Initial outreach is exposed as three first-class workspaces rather than a two-step Batch canvas:
-
-`Import → Review → Dispatch`
-
-Import prepares source facts and prevents duplicate Initial outreach. Review owns message-content decisions and Pass. Dispatch owns selection, timing, and execution. Each boundary has an explicit completion handoff; automatic recognition may reduce Review work but does not skip the Review workspace.
-
-## v3.8.8 Follow-up preparation simplification
-
-The Mail Monitoring module now owns eligibility and template-based task generation only. It no longer contains a per-task Follow-up editor. A saved template is the content configuration surface; generated Follow-up tasks inherit salutation/signature from the root Initial email and immediately join the unified Dispatch pool. Selection & Scheduling remains the only execution-planning surface.
-
-
-## v3.8.11 Sent-body hydration contract
-
-Template Follow-up hydration uses NetEase WebMail's own `mbox:readMessage` reader contract. The adapter first requests the provider message with the same header/options shape used by `module.read.ReadAction`, validates the provider success code, and prefers the MailReader schema `var.html.content` / `var.text.content`. Successful content is persisted on the root Initial outbound record. Provider-id, read, empty-response, and body-parse failures are retained as explicit diagnostics rather than collapsed into `initial-body-missing`.
-
-## v3.8.12 Sent body transport correction
-
-163 js6 separates message metadata from rendered body transport. `mbox:readMessage` is the metadata/context request; the actual body is fetched through MailReader's `readhtml` URL and parsed from the provider-owned `contentTemplate`. SmartMail caches that immutable body snapshot on the root Initial outbound record and uses it for deterministic Follow-up template personalization.
+Unexecuted Follow-up tasks created by the old template-auto-confirm path are migrated back to `prepared / awaiting-review`. Older Follow-up tasks that had an explicit human confirmation before template auto-confirm existed retain that confirmation as their Review authorization. Executed/sent history is never rewritten.

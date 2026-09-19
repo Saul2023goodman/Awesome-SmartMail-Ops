@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const SCHEMA_VERSION = 5;
+  const SCHEMA_VERSION = 6;
   const STORAGE_PREFIX = 'nmda.operations.v1:';
   const FOLLOWUP_STATES = ['due', 'prepared', 'confirmed', 'scheduled', 'sent', 'blocked', 'cancelled'];
   const REPLY_KINDS = ['human', 'automatic', 'ambiguous', 'bounce', 'system'];
@@ -201,8 +201,9 @@
     for (const [key, task] of Object.entries(store.derivedTasks)) {
       if (!task || typeof task !== 'object') continue;
       const dispatch = task.dispatch && typeof task.dispatch === 'object' ? task.dispatch : {};
-      store.derivedTasks[key] = {
+      const normalizedTask = {
         ...task,
+        reviewedAt: String(task.reviewedAt || ''),
         dispatch: {
           queued: dispatch.queued === true,
           enabled: dispatch.enabled !== false,
@@ -214,6 +215,26 @@
           dequeuedReason: String(dispatch.dequeuedReason || '')
         }
       };
+      // v3.8.14: template generation produces a draft for Review, not an authorization.
+      // Pull back only the old auto-confirmed template tasks that have not executed yet.
+      if (normalizedTask.kind === 'follow_up' && !normalizedTask.reviewedAt) {
+        if (!normalizedTask.draftPreparedAt && !['sent', 'cancelled', 'blocked'].includes(normalizedTask.state)
+            && normalizedTask.dispatch.scheduleReason === 'template-generated') {
+          normalizedTask.state = 'prepared';
+          normalizedTask.confirmedVersion = null;
+          normalizedTask.confirmedAt = '';
+          normalizedTask.dispatch.queued = false;
+          normalizedTask.dispatch.dequeuedAt = normalizedTask.dispatch.dequeuedAt || nowIso();
+          normalizedTask.dispatch.dequeuedReason = 'review-gate-upgrade';
+          normalizedTask.dispatch.scheduleSource = '';
+          normalizedTask.dispatch.scheduleReason = 'awaiting-review';
+          normalizedTask.dispatch.queuedAt = '';
+        } else if (Number(normalizedTask.confirmedVersion) === Number(normalizedTask.contentVersion) && normalizedTask.confirmedAt) {
+          // Pre-template manual confirmation was already an explicit human content decision.
+          normalizedTask.reviewedAt = String(normalizedTask.confirmedAt);
+        }
+      }
+      store.derivedTasks[key] = normalizedTask;
     }
     return store;
   }
@@ -920,7 +941,7 @@
       parentTaskId: String(lastOutbound.taskId || rootTaskId),
       parentOutboundId: lastOutbound.id,
       sequence,
-      state: 'confirmed',
+      state: 'prepared',
       dueAt,
       createdAt: now,
       updatedAt: now,
@@ -930,14 +951,15 @@
       body: rendered.body,
       composeMode: policy.composeMode,
       contentVersion: 1,
-      confirmedVersion: 1,
-      confirmedAt: now,
+      confirmedVersion: null,
+      confirmedAt: '',
+      reviewedAt: '',
       generatedFromTemplateVersion: policy.templateVersion,
       personalization: { salutation: rendered.personalization.salutation, signature: rendered.personalization.signature, initialOutboundId: rendered.initial.id },
       scheduledAt: '',
       sentOutboundId: '',
       blocker: null,
-      dispatch: { queued: true, enabled: true, scheduleAt: '', scheduleSource: 'followup-template', scheduleReason: 'template-generated', queuedAt: now, dequeuedAt: '', dequeuedReason: '' }
+      dispatch: { queued: false, enabled: true, scheduleAt: '', scheduleSource: '', scheduleReason: 'awaiting-review', queuedAt: '', dequeuedAt: '', dequeuedReason: '' }
     };
     next.derivedTasks[id] = task;
     next.updatedAt = now;
@@ -963,15 +985,15 @@
       const task = {
         id, kind: 'follow_up', rootTaskId,
         parentTaskId: String(lastOutbound.taskId || rootTaskId), parentOutboundId: lastOutbound.id,
-        sequence, state: 'confirmed', dueAt, createdAt: now, updatedAt: now, createdReason: eligibility.reason,
+        sequence, state: 'prepared', dueAt, createdAt: now, updatedAt: now, createdReason: eligibility.reason,
         recipients: (lastOutbound.recipients || []).map(item => ({ ...item })),
         subject: policy.composeMode === 'new' ? `Re: ${lastOutbound.subject || ''}`.trim() : String(lastOutbound.subject || ''),
         body: rendered.body, composeMode: policy.composeMode,
-        contentVersion: 1, confirmedVersion: 1, confirmedAt: now,
+        contentVersion: 1, confirmedVersion: null, confirmedAt: '', reviewedAt: '',
         generatedFromTemplateVersion: policy.templateVersion,
         personalization: { salutation: rendered.personalization.salutation, signature: rendered.personalization.signature, initialOutboundId: rendered.initial.id },
         scheduledAt: '', sentOutboundId: '', blocker: null,
-        dispatch: { queued: true, enabled: true, scheduleAt: '', scheduleSource: 'followup-template', scheduleReason: 'template-generated', queuedAt: now, dequeuedAt: '', dequeuedReason: '' }
+        dispatch: { queued: false, enabled: true, scheduleAt: '', scheduleSource: '', scheduleReason: 'awaiting-review', queuedAt: '', dequeuedAt: '', dequeuedReason: '' }
       };
       next.derivedTasks[id] = task;
       next.updatedAt = now;
@@ -986,13 +1008,14 @@
     const current = next.derivedTasks[taskId];
     if (!current) throw new Error(`找不到 derived task：${taskId}`);
     if (current.state === 'sent' || current.state === 'cancelled') throw new Error('已发送或已取消的 Follow-up 不可修改。');
-    const changed = ['subject', 'body', 'composeMode'].some(key => patch[key] !== undefined && patch[key] !== current[key]);
+    const changed = ['recipients', 'subject', 'body', 'composeMode'].some(key => patch[key] !== undefined && JSON.stringify(patch[key]) !== JSON.stringify(current[key]));
     const composeMode = patch.composeMode === undefined ? current.composeMode : (COMPOSE_MODES.includes(patch.composeMode) ? patch.composeMode : current.composeMode);
     const task = { ...current, ...patch, composeMode, updatedAt: nowIso() };
     if (changed) {
       task.contentVersion = Math.max(1, Number(current.contentVersion || 1) + 1);
       task.confirmedVersion = null;
       task.confirmedAt = '';
+      task.reviewedAt = '';
       if (task.state === 'confirmed' || task.state === 'scheduled') task.state = 'prepared';
       if (task.dispatch?.queued) {
         task.dispatch = { ...task.dispatch, queued: false, dequeuedAt: nowIso(), dequeuedReason: 'content-changed' };
@@ -1004,19 +1027,30 @@
     return { store: next, task };
   }
 
-  function confirmDerivedTask(storeInput, taskId) {
+  function passDerivedTaskReview(storeInput, taskId) {
     const store = normalizeStore(storeInput);
     const next = clone(store);
     const task = next.derivedTasks[taskId];
     if (!task) throw new Error(`找不到 derived task：${taskId}`);
-    if (!['due', 'prepared', 'confirmed'].includes(task.state)) throw new Error(`当前状态不能确认：${task.state}`);
+    if (['sent', 'cancelled', 'blocked'].includes(task.state)) throw new Error(`当前状态不能通过审阅：${task.state}`);
+    if (!recipientKey(task.recipients || [])) throw new Error('Follow-up 缺少收件人，不能通过审阅。');
+    if (!String(task.body || '').trim()) throw new Error('Follow-up 正文为空，不能通过审阅。');
+    if (task.composeMode === 'new' && !String(task.subject || '').trim()) throw new Error('新邮件模式缺少主题，不能通过审阅。');
+    const now = nowIso();
     task.confirmedVersion = Math.max(1, Number(task.contentVersion || 1));
-    task.confirmedAt = nowIso();
+    task.confirmedAt = now;
+    task.reviewedAt = now;
     task.state = 'confirmed';
-    task.updatedAt = task.confirmedAt;
-    next.updatedAt = task.updatedAt;
+    task.dispatch = {
+      ...(task.dispatch || {}), queued: true, enabled: task.dispatch?.enabled !== false,
+      scheduleAt: String(task.dispatch?.scheduleAt || ''), scheduleSource: 'review', scheduleReason: 'review-passed',
+      queuedAt: task.dispatch?.queuedAt || now, dequeuedAt: '', dequeuedReason: ''
+    };
+    task.updatedAt = now;
+    next.updatedAt = now;
     return { store: next, task };
   }
+
 
   function setDerivedTaskState(storeInput, taskId, state, patch = {}) {
     const store = normalizeStore(storeInput);
@@ -1030,25 +1064,6 @@
     return { store: next, task: next.derivedTasks[taskId] };
   }
 
-
-  function queueDerivedTaskForDispatch(storeInput, taskId) {
-    const store = normalizeStore(storeInput);
-    const next = clone(store);
-    const task = next.derivedTasks[taskId];
-    if (!task) throw new Error(`找不到 derived task：${taskId}`);
-    if (['sent', 'cancelled', 'blocked'].includes(task.state)) throw new Error(`当前状态不能进入选择与排期：${task.state}`);
-    if (Number(task.confirmedVersion) !== Number(task.contentVersion)) throw new Error('内容版本未确认，不能进入选择与排期。');
-    if (!String(task.body || '').trim()) throw new Error('Follow-up 正文为空，不能进入选择与排期。');
-    const now = nowIso();
-    task.dispatch = {
-      ...(task.dispatch || {}), queued: true, enabled: task.dispatch?.enabled !== false,
-      scheduleAt: String(task.dispatch?.scheduleAt || ''), scheduleSource: String(task.dispatch?.scheduleSource || ''), scheduleReason: String(task.dispatch?.scheduleReason || ''),
-      queuedAt: task.dispatch?.queuedAt || now, dequeuedAt: '', dequeuedReason: ''
-    };
-    task.updatedAt = now;
-    next.updatedAt = now;
-    return { store: next, task };
-  }
 
   function updateDerivedTaskDispatch(storeInput, taskId, patch = {}) {
     const store = normalizeStore(storeInput);
@@ -1114,14 +1129,16 @@
   async function load(account) {
     const key = storageKey(account);
     const result = await chrome.storage.local.get(key);
-    let store = normalizeStore(result[key], account);
-    let migration = null;
+    const raw = result[key];
+    const previousSchema = Number(raw?.schemaVersion || 0);
+    let store = normalizeStore(raw, account);
+    let migration = previousSchema < SCHEMA_VERSION ? { schemaFrom: previousSchema, schemaTo: SCHEMA_VERSION } : null;
     const monitored = ensureMonitoringRoots(store);
     if (monitored.adopted) {
       store = reconcileInboundReplies(monitored.store).store;
-      migration = { autoMonitoringRoots: monitored.adopted };
-      await chrome.storage.local.set({ [key]: store });
+      migration = { ...(migration || {}), autoMonitoringRoots: monitored.adopted };
     }
+    if (migration) await chrome.storage.local.set({ [key]: store });
     return { store, migration };
   }
 
@@ -1179,10 +1196,9 @@
     evaluateFollowUpEligibility,
     createFollowUpTask,
     createFollowUpTasks,
+    passDerivedTaskReview,
     updateDerivedTaskContent,
-    confirmDerivedTask,
     setDerivedTaskState,
-    queueDerivedTaskForDispatch,
     updateDerivedTaskDispatch,
     queuedDerivedTasks,
     mailboxHistoryForRecipients,

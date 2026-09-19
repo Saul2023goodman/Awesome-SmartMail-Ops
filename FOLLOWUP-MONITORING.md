@@ -1,80 +1,48 @@
-# SmartMail 邮件监测 / Follow-up（v3.8.2）
+# SmartMail 邮件监测 / Follow-up（v3.8.14）
 
 ## 模块定位
 
-“邮件监测”只负责读取和解释邮箱事实，并据此产生 / 更新 Follow-up 派生任务。它不再承担排期，也不直接创建网易草稿。
+“邮件监测”只负责人工读取并解释邮箱事实、判断 Follow-up eligibility，以及按已保存模板生成 **待审阅** 的 Follow-up Derived Task。它不拥有内容授权、排期或执行。
 
-邮件监测采用人工唤醒：只有操作者点击“读取邮箱”或“完整读取”时，扩展才读取 163 的 Sent / Drafts / Inbox。其余时间只展示最近一次持久化快照。
+邮箱读取仍采用人工唤醒：只有操作者点击“读取邮箱”或“完整读取”时，扩展才访问 163 的 Sent / Drafts / Inbox；其余时间只使用上一次持久化快照。
 
-## 主链路
+## 当前主链路
 
-1. 已发送邮件进入 `outboundRecords`。
-2. SmartMail 创建的草稿在后续人工邮箱读取中与 Sent 对账；所有人工读取到的 Sent 若尚无 lineage，会自动建立 root lineage 并进入检测范围。不存在逐封“开始监测”的选择。
-3. Inbox 消息进入 Reply Observation，并关联到对应 outbound lineage。
-4. 回复分类为 `human / automatic / ambiguous / bounce / system`。
-5. `automatic` 不阻断；`human` 阻断；`ambiguous` 阻断并等待人工判断。
-6. Follow-up 到期后创建 Derived Task，不修改原始 Task / Sent Record。
-7. Follow-up 到期后按已保存模板生成正文：优先复用本地 root Initial 正文；若正文未缓存，则按 provider message id 调用网易原生 `mbox:readMessage` 读取 Sent 正文，并从真实 Initial 中提取称呼/署名。
-8. 模板生成结果直接成为已确认的 Derived Task 并进入统一“选择与排期”；单封编辑环节已移除。
-9. “选择与排期”统一汇合初始邮件与 Follow-up，负责选择范围、排期和执行。
-10. 执行器根据 `composeMode` 使用网易原生 Forward / Reply / New 创建草稿。
-11. Follow-up 草稿创建成功后从执行池退出，但不会被标记为 Sent。
-12. 下一次人工读取邮箱时，Draft / Sent reconciliation 确认真实发送结果；确认 Sent 后下一轮从最近一次 outbound 重新计时。
-
-## 自动检测范围 + 人工唤醒读取
-
-- “是否检测”不是人工决策：Sent 一旦被读取进 operation store，就自动参与回复关联和 Follow-up eligibility。
-- 暂停 Follow-up 只暂停生成新的跟进，不会停止该线程的回复事实读取。
-- 不再联系仍由 recipient guard 作为硬阻断处理。
-
-
-- 打开工作台：不读取邮箱。
-- 打开“邮件监测”：不读取邮箱。
-- 进入“选择与排期”：不读取邮箱。
-- 点击“读取邮箱”：读取当前范围并更新事实。
-- 点击“完整读取”：完整重建 Sent / Drafts / Inbox 邮箱事实。
-
-因此 Follow-up eligibility 始终表示“基于最近一次人工读取快照的判断”，不是实时状态。
+1. Sent 进入 `outboundRecords`，并自动建立/保留 root lineage。
+2. Inbox 进入 reply observation，并关联到对应 outbound lineage。
+3. 回复分类为 `human / automatic / ambiguous / bounce / system`。
+4. `human` 和 `ambiguous` 阻断新的 Follow-up；`automatic` 不阻断。
+5. 到期线程可单条或批量生成 Follow-up Task。
+6. 若 root Initial 正文尚未缓存，按 provider message id 读取网易 `readhtml` 文档，并从 `template#contentTemplate > [data-ntes="ntes_mail_body_root"]` 获取真实正文。
+7. 从 root Initial 提取称呼与署名，组合为 `Initial 称呼 + Follow-up 模板正文 + Initial 署名`。
+8. 生成结果仅为 `prepared` Follow-up，不确认、不入执行池。
+9. Follow-up 出现在一级“邮件审阅”中；人工 Pass 后才确认当前 content version 并进入“选择与排期”。
+10. Dispatch 使用网易原生 Forward / Reply / New 创建普通或定时草稿。
+11. 草稿创建成功仍不等于 Sent；后续再次人工读取邮箱进行 reconciliation。
 
 ## 模块边界
 
 ### 邮件监测
 
-拥有：邮箱读取、Sent/Draft/Inbox observation、reply association、eligibility、Follow-up 创建、内容准备、版本确认。
+拥有：人工邮箱读取、Sent/Draft/Inbox facts、reply association、eligibility、批量生成 Follow-up prepared task。
 
-不拥有：执行范围选择、批量排期、草稿创建、自动发送。
+不拥有：模板撰写、内容 Pass、排期、草稿创建。
+
+### 邮件审阅
+
+拥有：Initial 与 Follow-up 的统一内容核验。Follow-up 模板正文也在这里维护；模板只影响之后新生成的任务。
+
+Follow-up Pass 是授权边界：Pass 时确认当前 `contentVersion`，写入 `reviewedAt`，并将该 task 加入统一 Dispatch queue。修改 Follow-up 的收件人、主题或正文会增加 content version、清除 Review Pass 并自动退出执行池。
 
 ### 选择与排期
 
-拥有：统一执行池、选择/排除、排期规则、手工时间调整、网易草稿执行、失败即停。
-
-输入来源：
-
-- 已完成审阅的初始邮件 Task
-- 已确认并显式加入执行池的 Follow-up Derived Task
-
-### 批量草稿
-
-拥有：资料导入、识别、查重、内容审阅、附件准备。完成后只把可执行初始邮件暴露给统一执行池。
+只接受已经通过 Review 的 Initial / Follow-up，负责范围选择、排期和网易执行。
 
 ## 安全边界
 
-- Follow-up eligibility 不会自动入池，更不会自动执行。
-- Follow-up 内容修改会使旧 confirmation 失效，并自动退出执行池。
-- Human reply / ambiguous reply / recipient guard 是硬阻断。
-- Forward / Reply 必须有原始 Sent provider message id。
-- 执行失败不盲重试；统一执行器在当前失败项停止。
-- 草稿创建成功 ≠ 已发送；Sent 只能由后续 mailbox reconciliation 确认。
-
-## v3.8.8 template-driven generation
-
-Follow-up generation no longer opens a per-task editor. Configure the reusable middle-body template once in Mail Monitoring. When a Follow-up becomes eligible, SmartMail uses the root Initial message as the personalization source, copies its salutation and signature block, inserts the saved template between them, confirms that deterministic result, and queues the Derived Task directly into Selection & Scheduling. Missing Initial body or missing salutation/signature causes that item to be skipped rather than guessed.
-
-
-## v3.8.11 Sent body hydration
-
-Follow-up 不再把所有读取问题折叠成 `initial-body-missing`。Sent detail 使用网易自身 `ReadAction.readMessage` 请求结构，并优先解析 `response.var.html.content` / `response.var.text.content`。成功正文会缓存到 root Initial outbound；失败会保存具体诊断码，批量生成只跳过失败线程。
-
-## v3.8.12 readhtml body hydration
-
-For 163 js6 MailReader, `mbox:readMessage` supplies message metadata/context while the rendered body is loaded from the provider's `readhtml` document. Follow-up hydration therefore resolves the provider read URL, fetches the authenticated `readhtml` response, and extracts the Initial body from `template#contentTemplate > [data-ntes="ntes_mail_body_root"]`. The resulting body snapshot is cached on the root Initial outbound record before salutation/signature extraction.
+- 模板生成不是授权。
+- Human reply / ambiguous reply / recipient guard 仍是硬阻断。
+- Forward / Reply 需要原始 Sent provider message id。
+- 执行失败停止，不盲重试。
+- Draft success ≠ Sent；Sent 由邮箱事实确认。
+- 旧版“模板生成后自动 confirmed + queued”的未执行任务升级后会退回 `prepared / 待审阅`。旧版明确人工确认过的 Follow-up 保留其人工授权语义。
