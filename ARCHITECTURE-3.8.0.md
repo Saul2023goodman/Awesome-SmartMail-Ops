@@ -103,3 +103,7 @@ This changes Follow-up from a durable queue into a current-session batch: manual
 ## v3.8.20 Unified auto-review
 
 Initial and Follow-up now share the same Review intent: detect exceptions, not force per-message approval. Deterministically complete Follow-up template output is auto-reviewed and queued immediately; only missing/invalid fields, blockers, or operator-edited versions require manual confirmation. Review remains the common visibility surface for both auto-passed and exception items.
+
+## v3.8.21 Continuous Review surface
+
+Review is a continuous batch-reading surface rather than a per-message navigation state. Initial and Follow-up tasks are rendered as vertically stacked complete-mail sheets in one scroll container. Review remains an exception-detection gate: operators scan the batch, use search/status filters, and open the focused correction editor only when a specific message needs modification. Navigation from Monitoring targets and scrolls to a sheet; it does not create a single-message Review mode.
