@@ -85,7 +85,7 @@
       items: [
         { target: 'batch', step: '总', title: '批量工作台', detail: '当前批次与作业状态', primary: true },
         { target: 'batch/1', step: '01', title: '资料导入', detail: '邮件、名单与附件' },
-        { target: 'batch/2', step: '02', title: '邮件审阅', detail: '内容、重复与附件状态' },
+        { target: 'batch/2', step: '02', title: '邮件审阅', detail: '收件人、主题、正文与重复' },
         { target: 'batch/3', step: '03', title: '排期与执行', detail: '选择、排期与批量创建' }
       ]
     },

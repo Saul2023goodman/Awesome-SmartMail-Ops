@@ -1748,3 +1748,144 @@
   overflow:auto;
   overscroll-behavior:contain;
 }
+
+/* v3.5.2 · Unified workflow ownership
+   Review is embedded in the batch canvas; attachments are owned by Import. */
+#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="2"] .nmda-inline-review:not([hidden]) {
+  position:relative !important;
+  inset:auto !important;
+  z-index:auto !important;
+  width:100% !important;
+  height:100% !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  border:1px solid #d8dee4 !important;
+  border-radius:12px !important;
+  background:#fff !important;
+  box-shadow:none !important;
+  grid-template-rows:auto auto minmax(0,1fr) !important;
+}
+#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="2"] .nmda-ingest-workspace-v2 {
+  min-width:0 !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+}
+
+/* Opening one mail stays inside Review instead of becoming a viewport modal. */
+#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) {
+  grid-template-rows:auto minmax(0,1fr) !important;
+}
+#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > .nmda-review-overview,
+#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > .nmda-review-boardbar,
+#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > .nmda-review-subject-prompt,
+#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > .nmda-review-batchbar,
+#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > .nmda-review-page-empty,
+#nmda-root.nmda-standalone .nmda-inline-review:has(#nmda-import-editor-overlay:not([hidden])) > #nmda-review-queue {
+  display:none !important;
+}
+#nmda-root.nmda-standalone #nmda-import-editor-overlay:not([hidden]) {
+  position:relative !important;
+  inset:auto !important;
+  z-index:auto !important;
+  width:100% !important;
+  height:100% !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  display:block !important;
+  place-items:initial !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:#fff !important;
+  backdrop-filter:none !important;
+  box-shadow:none !important;
+}
+#nmda-root.nmda-standalone #nmda-import-editor-overlay > .nmda-review-detail-dialog {
+  width:100% !important;
+  height:100% !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  margin:0 !important;
+  overflow:hidden !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:#fff !important;
+  box-shadow:none !important;
+}
+
+/* Review no longer owns attachment preparation. Keep legacy nodes inert for compatibility. */
+#nmda-root.nmda-standalone #nmda-inline-review .nmda-attachment-context-cue,
+#nmda-root.nmda-standalone #nmda-inline-review .nmda-attachment-library-bar,
+#nmda-root.nmda-standalone #nmda-inline-review .nmda-attachment-gateway,
+#nmda-root.nmda-standalone #nmda-inline-review #nmda-audit-check-attachment {
+  display:none !important;
+}
+
+/* The single attachment workspace is an inline Import section, never a portal/modal. */
+#nmda-root.nmda-standalone #nmda-import-card > #nmda-attachment-manager-overlay.nmda-attachment-manager-inline {
+  position:relative !important;
+  inset:auto !important;
+  z-index:auto !important;
+  width:100% !important;
+  height:auto !important;
+  max-width:none !important;
+  max-height:none !important;
+  display:block !important;
+  place-items:initial !important;
+  align-items:initial !important;
+  justify-items:initial !important;
+  margin:2px 0 0 !important;
+  padding:0 !important;
+  overflow:visible !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  backdrop-filter:none !important;
+  box-shadow:none !important;
+}
+#nmda-root.nmda-standalone #nmda-import-card > #nmda-attachment-manager-overlay.nmda-attachment-manager-inline[hidden] {
+  display:none !important;
+}
+#nmda-root.nmda-standalone #nmda-import-card > #nmda-attachment-manager-overlay.nmda-attachment-manager-inline > .nmda-attachment-manager {
+  width:100% !important;
+  max-width:none !important;
+  max-height:none !important;
+  margin:0 !important;
+  overflow:hidden !important;
+  border:1px solid #d8dee4 !important;
+  border-radius:10px !important;
+  background:#fbfcfe !important;
+  box-shadow:none !important;
+  grid-template-rows:auto auto auto !important;
+}
+#nmda-root.nmda-standalone #nmda-import-card > #nmda-attachment-manager-overlay .nmda-attachment-manager-head {
+  padding:11px 12px 9px !important;
+  background:#fff !important;
+}
+#nmda-root.nmda-standalone #nmda-import-card > #nmda-attachment-manager-overlay .nmda-attachment-manager-head h3 {
+  font-size:12px !important;
+}
+#nmda-root.nmda-standalone #nmda-import-card > #nmda-attachment-manager-overlay .nmda-attachment-manager-head p {
+  font-size:9px !important;
+}
+#nmda-root.nmda-standalone #nmda-import-card > #nmda-attachment-manager-overlay .nmda-attachment-manager-body {
+  max-height:min(430px,48vh) !important;
+  overflow:auto !important;
+  padding:10px 12px 12px !important;
+}
+#nmda-root.nmda-standalone #nmda-import-card > #nmda-attachment-manager-overlay .nmda-attachment-manager-foot {
+  min-height:48px !important;
+  padding:8px 12px !important;
+  background:#fff !important;
+  box-shadow:none !important;
+}
+
+/* Attachment belongs to Import; the secondary preflight no longer exposes a second attachment tab. */
+#nmda-root.nmda-standalone button[data-support-view="attachment"],
+#nmda-root.nmda-standalone #nmda-preflight-attachment-box {
+  display:none !important;
+}
