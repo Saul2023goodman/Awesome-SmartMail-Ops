@@ -80,3 +80,11 @@ Draft-only hits never render imported body versus mailbox Draft body. They are s
 ## v3.8.6 Monitoring batch preparation
 
 邮件监测支持对当前已到期且 eligible 的线程进行批量选择并创建 Derived Follow-up Tasks。批量生成属于 Task preparation，不属于 Dispatch；生成后的 Follow-up 仍需独立内容确认后进入统一“选择与排期”。邮件监测页面拥有独立纵向滚动容器，其他工作区继续保持单视口布局。
+
+## v3.8.7 navigation refinement
+
+Initial outreach is exposed as three first-class workspaces rather than a two-step Batch canvas:
+
+`Import → Review → Dispatch`
+
+Import prepares source facts and prevents duplicate Initial outreach. Review owns message-content decisions and Pass. Dispatch owns selection, timing, and execution. Each boundary has an explicit completion handoff; automatic recognition may reduce Review work but does not skip the Review workspace.

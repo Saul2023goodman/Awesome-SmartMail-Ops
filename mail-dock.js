@@ -83,7 +83,8 @@
       name: '邮件作业',
       desc: '准备与统一执行',
       items: [
-        { target: 'batch', step: '稿', title: '打开批量草稿', detail: '导入资料并完成邮件审阅', primary: true },
+        { target: 'batch', step: '导', title: '打开导入资料', detail: '识别来源、完成查重与附件准备', primary: true },
+        { target: 'review', step: '审', title: '打开邮件审阅', detail: '核对邮件并完成 Pass', primary: false },
         { target: 'dispatch', step: '排', title: '打开选择与排期', detail: '汇合初始邮件与 Follow-up，统一创建草稿', primary: false }
       ]
     },
