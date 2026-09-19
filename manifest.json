@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.5.2",
-  "description": "网易邮箱批量邮件作业工具：一级 Dock 常驻；附件前置归入导入阶段，邮件审阅保持在统一导航框架内。",
+  "version": "3.5.3",
+  "description": "网易邮箱批量邮件作业工具：统一邮件审阅单层状态栏；附件前置到导入；一级 Dock 常驻。",
   "permissions": [
     "storage",
     "scripting",

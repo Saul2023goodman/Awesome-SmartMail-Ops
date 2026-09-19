@@ -374,27 +374,9 @@
               <div class="nmda-card nmda-inline-review" id="nmda-inline-review" hidden>
                 <div class="nmda-inline-review-top">
                   <div><div class="nmda-card-title" id="nmda-review-workspace-title">邮件审阅</div><div class="nmda-card-desc" id="nmda-review-workspace-desc">核对收件人、主题、正文、边界与重复版本。</div></div>
-                  <div class="nmda-inline-review-actions"><div id="nmda-review-page-summary" class="nmda-review-page-summary"></div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个待审阅</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-import-editor-cancel" type="button">返回导入</button></div>
+                  <div class="nmda-inline-review-actions"><div id="nmda-review-page-summary" class="nmda-review-page-summary"></div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个待审阅</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-import-editor-cancel" type="button">返回导入</button></div>
                 </div>
-                <section class="nmda-review-overview" id="nmda-ingest-result-card">
-                  <div class="nmda-review-overview-line">
-                    <div id="nmda-import-preview-summary" class="nmda-ingest-health"></div>
-                    <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button>
-                  </div>
-                  <div id="nmda-review-guidance" class="nmda-review-guidance">解析完成后可查看每封邮件的结果。</div>
-                  <div class="nmda-context-cue nmda-context-cue-compact nmda-attachment-context-cue" id="nmda-attachment-context-cue" hidden>
-                    <div class="nmda-context-cue-icon" aria-hidden="true">⇧</div>
-                    <div class="nmda-context-cue-main"><span class="nmda-context-eyebrow">附件 · 发送前检查</span><strong id="nmda-attachment-context-title">附件待补</strong><small id="nmda-attachment-context-copy">添加本批次需要的附件。</small></div>
-                    <div class="nmda-context-cue-actions"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-attachment-send-action" type="button" data-open-attachment-manager>打开附件工作台</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-later" type="button">稍后处理</button></div>
-                  </div>
-                  <div class="nmda-attachment-library-bar" id="nmda-attachment-library-bar" hidden><div class="nmda-attachment-library-bar-main"><span class="nmda-attachment-library-bar-icon">↗</span><div><strong id="nmda-attachment-library-bar-title">附件资料</strong><small id="nmda-attachment-library-bar-copy">查看或调整已加入的附件。</small></div></div><button class="nmda-btn nmda-btn-small" id="nmda-manage-attachments-workflow" type="button">查看 / 修改</button></div>
-                  <details class="nmda-optional-source-details nmda-attachment-gateway" id="nmda-attachments-card" hidden>
-                    <summary><span><strong>附件工作台</strong><small>查看文件、发送范围与匹配状态</small></span><span>展开</span></summary>
-                    <div id="nmda-attachment-summary" class="nmda-summary">尚未添加附件。</div>
-                    <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-open-attachment-manager>打开附件工作台</button></div>
-                    <div id="nmda-attachment-resolution" class="nmda-attachment-resolution" hidden><div id="nmda-attachment-resolution-list"></div></div>
-                  </details>
-                </section>
+                <section id="nmda-ingest-result-card" hidden aria-hidden="true"><div id="nmda-import-preview-summary"></div><div id="nmda-review-guidance"></div></section>
                 <div class="nmda-review-boardbar">
                   <div class="nmda-review-board-copy"><strong id="nmda-review-queue-title">邮件状态</strong><small id="nmda-review-queue-caption">颜色与形状直接表示自动识别结果。</small></div>
                   <div class="nmda-review-filter nmda-review-status-tabs" id="nmda-review-filter" role="group" aria-label="邮件状态筛选">
@@ -3006,8 +2988,8 @@
     const pendingCount=actionCount+decisionCount;
     if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='邮件审阅';
     if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=pendingCount
-      ? `统一审阅邮件内容、重复版本与附件状态；当前有 ${actionCount} 封需处理、${decisionCount} 组重复需取舍。`
-      : '邮件内容与重复项已通过；可继续抽查，附件状态也在本页统一显示。';
+      ? `统一审阅邮件内容与重复版本；当前有 ${actionCount} 封需处理、${decisionCount} 组重复需取舍。`
+      : '邮件内容与重复项已通过；可继续抽查后进入排期。';
     if(reviewExitEl)reviewExitEl.textContent=batch.handoffComplete?'返回选择与安排':'返回导入';
     if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
     if(reviewPageSummaryEl)reviewPageSummaryEl.innerHTML=tasks.length
@@ -3634,7 +3616,7 @@
     const resultCard=$('nmda-ingest-result-card');
     const tasks=batch.tasks||[];
     if(!batch.dataset){if(resultCard)resultCard.hidden=true;return;}
-    if(resultCard)resultCard.hidden=false;
+    if(resultCard)resultCard.hidden=true;
     let contentPending=0,reviewPending=0,otherBlocked=0,autoPassed=0,policyBlocked=0;
     for(const task of tasks){
       const state=taskIssueState(task);
@@ -4999,8 +4981,8 @@
     $('nmda-structure-card').hidden = false;
     $('nmda-mapping-card').hidden = false;
     $('nmda-ingest-diagnostics').hidden = true;
-    $('nmda-ingest-result-card').hidden = false;
-    $('nmda-attachments-card').hidden = false;
+    const ingestResultCard=$('nmda-ingest-result-card'); if(ingestResultCard) ingestResultCard.hidden = true;
+    const legacyAttachmentsCard=$('nmda-attachments-card'); if(legacyAttachmentsCard) legacyAttachmentsCard.hidden = true;
     configureCollection(bestIndex, false);
     renderSourceInventory();
     clearStaleOverrides();
