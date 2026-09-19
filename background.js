@@ -519,6 +519,95 @@ async function readDraftDetail(tabId, summary = {}) {
   }), [summary]);
 }
 
+
+async function readSentDetail(tabId, messageId) {
+  const id = String(messageId || '').trim();
+  if (!id) return { ok:false, id:'', reason:'missing-message-id' };
+  return runMain(tabId, (idArg) => new Promise(async resolve => {
+    try {
+      if (!window.$?.DataAction) return resolve({ ok:false, id:idArg, reason:'$.DataAction unavailable' });
+      function request(body) {
+        return new Promise((res, rej) => {
+          try {
+            const action = new window.$.DataAction();
+            action.wmsvr({
+              func:'mbox:readMessage', body,
+              call(response){ res(response || {}); },
+              error(error){ rej(new Error(error?.message || error?.code || 'mbox:readMessage failed')); },
+              ignoreError:true
+            });
+          } catch (error) { rej(error); }
+        });
+      }
+      let response = null, lastError = null;
+      for (const body of [{mid:idArg},{id:idArg}]) {
+        try { response = await request(body); if (response) break; }
+        catch (error) { lastError = error; }
+      }
+      if (!response) return resolve({ ok:false, id:idArg, reason:lastError?.message || '读取已发送邮件详情失败' });
+      const root = response?.var ?? response;
+      if (!root || typeof root !== 'object') return resolve({ ok:false, id:idArg, reason:'已发送邮件详情响应为空' });
+      const keyNorm = value => String(value || '').replace(/[\s_\-]/g,'').toLowerCase();
+      const objectQueue = [root], seen = new Set();
+      for (let i=0; i<objectQueue.length && i<800; i++) {
+        const node = objectQueue[i];
+        if (!node || typeof node !== 'object' || seen.has(node)) continue;
+        seen.add(node);
+        for (const value of (Array.isArray(node) ? node : Object.values(node))) if (value && typeof value === 'object') objectQueue.push(value);
+      }
+      function first(keys, {allowObject=false}={}) {
+        const wanted = new Set(keys.map(keyNorm));
+        for (const node of objectQueue) {
+          if (Array.isArray(node)) continue;
+          for (const [key,value] of Object.entries(node)) {
+            if (!wanted.has(keyNorm(key)) || value == null) continue;
+            if (typeof value === 'object' && !allowObject) continue;
+            if (typeof value === 'string' && !value.trim()) continue;
+            return value;
+          }
+        }
+        return '';
+      }
+      function htmlToText(value, isHtml) {
+        let raw = String(value ?? '');
+        if (!raw) return '';
+        if (isHtml === false || !/<[a-z][\s\S]*>/i.test(raw)) return raw.replace(/\r\n?/g,'\n').trim();
+        raw = raw.replace(/<\s*br\s*\/?\s*>/gi,'\n').replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi,'\n').replace(/<\s*li\b[^>]*>/gi,'• ');
+        try {
+          const doc = new DOMParser().parseFromString(raw,'text/html');
+          doc.querySelectorAll('script,style,noscript').forEach(el=>el.remove());
+          return String(doc.body?.textContent || '').replace(/\u00a0/g,' ').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+        } catch (_) {
+          const div=document.createElement('div'); div.innerHTML=raw; return String(div.textContent||'').replace(/\u00a0/g,' ').trim();
+        }
+      }
+      const bodyHtml = String(first(['content','body','mailContent','html','contentHtml','bodyHtml','text','plainText','mailBody']) || '');
+      const isHtmlValue = first(['isHtml','htmlFlag']);
+      const isHtml = isHtmlValue === '' ? /<[a-z][\s\S]*>/i.test(bodyHtml) : isHtmlValue !== false && String(isHtmlValue) !== 'false' && String(isHtmlValue) !== '0';
+      const body = htmlToText(bodyHtml, isHtml);
+      const subject = String(first(['subject','mailSubject','title']) || '').trim();
+      resolve({ ok:!!body, id:idArg, subject, body, bodyHtml, isHtml, detailSource:'mbox:readMessage' });
+    } catch (error) {
+      resolve({ ok:false, id:idArg, reason:error?.message || String(error) });
+    }
+  }), [id]);
+}
+
+async function readSentDetails(tabId, messageIds = []) {
+  const ids = [...new Set((Array.isArray(messageIds) ? messageIds : []).map(value => String(value || '').trim()).filter(Boolean))].slice(0,500);
+  const details = new Array(ids.length);
+  let cursor = 0;
+  const workerCount = Math.min(4, Math.max(1, ids.length));
+  async function worker() {
+    while (cursor < ids.length) {
+      const index = cursor++;
+      details[index] = await readSentDetail(tabId, ids[index]);
+    }
+  }
+  await Promise.all(Array.from({length:workerCount}, worker));
+  return { ok:true, details, failures:details.filter(item => item && item.ok === false).length };
+}
+
 async function readDraftImport(tabId, requested = 300) {
   const limit = Math.max(1, Math.min(1000, Number(requested) || 300));
   const listing = await readMailbox(tabId, 2, limit);
@@ -686,6 +775,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_READ_MAILBOX_STATE') return readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick');
     if (message?.type === 'NMDA_READ_DEDUPE_HISTORY') return readDedupeHistory(tabId);
     if (message?.type === 'NMDA_READ_SENT') return readMailbox(tabId,3,message.limit ?? 200);
+    if (message?.type === 'NMDA_READ_SENT_DETAILS') return readSentDetails(tabId, message.messageIds || []);
     if (message?.type === 'NMDA_READ_DRAFTS') return readMailbox(tabId,2,message.limit ?? 200);
     if (message?.type === 'NMDA_READ_INBOX') return readMailbox(tabId,1,message.limit ?? 200);
     if (message?.type === 'NMDA_IMPORT_DRAFTS') return readDraftImport(tabId,message.limit ?? 300);

@@ -201,20 +201,6 @@
 #nmda-root .nmda-monitor-unlinked-row strong { font-size:12.5px !important; line-height:1.35; }
 #nmda-root .nmda-monitor-unlinked-row small { margin-top:3px; font-size:11px !important; line-height:1.35; }
 
-/* Follow-up editor: comfortable writing surface instead of a compressed utility dialog. */
-#nmda-root .nmda-followup-dialog { width:min(860px,calc(100vw - 40px)) !important; max-height:min(860px,calc(100dvh - 36px)) !important; }
-#nmda-root .nmda-followup-dialog .nmda-dialog-eyebrow { font-size:11px !important; }
-#nmda-root .nmda-followup-dialog .nmda-dialog-head h3 { font-size:20px !important; line-height:1.25 !important; }
-#nmda-root .nmda-followup-dialog .nmda-dialog-head p { margin-top:4px !important; font-size:12px !important; }
-#nmda-root .nmda-followup-dialog-body { gap:14px !important; padding:17px 19px 19px !important; }
-#nmda-root .nmda-followup-parent { padding:13px 14px !important; border-radius:11px !important; }
-#nmda-root .nmda-followup-parent strong { font-size:13.5px !important; line-height:1.4; }
-#nmda-root .nmda-followup-parent small { margin-top:5px !important; font-size:11.5px !important; }
-#nmda-root .nmda-followup-two-col { grid-template-columns:210px minmax(0,1fr) !important; gap:14px !important; }
-#nmda-root .nmda-followup-body-field textarea { min-height:260px !important; font-size:14.5px !important; line-height:1.65 !important; }
-#nmda-root .nmda-followup-mode-note { padding:11px 12px !important; font-size:12px !important; line-height:1.55 !important; }
-#nmda-root .nmda-followup-dialog .nmda-dialog-foot { min-height:64px; padding:12px 18px !important; gap:8px !important; }
-
 @media (max-width:1180px) {
   #nmda-root .nmda-monitor-row {
     grid-template-columns:minmax(260px,1.3fr) minmax(220px,1fr) auto !important;
@@ -303,7 +289,7 @@
 
 #nmda-root .nmda-monitor-rulebar {
   display:grid;
-  grid-template-columns:auto minmax(430px,1fr) auto;
+  grid-template-columns:auto minmax(430px,1fr);
   align-items:center;
   gap:10px 16px;
   min-height:54px;
@@ -360,12 +346,36 @@
 }
 #nmda-root .nmda-monitor-rulebar-controls select { width:104px !important; }
 #nmda-root .nmda-monitor-rule-sep { color:#a7b0ba; font-size:12px; }
+#nmda-root .nmda-monitor-template-field {
+  grid-column:1 / -1;
+  display:grid;
+  grid-template-columns:92px minmax(0,1fr);
+  gap:10px;
+  align-items:start;
+  font-size:11.5px;
+  font-weight:700;
+  color:#5f6d7d;
+}
+#nmda-root .nmda-monitor-template-field textarea {
+  width:100%;
+  min-height:76px;
+  max-height:150px;
+  resize:vertical;
+  border:1px solid #d6dee7;
+  border-radius:8px;
+  background:#fbfcfd;
+  padding:8px 10px;
+  font:inherit;
+  font-size:12.5px;
+  line-height:1.5;
+  color:#273444;
+}
 #nmda-root .nmda-monitor-rule-note {
-  max-width:315px;
+  grid-column:1 / -1;
   font-size:10.5px;
   line-height:1.35;
   color:#7c8896;
-  text-align:right;
+  text-align:left;
 }
 
 #nmda-root .nmda-monitor-filterbar {

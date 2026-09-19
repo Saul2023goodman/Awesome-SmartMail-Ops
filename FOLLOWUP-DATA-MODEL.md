@@ -128,3 +128,11 @@ Mailbox observation is operator-triggered. The data model stores the latest obse
 The unified queue is ephemeral at render time; authoritative Follow-up dispatch intent stays in `derivedTasks[*].dispatch`, while initial batch selection continues to use the batch task edit state.
 
 After a Follow-up draft is successfully created, SmartMail records a `draftRecord`, writes `draftPreparedAt` / `draftRecordId` to the derived task, and removes it from the dispatch pool. A scheduled draft may move the derived task to `scheduled`; an unscheduled prepared draft remains confirmed. Neither is considered sent until later mailbox reconciliation.
+
+## v3.8.8 template generation
+
+Follow-up content is no longer edited per Derived Task. The default Follow-up policy contains a versioned `templateBody`. On generation, SmartMail reads the root Initial message content and deterministically extracts the opening salutation and closing signature block. The generated content is:
+
+`Initial salutation + templateBody + Initial signature`
+
+Generated tasks record `generatedFromTemplateVersion` plus the exact personalization snapshot used. They are created as confirmed and queued for Selection & Scheduling. Existing tasks are never silently rewritten when the template changes.

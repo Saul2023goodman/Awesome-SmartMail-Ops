@@ -1,14 +1,14 @@
 (() => {
   'use strict';
 
-  const SCHEMA_VERSION = 4;
+  const SCHEMA_VERSION = 5;
   const STORAGE_PREFIX = 'nmda.operations.v1:';
   const LEGACY_CONTACT_PREFIX = 'nmda.contacts.v1:';
   const FOLLOWUP_STATES = ['due', 'prepared', 'confirmed', 'scheduled', 'sent', 'blocked', 'cancelled'];
   const REPLY_KINDS = ['human', 'automatic', 'ambiguous', 'bounce', 'system'];
   const GUARD_MODES = ['normal', 'paused', 'do-not-contact'];
   const COMPOSE_MODES = ['forward', 'reply', 'new'];
-  const DEFAULT_FOLLOWUP_POLICY = Object.freeze({ enabled: true, delayDays: 7, maxAttempts: 2, composeMode: 'forward' });
+  const DEFAULT_FOLLOWUP_POLICY = Object.freeze({ enabled: true, delayDays: 7, maxAttempts: 2, composeMode: 'forward', templateBody: '', templateVersion: 0 });
 
   function normalizeEmail(value) {
     return String(value || '').trim().toLowerCase();
@@ -172,7 +172,9 @@
     const delayDays = Math.max(0, Number(value.delayDays ?? DEFAULT_FOLLOWUP_POLICY.delayDays) || 0);
     const maxAttempts = Math.max(0, Math.floor(Number(value.maxAttempts ?? DEFAULT_FOLLOWUP_POLICY.maxAttempts) || 0));
     const composeMode = COMPOSE_MODES.includes(value.composeMode) ? value.composeMode : DEFAULT_FOLLOWUP_POLICY.composeMode;
-    return { enabled: value.enabled !== false, delayDays, maxAttempts, composeMode };
+    const templateBody = String(value.templateBody ?? DEFAULT_FOLLOWUP_POLICY.templateBody).replace(/\r\n?/g, '\n').trim();
+    const templateVersion = Math.max(0, Math.floor(Number(value.templateVersion ?? DEFAULT_FOLLOWUP_POLICY.templateVersion) || 0));
+    return { enabled: value.enabled !== false, delayDays, maxAttempts, composeMode, templateBody, templateVersion };
   }
 
   function normalizeStore(raw, account = '') {
@@ -689,6 +691,58 @@
     return { store: next, guard: next.recipientGuards[email] || { email, mode: 'normal' } };
   }
 
+  function initialOutboundForRoot(storeInput, rootTaskId) {
+    const outbounds = outboundForRoot(storeInput, rootTaskId);
+    return outbounds.find(item => Number(item.sequence || 0) === 0) || outbounds[0] || null;
+  }
+
+  function setOutboundContentSnapshot(storeInput, outboundId, content = {}) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const record = next.outboundRecords[String(outboundId || '')];
+    if (!record) throw new Error(`找不到 outbound record：${outboundId}`);
+    const body = String(content.body || '').replace(/\r\n?/g, '\n').trim();
+    record.body = body;
+    record.bodyHtml = String(content.bodyHtml || '');
+    record.bodyIsHtml = content.bodyIsHtml === true || content.isHtml === true;
+    record.contentObservedAt = nowIso();
+    record.contentSource = String(content.source || 'initial-message-detail');
+    next.updatedAt = nowIso();
+    return { store: next, record };
+  }
+
+  function extractInitialPersonalization(bodyRaw = '') {
+    const body = String(bodyRaw || '').replace(/\r\n?/g, '\n').trim();
+    if (!body) return { ok: false, salutation: '', signature: '', reason: 'initial-body-missing' };
+    const lines = body.split('\n');
+    let first = 0;
+    while (first < lines.length && !lines[first].trim()) first++;
+    let salutation = '';
+    if (first < lines.length && /^(?:dear\b|hi\b|hello\b|prof(?:essor)?\.?\b|dr\.?\b|尊敬的|您好)/i.test(lines[first].trim())) {
+      salutation = lines[first].trim();
+    }
+    let close = -1;
+    const closeRe = /^(?:best(?:\s+regards)?|kind\s+regards|warm\s+regards|regards|sincerely|yours\s+sincerely|best\s+wishes|many\s+thanks|thank\s+you|谢谢|此致|祝好)[,!，！。]?$/i;
+    for (let i = lines.length - 1; i >= Math.max(0, lines.length - 10); i--) {
+      if (closeRe.test(lines[i].trim())) { close = i; break; }
+    }
+    const signature = close >= 0 ? lines.slice(close).join('\n').trim() : '';
+    if (!salutation || !signature) return { ok: false, salutation, signature, reason: !salutation && !signature ? 'salutation-and-signature-missing' : (!salutation ? 'salutation-missing' : 'signature-missing') };
+    return { ok: true, salutation, signature, reason: '' };
+  }
+
+  function renderFollowUpTemplate(storeInput, rootTaskId, policyInput = null) {
+    const store = normalizeStore(storeInput);
+    const policy = policyInput ? normalizePolicy(policyInput) : policyForRoot(store, rootTaskId);
+    if (!policy.templateBody) return { ok: false, reason: 'template-missing', body: '', policy };
+    const initial = initialOutboundForRoot(store, rootTaskId);
+    if (!initial) return { ok: false, reason: 'initial-outbound-missing', body: '', policy };
+    const personalization = extractInitialPersonalization(initial.body || '');
+    if (!personalization.ok) return { ok: false, reason: personalization.reason, body: '', policy, initial, personalization };
+    const body = [personalization.salutation, policy.templateBody, personalization.signature].filter(Boolean).join('\n\n');
+    return { ok: true, body, policy, initial, personalization };
+  }
+
   function guardForRecipients(storeInput, recipientsRaw) {
     const store = normalizeStore(storeInput);
     const matches = [];
@@ -714,10 +768,22 @@
   function setFollowUpPolicy(storeInput, rootTaskId, patch = {}) {
     const store = normalizeStore(storeInput);
     const next = clone(store);
-    if (!rootTaskId) next.followUpPolicies.default = normalizePolicy({ ...next.followUpPolicies.default, ...patch });
-    else next.followUpPolicies.overrides[String(rootTaskId)] = normalizePolicy({ ...policyForRoot(next, rootTaskId), ...patch });
+    const key = String(rootTaskId || '');
+    const current = key ? policyForRoot(next, key) : normalizePolicy(next.followUpPolicies.default);
+    const candidate = { ...current, ...patch };
+    if (patch.templateBody !== undefined && String(patch.templateBody || '').replace(/\r\n?/g, '\n').trim() !== current.templateBody) {
+      candidate.templateVersion = Math.max(1, Number(current.templateVersion || 0) + 1);
+    }
+    if (!key) {
+      next.followUpPolicies.default = normalizePolicy(candidate);
+    } else {
+      const existingOverride = next.followUpPolicies.overrides[key] && typeof next.followUpPolicies.overrides[key] === 'object' ? next.followUpPolicies.overrides[key] : {};
+      const overridePatch = { ...patch };
+      if (patch.templateBody !== undefined) overridePatch.templateVersion = candidate.templateVersion;
+      next.followUpPolicies.overrides[key] = { ...existingOverride, ...overridePatch };
+    }
     next.updatedAt = nowIso();
-    return { store: next, policy: policyForRoot(next, rootTaskId) };
+    return { store: next, policy: policyForRoot(next, key) };
   }
 
   function recordReplyObservation(storeInput, observation = {}) {
@@ -830,6 +896,8 @@
     if (!eligibility.eligible) throw new Error(`当前不能创建 Follow-up：${eligibility.reason}`);
     const next = clone(store);
     const { lastOutbound, sequence, policy, dueAt } = eligibility;
+    const rendered = renderFollowUpTemplate(next, rootTaskId, policy);
+    if (!rendered.ok) throw new Error(`当前不能生成 Follow-up：${rendered.reason}`);
     const id = `followup:${stableHash(`${rootTaskId}|${sequence}`)}`;
     const now = nowIso();
     const task = {
@@ -839,22 +907,24 @@
       parentTaskId: String(lastOutbound.taskId || rootTaskId),
       parentOutboundId: lastOutbound.id,
       sequence,
-      state: 'due',
+      state: 'confirmed',
       dueAt,
       createdAt: now,
       updatedAt: now,
       createdReason: eligibility.reason,
       recipients: (lastOutbound.recipients || []).map(item => ({ ...item })),
-      subject: '',
-      body: '',
+      subject: policy.composeMode === 'new' ? `Re: ${lastOutbound.subject || ''}`.trim() : String(lastOutbound.subject || ''),
+      body: rendered.body,
       composeMode: policy.composeMode,
       contentVersion: 1,
-      confirmedVersion: null,
-      confirmedAt: '',
+      confirmedVersion: 1,
+      confirmedAt: now,
+      generatedFromTemplateVersion: policy.templateVersion,
+      personalization: { salutation: rendered.personalization.salutation, signature: rendered.personalization.signature, initialOutboundId: rendered.initial.id },
       scheduledAt: '',
       sentOutboundId: '',
       blocker: null,
-      dispatch: { queued: false, enabled: true, scheduleAt: '', scheduleSource: '', scheduleReason: '', queuedAt: '', dequeuedAt: '', dequeuedReason: '' }
+      dispatch: { queued: true, enabled: true, scheduleAt: '', scheduleSource: 'followup-template', scheduleReason: 'template-generated', queuedAt: now, dequeuedAt: '', dequeuedReason: '' }
     };
     next.derivedTasks[id] = task;
     next.updatedAt = now;
@@ -871,36 +941,24 @@
       if (!rootTaskId || seen.has(rootTaskId)) continue;
       seen.add(rootTaskId);
       const eligibility = evaluateFollowUpEligibility(next, rootTaskId, { now: options.now, ignoreTiming: false });
-      if (!eligibility.eligible) {
-        skipped.push({ rootTaskId, reason: eligibility.reason });
-        continue;
-      }
+      if (!eligibility.eligible) { skipped.push({ rootTaskId, reason: eligibility.reason }); continue; }
       const { lastOutbound, sequence, policy, dueAt } = eligibility;
+      const rendered = renderFollowUpTemplate(next, rootTaskId, policy);
+      if (!rendered.ok) { skipped.push({ rootTaskId, reason: rendered.reason }); continue; }
       const id = `followup:${stableHash(`${rootTaskId}|${sequence}`)}`;
       const now = nowIso();
       const task = {
-        id,
-        kind: 'follow_up',
-        rootTaskId,
-        parentTaskId: String(lastOutbound.taskId || rootTaskId),
-        parentOutboundId: lastOutbound.id,
-        sequence,
-        state: 'due',
-        dueAt,
-        createdAt: now,
-        updatedAt: now,
-        createdReason: eligibility.reason,
+        id, kind: 'follow_up', rootTaskId,
+        parentTaskId: String(lastOutbound.taskId || rootTaskId), parentOutboundId: lastOutbound.id,
+        sequence, state: 'confirmed', dueAt, createdAt: now, updatedAt: now, createdReason: eligibility.reason,
         recipients: (lastOutbound.recipients || []).map(item => ({ ...item })),
-        subject: '',
-        body: '',
-        composeMode: policy.composeMode,
-        contentVersion: 1,
-        confirmedVersion: null,
-        confirmedAt: '',
-        scheduledAt: '',
-        sentOutboundId: '',
-        blocker: null,
-        dispatch: { queued: false, enabled: true, scheduleAt: '', scheduleSource: '', scheduleReason: '', queuedAt: '', dequeuedAt: '', dequeuedReason: '' }
+        subject: policy.composeMode === 'new' ? `Re: ${lastOutbound.subject || ''}`.trim() : String(lastOutbound.subject || ''),
+        body: rendered.body, composeMode: policy.composeMode,
+        contentVersion: 1, confirmedVersion: 1, confirmedAt: now,
+        generatedFromTemplateVersion: policy.templateVersion,
+        personalization: { salutation: rendered.personalization.salutation, signature: rendered.personalization.signature, initialOutboundId: rendered.initial.id },
+        scheduledAt: '', sentOutboundId: '', blocker: null,
+        dispatch: { queued: true, enabled: true, scheduleAt: '', scheduleSource: 'followup-template', scheduleReason: 'template-generated', queuedAt: now, dequeuedAt: '', dequeuedReason: '' }
       };
       next.derivedTasks[id] = task;
       next.updatedAt = now;
@@ -1151,6 +1209,10 @@
     guardForRecipients,
     policyForRoot,
     setFollowUpPolicy,
+    initialOutboundForRoot,
+    setOutboundContentSnapshot,
+    extractInitialPersonalization,
+    renderFollowUpTemplate,
     recordReplyObservation,
     setReplyObservationDisposition,
     outboundForRoot,

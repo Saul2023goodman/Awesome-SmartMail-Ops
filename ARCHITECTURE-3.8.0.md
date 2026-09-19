@@ -88,3 +88,7 @@ Initial outreach is exposed as three first-class workspaces rather than a two-st
 `Import → Review → Dispatch`
 
 Import prepares source facts and prevents duplicate Initial outreach. Review owns message-content decisions and Pass. Dispatch owns selection, timing, and execution. Each boundary has an explicit completion handoff; automatic recognition may reduce Review work but does not skip the Review workspace.
+
+## v3.8.8 Follow-up preparation simplification
+
+The Mail Monitoring module now owns eligibility and template-based task generation only. It no longer contains a per-task Follow-up editor. A saved template is the content configuration surface; generated Follow-up tasks inherit salutation/signature from the root Initial email and immediately join the unified Dispatch pool. Selection & Scheduling remains the only execution-planning surface.

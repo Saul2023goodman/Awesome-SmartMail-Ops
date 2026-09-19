@@ -65,3 +65,7 @@
 - Forward / Reply 必须有原始 Sent provider message id。
 - 执行失败不盲重试；统一执行器在当前失败项停止。
 - 草稿创建成功 ≠ 已发送；Sent 只能由后续 mailbox reconciliation 确认。
+
+## v3.8.8 template-driven generation
+
+Follow-up generation no longer opens a per-task editor. Configure the reusable middle-body template once in Mail Monitoring. When a Follow-up becomes eligible, SmartMail uses the root Initial message as the personalization source, copies its salutation and signature block, inserts the saved template between them, confirms that deterministic result, and queues the Derived Task directly into Selection & Scheduling. Missing Initial body or missing salutation/signature causes that item to be skipped rather than guessed.
