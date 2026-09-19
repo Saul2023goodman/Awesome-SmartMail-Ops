@@ -135,7 +135,7 @@
               <div class="nmda-process-guide-title"><small>当前批次</small><strong>步骤 1 / 2</strong></div>
               <button type="button" data-flow-step="1"><span>1</span><strong>导入资料</strong><small>拖入邮件与批次资料</small></button>
               <i></i>
-              <button type="button" data-flow-step="2"><span>2</span><strong>邮件审阅</strong><small>内容 · 重复 · 缺失字段</small></button>
+              <button type="button" data-flow-step="2"><span>2</span><strong>邮件审阅</strong><small>内容 · 缺失字段</small></button>
             </aside>
 
             <div class="nmda-workflow-stage-head" id="nmda-stage-prepare">
@@ -188,6 +188,26 @@
                 </div>
                 <div id="nmda-import-status" class="nmda-summary nmda-import-status">还没有添加资料。</div>
                 <div id="nmda-source-inventory" class="nmda-source-inventory" hidden></div>
+                <section class="nmda-import-dedupe-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
+                  <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>先清理重复，再进入邮件审阅</strong></div><small id="nmda-import-dedupe-state">正在核验</small></div>
+                  <input id="nmda-roster-enabled" type="checkbox" checked hidden>
+                  <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
+                  <input id="nmda-roster-strict" type="checkbox" hidden>
+                  <div id="nmda-roster-audit-summary" class="nmda-ingest-health"></div>
+                  <div id="nmda-roster-audit-note" class="nmda-review-guidance"></div>
+                  <section class="nmda-duplicate-decision nmda-import-duplicate-decision" id="nmda-duplicate-decision" hidden>
+                    <div class="nmda-duplicate-decision-head">
+                      <div><strong id="nmda-duplicate-decision-title">发现重复邮件</strong><small id="nmda-duplicate-decision-copy">在导入阶段决定实际进入本批次的版本。</small></div>
+                      <span class="nmda-duplicate-kind" id="nmda-duplicate-decision-kind">重复</span>
+                    </div>
+                    <div class="nmda-duplicate-candidates" id="nmda-duplicate-candidates"></div>
+                    <div class="nmda-duplicate-actions">
+                      <span class="nmda-hint" id="nmda-duplicate-decision-hint">默认勾选信息更完整的一封；也可以明确保留多封。</span>
+                      <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary" id="nmda-duplicate-keep-selected" type="button">保留所选（1）</button><button class="nmda-btn" id="nmda-duplicate-keep-all" type="button">全部保留</button></div>
+                    </div>
+                  </section>
+                  <details class="nmda-roster-details"><summary>查看查重依据</summary><div id="nmda-roster-audit-details" class="nmda-roster-audit-details"></div></details>
+                </section>
 
               </div>
 
@@ -380,7 +400,7 @@
 
               <div class="nmda-card nmda-inline-review" id="nmda-inline-review" hidden>
                 <div class="nmda-inline-review-top">
-                  <div><div class="nmda-card-title" id="nmda-review-workspace-title">邮件审阅</div><div class="nmda-card-desc" id="nmda-review-workspace-desc">核对收件人、主题、正文与重复版本。</div></div>
+                  <div><div class="nmda-card-title" id="nmda-review-workspace-title">邮件审阅</div><div class="nmda-card-desc" id="nmda-review-workspace-desc">核对收件人、主题、正文与缺失字段。</div></div>
                   <div class="nmda-inline-review-actions"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个待审阅</button></div>
                 </div>
                 <div class="nmda-review-boardbar nmda-review-boardbar-unified">
@@ -388,7 +408,6 @@
                     <button class="is-active" type="button" data-review-filter="all"><span>全部</span><strong>0</strong></button>
                     <button type="button" data-review-filter="auto"><span>自动通过</span><strong>0</strong></button>
                     <button type="button" data-review-filter="pending"><span>需处理</span><strong>0</strong></button>
-                    <button type="button" data-review-filter="decision"><span>重复组</span><strong>0</strong></button>
                     <button type="button" data-review-filter="confirmed"><span>已确认</span><strong>0</strong></button>
                   </div>
                   <div class="nmda-review-queue-tools">
@@ -424,17 +443,6 @@
                         <div class="nmda-review-problem-strip"><span class="nmda-review-problem-shape" aria-hidden="true">!</span><span id="nmda-review-problem-summary">重点核对开头、结尾与邮件边界</span></div>
                         <div class="nmda-review-edit-scroll">
                           <div id="nmda-review-feedback" class="nmda-review-feedback" hidden></div>
-                          <section class="nmda-duplicate-decision" id="nmda-duplicate-decision" hidden>
-                            <div class="nmda-duplicate-decision-head">
-                              <div><strong id="nmda-duplicate-decision-title">发现重复邮件</strong><small id="nmda-duplicate-decision-copy">同时比较本组邮件，决定实际要保留的版本。</small></div>
-                              <span class="nmda-duplicate-kind" id="nmda-duplicate-decision-kind">重复</span>
-                            </div>
-                            <div class="nmda-duplicate-candidates" id="nmda-duplicate-candidates"></div>
-                            <div class="nmda-duplicate-actions">
-                              <span class="nmda-hint" id="nmda-duplicate-decision-hint">默认勾选信息更完整的一封；也可以直接勾选多封。</span>
-                              <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary" id="nmda-duplicate-keep-selected" type="button">保留所选（1）</button><button class="nmda-btn" id="nmda-duplicate-keep-all" type="button">全部保留</button></div>
-                            </div>
-                          </section>
 
                           <section class="nmda-review-audit-view" id="nmda-review-audit-view">
                             <div class="nmda-review-semantic-legend" id="nmda-review-semantic-legend" aria-label="语义高亮图例"></div>
@@ -491,15 +499,6 @@
                 </div>
               </div>
 
-              <div class="nmda-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
-                <div class="nmda-card-head"><div><div class="nmda-card-title">重复核验</div><div class="nmda-card-desc">发现当前批次重复或历史外联命中时会在这里提示。</div></div></div>
-                <input id="nmda-roster-enabled" type="checkbox" checked hidden>
-                <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
-                <input id="nmda-roster-strict" type="checkbox" hidden>
-                <div id="nmda-roster-audit-summary" class="nmda-ingest-health"></div>
-                <div id="nmda-roster-audit-note" class="nmda-review-guidance"></div>
-                <details class="nmda-roster-details"><summary>查看核验详情</summary><div id="nmda-roster-audit-details" class="nmda-roster-audit-details"></div></details>
-              </div>
 
             </div>
 
@@ -1125,6 +1124,7 @@
     if (!guides.length || typeof batch === 'undefined') return;
     const hasSource = !!batch.dataset;
     const attachmentIssues=hasSource && typeof importAttachmentStats==='function' ? Number(importAttachmentStats().issues||0) : 0;
+    const duplicateIssues=hasSource && typeof unresolvedDuplicateGroupCount==='function' ? Number(unresolvedDuplicateGroupCount()||0) : 0;
     let review = 0, other = 0;
     for (const task of (batch.tasks || [])) {
       if (hasSource && typeof taskNeedsImportReview === 'function' && taskNeedsImportReview(task)) review++;
@@ -1144,8 +1144,8 @@
         const step = Number(button.dataset.flowStep || 0);
         const access=processStepAccess(step);
         let state='ready';
-        if(step===1) state=hasSource&&!contextPending&&!attachmentIssues?'done':'ready';
-        else if(step===2) state=hasSource&&!blockers?'done':'ready';
+        if(step===1) state=hasSource&&!contextPending&&!attachmentIssues&&!duplicateIssues?'done':'ready';
+        else if(step===2) state=hasSource&&!duplicateIssues&&!blockers?'done':'ready';
         button.dataset.state=state;
         button.classList.toggle('is-viewing',step===viewing);
         button.setAttribute('aria-current',step===viewing?'step':'false');
@@ -1154,8 +1154,8 @@
         if(access.reason)button.title=`可查看 · ${access.reason}`;else button.removeAttribute('title');
         const small=button.querySelector('small');
         if(!small) return;
-        if(step===1) small.textContent=!hasSource?'先导入资料':contextPending?'完成导入核对':attachmentIssues?`附件待处理 ${attachmentIssues} 项`:'导入准备已完成';
-        if(step===2) small.textContent=!hasSource?'添加资料后审阅':contextPending||attachmentIssues?'先完成导入准备':blockers?`${blockers} 项待审阅`:'审阅完成';
+        if(step===1) small.textContent=!hasSource?'先导入资料':contextPending?'完成导入核对':attachmentIssues?`附件待处理 ${attachmentIssues} 项`:duplicateIssues?`查重待处理 ${duplicateIssues} 组`:'导入准备已完成';
+        if(step===2) small.textContent=!hasSource?'添加资料后审阅':contextPending||attachmentIssues?'先完成导入准备':duplicateIssues?'先完成导入查重':blockers?`${blockers} 项待审阅`:'审阅完成';
       });
     });
     syncStageSurfaceVisibility(viewing);
@@ -1183,6 +1183,14 @@
       if(batch.attachmentManagerOpen)closeAttachmentManager();
     }
     if(n!==2 && reviewInlineEl && !reviewInlineEl.hidden){stashCurrentReviewDraft();closeImportTaskEditor();hideReviewWorkspaceWithoutStash();}
+    if(n===2 && unresolvedDuplicateGroupCount()>0){
+      batch.uiStep=1;
+      renderProcessGuide();
+      renderRosterAudit();
+      setImportStatus(`导入查重还有 ${unresolvedDuplicateGroupCount()} 组未处理；先决定保留版本，再进入邮件审阅。`,'warn');
+      requestAnimationFrame(()=>$('nmda-roster-audit-card')?.scrollIntoView?.({block:'nearest',behavior:'smooth'}));
+      return false;
+    }
     batch.uiStep=n;
     renderProcessGuide();
     if(options.syncHash!==false)syncBatchStageHash(n);
@@ -2150,6 +2158,13 @@
       openAttachmentManager();
       return;
     }
+    const duplicatePending=unresolvedDuplicateGroupCount();
+    if(duplicatePending){
+      batch.uiStep=1;renderProcessGuide();renderRosterAudit();
+      setImportStatus(`文件分类已完成；发现 ${duplicatePending} 组重复，请在导入查重中先决定保留版本。`,'warn');
+      requestAnimationFrame(()=>$('nmda-roster-audit-card')?.scrollIntoView?.({block:'nearest',behavior:'smooth'}));
+      return;
+    }
     batch.uiStep=1;
     renderProcessGuide();
     const missingCount=missingSubjectTasks().length;
@@ -2511,11 +2526,6 @@
       }
     }
     if (task?.reviewDraftPending && !out.includes('修改待确认')) out.push('修改待确认');
-    const duplicateConfirmed=new Set(task?.duplicateConfirmedGroups||[]);
-    for(const item of task?.duplicateIssues||[]){
-      const id=String(item?.id||''),message=String(item?.message||item||'');
-      if(message && (!id || !duplicateConfirmed.has(id)) && !out.includes(message))out.push(message);
-    }
     if (!task?.rosterConfirmed) for (const issue of task?.rosterIssues || []) if (!out.includes(issue)) out.push(issue);
     return out;
   }
@@ -2556,7 +2566,6 @@
     const ids=new Set(task.duplicateGroupIds||[]);
     return (batch.duplicateAudit?.groups||[]).filter(group=>ids.has(group.id)&&!confirmed.has(group.id));
   }
-  function taskHasUnresolvedDuplicate(task) { return unresolvedDuplicateGroups(task).length>0; }
   function taskNeedsExplicitConfirmation(task) {
     if(!task || task.importExcluded)return false;
     const issues=unresolvedImportIssues(task);
@@ -2564,7 +2573,7 @@
   }
   // Duplicate groups require an explicit group decision. They must never disappear through the
   // generic "confirm selected" path, otherwise users can accidentally keep every duplicate.
-  function taskCanBatchConfirm(task) { return taskCoreValid(task) && taskNeedsExplicitConfirmation(task) && !taskHasUnresolvedDuplicate(task); }
+  function taskCanBatchConfirm(task) { return taskCoreValid(task) && taskNeedsExplicitConfirmation(task); }
   function taskHasBlockingIssue(task) {
     if(!task || task.importExcluded || task.policyBlocked)return false;
     const state=taskIssueState(task);
@@ -2594,10 +2603,9 @@
     const issues=unresolvedImportIssues(task);
     if(issues.some(issue=>/收件人|邮箱/.test(issue)))return 0;
     if(issues.some(issue=>/缺少主题|主题为空|Subject|缺少正文/.test(issue)))return 1;
-    if(issues.some(issue=>/^当前批次(?:疑似)?重复：/.test(issue)))return 2;
-    if(issues.some(issue=>/总名单|联系人|院校/.test(issue)))return 3;
-    if(issues.some(issue=>/边界|称呼|落款|置信度|请检查/.test(issue)))return 4;
-    return 5;
+    if(issues.some(issue=>/总名单|联系人|院校/.test(issue)))return 2;
+    if(issues.some(issue=>/边界|称呼|落款|置信度|请检查/.test(issue)))return 3;
+    return 4;
   }
 
   function reviewTasks() {
@@ -2612,7 +2620,6 @@
       scoped=tasks.filter(task=>{
         const visual=reviewVisualState(task);
         if(filter==='pending')return visual.key==='action';
-        if(filter==='decision')return visual.key==='decision';
         if(filter==='confirmed')return visual.key==='confirmed';
         if(filter==='auto')return visual.key==='auto';
         return true;
@@ -2733,7 +2740,6 @@
       const mode=importEditorOverlayEl?.dataset.mode||'audit';
       const correctionMode=mode==='correction';
       const directMode=mode==='direct';
-      const duplicateActive=importEditorOverlayEl?.classList.contains('has-duplicate-decision');
       if(correctionMode||directMode){
         importEditBodyEl.style.height='auto';
         const minimum=directMode?130:280;
@@ -2862,10 +2868,6 @@
     return [...(group?.tasks||[])].sort((a,b)=>duplicateCandidateScore(b)-duplicateCandidateScore(a) || String(a.editKey).localeCompare(String(b.editKey)))[0]||null;
   }
 
-  function duplicateDecisionGroup(task) {
-    return unresolvedDuplicateGroups(task)[0]||null;
-  }
-
   function duplicateCandidateMeta(task) {
     const bits=[];
     if(task.sourceFile)bits.push(`来源 ${task.sourceFile}`);
@@ -2877,7 +2879,6 @@
 
   function reviewIssueLabel(issue) {
     const text=String(issue||'');
-    if(/^当前批次(?:疑似)?重复：/.test(text))return '重复/冲突';
     if(/收件人存在多个|多个相近候选/.test(text))return '收件人待核对';
     if(/未定位收件人|收件人邮箱|缺少收件人/.test(text))return '缺收件人';
     if(/主题为空|未找到 Subject|缺少主题/.test(text))return '缺主题';
@@ -2889,39 +2890,53 @@
 
   function primaryReviewIssue(task){
     const issues=unresolvedImportIssues(task);
-    const patterns=[/收件人存在多个|多个相近候选/,/未定位收件人|收件人邮箱|缺少收件人/,/主题为空|未找到 Subject|缺少主题/,/缺少正文|正文过短/,/^当前批次(?:疑似)?重复：/,/总名单|联系人|院校/,/邮件落款后|邮件边界|称呼|落款|置信度|请检查/,/修改待确认/];
+    const patterns=[/收件人存在多个|多个相近候选/,/未定位收件人|收件人邮箱|缺少收件人/,/主题为空|未找到 Subject|缺少主题/,/缺少正文|正文过短/,/总名单|联系人|院校/,/邮件落款后|邮件边界|称呼|落款|置信度|请检查/,/修改待确认/];
     for(const pattern of patterns){const found=issues.find(issue=>pattern.test(String(issue||'')));if(found)return found;}
     return issues[0]||'';
   }
 
-  function renderDuplicateDecision(task) {
+  function unresolvedDuplicateAuditGroups() {
+    const seen=new Set(),groups=[];
+    for(const task of (batch.tasks||[])){
+      if(task?.importExcluded)continue;
+      for(const group of unresolvedDuplicateGroups(task)){
+        if(group?.id && !seen.has(group.id)){seen.add(group.id);groups.push(group);}
+      }
+    }
+    return groups;
+  }
+
+  function renderDuplicateDecision() {
     if(!duplicateDecisionEl||!duplicateCandidatesEl)return;
-    const group=duplicateDecisionGroup(task);
-    if(!group){duplicateDecisionEl.hidden=true;delete duplicateDecisionEl.dataset.groupId;importEditorOverlayEl?.classList.remove('has-duplicate-decision');return;}
+    const groups=unresolvedDuplicateAuditGroups();
+    const group=groups[0]||null;
+    const stateEl=$('nmda-import-dedupe-state');
+    if(stateEl)stateEl.textContent=group?`${groups.length} 组待处理`:'查重完成';
+    if(!group){
+      duplicateDecisionEl.hidden=true;delete duplicateDecisionEl.dataset.groupId;
+      return;
+    }
     const recommended=recommendedDuplicateTask(group);
-    const validKeys=new Set((group.tasks||[]).map(item=>item.editKey));
+    const validKeys=new Set((group.tasks||[]).filter(item=>!item?.importExcluded).map(item=>item.editKey));
     const savedRaw=batch.duplicateSelections?.get?.(group.id);
     const savedList=Array.isArray(savedRaw)?savedRaw:(savedRaw?[savedRaw]:[]);
     const selectedKeys=new Set(savedList.filter(key=>validKeys.has(key)));
-    if(!selectedKeys.size){const fallback=recommended?.editKey||group.tasks?.[0]?.editKey||'';if(fallback)selectedKeys.add(fallback);}
+    if(!selectedKeys.size){const fallback=recommended?.editKey||[...validKeys][0]||'';if(fallback)selectedKeys.add(fallback);}
     if(batch.duplicateSelections instanceof Map)batch.duplicateSelections.set(group.id,[...selectedKeys]);
     if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.textContent=`保留所选（${selectedKeys.size}）`;
-    duplicateDecisionEl.hidden=false;
-    duplicateDecisionEl.dataset.groupId=group.id;
-    importEditorOverlayEl?.classList.add('has-duplicate-decision');
+    duplicateDecisionEl.hidden=false;duplicateDecisionEl.dataset.groupId=group.id;
     if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent=group.type==='exact-email'?'同一邮箱':'疑似同一联系人';duplicateDecisionKindEl.dataset.tone=group.type==='exact-email'?'strong':'soft';}
-    if(duplicateKeepAllEl)duplicateKeepAllEl.textContent=group.type==='exact-email'?'全部保留':'不是同一联系人，全部保留';
+    if(duplicateKeepAllEl)duplicateKeepAllEl.textContent=group.type==='exact-email'?'明确全部保留':'不是同一联系人，全部保留';
     if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent=group.type==='exact-email'
       ? `同一收件人有 ${group.tasks?.length||0} 封邮件`
       : `可能是同一联系人：${group.tasks?.length||0} 封邮件`;
     if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent=group.type==='exact-email'
-      ? `${group.email||group.label||'该收件人'}。下面已并排展示所有版本，请直接比较正文后勾选要创建的邮件。`
-      : `${group.label||'姓名与院校相同'}。下面已并排展示所有候选，请根据正文和收件人直接决定保留哪些。`;
-    const unresolvedCount=unresolvedDuplicateGroups(task).length;
-    if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=unresolvedCount>1
-      ? `此封邮件还涉及 ${unresolvedCount-1} 组重复；处理本组后会继续提示。`
-      : '默认勾选信息更完整的一封；你可以在同一视图里改成保留任意一封或多封。';
-    const compareTasks=group.tasks||[];
+      ? `${group.email||group.label||'该收件人'}。导入阶段先决定哪些版本真正进入本批次。`
+      : `${group.label||'姓名与院校相同'}。请根据收件人和正文确认是否属于同一联系人。`;
+    if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=groups.length>1
+      ? `当前还有 ${groups.length} 组待处理；确认本组后自动显示下一组。`
+      : '这是最后一组；确认后即可进入邮件审阅。';
+    const compareTasks=(group.tasks||[]).filter(item=>!item?.importExcluded);
     duplicateCandidatesEl.dataset.count=String(compareTasks.length);
     duplicateCandidatesEl.innerHTML=compareTasks.map((candidate,index)=>{
       const isRecommended=candidate.editKey===recommended?.editKey;
@@ -2929,110 +2944,68 @@
       const body=String(candidate.body||'').trim();
       const title=String(candidate.subject||candidate.id||`邮件 ${index+1}`).trim()||`邮件 ${index+1}`;
       const recipient=String(candidate.recipients||'').trim()||'未填写收件人';
-      return `<article class="nmda-duplicate-candidate ${isSelected?'is-selected':''} ${candidate.editKey===task.editKey?'is-current':''}" data-duplicate-row="${escapeHtml(candidate.editKey)}">
+      return `<article class="nmda-duplicate-candidate ${isSelected?'is-selected':''}" data-duplicate-row="${escapeHtml(candidate.editKey)}">
         <label class="nmda-duplicate-pick-line"><input type="checkbox" data-duplicate-pick="${escapeHtml(candidate.editKey)}" ${isSelected?'checked':''}><span><strong>保留此封</strong><small>${escapeHtml(duplicateCandidateMeta(candidate))}</small></span></label>
-        <div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>${escapeHtml(title)}</strong>${isRecommended?'<em>信息更完整</em>':''}${candidate.editKey===task.editKey?'<small>正在编辑</small>':''}</div><span class="nmda-duplicate-preview-recipient">${escapeHtml(recipient)}</span></div>
+        <div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>${escapeHtml(title)}</strong>${isRecommended?'<em>信息更完整</em>':''}</div><span class="nmda-duplicate-preview-recipient">${escapeHtml(recipient)}</span></div>
         <div class="nmda-duplicate-preview-body"><pre>${escapeHtml(body||'正文为空')}</pre></div>
-        <button type="button" class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-duplicate-edit" data-duplicate-open="${escapeHtml(candidate.editKey)}">定位此版本</button>
       </article>`;
     }).join('');
   }
 
-  function returnToReviewOverviewAfterDuplicateDecision(summary='重复组已处理') {
-    batch.reviewFilter='all';
-    if(duplicateDecisionEl){duplicateDecisionEl.hidden=true;delete duplicateDecisionEl.dataset.groupId;}
-    if(importEditorOverlayEl){
-      importEditorOverlayEl.hidden=true;
-      importEditorOverlayEl.setAttribute('aria-hidden','true');
-      importEditorOverlayEl.classList.remove('has-duplicate-decision');
-      delete importEditorOverlayEl.dataset.editKey;
-      delete importEditorOverlayEl.dataset.mode;
-    }
-    if(reviewInlineEl)reviewInlineEl.hidden=false;
-    renderReviewPageOverview();
-    renderReviewQueue('');
-    renderReviewBatchActions();
-    syncModalState();
-    if(reviewQueueEl)reviewQueueEl.scrollTop=0;
-    requestAnimationFrame(()=>reviewInlineEl?.scrollIntoView?.({block:'start',behavior:'smooth'}));
-    setImportStatus(`${summary}。已返回邮件审阅总览。`,'ok');
+  function finishImportDuplicateDecision(summary='导入查重已更新') {
+    batch.reviewSelected?.clear?.();
+    rebuildTasks();
+    renderImportTaskPreview();renderImportHandoff();renderRosterAudit();renderProcessGuide();
+    const remaining=unresolvedDuplicateGroupCount();
+    setImportStatus(remaining?`${summary}；还有 ${remaining} 组重复待处理。`:`${summary}；导入查重完成，可以进入邮件审阅。`,remaining?'warn':'ok');
   }
 
   async function keepSelectedDuplicateCandidate() {
-    const groupId=duplicateDecisionEl?.dataset.groupId||'';
-    if(!groupId)return;
+    const groupId=duplicateDecisionEl?.dataset.groupId||'';if(!groupId)return;
     const selectedKeys=[...(duplicateCandidatesEl?.querySelectorAll('input[data-duplicate-pick]:checked')||[])].map(input=>input.dataset.duplicatePick).filter(Boolean);
-    if(!selectedKeys.length){if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent='至少保留一封邮件；如本组全部不需要，请逐封排除或返回修改身份信息。';return;}
-    const selectedSet=new Set(selectedKeys);
-    const activeKey=importEditorOverlayEl?.dataset.editKey||'';
-    stashCurrentReviewDraft();
-    rebuildTasks();
+    if(!selectedKeys.length){if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent='至少保留一封；如果本组都不需要，请回到来源分类中移除相应邮件。';return;}
     const group=(batch.duplicateAudit?.groups||[]).find(item=>item.id===groupId);
-    if(!group){
-      returnToReviewOverviewAfterDuplicateDecision('重复信息已变化，已重新核验');
-      await continueAfterReviewResolution('重复信息已重新核验');
-      return;
-    }
-    const retained=(group.tasks||[]).filter(item=>selectedSet.has(item.editKey));
-    if(!retained.length)return;
+    if(!group){finishImportDuplicateDecision('重复信息已变化，已重新核验');return;}
+    const selectedSet=new Set(selectedKeys),retained=(group.tasks||[]).filter(item=>selectedSet.has(item.editKey));
     for(const candidate of group.tasks||[]){
       if(selectedSet.has(candidate.editKey)){
         const prev=batch.taskEdits.get(candidate.editKey)||{};
-        setTaskEdit(candidate,{duplicateConfirmedGroups:[...new Set([...(prev.duplicateConfirmedGroups||[]),groupId])]});
+        setTaskEdit(candidate,{duplicateConfirmedGroups:[...new Set([...(prev.duplicateConfirmedGroups||[]),groupId])],importExcluded:false});
       }else setTaskEdit(candidate,{importExcluded:true});
     }
     batch.duplicateSelections?.delete?.(groupId);
-    batch.reviewSelected?.clear?.();
-    rebuildTasks();
-    renderImportTaskPreview();renderImportHandoff();renderRosterAudit();
-    const excludedCount=Math.max(0,(group.tasks?.length||0)-retained.length);
-    const decisionSummary=`重复组已处理：保留 ${retained.length} 封${excludedCount?`，排除 ${excludedCount} 封`:''}`;
-    returnToReviewOverviewAfterDuplicateDecision(decisionSummary);
-    await continueAfterReviewResolution(decisionSummary);
+    const excluded=Math.max(0,(group.tasks?.length||0)-retained.length);
+    finishImportDuplicateDecision(`已保留 ${retained.length} 封${excluded?`，排除 ${excluded} 封重复版本`:''}`);
   }
 
   async function keepAllDuplicateCandidates() {
-    const groupId=duplicateDecisionEl?.dataset.groupId||'';
-    if(!groupId)return;
-    stashCurrentReviewDraft();
-    rebuildTasks();
+    const groupId=duplicateDecisionEl?.dataset.groupId||'';if(!groupId)return;
     const group=(batch.duplicateAudit?.groups||[]).find(item=>item.id===groupId);
-    if(!group){
-      returnToReviewOverviewAfterDuplicateDecision('重复信息已变化，已重新核验');
-      await continueAfterReviewResolution('重复信息已重新核验');
-      return;
-    }
+    if(!group){finishImportDuplicateDecision('重复信息已变化，已重新核验');return;}
     for(const candidate of group.tasks||[]){
       const prev=batch.taskEdits.get(candidate.editKey)||{};
-      setTaskEdit(candidate,{duplicateConfirmedGroups:[...new Set([...(prev.duplicateConfirmedGroups||[]),groupId])]});
+      setTaskEdit(candidate,{duplicateConfirmedGroups:[...new Set([...(prev.duplicateConfirmedGroups||[]),groupId])],importExcluded:false});
     }
     batch.duplicateSelections?.delete?.(groupId);
-    batch.reviewSelected?.clear?.();
-    rebuildTasks();
-    renderImportTaskPreview();renderImportHandoff();renderRosterAudit();
-    const decisionSummary=`已明确保留该组 ${group.tasks?.length||0} 封邮件（有意重复）`;
-    returnToReviewOverviewAfterDuplicateDecision(decisionSummary);
-    await continueAfterReviewResolution(decisionSummary);
+    finishImportDuplicateDecision(`已明确保留该组 ${group.tasks?.length||0} 封邮件`);
   }
 
   function renderReviewPageOverview() {
     const tasks=(batch.tasks||[]).filter(task=>!task?.importExcluded);
-    let checked=0,decisionTaskCount=0,actionCount=0,autoPassed=0;
+    let checked=0,actionCount=0,autoPassed=0;
     for(const task of tasks){
       const visual=reviewVisualState(task);
-      if(visual.key==='decision')decisionTaskCount++;
-      else if(visual.key==='action')actionCount++;
+      if(visual.key==='action')actionCount++;
       else if(visual.key==='confirmed')checked++;
       else autoPassed++;
     }
-    const decisionCount=unresolvedDuplicateGroupCount();
-    const pendingCount=actionCount+decisionCount;
+    const pendingCount=actionCount;
     if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='邮件审阅';
     if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=pendingCount
-      ? '核对缺失字段与重复版本；最后一个问题处理完成后会进入“选择与排期”。'
+      ? '核对缺失字段与内容识别；最后一个问题处理完成后会进入“选择与排期”。'
       : '邮件内容已通过；可继续抽查，或直接进入“选择与排期”。';
     if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
-    const reviewCounts={all:tasks.length,auto:autoPassed,pending:actionCount,decision:decisionCount,confirmed:checked};
+    const reviewCounts={all:tasks.length,auto:autoPassed,pending:actionCount,confirmed:checked};
     ui.querySelectorAll('#nmda-review-filter [data-review-filter]').forEach(button=>{
       const key=button.dataset.reviewFilter||'all';
       const value=Number(reviewCounts[key]||0);
@@ -3063,6 +3036,12 @@
   }
 
   function openReviewWorkspace(options = {}) {
+    if(unresolvedDuplicateGroupCount()>0){
+      batch.uiStep=1;renderProcessGuide();renderRosterAudit();
+      setImportStatus(`导入查重还有 ${unresolvedDuplicateGroupCount()} 组未处理；先完成查重。`,'warn');
+      requestAnimationFrame(()=>$('nmda-roster-audit-card')?.scrollIntoView?.({block:'nearest',behavior:'smooth'}));
+      return;
+    }
     const requestedReturn=Number(options.returnStep || 2);
     batch.reviewReturnStep=requestedReturn;
     batch.uiStep=2;
@@ -3083,13 +3062,18 @@
   function hideReviewWorkspaceWithoutStash() {
     hideSubjectAssist();
     reviewInlineEl?.closest('.nmda-bulk-workbench')?.classList.remove('is-review-focus');
-    if(duplicateDecisionEl){duplicateDecisionEl.hidden=true;delete duplicateDecisionEl.dataset.groupId;}
     if(reviewInlineEl)reviewInlineEl.hidden=true;
     if(importEditorOverlayEl){importEditorOverlayEl.hidden=true;delete importEditorOverlayEl.dataset.editKey;}
   }
 
   async function enterSelectionAndSchedule(reason='检查完成') {
     if(!batch.dataset || !batch.tasks?.length || batch.running || batch.autoAdvancing)return false;
+    const duplicatePending=unresolvedDuplicateGroupCount();
+    if(duplicatePending){
+      batch.uiStep=1;renderProcessGuide();renderRosterAudit();
+      setImportStatus(`导入查重还有 ${duplicatePending} 组未处理；不能进入选择与排期。`,'warn');
+      return false;
+    }
     if((batch.tasks||[]).some(taskHasPrePlanningBlocker))return false;
     const attachmentIssues=typeof importAttachmentStats==='function'?importAttachmentStats().issues:0;
     if(attachmentIssues){
@@ -3203,53 +3187,14 @@
 
   function reviewVisualState(task) {
     const issues=unresolvedImportIssues(task);
-    const duplicate=taskHasUnresolvedDuplicate(task);
     const direct=directCorrectionFields(task);
-    if(duplicate)return {key:'decision',label:'重复组',detail:'比较版本后一次取舍',icon:'◆',issues};
     if(direct.length)return {key:'action',label:'信息缺失',detail:'点击后直接补齐',icon:'!',issues,direct};
     if(issues.length)return {key:'action',label:'需核对',detail:'点击审阅完整邮件',icon:'!',issues,direct:[]};
     if(task.reviewConfirmed||task.rosterConfirmed)return {key:'confirmed',label:'已确认',detail:'已人工审阅',icon:'✓',issues:[]};
     return {key:'auto',label:'自动通过',detail:'识别完整',icon:'✓',issues:[]};
   }
 
-  function reviewQueueItems(tasks=[]) {
-    const items=[];
-    const seenGroups=new Set();
-    for(const task of tasks){
-      const group=duplicateDecisionGroup(task);
-      if(group?.id){
-        if(seenGroups.has(group.id))continue;
-        seenGroups.add(group.id);
-        const members=(group.tasks||[]).filter(item=>!item?.importExcluded);
-        const representative=members.find(item=>item.editKey===task.editKey)||members[0]||task;
-        items.push({kind:'duplicate',task:representative,group,members});
-      }else items.push({kind:'mail',task});
-    }
-    return items;
-  }
-
-  function duplicateBoardCard(item,index,activeKey='') {
-    const {task,group,members=[]}=item;
-    const recommended=recommendedDuplicateTask(group);
-    const exact=group?.type==='exact-email';
-    const groupLabel=exact?(group.email||group.label||'同一收件人'):(group.label||'疑似同一联系人');
-    const samples=members.slice(0,2).map((candidate,i)=>{
-      const subject=String(candidate.subject||'未识别主题').trim()||'未识别主题';
-      const recipient=String(candidate.recipients||'').trim()||'未识别收件人';
-      const isRecommended=candidate.editKey===recommended?.editKey;
-      return `<span class="nmda-duplicate-stack-line ${isRecommended?'is-recommended':''}"><i>${String(i+1).padStart(2,'0')}</i><b>${escapeHtml(subject)}</b><small>${escapeHtml(recipient)}</small></span>`;
-    }).join('');
-    const extra=Math.max(0,members.length-2);
-    const active=members.some(candidate=>candidate.editKey===activeKey);
-    return `<article class="nmda-mail-review-card nmda-duplicate-stack-card ${active?'is-active':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="decision" data-duplicate-group="${escapeHtml(group?.id||'')}">
-      <span class="nmda-duplicate-stack-sheet sheet-a" aria-hidden="true"></span><span class="nmda-duplicate-stack-sheet sheet-b" aria-hidden="true"></span>
-      <button class="nmda-duplicate-stack-main" type="button" data-review-key="${escapeHtml(task.editKey)}" aria-label="比较重复邮件组 ${escapeHtml(groupLabel)}">
-        <span class="nmda-duplicate-stack-head"><span class="nmda-mail-state-shape" aria-hidden="true">◆</span><span><strong>${escapeHtml(exact?'同一收件人 · 多个版本':'疑似同一联系人')}</strong><small>${escapeHtml(groupLabel)}</small></span><em>${members.length} 封</em></span>
-        <span class="nmda-duplicate-stack-list">${samples}${extra?`<span class="nmda-duplicate-stack-more">+${extra} 个版本</span>`:''}</span>
-        <span class="nmda-duplicate-stack-foot"><small>${recommended?'已标记信息更完整版本':'需要人工比较'}</small><strong>比较并取舍 <i>→</i></strong></span>
-      </button>
-    </article>`;
-  }
+  function reviewQueueItems(tasks=[]) { return (tasks||[]).map(task=>({kind:'mail',task})); }
 
   function renderReviewQueue(activeKey='',options={}) {
     if(!reviewQueueEl)return;
@@ -3263,7 +3208,6 @@
     const pendingUnits=reviewQueueItems(reviewTasks()).length;
     if(reviewProgressEl) reviewProgressEl.textContent=pendingUnits?`${pendingUnits} 项待处理`:'没有待处理邮件';
     reviewQueueEl.innerHTML=list.length?list.map((item,index)=>{
-      if(item.kind==='duplicate')return duplicateBoardCard(item,index,activeKey);
       const task=item.task;
       const visual=reviewVisualState(task);
       const pending=visual.issues.length>0;
@@ -3288,7 +3232,7 @@
           <span class="nmda-mail-card-open">${openLabel} <i>→</i></span>
         </button>
       </article>`;
-    }).join(''):`<div class="nmda-review-empty">${batch.reviewFilter==='pending'?'当前没有需要人工处理的邮件。':batch.reviewFilter==='decision'?'当前没有冲突或重复邮件。':'当前没有可查看的邮件。'}</div>`;
+    }).join(''):`<div class="nmda-review-empty">${batch.reviewFilter==='pending'?'当前没有需要人工处理的邮件。':'当前没有可查看的邮件。'}</div>`;
     if(allItems.length>list.length)reviewQueueEl.insertAdjacentHTML('beforeend',`<button type="button" class="nmda-review-load-more" data-review-load-more><span>已显示 ${list.length} / ${allItems.length}</span><small>继续向下滚动自动加载</small></button>`);
     renderReviewBatchActions();
     const visible=reviewVisibleTasks().filter(taskCanBatchConfirm);const allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
@@ -3452,18 +3396,17 @@
     if(mode===false)mode='audit';
     mode=['audit','correction','direct'].includes(mode)?mode:'audit';
     const audit=$('nmda-review-audit-view'),panel=$('nmda-review-correction-panel'),back=$('nmda-review-back-audit'),correct=$('nmda-review-correct');
-    const duplicate=!!task&&taskHasUnresolvedDuplicate(task);
-    const direct=mode==='direct'&&!duplicate;
-    const correction=mode==='correction'&&!duplicate;
+    const direct=mode==='direct';
+    const correction=mode==='correction';
     const fields=directCorrectionFields(task);
     if(importEditorOverlayEl){
-      importEditorOverlayEl.dataset.mode=duplicate?'decision':mode;
+      importEditorOverlayEl.dataset.mode=mode;
       importEditorOverlayEl.classList.toggle('is-direct-correction',direct);
     }
-    if(audit)audit.hidden=duplicate||correction;
-    if(panel)panel.hidden=duplicate||(!correction&&!direct);
-    if(back)back.hidden=duplicate||!correction;
-    if(correct)correct.hidden=duplicate||correction||direct;
+    if(audit)audit.hidden=correction||direct;
+    if(panel)panel.hidden=!correction&&!direct;
+    if(back)back.hidden=!correction;
+    if(correct)correct.hidden=correction||direct;
     const fieldMap={recipients:$('nmda-review-field-recipients'),subject:$('nmda-review-field-subject'),body:$('nmda-review-field-body')};
     for(const [key,el] of Object.entries(fieldMap)){if(el)el.hidden=direct&&!fields.includes(key);}
     const assist=$('nmda-subject-assist');
@@ -3554,7 +3497,6 @@
   }
 
   function updateReviewConfirmationControls(task) {
-    const duplicateActive=!!task&&taskHasUnresolvedDuplicate(task);
     const mode=importEditorOverlayEl?.dataset.mode||'audit';
     const correctionMode=mode==='correction';
     const directMode=mode==='direct';
@@ -3563,11 +3505,11 @@
       ? recipientLooksValid(importEditRecipientsEl?.value||'') && !!String(importEditSubjectEl?.value||'').trim() && !!String(importEditBodyEl?.value||'').trim()
       : !!task&&taskCoreValid(task);
     const save=$('nmda-import-editor-save'), next=$('nmda-import-editor-next'), correct=$('nmda-review-correct'), back=$('nmda-review-back-audit');
-    if(reviewActionsEl)reviewActionsEl.hidden=duplicateActive;
-    if(save){save.hidden=duplicateActive;save.disabled=!coreValid;save.textContent=editing?'保存修正':'确认无误';}
-    if(next){next.hidden=duplicateActive;next.disabled=!coreValid;next.textContent=editing?'保存并下一项':'确认无误，下一封';}
-    if(correct){correct.hidden=duplicateActive||editing;correct.classList.toggle('nmda-btn-primary',!coreValid);}
-    if(back)back.hidden=duplicateActive||!correctionMode;
+    if(reviewActionsEl)reviewActionsEl.hidden=false;
+    if(save){save.hidden=false;save.disabled=!coreValid;save.textContent=editing?'保存修正':'确认无误';}
+    if(next){next.hidden=false;next.disabled=!coreValid;next.textContent=editing?'保存并下一项':'确认无误，下一封';}
+    if(correct){correct.hidden=editing;correct.classList.toggle('nmda-btn-primary',!coreValid);}
+    if(back)back.hidden=!correctionMode;
     const copy=reviewActionsEl?.querySelector('.nmda-review-action-copy');
     if(copy)copy.textContent=duplicateActive?'先完成重复邮件取舍。':directMode?'缺失项已直接展开；补齐后保存，系统会立即重新核验。':correctionMode?'修正后保存，再返回完整审阅结果。':coreValid?'重点核对开头称呼、结尾署名及邮件边界；确认无误后继续。':'识别到必填内容缺失，已直接展开可修正字段。';
   }
@@ -3583,7 +3525,6 @@
       if(shape)shape.textContent=issues.length?'!':'✓';
       reviewProblemSummaryEl.textContent=issues.length?(issues.every(issue=>issue==='修改待确认')?'修改已保留；请重新核对完整邮件后确认。':`识别提示：${labels.join(' · ')}`):'自动识别未发现明显问题；重点核对开头称呼与结尾署名。';
     }
-    renderDuplicateDecision(task);
     updateReviewConfirmationControls(task);
   }
 
@@ -3708,6 +3649,12 @@
     const coreValid=recipientLooksValid(recipients)&&!!subject&&!!String(body||'').trim();
     stashCurrentReviewDraft();
     rebuildTasks();
+    if(unresolvedDuplicateGroupCount()>0){
+      closeImportTaskEditor();hideReviewWorkspaceWithoutStash();batch.uiStep=1;renderProcessGuide();renderRosterAudit();
+      setImportStatus('邮件修改改变了查重结果；请先回到导入查重处理新的重复关系。','warn');
+      requestAnimationFrame(()=>$('nmda-roster-audit-card')?.scrollIntoView?.({block:'nearest',behavior:'smooth'}));
+      return;
+    }
     let current=(batch.tasks||[]).find(t=>t.editKey===key);
 
     // Deterministic gaps are a repair operation, not a human approval shortcut.
@@ -4176,10 +4123,10 @@
     const duplicateAudit=batch.duplicateAudit || Roster?.auditTaskDuplicates?.(tasks) || {groups:[],summary:{tasks:tasks.length,groups:0,exact:0,probable:0,affectedTasks:0}};
     const history=operationHistoryAudit(tasks);
     const rosterAudit=state.entries.length ? (state.audit || (Roster&&tasks.length?Roster.crossCheck(tasks,state.entries):null)) : null;
-    const dx=duplicateAudit.summary||{};
+    const dx=duplicateAudit.summary||{},pendingDuplicates=unresolvedDuplicateGroupCount();
     const metrics=[];
     if(tasks.length)metrics.push(`<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>当前邮件</span></div>`);
-    metrics.push(`<div class="nmda-import-metric ${dx.groups?'is-warn':''}"><strong>${dx.groups||0}</strong><span>批次重复</span></div>`);
+    metrics.push(`<div class="nmda-import-metric ${pendingDuplicates?'is-warn':''}"><strong>${pendingDuplicates}</strong><span>待处理重复</span></div>`);
     if(history.loaded&&history.affectedTasks)metrics.push(`<div class="nmda-import-metric"><strong>${history.affectedTasks}</strong><span>已有记录</span></div>`);
     if(state.entries.length)metrics.push(`<div class="nmda-import-metric"><strong>${state.entries.length}</strong><span>参考名单</span></div>`);
     if(rosterAudit){
@@ -4192,9 +4139,10 @@
 
     if(note){
       const parts=[];
-      if(dx.groups)parts.push(`发现 <strong>${dx.groups}</strong> 组当前批次重复，请在“检查邮件”中选择保留版本；需要多封时可明确“全部保留”`);
-      else if(tasks.length)parts.push('当前批次未发现重复任务；无需总名单也会自动完成这一步');
-      if(history.loaded&&history.affectedTasks)parts.push(`<strong>${history.affectedTasks}</strong> 封任务命中历史发送或草稿记录，仅作提醒`);
+      if(pendingDuplicates)parts.push(`发现 <strong>${pendingDuplicates}</strong> 组当前批次重复，请在导入阶段先决定实际保留版本`);
+      else if(dx.groups)parts.push(`本批次发现过 <strong>${dx.groups}</strong> 组重复，当前已全部处理`);
+      else if(tasks.length)parts.push('当前批次未发现重复任务');
+      if(history.loaded&&history.affectedTasks)parts.push(`<strong>${history.affectedTasks}</strong> 封任务命中历史发送或草稿记录；历史命中用于提醒，不替代当前批次取舍`);
       if(rosterAudit){
         const x=rosterAudit.summary||{};
         const rosterParts=[];
@@ -4237,6 +4185,7 @@
       }
       details.innerHTML=html;
     }
+    renderDuplicateDecision();
   }
 
   async function loadRosterFiles(files){
@@ -5357,7 +5306,7 @@
 
   $('nmda-review-next-pending')?.addEventListener('click',()=>openNextReviewTask());
   ui.querySelectorAll('[data-review-filter]').forEach(button=>button.addEventListener('click',()=>{
-    batch.reviewFilter=['all','auto','pending','decision','confirmed'].includes(button.dataset.reviewFilter)?button.dataset.reviewFilter:'all';
+    batch.reviewFilter=['all','auto','pending','confirmed'].includes(button.dataset.reviewFilter)?button.dataset.reviewFilter:'all';
     viewPerf.reviewRenderLimit=REVIEW_RENDER_CHUNK;
     if(reviewQueueEl)reviewQueueEl.scrollTop=0;
     const currentKey=importEditorOverlayEl?.dataset.editKey||'';
@@ -5381,12 +5330,6 @@
     duplicateCandidatesEl.querySelectorAll('[data-duplicate-row]').forEach(row=>row.classList.toggle('is-selected',selected.includes(row.dataset.duplicateRow)));
     if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.textContent=`保留所选（${selected.length}）`;
     if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=selected.length?'未勾选的邮件将在确认后排除。':'至少保留一封；当前尚未选择任何邮件。';
-  });
-  duplicateCandidatesEl?.addEventListener('click',event=>{
-    const button=event.target?.closest?.('[data-duplicate-open]');if(!button)return;
-    const key=button.dataset.duplicateOpen||'';const groupId=duplicateDecisionEl?.dataset.groupId||'';
-    if(groupId&&batch.duplicateSelections instanceof Map){const selected=[...duplicateCandidatesEl.querySelectorAll('input[data-duplicate-pick]:checked')].map(item=>item.dataset.duplicatePick).filter(Boolean);if(selected.length)batch.duplicateSelections.set(groupId,selected);}
-    stashCurrentReviewDraft();rebuildTasks();const target=(batch.tasks||[]).find(item=>item.editKey===key);if(target)openImportTaskEditor(target);
   });
   $('nmda-duplicate-keep-selected')?.addEventListener('click',()=>void keepSelectedDuplicateCandidate());
   $('nmda-duplicate-keep-all')?.addEventListener('click',()=>void keepAllDuplicateCandidates());

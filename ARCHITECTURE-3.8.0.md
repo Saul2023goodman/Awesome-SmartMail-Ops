@@ -46,3 +46,12 @@ This is the only user-facing execution module.
 - Mail Monitoring continues to record mailbox facts even when Follow-up is paused.
 - The operator controls Follow-up policy and exceptions, not whether an already-read Sent message is observed.
 - The old manual adoption / unmonitored-outbound UI path has been removed.
+
+
+## v3.8.3 Import owns duplicate verification
+
+Duplicate verification is an intake/data-quality responsibility rather than a message-content review responsibility. The batch path is now:
+
+`sources → classification/normalization → duplicate verification → clean tasks → mail review → dispatch`
+
+Current-batch duplicate decisions are blocking at Import. Historical mailbox hits are evidence and warnings only. Mail Review no longer contains a duplicate decision mode.

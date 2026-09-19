@@ -1742,8 +1742,7 @@ html.nmda-app-document body.nmda-app-body {
   display:grid !important;
 }
 #nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="1"] #nmda-ingest-result-card,
-#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="1"] #nmda-inline-review,
-#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="1"] #nmda-roster-audit-card { display:none !important; }
+#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="1"] #nmda-inline-review { display:none !important; }
 
 #nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="2"] .nmda-ingest-workspace-v2 {
   display:grid !important;
@@ -1758,11 +1757,6 @@ html.nmda-app-document body.nmda-app-body {
   min-height:0;
   overflow-y:auto !important;
   overscroll-behavior:contain;
-}
-#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="2"] #nmda-roster-audit-card:not([hidden]) {
-  grid-row:2;
-  max-height:190px;
-  overflow:hidden !important;
 }
 #nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="2"] .nmda-ingest-workspace-v2:has(#nmda-inline-review:not([hidden])) {
   grid-template-rows:minmax(0,1fr) !important;

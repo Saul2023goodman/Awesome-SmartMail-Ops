@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.2",
-  "description": "SmartMail Ops — manual mailbox reads, automatic sent-mail monitoring, compact Follow-up rules, and unified Selection & Scheduling for initial mail and Follow-up.",
+  "version": "3.8.3",
+  "description": "SmartMail Ops — import-time duplicate verification, content review, manual mailbox reads, Follow-up monitoring, and unified Selection & Scheduling.",
   "permissions": [
     "storage",
     "scripting",

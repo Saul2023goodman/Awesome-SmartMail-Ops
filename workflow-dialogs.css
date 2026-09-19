@@ -1296,10 +1296,6 @@
   cursor:not-allowed;
 }
 
-/* Duplicate comparison remains a special decision mode, not an editor. */
-#nmda-root.nmda-standalone #nmda-import-editor-overlay.has-duplicate-decision .nmda-review-audit-view,
-#nmda-root.nmda-standalone #nmda-import-editor-overlay.has-duplicate-decision .nmda-review-correction-panel { display:none !important; }
-
 @media (max-width:1220px) {
   #nmda-root.nmda-standalone .nmda-inline-review-top { grid-template-columns:minmax(190px,.65fr) minmax(430px,1.6fr) auto !important; }
   #nmda-root.nmda-standalone .nmda-review-page-summary .nmda-review-metric { padding:6px 7px !important; }
@@ -1419,106 +1415,6 @@
   box-shadow:0 0 0 2px rgba(232,162,58,.08) !important;
   background:#fffdf8 !important;
 }
-
-/* v2.7 — duplicate groups become one safe, stacked decision card instead of repeated mail cards. */
-.nmda-duplicate-stack-card {
-  position:relative;
-  height:144px;
-  min-height:144px;
-  padding:7px 9px 8px 8px;
-  overflow:hidden;
-  border-color:#cfb9e6 !important;
-  background:linear-gradient(145deg,#fbf7ff 0,#f7f0ff 45%,#fff 100%) !important;
-  isolation:isolate;
-}
-.nmda-duplicate-stack-card::before { width:5px !important; background:#8e69bd !important; z-index:5; }
-.nmda-duplicate-stack-sheet {
-  position:absolute;
-  pointer-events:none;
-  border:1px solid #ddcff0;
-  border-radius:11px;
-  background:#fff;
-  box-shadow:0 3px 8px rgba(80,54,110,.06);
-}
-.nmda-duplicate-stack-sheet.sheet-a { inset:13px 7px 5px 16px; transform:rotate(1.2deg); opacity:.72; z-index:0; }
-.nmda-duplicate-stack-sheet.sheet-b { inset:9px 11px 9px 12px; transform:rotate(-.7deg); opacity:.9; z-index:1; }
-.nmda-duplicate-stack-main {
-  position:relative;
-  z-index:2;
-  width:100%;
-  height:100%;
-  min-width:0;
-  display:grid;
-  grid-template-rows:auto minmax(0,1fr) auto;
-  gap:5px;
-  padding:8px 9px 7px 10px;
-  border:1px solid #cdb7e6;
-  border-radius:10px;
-  background:rgba(255,255,255,.96);
-  color:inherit;
-  text-align:left;
-  cursor:pointer;
-  box-shadow:0 4px 12px rgba(69,45,99,.08);
-}
-.nmda-duplicate-stack-main:hover { border-color:#a989cb; background:#fff; box-shadow:0 5px 14px rgba(69,45,99,.11); }
-.nmda-duplicate-stack-main:focus-visible { outline:2px solid #8a64b7; outline-offset:2px; }
-.nmda-duplicate-stack-head {
-  min-width:0;
-  display:grid;
-  grid-template-columns:24px minmax(0,1fr) auto;
-  align-items:center;
-  gap:7px;
-}
-.nmda-duplicate-stack-head > span:nth-child(2) { min-width:0; display:grid; gap:1px; }
-.nmda-duplicate-stack-head strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#54366f; font-size:9.6px; font-weight:840; }
-.nmda-duplicate-stack-head small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#806b93; font-size:8px; }
-.nmda-duplicate-stack-head em {
-  min-width:34px;
-  padding:3px 6px;
-  border-radius:999px;
-  background:#efe4fb;
-  color:#70499a;
-  font-size:8.2px;
-  font-style:normal;
-  font-weight:820;
-  text-align:center;
-}
-.nmda-duplicate-stack-list {
-  min-width:0;
-  display:grid;
-  align-content:start;
-  gap:3px;
-  overflow:hidden;
-}
-.nmda-duplicate-stack-line {
-  min-width:0;
-  min-height:20px;
-  display:grid;
-  grid-template-columns:19px minmax(0,.9fr) minmax(0,1fr);
-  align-items:center;
-  gap:5px;
-  padding:2px 5px;
-  border-radius:6px;
-  background:#faf7fd;
-}
-.nmda-duplicate-stack-line.is-recommended { background:#f3eafa; box-shadow:inset 2px 0 0 #9b74c5; }
-.nmda-duplicate-stack-line i { color:#9a87ad; font:800 7.4px/1 ui-monospace,SFMono-Regular,Menlo,monospace; font-style:normal; }
-.nmda-duplicate-stack-line b,
-.nmda-duplicate-stack-line small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.nmda-duplicate-stack-line b { color:#4f405d; font-size:8.2px; font-weight:760; }
-.nmda-duplicate-stack-line small { color:#8b7e98; font-size:7.5px; }
-.nmda-duplicate-stack-more { color:#82679b; font-size:7.7px; font-weight:720; padding-left:24px; }
-.nmda-duplicate-stack-foot {
-  min-width:0;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:7px;
-  padding-top:2px;
-}
-.nmda-duplicate-stack-foot small { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#8b7a98; font-size:7.7px; }
-.nmda-duplicate-stack-foot strong { flex:0 0 auto; color:#6c438f; font-size:8.7px; font-weight:830; }
-.nmda-duplicate-stack-foot i { font-style:normal; font-size:10px; }
 
 @media (max-width:680px) {
   #nmda-root.nmda-standalone #nmda-import-editor-overlay.is-direct-correction .nmda-review-core-fields { grid-template-columns:1fr !important; }

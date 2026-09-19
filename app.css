@@ -2120,10 +2120,6 @@
   overflow-y:auto !important;
   resize:vertical;
 }
-.nmda-review-workbench.has-duplicate-decision .nmda-review-core-fields textarea {
-  min-height:150px !important;
-  max-height:24vh !important;
-}
 .nmda-review-actions {
   position:sticky !important;
   bottom:0 !important;
@@ -2163,7 +2159,6 @@
   .nmda-inline-review-actions { align-items:flex-end; flex-direction:column; }
   .nmda-review-core-fields textarea { max-height:34vh !important; }
 }
-.nmda-review-workbench.has-duplicate-decision .nmda-review-actions { display:none !important; }
 /* v1.28.1 · Duplicate decisions keep their consequential action in view while comparing long groups. */
 .nmda-duplicate-decision { overflow:visible; }
 .nmda-duplicate-decision-head { border-radius:10px 10px 0 0; background:#fffaf7; }
@@ -2330,13 +2325,6 @@
 }
 .nmda-review-actions[hidden] { display:none !important; }
 .nmda-review-action-copy { color:#6e7781; font-size:9px; line-height:1.4; }
-.nmda-review-workbench.has-duplicate-decision .nmda-review-actions { display:none !important; }
-.nmda-review-workbench.has-duplicate-decision .nmda-review-edit-scroll { overflow:auto; }
-.nmda-review-workbench.has-duplicate-decision .nmda-duplicate-actions {
-  position:static !important;
-  bottom:auto !important;
-  box-shadow:none !important;
-}
 .nmda-review-core-fields textarea {
   min-height:260px !important;
   max-height:56vh !important;
@@ -2681,13 +2669,6 @@
 .nmda-review-actions[hidden] { display:none !important; }
 .nmda-review-action-copy { max-width:48%; color:#6e7781; font-size:8.5px; line-height:1.4; }
 .nmda-review-actions .nmda-row { flex:0 0 auto; }
-
-/* Duplicate decisions remain inside the document flow as the current task. */
-.nmda-review-workbench.has-duplicate-decision .nmda-duplicate-actions {
-  position:static !important;
-  inset:auto !important;
-  box-shadow:none !important;
-}
 
 @media (max-width:1180px) {
   .nmda-bulk-workbench.is-review-page-focus .nmda-review-layout { grid-template-columns:198px minmax(0,1fr) !important; }
@@ -5560,3 +5541,56 @@
 .nmda-followup-dialog{width:min(720px,calc(100vw - 32px))!important}.nmda-followup-dialog-body{display:grid;gap:10px;padding:12px 14px 14px;overflow:auto}.nmda-followup-parent{padding:9px 10px;border:1px solid #e0e6ed;border-radius:9px;background:#f8fafc}.nmda-followup-parent strong{display:block;font-size:8.5px;color:#2e3947}.nmda-followup-parent small{display:block;margin-top:3px;font-size:7.2px;color:#7f8a98}.nmda-followup-two-col{display:grid;grid-template-columns:170px minmax(0,1fr);gap:10px}.nmda-followup-body-field textarea{min-height:190px;resize:vertical}.nmda-followup-mode-note{padding:8px 9px;border-radius:8px;background:#f4f7fa;color:#657285;font-size:7.5px;line-height:1.55}.nmda-followup-mode-note[data-tone="warn"]{background:#fff8e8;color:#865b14}.nmda-followup-mode-note[data-tone="ok"]{background:#f1f9f3;color:#2b6a3d}
 @media(max-width:900px){.nmda-monitor-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.nmda-monitor-row{grid-template-columns:minmax(0,1fr) minmax(140px,.8fr) auto}.nmda-monitor-row-time{display:none}.nmda-monitor-policy-grid{grid-template-columns:1fr 1fr}.nmda-monitor-policy-action{align-items:center}.nmda-monitor-unlinked-row{grid-template-columns:minmax(0,1fr) 110px auto}.nmda-monitor-unlinked-row>div:nth-child(2){display:none}}
 @media(max-width:620px){.nmda-monitor-page{padding:10px}.nmda-monitor-toolbar,.nmda-monitor-filterbar{align-items:stretch;flex-direction:column}.nmda-monitor-search{width:100%}.nmda-monitor-filters{overflow:auto}.nmda-monitor-row{grid-template-columns:1fr}.nmda-monitor-row-state,.nmda-monitor-row-actions{justify-content:flex-start}.nmda-monitor-unlinked-row{grid-template-columns:1fr auto}.nmda-monitor-unlinked-row>small{display:none}.nmda-followup-two-col{grid-template-columns:1fr}}
+
+
+/* v3.8.3 · Duplicate verification belongs to Import, before mail review. */
+#nmda-root .nmda-import-dedupe-card {
+  display:grid;
+  gap:8px;
+  margin-top:2px;
+  padding:10px 11px;
+  border:1px solid #d9e1e8;
+  border-radius:10px;
+  background:#fbfcfe;
+  min-width:0;
+}
+#nmda-root .nmda-import-dedupe-card[hidden] { display:none !important; }
+#nmda-root .nmda-import-dedupe-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+#nmda-root .nmda-import-dedupe-head > div { display:flex; align-items:baseline; gap:8px; min-width:0; }
+#nmda-root .nmda-import-dedupe-head span { font-size:11px; font-weight:800; color:#66717f; }
+#nmda-root .nmda-import-dedupe-head strong { font-size:13px; color:#202a35; }
+#nmda-root .nmda-import-dedupe-head > small {
+  flex:0 0 auto;
+  font-size:11px;
+  font-weight:750;
+  color:#7b5b19;
+  background:#fff5d8;
+  border:1px solid #f0d894;
+  border-radius:999px;
+  padding:3px 8px;
+}
+#nmda-root .nmda-import-dedupe-card .nmda-ingest-health { margin:0; }
+#nmda-root .nmda-import-dedupe-card .nmda-review-guidance { margin:0; font-size:11px; line-height:1.5; }
+#nmda-root .nmda-import-duplicate-decision {
+  margin:0;
+  max-height:min(42vh,390px);
+  overflow:auto;
+  border-radius:9px;
+}
+#nmda-root .nmda-import-duplicate-decision .nmda-duplicate-decision-head strong { font-size:13px !important; }
+#nmda-root .nmda-import-duplicate-decision .nmda-duplicate-decision-head small { font-size:11px !important; }
+#nmda-root .nmda-import-duplicate-decision .nmda-duplicate-pick-line strong { font-size:11.5px !important; }
+#nmda-root .nmda-import-duplicate-decision .nmda-duplicate-pick-line small,
+#nmda-root .nmda-import-duplicate-decision .nmda-duplicate-preview-recipient { font-size:10.5px !important; }
+#nmda-root .nmda-import-duplicate-decision .nmda-duplicate-preview-body pre { font-size:11px !important; line-height:1.5 !important; }
+#nmda-root .nmda-import-dedupe-card .nmda-roster-details { margin:0; }
+#nmda-root .nmda-import-dedupe-card .nmda-roster-details > summary { font-size:10.5px; }
+#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="1"] #nmda-import-card[data-loaded="1"] {
+  overflow-y:auto !important;
+  overscroll-behavior:contain;
+}
