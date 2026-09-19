@@ -876,7 +876,7 @@
           return `<article class="nmda-monitor-row" data-tone="${escapeHtml(st.tone||'')}">
             <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(last.kind==='follow_up'?`最近发送 Follow-up #${last.sequence}`:'初始 outreach')}</small><div class="nmda-monitor-subject" title="${escapeHtml(last.subject||'')}">${escapeHtml(last.subject||'(无主题)')}</div></div>
             <div class="nmda-monitor-row-state"><span class="nmda-monitor-badge" data-tone="${escapeHtml(st.tone||'')}">${escapeHtml(st.label)}</span><small>${escapeHtml(st.detail||'')}</small></div>
-            <div class="nmda-monitor-row-time"><strong>${escapeHtml(Operations.formatDisplayTime(last.sentAt))}</strong><small>${dueAt?`Follow-up ${escapeHtml(Operations.formatDisplayTime(dueAt))}`:'—'}</small></div>
+            <div class="nmda-monitor-row-time"><div><span>最近发送</span><strong>${escapeHtml(Operations.formatDisplayTime(last.sentAt))}</strong></div><div><span>下一节点</span><strong>${dueAt?escapeHtml(Operations.formatDisplayTime(dueAt)):'—'}</strong></div></div>
             <div class="nmda-monitor-row-actions">${actions.join('')}</div>${evidence}</article>`;
         }).join('');
       }

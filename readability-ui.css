@@ -1,0 +1,255 @@
+/* SmartMail Ops v3.7.1 — readability-first UI layer
+   Loaded last so the operational UI remains readable without changing business behavior. */
+
+#nmda-root.nmda-standalone #nmda-panel {
+  grid-template-columns:84px minmax(0,1fr) !important;
+  grid-template-rows:60px minmax(0,1fr) !important;
+  font-size:15px !important;
+  line-height:1.55 !important;
+}
+
+/* Global chrome: slightly larger, calmer, still compact. */
+#nmda-root.nmda-standalone .nmda-head { padding:0 18px !important; gap:16px !important; }
+#nmda-root .nmda-brand-mark { width:34px !important; height:34px !important; font-size:14px !important; }
+#nmda-root .nmda-title { font-size:16px !important; font-weight:760 !important; }
+#nmda-root .nmda-mail-connection { min-height:38px !important; min-width:285px !important; padding:4px 5px 4px 11px !important; }
+#nmda-root .nmda-mail-connection-copy strong { font-size:12.5px !important; }
+#nmda-root .nmda-mail-open-button { min-height:31px !important; height:31px !important; padding:0 11px !important; font-size:12px !important; }
+#nmda-root .nmda-safe-badge { min-height:32px !important; padding:0 11px !important; font-size:12px !important; }
+
+#nmda-root.nmda-standalone .nmda-tabs { padding:12px 8px !important; gap:9px !important; }
+#nmda-root .nmda-tab { min-height:66px !important; gap:6px !important; padding:8px 5px !important; border-radius:12px !important; }
+#nmda-root .nmda-tab-icon { width:35px !important; height:35px !important; }
+#nmda-root .nmda-tab-icon svg { width:19px !important; height:19px !important; }
+#nmda-root .nmda-tab strong { font-size:12px !important; line-height:1.2 !important; }
+
+/* Common controls. */
+#nmda-root .nmda-card-title { font-size:14px !important; }
+#nmda-root .nmda-card-desc { font-size:12px !important; line-height:1.55 !important; }
+#nmda-root .nmda-label { font-size:13px !important; }
+#nmda-root .nmda-hint { font-size:12px !important; line-height:1.55 !important; }
+#nmda-root #nmda-panel input[type="text"],
+#nmda-root #nmda-panel input[type="email"],
+#nmda-root #nmda-panel input[type="search"],
+#nmda-root #nmda-panel input[type="number"],
+#nmda-root #nmda-panel input[type="datetime-local"],
+#nmda-root #nmda-panel input[type="file"],
+#nmda-root #nmda-panel textarea,
+#nmda-root #nmda-panel select {
+  min-height:42px !important;
+  padding:9px 11px !important;
+  font-size:14px !important;
+  line-height:1.45 !important;
+}
+#nmda-root .nmda-btn { min-height:40px !important; padding:0 14px !important; font-size:13px !important; border-radius:9px !important; }
+#nmda-root .nmda-btn-small { min-height:36px !important; padding:0 12px !important; font-size:12.5px !important; }
+#nmda-root .nmda-text-action { font-size:12.5px !important; }
+#nmda-root .nmda-summary,
+#nmda-root #nmda-status,
+#nmda-root #nmda-batch-status { font-size:12px !important; line-height:1.5 !important; }
+
+/* Tables are still dense, but no longer microtype. */
+#nmda-root .nmda-table { font-size:11.5px !important; }
+#nmda-root .nmda-table th { font-size:10.5px !important; padding:9px 9px !important; }
+#nmda-root .nmda-table td { padding:9px 9px !important; }
+#nmda-root .nmda-tag-chip { min-height:27px !important; font-size:10.5px !important; }
+#nmda-root .nmda-tag-chip small { font-size:9.5px !important; }
+
+/* --------------------------------------------------------------------------
+   Mail Monitoring — redesigned around readable operational scanning.
+   -------------------------------------------------------------------------- */
+#nmda-root .nmda-monitor-page {
+  width:100%;
+  max-width:1500px;
+  margin:0 auto;
+  gap:14px !important;
+  padding:18px 22px 28px !important;
+  background:#f5f7fa !important;
+  scrollbar-gutter:stable;
+}
+
+#nmda-root .nmda-monitor-toolbar {
+  min-height:72px;
+  padding:15px 18px !important;
+  gap:18px !important;
+  border-color:#dce3ea !important;
+  border-radius:14px !important;
+  box-shadow:0 2px 8px rgba(15,23,42,.045) !important;
+}
+#nmda-root .nmda-monitor-toolbar-copy { gap:13px !important; }
+#nmda-root .nmda-monitor-live-dot { width:11px !important; height:11px !important; box-shadow:0 0 0 5px #dcfce7 !important; }
+#nmda-root .nmda-monitor-toolbar-copy strong { font-size:15px !important; line-height:1.25 !important; color:#17202b !important; }
+#nmda-root .nmda-monitor-toolbar-copy small { margin-top:4px !important; font-size:12px !important; line-height:1.35 !important; color:#687586 !important; }
+#nmda-root .nmda-monitor-toolbar > div:last-child { display:flex; gap:8px; align-items:center; flex:0 0 auto; }
+
+#nmda-root .nmda-monitor-stats { gap:12px !important; }
+#nmda-root .nmda-monitor-stat {
+  min-height:106px;
+  padding:16px 17px !important;
+  border-color:#dfe5eb !important;
+  border-radius:14px !important;
+  box-shadow:0 1px 3px rgba(15,23,42,.035);
+}
+#nmda-root .nmda-monitor-stat span { font-size:12px !important; font-weight:650; color:#657284 !important; }
+#nmda-root .nmda-monitor-stat strong { margin-top:7px !important; font-size:28px !important; line-height:1 !important; letter-spacing:-.03em; }
+#nmda-root .nmda-monitor-stat small { margin-top:8px !important; font-size:11.5px !important; line-height:1.35 !important; color:#8893a1 !important; }
+
+#nmda-root .nmda-monitor-policy,
+#nmda-root .nmda-monitor-unlinked {
+  border-color:#dfe5eb !important;
+  border-radius:13px !important;
+}
+#nmda-root .nmda-monitor-policy > summary,
+#nmda-root .nmda-monitor-unlinked > summary { padding:14px 16px !important; min-height:62px; }
+#nmda-root .nmda-monitor-policy > summary strong,
+#nmda-root .nmda-monitor-unlinked > summary strong { font-size:13.5px !important; line-height:1.25; }
+#nmda-root .nmda-monitor-policy > summary small,
+#nmda-root .nmda-monitor-unlinked > summary small { margin-top:4px !important; font-size:11.5px !important; line-height:1.35; }
+#nmda-root .nmda-monitor-policy > summary > span:last-child,
+#nmda-root .nmda-monitor-unlinked > summary > span:last-child { font-size:12px !important; }
+#nmda-root .nmda-monitor-policy-grid { gap:14px !important; padding:15px 16px 17px !important; }
+
+#nmda-root .nmda-monitor-filterbar {
+  position:sticky;
+  top:0;
+  z-index:6;
+  padding:7px 0;
+  background:linear-gradient(#f5f7fa 75%,rgba(245,247,250,0));
+  gap:14px !important;
+}
+#nmda-root .nmda-monitor-filters { gap:5px !important; padding:4px !important; border-radius:11px !important; }
+#nmda-root .nmda-monitor-filters button {
+  min-height:34px;
+  padding:0 12px !important;
+  border-radius:8px !important;
+  font-size:12.5px !important;
+  font-weight:680 !important;
+}
+#nmda-root .nmda-monitor-search {
+  width:min(340px,36vw) !important;
+  min-height:42px !important;
+  padding:0 12px !important;
+  border-radius:10px !important;
+  font-size:13.5px !important;
+}
+#nmda-root .nmda-monitor-notice { padding:11px 13px !important; font-size:12.5px !important; line-height:1.5 !important; }
+
+#nmda-root .nmda-monitor-list { gap:10px !important; }
+#nmda-root .nmda-monitor-empty { min-height:220px !important; padding:32px !important; border-radius:14px !important; }
+#nmda-root .nmda-monitor-empty strong { font-size:15px !important; }
+#nmda-root .nmda-monitor-empty small { margin-top:7px !important; max-width:580px !important; font-size:12px !important; line-height:1.55 !important; }
+
+#nmda-root .nmda-monitor-row {
+  grid-template-columns:minmax(280px,1.45fr) minmax(230px,1fr) minmax(220px,.8fr) auto !important;
+  gap:16px 18px !important;
+  min-height:104px;
+  padding:16px 17px !important;
+  border-color:#dce3ea !important;
+  border-radius:14px !important;
+  box-shadow:0 1px 3px rgba(15,23,42,.035) !important;
+  transition:border-color .14s ease,box-shadow .14s ease,transform .14s ease;
+}
+#nmda-root .nmda-monitor-row:hover { border-color:#c9d3de !important; box-shadow:0 5px 16px rgba(15,23,42,.06) !important; }
+#nmda-root .nmda-monitor-row[data-tone="due"] { border-left:4px solid #d29a3a !important; }
+#nmda-root .nmda-monitor-row[data-tone="replied"] { border-left:4px solid #4d9a68 !important; }
+#nmda-root .nmda-monitor-row[data-tone="blocked"] { border-left:4px solid #c9645c !important; }
+
+#nmda-root .nmda-monitor-row-main strong {
+  font-size:15px !important;
+  line-height:1.3 !important;
+  font-weight:740 !important;
+  color:#202a36 !important;
+}
+#nmda-root .nmda-monitor-row-main small { margin-top:5px !important; font-size:11.5px !important; color:#7b8795 !important; }
+#nmda-root .nmda-monitor-subject { margin-top:8px !important; font-size:13px !important; line-height:1.35 !important; color:#445164 !important; }
+
+#nmda-root .nmda-monitor-row-state { align-content:center; gap:9px !important; }
+#nmda-root .nmda-monitor-badge {
+  min-height:28px !important;
+  padding:0 10px !important;
+  font-size:12px !important;
+  font-weight:760 !important;
+}
+#nmda-root .nmda-monitor-row-state small { width:100%; font-size:12px !important; line-height:1.4 !important; color:#718092 !important; }
+
+#nmda-root .nmda-monitor-row-time {
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  align-items:center;
+}
+#nmda-root .nmda-monitor-row-time > div { min-width:0; }
+#nmda-root .nmda-monitor-row-time span { display:block; margin-bottom:4px; font-size:10.5px !important; font-weight:650; color:#929ca8; }
+#nmda-root .nmda-monitor-row-time strong { display:block; font-size:12.5px !important; line-height:1.35; color:#3a4655 !important; white-space:normal; }
+
+#nmda-root .nmda-monitor-row-actions { min-width:150px; gap:7px !important; }
+#nmda-root .nmda-monitor-row-actions .nmda-btn { min-height:36px !important; font-size:12px !important; }
+#nmda-root .nmda-monitor-reply-evidence {
+  gap:8px !important;
+  padding-top:12px !important;
+  border-top-color:#dfe5eb !important;
+}
+#nmda-root .nmda-monitor-reply-evidence span { font-size:12px !important; line-height:1.45; color:#657284 !important; }
+#nmda-root .nmda-monitor-reply-evidence button {
+  min-height:31px;
+  padding:0 9px !important;
+  border-radius:8px !important;
+  font-size:11.5px !important;
+}
+
+#nmda-root .nmda-monitor-unlinked-list { max-height:380px !important; }
+#nmda-root .nmda-monitor-unlinked-row { gap:14px !important; min-height:68px; padding:11px 15px !important; }
+#nmda-root .nmda-monitor-unlinked-row strong { font-size:12.5px !important; line-height:1.35; }
+#nmda-root .nmda-monitor-unlinked-row small { margin-top:3px; font-size:11px !important; line-height:1.35; }
+
+/* Follow-up editor: comfortable writing surface instead of a compressed utility dialog. */
+#nmda-root .nmda-followup-dialog { width:min(860px,calc(100vw - 40px)) !important; max-height:min(860px,calc(100dvh - 36px)) !important; }
+#nmda-root .nmda-followup-dialog .nmda-dialog-eyebrow { font-size:11px !important; }
+#nmda-root .nmda-followup-dialog .nmda-dialog-head h3 { font-size:20px !important; line-height:1.25 !important; }
+#nmda-root .nmda-followup-dialog .nmda-dialog-head p { margin-top:4px !important; font-size:12px !important; }
+#nmda-root .nmda-followup-dialog-body { gap:14px !important; padding:17px 19px 19px !important; }
+#nmda-root .nmda-followup-parent { padding:13px 14px !important; border-radius:11px !important; }
+#nmda-root .nmda-followup-parent strong { font-size:13.5px !important; line-height:1.4; }
+#nmda-root .nmda-followup-parent small { margin-top:5px !important; font-size:11.5px !important; }
+#nmda-root .nmda-followup-two-col { grid-template-columns:210px minmax(0,1fr) !important; gap:14px !important; }
+#nmda-root .nmda-followup-body-field textarea { min-height:260px !important; font-size:14.5px !important; line-height:1.65 !important; }
+#nmda-root .nmda-followup-mode-note { padding:11px 12px !important; font-size:12px !important; line-height:1.55 !important; }
+#nmda-root .nmda-followup-dialog .nmda-dialog-foot { min-height:64px; padding:12px 18px !important; gap:8px !important; }
+
+@media (max-width:1180px) {
+  #nmda-root .nmda-monitor-row {
+    grid-template-columns:minmax(260px,1.3fr) minmax(220px,1fr) auto !important;
+  }
+  #nmda-root .nmda-monitor-row-time { grid-column:1/3; grid-row:2; max-width:440px; }
+  #nmda-root .nmda-monitor-row-actions { grid-column:3; grid-row:1/3; align-self:center; }
+}
+
+@media (max-width:900px) {
+  #nmda-root.nmda-standalone #nmda-panel { grid-template-columns:76px minmax(0,1fr) !important; }
+  #nmda-root .nmda-monitor-page { padding:14px 16px 24px !important; }
+  #nmda-root .nmda-monitor-stats { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  #nmda-root .nmda-monitor-policy-grid { grid-template-columns:1fr 1fr !important; }
+  #nmda-root .nmda-monitor-row { grid-template-columns:minmax(0,1fr) auto !important; }
+  #nmda-root .nmda-monitor-row-state { grid-column:1; }
+  #nmda-root .nmda-monitor-row-time { grid-column:1; grid-row:auto; max-width:none; }
+  #nmda-root .nmda-monitor-row-actions { grid-column:2; grid-row:1/4; }
+}
+
+@media (max-width:680px) {
+  #nmda-root.nmda-standalone #nmda-panel { grid-template-columns:64px minmax(0,1fr) !important; grid-template-rows:56px minmax(0,1fr) !important; }
+  #nmda-root .nmda-monitor-page { padding:11px 10px 20px !important; }
+  #nmda-root .nmda-monitor-toolbar,
+  #nmda-root .nmda-monitor-filterbar { align-items:stretch !important; flex-direction:column !important; }
+  #nmda-root .nmda-monitor-toolbar > div:last-child { width:100%; }
+  #nmda-root .nmda-monitor-toolbar > div:last-child .nmda-btn { flex:1; }
+  #nmda-root .nmda-monitor-stats { grid-template-columns:1fr 1fr !important; }
+  #nmda-root .nmda-monitor-search { width:100% !important; }
+  #nmda-root .nmda-monitor-filters { width:100%; overflow:auto; }
+  #nmda-root .nmda-monitor-row { grid-template-columns:1fr !important; }
+  #nmda-root .nmda-monitor-row-state,
+  #nmda-root .nmda-monitor-row-time,
+  #nmda-root .nmda-monitor-row-actions { grid-column:1 !important; grid-row:auto !important; }
+  #nmda-root .nmda-monitor-row-actions { min-width:0; justify-content:flex-start !important; }
+  #nmda-root .nmda-monitor-row-time { grid-template-columns:1fr 1fr; }
+  #nmda-root .nmda-followup-two-col { grid-template-columns:1fr !important; }
+}
