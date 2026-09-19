@@ -2177,7 +2177,6 @@
 /* v1.28.2 · Review focus mode: while resolving mail todos, unrelated stages leave the scroll path. */
 .nmda-bulk-workbench.is-review-focus #nmda-stage-prepare,
 .nmda-bulk-workbench.is-review-focus #nmda-import-card,
-.nmda-bulk-workbench.is-review-focus #nmda-ingest-result-card,
 .nmda-bulk-workbench.is-review-focus #nmda-roster-audit-card,
 .nmda-bulk-workbench.is-review-focus #nmda-ingest-diagnostics,
 .nmda-bulk-workbench.is-review-focus > .nmda-workflow-stage-separator,

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.5.3",
-  "description": "网易邮箱批量邮件作业工具：统一邮件审阅单层状态栏；附件前置到导入；一级 Dock 常驻。",
+  "version": "3.5.17",
+  "description": "SmartMail Ops — fixes disappearing review toolbar by keeping the review status/search bar persistent during detail editing.",
   "permissions": [
     "storage",
     "scripting",

@@ -12,7 +12,7 @@
         <div class="nmda-dock-secondary-title">
           <span class="nmda-dock-kicker">SmartMail Ops</span>
           <strong id="nmda-dock-secondary-name">邮件作业</strong>
-          <small id="nmda-dock-secondary-desc">导入、审阅、排期与创建</small>
+          <small id="nmda-dock-secondary-desc">批量邮件作业</small>
         </div>
         <span class="nmda-dock-connection" id="nmda-dock-connection" data-state="offline" title="连接状态">
           <i></i><span id="nmda-dock-connection-text">检查中</span>
@@ -81,12 +81,9 @@
   const sections = {
     workflow: {
       name: '邮件作业',
-      desc: '导入、审阅、排期与创建',
+      desc: '批量邮件作业',
       items: [
-        { target: 'batch', step: '总', title: '批量工作台', detail: '当前批次与作业状态', primary: true },
-        { target: 'batch/1', step: '01', title: '资料导入', detail: '邮件、名单与附件' },
-        { target: 'batch/2', step: '02', title: '邮件审阅', detail: '收件人、主题、正文与重复' },
-        { target: 'batch/3', step: '03', title: '排期与执行', detail: '选择、排期与批量创建' }
+        { target: 'batch', step: '作', title: '打开批量工作台', detail: '阶段切换统一使用工作台顶部导航', primary: true }
       ]
     },
     contacts: {

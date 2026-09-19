@@ -244,7 +244,7 @@ html.nmda-app-document body.nmda-app-body {
 .nmda-process-guide {
   min-width:0;
   display:grid !important;
-  grid-template-columns:72px repeat(4,minmax(0,1fr));
+  grid-template-columns:72px repeat(3,minmax(0,1fr));
   align-items:center;
   gap:4px !important;
   padding:4px !important;
@@ -596,7 +596,7 @@ html.nmda-app-document body.nmda-app-body {
   #nmda-root.nmda-standalone #nmda-panel { grid-template-columns:176px minmax(0,1fr) !important; }
   .nmda-mail-connection { min-width:230px; }
   .nmda-mail-connection-copy small { display:none; }
-  .nmda-process-guide { grid-template-columns:90px repeat(4,minmax(100px,1fr)); }
+  .nmda-process-guide { grid-template-columns:90px repeat(3,minmax(100px,1fr)); }
   .nmda-process-guide > button[data-flow-step] small { display:none !important; }
   .nmda-process-guide > button[data-flow-step] { grid-template-rows:1fr !important; }
   .nmda-process-guide > button[data-flow-step] > span { grid-row:1 !important; }
@@ -613,7 +613,7 @@ html.nmda-app-document body.nmda-app-body {
   .nmda-mail-connection { min-width:0; grid-template-columns:10px auto; }
   .nmda-mail-connection-copy { display:none; }
   .nmda-safe-badge { display:none !important; }
-  .nmda-process-guide { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .nmda-process-guide { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .nmda-process-guide-title { display:none !important; }
   .nmda-process-guide > button[data-flow-step] { grid-template-columns:26px minmax(0,1fr) !important; min-height:42px !important; }
   .nmda-process-guide > button[data-flow-step] > span { width:26px !important; height:26px !important; }
@@ -1826,7 +1826,7 @@ html.nmda-app-document body.nmda-app-body {
   padding:10px 12px !important;
 }
 #nmda-root.nmda-standalone .nmda-process-guide {
-  grid-template-columns:72px repeat(4,minmax(0,1fr)) !important;
+  grid-template-columns:72px repeat(3,minmax(0,1fr)) !important;
   min-height:42px !important;
   gap:4px !important;
   padding:4px !important;
@@ -2003,7 +2003,7 @@ html.nmda-app-document body.nmda-app-body {
   #nmda-root.nmda-standalone .nmda-title { font-size:13px; }
   #nmda-root.nmda-standalone .nmda-mail-connection { min-width:0; grid-template-columns:10px auto !important; }
   #nmda-root.nmda-standalone .nmda-mail-connection-copy { display:none !important; }
-  #nmda-root.nmda-standalone .nmda-process-guide { grid-template-columns:repeat(4,minmax(0,1fr)) !important; }
+  #nmda-root.nmda-standalone .nmda-process-guide { grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
   #nmda-root.nmda-standalone .nmda-process-guide-title { display:none !important; }
   #nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid {
     grid-template-columns:repeat(2,minmax(0,1fr)) !important;
@@ -2087,4 +2087,11 @@ html.nmda-app-document body.nmda-app-body {
   grid-row:auto !important;
   overflow:visible !important;
   min-height:0 !important;
+}
+
+/* v3.5.7 · Global workflow nav is the only cross-stage navigation surface; backward navigation stays available. */
+#nmda-root.nmda-standalone .nmda-batch-table th:last-child,
+#nmda-root.nmda-standalone .nmda-batch-table td:last-child { }
+#nmda-root.nmda-standalone .nmda-process-guide > button[data-flow-step]:disabled {
+  pointer-events:none !important;
 }
