@@ -1,4 +1,4 @@
-# SmartMail 邮件监测 / Follow-up（v3.8.0）
+# SmartMail 邮件监测 / Follow-up（v3.8.2）
 
 ## 模块定位
 
@@ -9,7 +9,7 @@
 ## 主链路
 
 1. 已发送邮件进入 `outboundRecords`。
-2. SmartMail 创建的草稿在后续人工邮箱读取中与 Sent 对账；历史 Sent 也可手工“开始监测”。
+2. SmartMail 创建的草稿在后续人工邮箱读取中与 Sent 对账；所有人工读取到的 Sent 若尚无 lineage，会自动建立 root lineage 并进入检测范围。不存在逐封“开始监测”的选择。
 3. Inbox 消息进入 Reply Observation，并关联到对应 outbound lineage。
 4. 回复分类为 `human / automatic / ambiguous / bounce / system`。
 5. `automatic` 不阻断；`human` 阻断；`ambiguous` 阻断并等待人工判断。
@@ -21,7 +21,12 @@
 11. Follow-up 草稿创建成功后从执行池退出，但不会被标记为 Sent。
 12. 下一次人工读取邮箱时，Draft / Sent reconciliation 确认真实发送结果；确认 Sent 后下一轮从最近一次 outbound 重新计时。
 
-## 人工唤醒读取
+## 自动检测范围 + 人工唤醒读取
+
+- “是否检测”不是人工决策：Sent 一旦被读取进 operation store，就自动参与回复关联和 Follow-up eligibility。
+- 暂停 Follow-up 只暂停生成新的跟进，不会停止该线程的回复事实读取。
+- 不再联系仍由 recipient guard 作为硬阻断处理。
+
 
 - 打开工作台：不读取邮箱。
 - 打开“邮件监测”：不读取邮箱。

@@ -37,3 +37,12 @@ This is the only user-facing execution module.
 - `scheduler.js`: scheduling rules over the unified queue.
 - `executor.js`: NetEase UI execution only; no Follow-up business decisions.
 - `app.js`: orchestration/UI; Mail Monitoring cannot bypass Dispatch.
+
+
+## v3.8.2 Monitoring scope refinement
+
+- Monitoring membership is no longer a user-selectable state.
+- Every Sent record read from the mailbox automatically receives/retains a root lineage.
+- Mail Monitoring continues to record mailbox facts even when Follow-up is paused.
+- The operator controls Follow-up policy and exceptions, not whether an already-read Sent message is observed.
+- The old manual adoption / unmonitored-outbound UI path has been removed.

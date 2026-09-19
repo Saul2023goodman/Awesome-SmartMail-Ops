@@ -252,3 +252,155 @@
   #nmda-root .nmda-monitor-row-time { grid-template-columns:1fr 1fr; }
   #nmda-root .nmda-followup-two-col { grid-template-columns:1fr !important; }
 }
+
+/* --------------------------------------------------------------------------
+   v3.8.2 Mail Monitoring — automatic scope + compact Follow-up controls.
+   Monitoring scope is derived from mailbox facts, not manually selected.
+   -------------------------------------------------------------------------- */
+#nmda-root .nmda-monitor-page {
+  gap:10px !important;
+  padding:14px 18px 22px !important;
+}
+
+#nmda-root .nmda-monitor-toolbar {
+  min-height:58px !important;
+  padding:10px 14px !important;
+  border-radius:12px !important;
+}
+#nmda-root .nmda-monitor-toolbar-copy strong { font-size:14px !important; }
+#nmda-root .nmda-monitor-toolbar-copy small { margin-top:2px !important; }
+
+#nmda-root .nmda-monitor-stats {
+  display:flex !important;
+  flex-wrap:wrap;
+  gap:7px !important;
+}
+#nmda-root .nmda-monitor-stat {
+  min-height:48px !important;
+  min-width:132px;
+  flex:0 1 auto;
+  display:flex !important;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+}
+#nmda-root .nmda-monitor-stat strong {
+  order:0;
+  margin:0 !important;
+  font-size:20px !important;
+  line-height:1 !important;
+  letter-spacing:-.02em;
+}
+#nmda-root .nmda-monitor-stat span {
+  order:1;
+  font-size:11.5px !important;
+  font-weight:680 !important;
+  white-space:nowrap;
+}
+#nmda-root .nmda-monitor-stat small { display:none !important; }
+
+#nmda-root .nmda-monitor-rulebar {
+  display:grid;
+  grid-template-columns:auto minmax(430px,1fr) auto;
+  align-items:center;
+  gap:10px 16px;
+  min-height:54px;
+  padding:8px 12px;
+  border:1px solid #dfe5eb;
+  border-radius:11px;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(15,23,42,.025);
+}
+#nmda-root .nmda-monitor-rulebar-title {
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  white-space:nowrap;
+}
+#nmda-root .nmda-monitor-rulebar-title strong {
+  font-size:12.5px;
+  color:#263241;
+}
+#nmda-root .nmda-monitor-rulebar-title small {
+  font-size:10.5px;
+  color:#8a95a3;
+}
+#nmda-root .nmda-monitor-rulebar-controls {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+}
+#nmda-root .nmda-monitor-rulebar-controls label {
+  display:flex;
+  align-items:center;
+  gap:5px;
+  font-size:11.5px;
+  font-weight:620;
+  color:#5f6d7d;
+  white-space:nowrap;
+}
+#nmda-root .nmda-monitor-rulebar-controls input,
+#nmda-root .nmda-monitor-rulebar-controls select {
+  height:30px !important;
+  min-height:30px !important;
+  margin:0 !important;
+  padding:0 8px !important;
+  border:1px solid #d6dee7 !important;
+  border-radius:7px !important;
+  background:#fbfcfd !important;
+  font-size:12px !important;
+  color:#273444 !important;
+}
+#nmda-root .nmda-monitor-rulebar-controls input {
+  width:54px !important;
+  text-align:center;
+}
+#nmda-root .nmda-monitor-rulebar-controls select { width:104px !important; }
+#nmda-root .nmda-monitor-rule-sep { color:#a7b0ba; font-size:12px; }
+#nmda-root .nmda-monitor-rule-note {
+  max-width:315px;
+  font-size:10.5px;
+  line-height:1.35;
+  color:#7c8896;
+  text-align:right;
+}
+
+#nmda-root .nmda-monitor-filterbar {
+  padding:3px 0 !important;
+  gap:10px !important;
+}
+#nmda-root .nmda-monitor-filters button {
+  min-height:31px !important;
+  padding:0 10px !important;
+  font-size:11.5px !important;
+}
+#nmda-root .nmda-monitor-search {
+  min-height:36px !important;
+  font-size:12.5px !important;
+}
+
+#nmda-root .nmda-monitor-row {
+  grid-template-columns:minmax(250px,1.4fr) minmax(210px,1fr) minmax(190px,.75fr) auto !important;
+  gap:11px 14px !important;
+  min-height:88px !important;
+  padding:12px 14px !important;
+  border-radius:12px !important;
+}
+#nmda-root .nmda-monitor-row-main strong { font-size:14px !important; }
+#nmda-root .nmda-monitor-subject { margin-top:5px !important; font-size:12.5px !important; }
+#nmda-root .nmda-monitor-row-state { gap:6px !important; }
+#nmda-root .nmda-monitor-row-time { gap:8px !important; }
+#nmda-root .nmda-monitor-row-actions { min-width:136px !important; gap:5px !important; }
+
+@media (max-width:1100px) {
+  #nmda-root .nmda-monitor-rulebar {
+    grid-template-columns:1fr;
+    gap:7px;
+  }
+  #nmda-root .nmda-monitor-rulebar-title,
+  #nmda-root .nmda-monitor-rulebar-controls { flex-wrap:wrap; }
+  #nmda-root .nmda-monitor-rule-note { max-width:none; text-align:left; }
+}

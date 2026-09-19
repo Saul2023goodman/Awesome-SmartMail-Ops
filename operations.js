@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const SCHEMA_VERSION = 3;
+  const SCHEMA_VERSION = 4;
   const STORAGE_PREFIX = 'nmda.operations.v1:';
   const LEGACY_CONTACT_PREFIX = 'nmda.contacts.v1:';
   const FOLLOWUP_STATES = ['due', 'prepared', 'confirmed', 'scheduled', 'sent', 'blocked', 'cancelled'];
@@ -355,13 +355,12 @@
     return { store: next, linked };
   }
 
-  function adoptOutboundAsRoot(storeInput, outboundId) {
+  function ensureMonitoringRoots(storeInput) {
     const store = normalizeStore(storeInput);
     const next = clone(store);
-    const outbound = next.outboundRecords[outboundId];
-    if (!outbound) throw new Error(`找不到 outbound record：${outboundId}`);
-    if (outbound.status !== 'sent') throw new Error('只有已发送邮件可以开始监测。');
-    if (!outbound.rootTaskId) {
+    let adopted = 0;
+    for (const outbound of Object.values(next.outboundRecords)) {
+      if (!outbound || outbound.status !== 'sent' || outbound.rootTaskId) continue;
       const rootTaskId = `mailroot:${stableHash(outbound.providerMessageId || outbound.id)}`;
       outbound.taskId = rootTaskId;
       outbound.rootTaskId = rootTaskId;
@@ -369,12 +368,12 @@
       outbound.parentOutboundId = '';
       outbound.sequence = 0;
       outbound.kind = 'initial';
-      outbound.linkedAt = nowIso();
-      outbound.linkEvidence = { kind: 'manual-monitor-adoption' };
+      outbound.linkedAt = outbound.linkedAt || nowIso();
+      outbound.linkEvidence = { kind: 'automatic-mailbox-monitoring' };
+      adopted++;
     }
-    next.followUpPolicies.overrides[outbound.rootTaskId] = normalizePolicy({ ...policyForRoot(next, outbound.rootTaskId), enabled: true });
-    next.updatedAt = nowIso();
-    return { store: next, outbound, rootTaskId: outbound.rootTaskId };
+    if (adopted) next.updatedAt = nowIso();
+    return { store: next, adopted };
   }
 
   function findReplyAssociationCandidates(storeInput, inbound) {
@@ -535,7 +534,8 @@
     }
 
     const linked = reconcileOutboundsToDrafts(next);
-    const replies = reconcileInboundReplies(linked.store);
+    const monitored = ensureMonitoringRoots(linked.store);
+    const replies = reconcileInboundReplies(monitored.store);
     const finalStore = replies.store;
     finalStore.mailboxSync = {
       ...finalStore.mailboxSync,
@@ -553,6 +553,7 @@
       outboundRead: Object.keys(incomingOutbound).length,
       draftsRead: Object.keys(incomingDrafts).length,
       inboxRead: Object.keys(incomingInbound).length,
+      autoMonitored: monitored.adopted,
       linkedOutbounds: linked.linked,
       repliesAssociated: replies.associated,
       ambiguousReplies: replies.ambiguous,
@@ -923,12 +924,6 @@
     }).sort((a, b) => timeMs(b.lastOutbound.sentAt) - timeMs(a.lastOutbound.sentAt));
   }
 
-  function unmonitoredOutbounds(storeInput, limit = 100) {
-    const store = normalizeStore(storeInput);
-    return Object.values(store.outboundRecords).filter(record => record?.status === 'sent' && !record?.rootTaskId)
-      .sort((a, b) => timeMs(b.sentAt) - timeMs(a.sentAt)).slice(0, Math.max(1, Number(limit || 100)));
-  }
-
   function migrateLegacyContacts(storeInput, legacyContacts = {}) {
     const store = normalizeStore(storeInput);
     if (store.migration?.contactsV1At) return { store, migrated: false, outbound: 0, drafts: 0, guards: 0 };
@@ -990,8 +985,13 @@
     if (!result[key] && result[legacyStorageKey(account)] && typeof result[legacyStorageKey(account)] === 'object') {
       migration = migrateLegacyContacts(store, result[legacyStorageKey(account)]);
       store = migration.store;
-      await chrome.storage.local.set({ [key]: store });
     }
+    const monitored = ensureMonitoringRoots(store);
+    if (monitored.adopted) {
+      store = reconcileInboundReplies(monitored.store).store;
+      migration = { ...(migration || {}), autoMonitoringRoots: monitored.adopted };
+    }
+    if (migration) await chrome.storage.local.set({ [key]: store });
     return { store, migration };
   }
 
@@ -1027,7 +1027,7 @@
     ingestMailboxSnapshot,
     reconcileOutboundsToDrafts,
     reconcileInboundReplies,
-    adoptOutboundAsRoot,
+    ensureMonitoringRoots,
     recordPreparedDraft,
     linkOutbound,
     setRecipientGuard,
@@ -1050,7 +1050,6 @@
     queuedDerivedTasks,
     mailboxHistoryForRecipients,
     monitoringRoots,
-    unmonitoredOutbounds,
     migrateLegacyContacts
   };
 })();
