@@ -432,7 +432,7 @@
 
               <div class="nmda-card nmda-inline-review" id="nmda-inline-review" hidden>
                 <div class="nmda-inline-review-top">
-                  <div><div class="nmda-card-title" id="nmda-review-workspace-title">邮件审阅</div><div class="nmda-card-desc" id="nmda-review-workspace-desc">连续预览整批邮件；快速扫读，只处理异常。</div></div>
+                  <div><div class="nmda-card-title" id="nmda-review-workspace-title">邮件审阅</div><div class="nmda-card-desc" id="nmda-review-workspace-desc">先用卡片扫状态；点开后进入连续 Preview 快速浏览整批邮件。</div></div>
                   <div class="nmda-inline-review-actions"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">跳到下一个需处理</button></div>
                 </div>
                 <div class="nmda-review-followup-template" id="nmda-review-followup-template-card">
@@ -463,7 +463,18 @@
                   <div class="nmda-row"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-confirm-selected" type="button">确认所选</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-clear-selected" type="button">取消</button></div>
                 </div>
                 <div class="nmda-review-page-empty" id="nmda-review-page-empty">添加资料后，这里会显示每封邮件的识别状态。</div>
-                <div id="nmda-review-queue" class="nmda-review-queue nmda-review-continuous-preview"></div>
+                <div class="nmda-review-preview-toolbar" id="nmda-review-preview-toolbar" hidden>
+                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-preview-back" id="nmda-review-preview-back" type="button">← 返回卡片</button>
+                  <div class="nmda-review-preview-toolbar-copy"><strong>连续 Preview</strong><small id="nmda-review-preview-meta">上下滚动快速扫读全部邮件</small></div>
+                  <div class="nmda-review-preview-key" aria-label="关键信息定位标识">
+                    <span class="nmda-semantic-legend-item" data-semantic="advisor"><i></i><strong>导师</strong></span>
+                    <span class="nmda-semantic-legend-item" data-semantic="student"><i></i><strong>学生</strong></span>
+                    <span class="nmda-semantic-legend-item" data-semantic="institution"><i></i><strong>学校 / 机构</strong></span>
+                    <span class="nmda-semantic-legend-item" data-semantic="anchor"><i></i><strong>称呼 / 身份 / 意图 / 落款</strong></span>
+                    <span class="nmda-semantic-legend-item" data-semantic="degree"><i></i><strong>学位 / 时间</strong></span>
+                  </div>
+                </div>
+                <div id="nmda-review-queue" class="nmda-review-queue nmda-review-mail-grid"></div>
 
                 <div class="nmda-review-workbench" id="nmda-import-editor-overlay" hidden aria-hidden="true">
                   <section class="nmda-review-detail-dialog" role="region" aria-labelledby="nmda-import-editor-title">
@@ -1405,7 +1416,7 @@
     sessionId: 0, importBusy: false, schedulePlan: null,
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
     roster: emptyRosterState(), duplicateAudit:null,
-    handoffComplete: false, autoAdvancing: false, reviewFilter: 'all', reviewSearch: '', reviewSelected: new Set(), duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, preflightView:'files', supportView:'roster', attachmentManagerOpen:false, uiStep:1, planningView:'mails', reviewReturnStep:2, sourceInspectName:'', preflightFolderPath:'', preflightSearch:'', preflightReviewOnly:false, preflightPurposeFilter:'', ignoredAttachmentIdentities:new Set(), bulkSubjectPromptAutoShown:false, bulkSubjectPromptDismissed:false
+    handoffComplete: false, autoAdvancing: false, reviewFilter: 'all', reviewSearch: '', reviewSelected: new Set(), reviewSurface:'board', reviewPreviewKey:'', duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, preflightView:'files', supportView:'roster', attachmentManagerOpen:false, uiStep:1, planningView:'mails', reviewReturnStep:2, sourceInspectName:'', preflightFolderPath:'', preflightSearch:'', preflightReviewOnly:false, preflightPurposeFilter:'', ignoredAttachmentIdentities:new Set(), bulkSubjectPromptAutoShown:false, bulkSubjectPromptDismissed:false
   };
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), rosterFileEl = $('nmda-roster-file');
@@ -1490,17 +1501,19 @@
   });
 
   reviewQueueEl?.addEventListener('click',event=>{
-    if(event.target.closest?.('[data-review-load-more]')){viewPerf.reviewRenderLimit=(viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK)+REVIEW_RENDER_CHUNK;renderReviewQueue(importEditorOverlayEl?.dataset.editKey||'',{preserveScroll:true});return;}
-    const action=event.target.closest?.('[data-review-key]');
-    if(!action)return;
-    stashCurrentReviewDraft(); hideSubjectAssist();
-    const task=reviewTaskByKey(action.dataset.reviewKey);if(task)openImportTaskEditor(task);
+    if(event.target.closest?.('[data-review-load-more]')){viewPerf.reviewRenderLimit=(viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK)+REVIEW_RENDER_CHUNK;renderReviewQueue(batch.reviewSurface==='preview'?batch.reviewPreviewKey:(importEditorOverlayEl?.dataset.editKey||''),{preserveScroll:true});return;}
+    const previewAction=event.target.closest?.('[data-review-preview-key]');
+    if(previewAction){openReviewPreview(previewAction.dataset.reviewPreviewKey);return;}
+    const editAction=event.target.closest?.('[data-review-edit-key]');
+    if(!editAction)return;
+    stashCurrentReviewDraft();hideSubjectAssist();
+    const task=reviewTaskByKey(editAction.dataset.reviewEditKey);if(task)openImportTaskEditor(task);
   });
   reviewQueueEl?.addEventListener('change',event=>{
     const input=event.target.closest?.('[data-review-select]');if(!input)return;
     const key=input.dataset.reviewSelect;if(!key)return;
     if(input.checked)batch.reviewSelected.add(key);else batch.reviewSelected.delete(key);
-    input.closest('.nmda-review-preview-page')?.classList.toggle('is-selected',input.checked);
+    input.closest('.nmda-review-preview-page, .nmda-mail-review-card')?.classList.toggle('is-selected',input.checked);
     renderReviewBatchActions();
     const visible=reviewVisibleTasks().filter(taskCanBatchConfirm),allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
     const selectButton=$('nmda-review-select-filtered');if(selectButton){const batchMode=batch.reviewFilter==='pending'&&reviewTasks().length>0;selectButton.hidden=!batchMode||visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
@@ -1527,7 +1540,7 @@
     batch.reviewSearch=String(reviewSearchEl.value||'');
     viewPerf.reviewRenderLimit=REVIEW_RENDER_CHUNK;
     if(reviewQueueEl)reviewQueueEl.scrollTop=0;
-    const currentKey=importEditorOverlayEl?.dataset.editKey||'';
+    const currentKey=importEditorOverlayEl?.dataset.editKey||batch.reviewPreviewKey||'';
     renderReviewQueue(currentKey);
     const visible=reviewVisibleTasks();
     if(currentKey && !visible.some(task=>task.editKey===currentKey))closeImportTaskEditor();
@@ -2775,7 +2788,15 @@
 
   function setReviewSurface(mode='board') {
     if(!reviewInlineEl)return;
-    reviewInlineEl.dataset.reviewView='continuous';
+    const next=mode==='preview'?'preview':'board';
+    batch.reviewSurface=next;
+    reviewInlineEl.dataset.reviewView=next;
+    if(reviewQueueEl){
+      reviewQueueEl.classList.toggle('nmda-review-mail-grid',next==='board');
+      reviewQueueEl.classList.toggle('nmda-review-continuous-preview',next==='preview');
+    }
+    const toolbar=$('nmda-review-preview-toolbar');
+    if(toolbar)toolbar.hidden=next!=='preview';
   }
 
   function otherMissingSubjectTasks(currentKey='') {
@@ -3189,7 +3210,7 @@
     }
     if(!tasks.length){if(importEditorOverlayEl)importEditorOverlayEl.hidden=true;setReviewSurface('board');renderReviewBatchActions();return;}
     renderReviewBatchActions();
-    if(reviewInlineEl && !reviewInlineEl.hidden)renderReviewQueue(importEditorOverlayEl?.dataset.editKey||'');
+    if(reviewInlineEl && !reviewInlineEl.hidden)renderReviewQueue(importEditorOverlayEl?.dataset.editKey||batch.reviewPreviewKey||'');
   }
 
   function openReviewWorkspace(options = {}) {
@@ -3197,7 +3218,8 @@
       batch.reviewFilter=options.pendingOnly?'pending':'all';
       setWorkbenchTab('review');
       if(reviewInlineEl)reviewInlineEl.hidden=false;
-      setReviewSurface('continuous');
+      setReviewSurface(options.taskKey?'preview':'board');
+      batch.reviewPreviewKey=options.taskKey||'';
       renderReviewPageOverview();
       if(options.taskKey)focusReviewTask(options.taskKey,{behavior:'smooth'});
       history.replaceState(null,'','#review');
@@ -3226,7 +3248,9 @@
     if(reviewQueueEl)reviewQueueEl.scrollTop=0;
     setWorkbenchTab('review');
     if(reviewInlineEl) reviewInlineEl.hidden=false;
-    closeImportTaskEditor();
+    if(importEditorOverlayEl){importEditorOverlayEl.hidden=true;importEditorOverlayEl.setAttribute('aria-hidden','true');delete importEditorOverlayEl.dataset.editKey;}
+    batch.reviewPreviewKey=options.taskKey||'';
+    setReviewSurface(options.taskKey?'preview':'board');
     renderReviewPageOverview();
     if(options.taskKey)focusReviewTask(options.taskKey,{behavior:'smooth'});
     history.replaceState(null,'','#review');
@@ -3239,7 +3263,8 @@
     hideSubjectAssist();
     if(reviewInlineEl)reviewInlineEl.hidden=false;
     if(importEditorOverlayEl){importEditorOverlayEl.hidden=true;delete importEditorOverlayEl.dataset.editKey;}
-    setReviewSurface('continuous');
+    batch.reviewPreviewKey='';
+    setReviewSurface('board');
   }
 
   async function enterSelectionAndSchedule(reason='检查完成') {
@@ -3279,8 +3304,8 @@
   async function continueAfterReviewResolution(reason='邮件检查完成') {
     const pending=reviewTasks();
     if(pending.length){
-      if(batch.reviewFilter==='pending')openImportTaskEditor(pending[0]);
-      else renderReviewPageOverview();
+      renderReviewPageOverview();
+      if(batch.reviewSurface==='preview'&&pending[0])focusReviewTask(pending[0].editKey,{behavior:'smooth',block:'center'});
       return false;
     }
     const other=initialReviewGateReady()?(batch.tasks||[]).filter(task=>taskHasPrePlanningBlocker(task)):[];
@@ -3315,6 +3340,7 @@
   function focusReviewTask(editKey,options={}){
     const key=String(editKey||''); if(!key||!reviewQueueEl)return false;
     const task=reviewTaskByKey(key); if(!task)return false;
+    if(batch.reviewSurface==='preview')batch.reviewPreviewKey=key;
     const currentLimit=Math.max(REVIEW_RENDER_CHUNK,viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK);
     const visible=reviewVisibleTasks();
     const index=visible.findIndex(item=>item.editKey===key);
@@ -3332,6 +3358,7 @@
     if(!reviewQueueEl)return;
     const pending=reviewTasks();
     if(!pending.length){void continueAfterReviewResolution('邮件审阅已完成');return;}
+    if(batch.reviewSurface!=='preview'){openReviewPreview(pending[0].editKey);return;}
     const pages=[...reviewQueueEl.querySelectorAll('[data-review-row]')];
     const viewportTop=reviewQueueEl.getBoundingClientRect().top;
     let currentKey='';
@@ -3389,18 +3416,16 @@
 
   function reviewQueueItems(tasks=[]) { return (tasks||[]).map(task=>({kind:'mail',task})); }
 
-  function renderReviewQueue(activeKey='',options={}) {
-    if(!reviewQueueEl)return;
+  function renderReviewCardGrid(activeKey='',options={}) {
     const preserveScroll=!!options?.preserveScroll;
     const previousScrollTop=preserveScroll?reviewQueueEl.scrollTop:0;
-    pruneReviewSelection();
     const visibleTasks=reviewVisibleTasks();
     const allItems=reviewQueueItems(visibleTasks);
-    const renderLimit=Math.max(REVIEW_RENDER_CHUNK,viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK);
+    const renderLimit=Math.max(50,viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK);
     const list=allItems.slice(0,renderLimit);
     const pendingCount=reviewTasks().length;
     const pendingUnits=reviewQueueItems(reviewTasks()).length;
-    if(reviewProgressEl) reviewProgressEl.textContent=pendingUnits?`${pendingUnits} 项待处理`:'没有待处理邮件';
+    if(reviewProgressEl)reviewProgressEl.textContent=pendingUnits?`${pendingUnits} 项待处理`:'没有待处理邮件';
     reviewQueueEl.innerHTML=list.length?list.map((item,index)=>{
       const task=item.task;
       const visual=reviewVisualState(task);
@@ -3409,40 +3434,104 @@
       const checked=confirmable&&batch.reviewSelected?.has(task.editKey)?'checked':'';
       const recipient=String(task.recipients||'').trim()||'未识别收件人';
       const subject=String(task.subject||'').trim()||'未识别主题';
+      const label=String(task.id||task.collectionName||recipient||`邮件 ${index+1}`);
+      const issueLabels=[...new Set(visual.issues.map(issue=>reviewIssueLabel(issue)).filter(Boolean))];
+      const issueChips=issueLabels.slice(0,2).map(issue=>`<span>${escapeHtml(issue)}</span>`).join('');
+      const moreCount=Math.max(0,issueLabels.length-2);
+      const selectHtml=confirmable?`<label class="nmda-mail-card-select" title="加入批量确认"><input type="checkbox" data-review-select="${escapeHtml(task.editKey)}" ${checked} aria-label="选择 ${escapeHtml(label)}"><span></span></label>`:'';
+      const stateLine=pending
+        ? `<span class="nmda-mail-card-issues">${issueChips}${moreCount?`<span>+${moreCount}</span>`:''}</span>`
+        : `<span class="nmda-mail-card-auto-note"><span>✓</span>${visual.key==='confirmed'?'人工审阅完成':'收件人、主题、正文已识别'}</span>`;
+      const sourceBadge=isFollowUpReviewTask(task)?`<em class="nmda-review-source-badge is-followup">Follow-up #${Math.max(1,Number(task.sequence||1))}</em>`:'<em class="nmda-review-source-badge">Initial</em>';
+      return `<article class="nmda-mail-review-card ${checked?'is-selected':''} ${task.editKey===activeKey?'is-active':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}" data-review-kind="${isFollowUpReviewTask(task)?'follow_up':'initial'}">
+        <div class="nmda-mail-card-status"><span class="nmda-mail-state-shape" aria-hidden="true">${visual.icon}</span><span><strong>${escapeHtml(visual.label)}</strong><small>${escapeHtml(visual.detail)}</small></span>${selectHtml}</div>
+        <button class="nmda-mail-card-main" type="button" data-review-preview-key="${escapeHtml(task.editKey)}" aria-label="预览 ${escapeHtml(label)}">
+          <span class="nmda-mail-card-index">${String(index+1).padStart(2,'0')}</span>
+          <span class="nmda-mail-card-copy">${sourceBadge}<strong>${escapeHtml(label)}</strong><small>${escapeHtml(recipient)}</small><b>${escapeHtml(subject)}</b>${stateLine}</span>
+          <span class="nmda-mail-card-open">Preview <i>→</i></span>
+        </button>
+      </article>`;
+    }).join(''):`<div class="nmda-review-empty">${batch.reviewFilter==='pending'?'当前没有需要人工处理的邮件。':'当前没有可查看的邮件。'}</div>`;
+    if(allItems.length>list.length)reviewQueueEl.insertAdjacentHTML('beforeend',`<button type="button" class="nmda-review-load-more" data-review-load-more><span>已显示 ${list.length} / ${allItems.length}</span><small>继续滚动自动加载</small></button>`);
+    if(preserveScroll)requestAnimationFrame(()=>{reviewQueueEl.scrollTop=Math.min(previousScrollTop,Math.max(0,reviewQueueEl.scrollHeight-reviewQueueEl.clientHeight));});
+    else if(activeKey)requestAnimationFrame(()=>reviewQueueEl.querySelector(`[data-review-row="${CSS.escape(activeKey)}"]`)?.scrollIntoView?.({block:'nearest'}));
+  }
+
+  function renderReviewContinuousPreview(activeKey='',options={}) {
+    const preserveScroll=!!options?.preserveScroll;
+    const previousScrollTop=preserveScroll?reviewQueueEl.scrollTop:0;
+    const visibleTasks=reviewVisibleTasks();
+    const allItems=reviewQueueItems(visibleTasks);
+    const renderLimit=Math.max(REVIEW_RENDER_CHUNK,viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK);
+    const list=allItems.slice(0,renderLimit);
+    const pendingCount=reviewTasks().length;
+    const pendingUnits=reviewQueueItems(reviewTasks()).length;
+    if(reviewProgressEl)reviewProgressEl.textContent=pendingUnits?`${pendingUnits} 项待处理`:'没有待处理邮件';
+    const activeIndex=activeKey?visibleTasks.findIndex(task=>task.editKey===activeKey):-1;
+    const previewMeta=$('nmda-review-preview-meta');
+    if(previewMeta)previewMeta.textContent=activeIndex>=0?`已定位 ${activeIndex+1} / ${visibleTasks.length} · 上下滚动快速扫读全部邮件`:`${visibleTasks.length} 封 · 上下滚动快速扫读全部邮件`;
+    reviewQueueEl.innerHTML=list.length?list.map((item,index)=>{
+      const task=item.task;
+      const visual=reviewVisualState(task);
+      const pending=visual.issues.length>0;
+      const recipient=String(task.recipients||'').trim()||'未识别收件人';
+      const subject=String(task.subject||'').trim()||'未识别主题';
       const body=String(task.body||'').replace(/\r\n?/g,'\n').trim();
       const label=String(task.id||task.collectionName||recipient||`邮件 ${index+1}`);
       const issueLabels=[...new Set(visual.issues.map(issue=>reviewIssueLabel(issue)).filter(Boolean))];
       const issueChips=issueLabels.map(issue=>`<span>${escapeHtml(issue)}</span>`).join('');
-      const selectHtml=confirmable?`<label class="nmda-preview-select" title="加入批量确认"><input type="checkbox" data-review-select="${escapeHtml(task.editKey)}" ${checked} aria-label="选择 ${escapeHtml(label)}"><span></span></label>`:'';
       const sourceBadge=isFollowUpReviewTask(task)?`<em class="nmda-review-source-badge is-followup">Follow-up #${Math.max(1,Number(task.sequence||1))}</em>`:'<em class="nmda-review-source-badge">Initial</em>';
       const stateCopy=pending
         ? `<div class="nmda-preview-issues">${issueChips}</div>`
         : `<span class="nmda-preview-pass-note">✓ ${visual.key==='confirmed'?'人工确认':'自动通过'}</span>`;
       const editLabel=visual.direct?.length?'补齐':'修正';
-      return `<article class="nmda-review-preview-page ${checked?'is-selected':''} ${task.editKey===activeKey?'is-active':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}" data-review-kind="${isFollowUpReviewTask(task)?'follow_up':'initial'}">
+      return `<article class="nmda-review-preview-page ${task.editKey===activeKey?'is-active':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}" data-review-kind="${isFollowUpReviewTask(task)?'follow_up':'initial'}">
         <header class="nmda-review-preview-head">
           <div class="nmda-review-preview-index"><span>${String(index+1).padStart(2,'0')}</span>${sourceBadge}</div>
-          <div class="nmda-review-preview-meta">
-            <strong>${escapeHtml(recipient)}</strong>
-            <small>${escapeHtml(subject)}</small>
-          </div>
+          <div class="nmda-review-preview-meta"><strong>${semanticHighlightHtml(recipient,task)}</strong><small>${semanticHighlightHtml(subject,task)}</small></div>
           <div class="nmda-review-preview-state"><span class="nmda-mail-state-shape" aria-hidden="true">${visual.icon}</span><span><strong>${escapeHtml(visual.label)}</strong><small>${escapeHtml(visual.detail)}</small></span></div>
-          ${selectHtml}
-          <button class="nmda-review-preview-edit" type="button" data-review-key="${escapeHtml(task.editKey)}">${editLabel}</button>
+          <button class="nmda-review-preview-edit" type="button" data-review-edit-key="${escapeHtml(task.editKey)}">${editLabel}</button>
         </header>
         <section class="nmda-review-preview-sheet" aria-label="${escapeHtml(label)} 完整邮件预览">
-          <div class="nmda-review-preview-mailhead"><span>To</span><strong>${escapeHtml(recipient)}</strong><span>Subject</span><strong>${escapeHtml(subject)}</strong></div>
-          <pre class="nmda-review-preview-body">${escapeHtml(body||'（正文为空）')}</pre>
+          <div class="nmda-review-preview-mailhead"><span>To</span><strong>${semanticHighlightHtml(recipient,task)}</strong><span>Subject</span><strong>${semanticHighlightHtml(subject,task)}</strong></div>
+          <pre class="nmda-review-preview-body">${semanticHighlightHtml(body||'（正文为空）',task)}</pre>
         </section>
-        <footer class="nmda-review-preview-foot">${stateCopy}<span class="nmda-review-preview-hint">连续预览 · 仅发现问题时修正</span></footer>
+        <footer class="nmda-review-preview-foot">${stateCopy}<span class="nmda-review-preview-hint">关键信息已在完整正文内定位 · 不拆分开头/结尾</span></footer>
       </article>`;
     }).join(''):`<div class="nmda-review-empty">${batch.reviewFilter==='pending'?'当前没有需要人工处理的邮件。':'当前没有可查看的邮件。'}</div>`;
     if(allItems.length>list.length)reviewQueueEl.insertAdjacentHTML('beforeend',`<button type="button" class="nmda-review-load-more" data-review-load-more><span>已显示 ${list.length} / ${allItems.length}</span><small>继续向下滚动自动加载</small></button>`);
-    renderReviewBatchActions();
-    const visible=reviewVisibleTasks().filter(taskCanBatchConfirm);const allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
-    const selectButton=$('nmda-review-select-filtered');if(selectButton){const batchMode=batch.reviewFilter==='pending'&&pendingCount>0;selectButton.hidden=!batchMode||visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
     if(preserveScroll)requestAnimationFrame(()=>{reviewQueueEl.scrollTop=Math.min(previousScrollTop,Math.max(0,reviewQueueEl.scrollHeight-reviewQueueEl.clientHeight));});
     else if(activeKey)requestAnimationFrame(()=>reviewQueueEl.querySelector(`[data-review-row="${CSS.escape(activeKey)}"]`)?.scrollIntoView?.({block:'center'}));
+  }
+
+  function renderReviewQueue(activeKey='',options={}) {
+    if(!reviewQueueEl)return;
+    pruneReviewSelection();
+    const surface=batch.reviewSurface==='preview'?'preview':'board';
+    setReviewSurface(surface);
+    if(surface==='preview')renderReviewContinuousPreview(activeKey,options);
+    else renderReviewCardGrid(activeKey,options);
+    renderReviewBatchActions();
+    const visible=reviewVisibleTasks().filter(taskCanBatchConfirm),allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
+    const selectButton=$('nmda-review-select-filtered');if(selectButton){const batchMode=batch.reviewFilter==='pending'&&reviewTasks().length>0;selectButton.hidden=surface==='preview'||!batchMode||visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
+  }
+
+  function openReviewPreview(editKey='') {
+    const key=String(editKey||'');
+    batch.reviewPreviewKey=key;
+    viewPerf.reviewRenderLimit=REVIEW_RENDER_CHUNK;
+    setReviewSurface('preview');
+    if(reviewQueueEl)reviewQueueEl.scrollTop=0;
+    renderReviewQueue(key);
+    if(key)focusReviewTask(key,{behavior:'smooth',block:'center'});
+  }
+
+  function closeReviewPreview() {
+    const key=String(batch.reviewPreviewKey||'');
+    batch.reviewPreviewKey='';
+    setReviewSurface('board');
+    if(reviewQueueEl)reviewQueueEl.scrollTop=0;
+    renderReviewQueue(key);
   }
 
   function reviewBodyAuditSlices(value) {
@@ -3800,7 +3889,9 @@
     if(reviewMoreMenuEl)reviewMoreMenuEl.open=false;
     setWorkbenchTab('review');
     if(reviewInlineEl) reviewInlineEl.hidden=false;
-    setReviewSurface('continuous');
+    if(batch.reviewSurface!=='preview')openReviewPreview(task.editKey);
+    else batch.reviewPreviewKey=task.editKey;
+    setReviewSurface('preview');
     importEditorOverlayEl.dataset.editKey=task.editKey;
     importEditorOverlayEl.dataset.mode='audit';
     importEditRecipientsEl.value=task.recipients||'';
@@ -3848,9 +3939,9 @@
     stashCurrentReviewDraft();
     hideSubjectAssist();
     if(importEditorOverlayEl){importEditorOverlayEl.hidden=true;importEditorOverlayEl.setAttribute('aria-hidden','true');delete importEditorOverlayEl.dataset.editKey;}
-    setReviewSurface('continuous');
+    setReviewSurface(batch.reviewSurface==='preview'?'preview':'board');
     syncModalState();
-    renderReviewQueue('');
+    renderReviewQueue(batch.reviewSurface==='preview'?batch.reviewPreviewKey:'');
   }
 
   async function saveImportTaskEditor(goNext=false) {
@@ -5247,6 +5338,7 @@
     batch.duplicateSelections?.clear?.();
     batch.reviewFilter='all';
     batch.reviewSearch='';
+    batch.reviewSurface='board';batch.reviewPreviewKey='';
     batch.bulkSubjectPromptAutoShown=false;
     batch.bulkSubjectPromptDismissed=false;
     if(reviewBulkSubjectInputEl)reviewBulkSubjectInputEl.value='';
@@ -5322,6 +5414,7 @@
     batch.duplicateSelections?.clear?.();
     batch.reviewFilter='all';
     batch.reviewSearch='';
+    batch.reviewSurface='board';batch.reviewPreviewKey='';
     batch.bulkSubjectPromptAutoShown=false;
     batch.bulkSubjectPromptDismissed=false;
     if(reviewBulkSubjectInputEl)reviewBulkSubjectInputEl.value='';
@@ -5571,11 +5664,13 @@
     if(event.currentTarget?.dataset?.mode==='dispatch'){void (async()=>{const ready=await enterSelectionAndSchedule('邮件审阅已完成');if(!ready)return;setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});})();return;}
     openNextReviewTask();
   });
+  $('nmda-review-preview-back')?.addEventListener('click',closeReviewPreview);
   ui.querySelectorAll('[data-review-filter]').forEach(button=>button.addEventListener('click',()=>{
     batch.reviewFilter=['all','auto','pending','confirmed'].includes(button.dataset.reviewFilter)?button.dataset.reviewFilter:'all';
     viewPerf.reviewRenderLimit=REVIEW_RENDER_CHUNK;
     if(reviewQueueEl)reviewQueueEl.scrollTop=0;
     const currentKey=importEditorOverlayEl?.dataset.editKey||'';
+    setReviewSurface('board');batch.reviewPreviewKey='';
     renderReviewPageOverview();
     const visible=reviewVisibleTasks();
     if(currentKey && !visible.some(task=>task.editKey===currentKey))closeImportTaskEditor();

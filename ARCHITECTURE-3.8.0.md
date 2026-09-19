@@ -107,3 +107,7 @@ Initial and Follow-up now share the same Review intent: detect exceptions, not f
 ## v3.8.21 Continuous Review surface
 
 Review is a continuous batch-reading surface rather than a per-message navigation state. Initial and Follow-up tasks are rendered as vertically stacked complete-mail sheets in one scroll container. Review remains an exception-detection gate: operators scan the batch, use search/status filters, and open the focused correction editor only when a specific message needs modification. Navigation from Monitoring targets and scrolls to a sheet; it does not create a single-message Review mode.
+
+## v3.8.22 Review interaction refinement
+
+Review now has two reading surfaces over the same runtime task set. The default `board` surface is the high-density card grid used to scan status and exceptions. Opening a card switches to `preview`, a vertically continuous reader over the current filtered set and scrolls to the selected mail. Preview keeps semantic key-information highlighting inline in the full message and does not create detached opening/closing excerpts. Editing remains an explicit correction action layered over Preview; it is not the default way to read a mail.
