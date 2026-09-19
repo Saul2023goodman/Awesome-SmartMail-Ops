@@ -1,5 +1,7 @@
 'use strict';
 
+importScripts('operations.js');
+
 function runMain(tabId, func, args = []) {
   return chrome.scripting.executeScript({
     target: { tabId },
@@ -61,6 +63,20 @@ function readMailbox(tabId, fid, requested) {
         return recipients;
       }
 
+
+      function parseSender(item) {
+        const raw = String(item?.from || item?.sender || item?.mailFrom || '');
+        try {
+          const parsed = window.$.Uri?.getEmails?.(raw);
+          const match = parsed?.match?.[0];
+          const email = String(match?.address || '').trim().toLowerCase();
+          if (email) return { email, name: String(match?.name || '').trim(), raw };
+        } catch (_) {}
+        const email = raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase() || '';
+        const name = raw.replace(email, '').replace(/[<>"']/g, '').trim();
+        return { email, name, raw };
+      }
+
       function normalizeMailboxDate(value) {
         if (value == null || value === '') return '';
         try {
@@ -107,15 +123,22 @@ function readMailbox(tabId, fid, requested) {
         const scheduleValue = scheduledDraft ? (explicitSchedule || sentTimestamp) : explicitSchedule;
         const savedRaw = item?.modifiedDate ?? item?.date ?? item?.receivedDate ?? (scheduledDraft ? '' : item?.sentDate) ?? '';
         const savedTimestamp = normalizeMailboxDate(savedRaw);
+        const sender = parseSender(item);
         return {
           id: String(item?.id || item?.mid || ''),
           subject: String(item?.subject || ''),
           toRaw: String(item?.to || ''),
+          fromRaw: sender.raw || String(item?.from || ''),
+          sender: { email: sender.email, name: sender.name },
           recipients: parseRecipients(item),
           sentAt: sentTimestamp,
+          receivedAt: fidArg === 1 ? sentTimestamp : '',
           savedAt: savedTimestamp,
           scheduleAt: scheduleValue,
           scheduleEvidence: scheduledDraft ? (flags.scheduleDelivery ? 'scheduleDelivery-flag' : (explicitSchedule ? 'explicit-schedule-field' : (futureSent ? 'future-sentDate' : ''))) : '',
+          threadId: String(item?.threadId || item?.conversationId || item?.cid || item?.tid || ''),
+          inReplyTo: String(item?.inReplyTo || item?.inreplyto || ''),
+          references: Array.isArray(item?.references) ? item.references.join(' ') : String(item?.references || ''),
           flags: { ...flags },
           scheduledDraft,
           sndStatus: typeof sndStatus === 'number' ? sndStatus : null,
@@ -237,19 +260,21 @@ async function readMailboxState(tabId, mode = 'quick') {
   if (!sent?.ok) return { ok: false, phase: 'sent', reason: sent?.reason || '读取已发送失败', sent };
   const drafts = await readMailbox(tabId, 2, requested);
   if (!drafts?.ok) return { ok: false, phase: 'drafts', reason: drafts?.reason || '读取草稿箱失败', sent, drafts };
-  const complete = !!sent.complete && !!drafts.complete;
+  const inbox = await readMailbox(tabId, 1, requested);
+  if (!inbox?.ok) return { ok: false, phase: 'inbox', reason: inbox?.reason || '读取收件箱失败', sent, drafts, inbox };
+  const complete = !!sent.complete && !!drafts.complete && !!inbox.complete;
   return {
     ok: true,
     mode: full ? 'full' : 'quick',
-    uid: sent.uid || drafts.uid || '',
-    sent, drafts, complete,
+    uid: sent.uid || drafts.uid || inbox.uid || '',
+    sent, drafts, inbox, complete,
     coverage: {
       sent: { read: sent.messages?.length || 0, total: sent.total || 0, complete: !!sent.complete, pages: sent.pages || 0 },
-      drafts: { read: drafts.messages?.length || 0, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 }
+      drafts: { read: drafts.messages?.length || 0, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 },
+      inbox: { read: inbox.messages?.length || 0, total: inbox.total || 0, complete: !!inbox.complete, pages: inbox.pages || 0 }
     }
   };
 }
-
 
 async function readDraftDetail(tabId, summary = {}) {
   return runMain(tabId, (summaryArg) => new Promise(async resolve => {
@@ -511,6 +536,69 @@ async function readDraftImport(tabId, requested = 300) {
 importScripts('file-vault.js');
 
 const APP_URL = chrome.runtime.getURL('app.html');
+
+const MONITOR_ALARM = 'nmda-followup-monitor';
+const MONITOR_PERIOD_MINUTES = 5;
+let monitorSyncPromise = null;
+
+async function syncFollowUpMonitor({ source = 'background' } = {}) {
+  if (monitorSyncPromise) return monitorSyncPromise;
+  monitorSyncPromise = (async () => {
+    const Operations = globalThis.NMDAOperations;
+    if (!Operations) return { ok:false, reason:'operations-unavailable' };
+    const tabs = await listMailTabs();
+    const tab = tabs[0] || null;
+    if (!tab?.id) return { ok:false, reason:'mailbox-not-open' };
+    try { await waitForExecutor(tab.id, 1800); } catch (_) {}
+    const account = await accountInfo(tab.id);
+    if (!account?.ok || !account.uid) return { ok:false, reason:'mailbox-not-authenticated' };
+    const snapshot = await readMailboxState(tab.id, 'quick');
+    if (!snapshot?.ok) return { ok:false, reason:snapshot?.reason || 'mailbox-read-failed', phase:snapshot?.phase || '' };
+    const loaded = await Operations.load(account.uid);
+    const applied = Operations.ingestMailboxSnapshot(
+      loaded.store,
+      snapshot.sent?.messages || [],
+      snapshot.drafts?.messages || [],
+      snapshot.inbox?.messages || [],
+      {
+        mode:'quick',
+        complete:false,
+        sentCoverage:snapshot.coverage?.sent,
+        draftCoverage:snapshot.coverage?.drafts,
+        inboxCoverage:snapshot.coverage?.inbox
+      }
+    );
+    await Operations.save(account.uid, applied.store);
+    const result = {
+      ok:true,
+      source,
+      account:account.uid,
+      syncedAt:new Date().toISOString(),
+      outboundRead:applied.outboundRead || 0,
+      draftsRead:applied.draftsRead || 0,
+      inboxRead:applied.inboxRead || 0,
+      linkedOutbounds:applied.linkedOutbounds || 0,
+      repliesAssociated:applied.repliesAssociated || 0,
+      ambiguousReplies:applied.ambiguousReplies || 0,
+      automaticReplies:applied.automaticReplies || 0,
+      humanReplies:applied.humanReplies || 0
+    };
+    chrome.runtime.sendMessage({ type:'NMDA_MONITOR_SYNCED', ...result }).catch(()=>{});
+    return result;
+  })();
+  try { return await monitorSyncPromise; }
+  finally { monitorSyncPromise = null; }
+}
+
+function ensureMonitorAlarm() {
+  try { chrome.alarms.create(MONITOR_ALARM, { delayInMinutes:1, periodInMinutes:MONITOR_PERIOD_MINUTES }); } catch (_) {}
+}
+
+chrome.runtime.onInstalled.addListener(() => ensureMonitorAlarm());
+chrome.runtime.onStartup.addListener(() => ensureMonitorAlarm());
+chrome.alarms.onAlarm.addListener(alarm => { if (alarm?.name === MONITOR_ALARM) void syncFollowUpMonitor({source:'alarm'}); });
+ensureMonitorAlarm();
+
 const MAIL_URL = 'https://mail.163.com/';
 
 async function listMailTabs() {
@@ -563,7 +651,7 @@ async function connectionStatus(sender) {
 
 function normalizeAppTarget(target = '') {
   const value = String(target || '').trim().replace(/^#+/, '');
-  return /^(batch(?:\/[123])?|contacts)$/.test(value) ? value : 'batch';
+  return /^(batch(?:\/[123])?|monitor)$/.test(value) ? value : 'batch';
 }
 
 async function openApp(target = 'batch') {
@@ -645,6 +733,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_READ_MAILBOX_STATE') return readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick');
     if (message?.type === 'NMDA_READ_SENT') return readMailbox(tabId,3,message.limit ?? 200);
     if (message?.type === 'NMDA_READ_DRAFTS') return readMailbox(tabId,2,message.limit ?? 200);
+    if (message?.type === 'NMDA_READ_INBOX') return readMailbox(tabId,1,message.limit ?? 200);
+    if (message?.type === 'NMDA_SYNC_FOLLOWUP_MONITOR') return syncFollowUpMonitor({source:'manual'});
     if (message?.type === 'NMDA_IMPORT_DRAFTS') return readDraftImport(tabId,message.limit ?? 300);
     return {ok:false,reason:'unknown-message'};
   })().then(sendResponse).catch(error => sendResponse({ok:false,reason:error?.message||String(error)}));

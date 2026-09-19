@@ -154,6 +154,47 @@
     return waitFor(isFresh, 12000, 120, '已触发“写信”，但没有检测到新的 Compose 实例；为避免覆盖上一封草稿，批处理已停止。');
   }
 
+
+  function findReadAction(labels = []) {
+    const wanted = labels.map(compactText).filter(Boolean);
+    const selectors = 'button,a,[role="button"],li[role="button"],span[role="button"],.nui-btn,.nui-txt-link';
+    const candidates = [...document.querySelectorAll(selectors)].filter(visible);
+    return candidates.find(el => {
+      const text = compactText(el);
+      const aria = compactText(el.getAttribute?.('aria-label') || '');
+      const title = compactText(el.getAttribute?.('title') || '');
+      return wanted.some(label => text === label || aria === label || title === label);
+    }) || null;
+  }
+
+  async function openNativeMessageContext(messageId, fid = 3) {
+    const id = String(messageId || '').trim();
+    if (!id) throw new Error('缺少原邮件 message id，无法打开网易原生上下文。');
+    const payload = { area:'normal', isThread:false, viewType:'', id, fid:Number(fid || 3) || 3 };
+    location.hash = `module=read.ReadModule%7C${encodeURIComponent(JSON.stringify(payload))}`;
+    await waitFor(() => {
+      const hash = decodeURIComponent(String(location.hash || ''));
+      return hash.includes('read.ReadModule') && hash.includes(id) ? true : null;
+    }, 6000, 100, '网易邮箱没有切换到原邮件。');
+    await sleep(250);
+  }
+
+  async function openContextCompose(mode, messageId, fid = 3) {
+    const beforeRoot = findComposeRoot();
+    const before = composeFingerprint(beforeRoot);
+    await openNativeMessageContext(messageId, fid);
+    const labels = mode === 'reply' ? ['回复'] : ['转发'];
+    const action = await waitFor(() => findReadAction(labels), 10000, 120, `已打开原邮件，但没有找到“${labels[0]}”按钮。`);
+    action.click();
+    return waitFor(() => {
+      const root = findComposeRoot();
+      if (!root) return null;
+      const now = composeFingerprint(root);
+      if (!beforeRoot || !before || (now && now !== before)) return root;
+      return root;
+    }, 12000, 120, `点击“${labels[0]}”后没有检测到网易原生写信窗口。`);
+  }
+
   function findRecipientInput(root) {
     return root.querySelector('input[aria-label^="收件人地址输入框"]')
       || [...root.querySelectorAll('input[type="text"]')].find(el => (el.getAttribute('aria-label') || '').includes('收件人'))
@@ -171,6 +212,14 @@
     await sleep(100);
     fire(input, 'blur');
     await sleep(350);
+  }
+
+
+  function composeHasExpectedRecipient(root, raw) {
+    const emails = String(raw || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig) || [];
+    if (!emails.length) return true;
+    const text = String(root?.innerText || root?.textContent || '').toLowerCase();
+    return emails.every(email => text.includes(String(email).toLowerCase()));
   }
 
   function splitRecipientAddresses(raw) {
@@ -252,6 +301,22 @@
     // the workbench; ordinary file imports continue through the plain-text path.
     if (bodyIsHtml && String(bodyHtml || '').trim()) body.innerHTML = String(bodyHtml);
     else body.innerHTML = plainTextToHtml(bodyText || '');
+    fire(body, 'input'); fire(body, 'change'); fire(body, 'blur');
+  }
+
+
+  async function prependBody(root, bodyText, bodyHtml = '', bodyIsHtml = false) {
+    const iframe = await waitFor(() => findEditorIframe(root), 8000, 120, '未找到正文编辑器 iframe。');
+    const body = await waitFor(() => {
+      try { return iframe.contentDocument?.body || null; } catch (_) { return null; }
+    }, 8000, 120, '无法访问正文编辑器内容。');
+    const html = bodyIsHtml && String(bodyHtml || '').trim() ? String(bodyHtml) : plainTextToHtml(bodyText || '');
+    if (!String(html || '').trim()) return;
+    body.focus();
+    const wrapper = body.ownerDocument.createElement('div');
+    wrapper.setAttribute('data-nmda-followup', '1');
+    wrapper.innerHTML = `${html}<div><br></div>`;
+    body.insertBefore(wrapper, body.firstChild || null);
     fire(body, 'input'); fire(body, 'change'); fire(body, 'blur');
   }
 
@@ -605,22 +670,28 @@
     const executionId = String(message.executionId || '');
     const task = message.task || {};
     const fresh = message.fresh !== false;
-    reportProgress(executionId, 'open', '正在打开新的写信页…');
-    const root = fresh ? await openFreshCompose() : await openCompose();
+    const composeMode = ['forward','reply','new'].includes(task.composeMode) ? task.composeMode : 'new';
+    const contextual = composeMode === 'forward' || composeMode === 'reply';
+    reportProgress(executionId, 'open', contextual ? `正在打开原邮件并进入${composeMode === 'forward' ? '转发' : '回复'}…` : '正在打开新的写信页…');
+    const root = contextual
+      ? await openContextCompose(composeMode, task.parentMessageId, task.parentFid || 3)
+      : (fresh ? await openFreshCompose() : await openCompose());
 
-    reportProgress(executionId, 'content', '正在填写收件人、主题和正文…');
-    await setRecipients(root, task.recipients || '');
+    reportProgress(executionId, 'content', contextual ? '正在保留网易原生邮件上下文并插入 Follow-up 正文…' : '正在填写收件人、主题和正文…');
+    if (composeMode === 'forward' || composeMode === 'new') await setRecipients(root, task.recipients || '');
+    else if (composeMode === 'reply' && !composeHasExpectedRecipient(root, task.recipients || '')) await setRecipients(root, task.recipients || '');
     await setAuxRecipients(root, task.cc || '', '抄送');
     await setAuxRecipients(root, task.bcc || '', '密送');
-    await setSubject(root, task.subject || '');
-    await setBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml);
+    if (composeMode === 'new') await setSubject(root, task.subject || '');
+    if (contextual) await prependBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml);
+    else await setBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml);
     if (Number(task.priority || 0) === 1) await enableComposeOption(root, '紧急', true);
     if (task.requestReadReceipt) await enableComposeOption(root, '已读回执', true);
 
     let attachmentResult = { verified: true, missing: [], mode: 'none' };
     const refs = Array.isArray(task.attachments) ? task.attachments : [];
     if (refs.length) {
-      reportProgress(executionId, 'attachments', `正在准备 ${refs.length} 个附件…`);
+      reportProgress(executionId, 'attachments', `正在准备 ${refs.length} 个新增附件…`);
       const files = [];
       for (let i = 0; i < refs.length; i++) {
         files.push(await readVaultFile(refs[i]));
@@ -630,7 +701,7 @@
         reportProgress(executionId, 'attachments', `正在上传附件 ${done}/${total} · ${name}`, { done, total, name });
       });
     } else {
-      reportProgress(executionId, 'attachments', '没有附件，跳过附件步骤。');
+      reportProgress(executionId, 'attachments', contextual ? '保留网易原生转发 / 回复上下文中的附件状态。' : '没有附件，跳过附件步骤。');
     }
 
     let actualMinute = null;
@@ -650,10 +721,13 @@
       outcome: {
         saveOutcome,
         actualMinute,
+        composeMode,
+        parentMessageId: contextual ? String(task.parentMessageId || '') : '',
         attachment: { verified: !!attachmentResult.verified, mode: attachmentResult.mode || 'none', missingNames }
       }
     };
   }
+
 
 
   const batchMonitorState={total:0,current:0,succeeded:0,failed:0,remaining:0,status:'idle',task:null,message:'',items:[],events:[]};

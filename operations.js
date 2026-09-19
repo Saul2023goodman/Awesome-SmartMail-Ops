@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const SCHEMA_VERSION = 1;
+  const SCHEMA_VERSION = 2;
   const STORAGE_PREFIX = 'nmda.operations.v1:';
   const LEGACY_CONTACT_PREFIX = 'nmda.contacts.v1:';
   const FOLLOWUP_STATES = ['due', 'prepared', 'confirmed', 'scheduled', 'sent', 'blocked', 'cancelled'];
@@ -94,6 +94,49 @@
     return (hash >>> 0).toString(36);
   }
 
+
+  function subjectThreadKey(value) {
+    let text = String(value || '').trim();
+    let previous = '';
+    while (text && text !== previous) {
+      previous = text;
+      text = text.replace(/^\s*(?:(?:re|fw|fwd|aw|sv)\s*[:：]|回复\s*[:：]|答复\s*[:：]|转发\s*[:：])\s*/i, '');
+    }
+    return text.toLocaleLowerCase('zh-CN').replace(/[\s\u00a0]+/g, ' ').trim();
+  }
+
+  function recipientKey(recipients = []) {
+    return [...new Set((recipients || []).map(item => normalizeEmail(item?.email || item?.address)).filter(Boolean))].sort().join(';');
+  }
+
+  function truthyFlag(flags, patterns = []) {
+    const source = flags && typeof flags === 'object' ? flags : {};
+    return Object.entries(source).some(([key, value]) => {
+      if (!value || value === '0' || value === 0 || value === false) return false;
+      const normalized = String(key || '').toLowerCase();
+      return patterns.some(pattern => normalized.includes(pattern));
+    });
+  }
+
+  function classifyInboundMessage(message = {}) {
+    const subject = String(message.subject || '');
+    const sender = normalizeEmail(message.sender?.email || message.sender || message.from || '');
+    const flags = message.flags || {};
+    const bounceSubject = /(mail delivery|delivery status|delivery failure|undeliver|returned mail|failure notice|退信|投递失败|无法投递|邮件投递)/i.test(subject);
+    if (bounceSubject || /(?:mailer-daemon|postmaster)@/i.test(sender)) {
+      return { kind: 'bounce', evidence: { rule: bounceSubject ? 'subject-bounce-pattern' : 'sender-bounce-pattern' } };
+    }
+    const automaticFlag = truthyFlag(flags, ['autoreply', 'auto_reply', 'autoresponse', 'auto_response', 'vacation', 'outofoffice', 'ooo']);
+    const automaticSubject = /(automatic reply|auto(?:matic)?[- ]?reply|out of office|away from (?:the )?office|vacation reply|自动回复|自动答复|不在办公室|休假自动|外出自动)/i.test(subject);
+    if (automaticFlag || automaticSubject) {
+      return { kind: 'automatic', evidence: { rule: automaticFlag ? 'mailbox-auto-flag' : 'subject-auto-pattern' } };
+    }
+    if (/(?:no[-_.]?reply|noreply|do[-_.]?not[-_.]?reply)@/i.test(sender)) {
+      return { kind: 'system', evidence: { rule: 'sender-no-reply-pattern' } };
+    }
+    return { kind: 'human', evidence: { rule: 'ordinary-inbound' } };
+  }
+
   function storageKey(account) {
     return `${STORAGE_PREFIX}${normalizeEmail(account) || 'default'}`;
   }
@@ -115,6 +158,7 @@
       updatedAt: now,
       outboundRecords: {},
       draftRecords: {},
+      inboundRecords: {},
       replyObservations: {},
       derivedTasks: {},
       recipientGuards: {},
@@ -141,6 +185,7 @@
       account: normalizeEmail(raw.account || account) || 'default',
       outboundRecords: raw.outboundRecords && typeof raw.outboundRecords === 'object' ? raw.outboundRecords : {},
       draftRecords: raw.draftRecords && typeof raw.draftRecords === 'object' ? raw.draftRecords : {},
+      inboundRecords: raw.inboundRecords && typeof raw.inboundRecords === 'object' ? raw.inboundRecords : {},
       replyObservations: raw.replyObservations && typeof raw.replyObservations === 'object' ? raw.replyObservations : {},
       derivedTasks: raw.derivedTasks && typeof raw.derivedTasks === 'object' ? raw.derivedTasks : {},
       recipientGuards: raw.recipientGuards && typeof raw.recipientGuards === 'object' ? raw.recipientGuards : {},
@@ -218,7 +263,200 @@
     };
   }
 
-  function ingestMailboxSnapshot(storeInput, sentMessages = [], draftMessages = [], options = {}) {
+
+  function inboundFromMailbox(message) {
+    const senderEmail = normalizeEmail(message?.sender?.email || message?.senderEmail || message?.fromEmail || message?.from || '');
+    const senderName = String(message?.sender?.name || message?.senderName || '').trim();
+    const id = providerRecordId('inbound', message, senderEmail);
+    return {
+      id,
+      providerMessageId: String(message?.id || message?.messageId || '').trim(),
+      source: 'mailbox',
+      sender: { email: senderEmail, name: senderName },
+      subject: String(message?.subject || ''),
+      receivedAt: isoTime(message?.receivedAt ?? message?.receivedDate ?? message?.date ?? message?.sentAt),
+      threadId: String(message?.threadId || message?.conversationId || '').trim(),
+      inReplyTo: String(message?.inReplyTo || '').trim(),
+      references: String(message?.references || '').trim(),
+      flags: message?.flags && typeof message.flags === 'object' ? clone(message.flags) : {},
+      observedAt: nowIso(),
+      mailboxFolder: 'inbox'
+    };
+  }
+
+  function sameRecipientSet(a = [], b = []) {
+    const left = recipientKey(a), right = recipientKey(b);
+    return !!left && left === right;
+  }
+
+  function reconcileOutboundsToDrafts(storeInput) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const drafts = Object.values(next.draftRecords).filter(record => record?.rootTaskId && record?.taskId);
+    let linked = 0;
+    for (const outbound of Object.values(next.outboundRecords)) {
+      if (!outbound || outbound.status !== 'sent' || outbound.rootTaskId) continue;
+      const sentMs = timeMs(outbound.sentAt);
+      const outSubject = subjectThreadKey(outbound.subject);
+      const candidates = drafts.map(draft => {
+        const savedMs = timeMs(draft.scheduleAt || draft.savedAt);
+        if (!savedMs || !sentMs || sentMs < savedMs - 6 * 3600000 || sentMs > savedMs + 45 * 86400000) return null;
+        let score = 0;
+        if (sameRecipientSet(outbound.recipients, draft.recipients)) score += 8;
+        else {
+          const outSet = new Set((outbound.recipients || []).map(item => normalizeEmail(item.email)).filter(Boolean));
+          if ((draft.recipients || []).some(item => outSet.has(normalizeEmail(item.email)))) score += 4;
+        }
+        if (outSubject && outSubject === subjectThreadKey(draft.subject)) score += 8;
+        const distanceDays = Math.abs(sentMs - savedMs) / 86400000;
+        score += Math.max(0, 4 - Math.min(4, distanceDays));
+        return score >= 12 ? { draft, score, savedMs } : null;
+      }).filter(Boolean).sort((a, b) => b.score - a.score || b.savedMs - a.savedMs);
+      if (!candidates.length) continue;
+      if (candidates[1] && candidates[1].score === candidates[0].score && candidates[1].draft.rootTaskId !== candidates[0].draft.rootTaskId) continue;
+      const draft = candidates[0].draft;
+      outbound.taskId = draft.taskId;
+      outbound.rootTaskId = draft.rootTaskId;
+      outbound.parentTaskId = draft.parentTaskId || '';
+      outbound.parentOutboundId = draft.parentOutboundId || '';
+      outbound.sequence = Number(draft.sequence || 0);
+      outbound.kind = draft.kind === 'follow_up' || Number(draft.sequence || 0) > 0 ? 'follow_up' : 'initial';
+      outbound.linkedAt = nowIso();
+      outbound.linkEvidence = { kind: 'draft-reconciliation', draftId: draft.id, score: candidates[0].score };
+      draft.status = 'sent';
+      draft.sentOutboundId = outbound.id;
+      draft.sentAt = outbound.sentAt;
+      if (draft.kind === 'follow_up' && next.derivedTasks[draft.taskId]) {
+        const task = next.derivedTasks[draft.taskId];
+        task.state = 'sent';
+        task.sentOutboundId = outbound.id;
+        task.updatedAt = nowIso();
+      }
+      linked++;
+    }
+    next.updatedAt = nowIso();
+    return { store: next, linked };
+  }
+
+  function adoptOutboundAsRoot(storeInput, outboundId) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const outbound = next.outboundRecords[outboundId];
+    if (!outbound) throw new Error(`找不到 outbound record：${outboundId}`);
+    if (outbound.status !== 'sent') throw new Error('只有已发送邮件可以开始监测。');
+    if (!outbound.rootTaskId) {
+      const rootTaskId = `mailroot:${stableHash(outbound.providerMessageId || outbound.id)}`;
+      outbound.taskId = rootTaskId;
+      outbound.rootTaskId = rootTaskId;
+      outbound.parentTaskId = '';
+      outbound.parentOutboundId = '';
+      outbound.sequence = 0;
+      outbound.kind = 'initial';
+      outbound.linkedAt = nowIso();
+      outbound.linkEvidence = { kind: 'manual-monitor-adoption' };
+    }
+    next.followUpPolicies.overrides[outbound.rootTaskId] = normalizePolicy({ ...policyForRoot(next, outbound.rootTaskId), enabled: true });
+    next.updatedAt = nowIso();
+    return { store: next, outbound, rootTaskId: outbound.rootTaskId };
+  }
+
+  function findReplyAssociationCandidates(storeInput, inbound) {
+    const store = normalizeStore(storeInput);
+    const sender = normalizeEmail(inbound?.sender?.email || inbound?.sender || '');
+    const receivedMs = timeMs(inbound?.receivedAt);
+    if (!sender || !receivedMs) return [];
+    const subjectKey = subjectThreadKey(inbound.subject);
+    const refs = `${inbound.inReplyTo || ''} ${inbound.references || ''}`;
+    return Object.values(store.outboundRecords).filter(outbound => {
+      if (!outbound?.rootTaskId || outbound.status !== 'sent') return false;
+      if (timeMs(outbound.sentAt) > receivedMs) return false;
+      return (outbound.recipients || []).some(item => normalizeEmail(item.email) === sender);
+    }).map(outbound => {
+      let score = 0;
+      const outboundSubject = subjectThreadKey(outbound.subject);
+      if (subjectKey && outboundSubject && subjectKey === outboundSubject) score += 10;
+      if (outbound.providerMessageId && refs.includes(outbound.providerMessageId)) score += 20;
+      const ageDays = Math.max(0, (receivedMs - timeMs(outbound.sentAt)) / 86400000);
+      if (ageDays <= 2) score += 4;
+      else if (ageDays <= 14) score += 3;
+      else if (ageDays <= 45) score += 2;
+      else if (ageDays <= 120) score += 1;
+      return { outbound, score, subjectMatch: !!subjectKey && subjectKey === outboundSubject, ageDays };
+    }).filter(item => item.ageDays <= 180).sort((a, b) => b.score - a.score || timeMs(b.outbound.sentAt) - timeMs(a.outbound.sentAt));
+  }
+
+  function reconcileInboundReplies(storeInput) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    let associated = 0, ambiguous = 0, automatic = 0, human = 0;
+    for (const inbound of Object.values(next.inboundRecords)) {
+      if (!inbound?.sender?.email) continue;
+      const obsId = inbound.providerMessageId ? `reply:provider:${inbound.providerMessageId}` : `reply:inbound:${stableHash(inbound.id)}`;
+      const existing = next.replyObservations[obsId];
+      if (existing?.evidence?.manual === true) continue;
+      const candidates = findReplyAssociationCandidates(next, inbound);
+      if (!candidates.length) {
+        if (existing && !existing.rootTaskId) next.replyObservations[obsId] = { ...existing, observedAt: nowIso() };
+        continue;
+      }
+      const best = candidates[0];
+      const classified = classifyInboundMessage(inbound);
+      const strong = best.subjectMatch || best.score >= 12 || (classified.kind === 'automatic' && candidates.length === 1);
+      const kind = strong ? classified.kind : 'ambiguous';
+      const observation = {
+        id: obsId,
+        providerMessageId: inbound.providerMessageId || '',
+        source: 'mailbox-monitor',
+        kind,
+        sender: inbound.sender.email,
+        subject: inbound.subject,
+        receivedAt: inbound.receivedAt,
+        rootTaskId: best.outbound.rootTaskId,
+        relatedOutboundId: best.outbound.id,
+        evidence: {
+          ...classified.evidence,
+          association: strong ? (best.subjectMatch ? 'sender+subject' : 'provider-reference') : 'sender-only',
+          score: best.score,
+          inboundId: inbound.id,
+          candidates: candidates.slice(0, 4).map(item => ({ outboundId: item.outbound.id, rootTaskId: item.outbound.rootTaskId, score: item.score }))
+        },
+        observedAt: nowIso()
+      };
+      next.replyObservations[obsId] = observation;
+      associated++;
+      if (kind === 'ambiguous') ambiguous++;
+      else if (kind === 'automatic') automatic++;
+      else if (kind === 'human') human++;
+    }
+    const refreshed = refreshDerivedTaskBlocks(next);
+    return { store: refreshed.store, associated, ambiguous, automatic, human, blockedTasks: refreshed.blockedTasks, restoredTasks: refreshed.restoredTasks };
+  }
+
+  function setReplyObservationDisposition(storeInput, observationId, disposition) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const observation = next.replyObservations[observationId];
+    if (!observation) throw new Error(`找不到 reply observation：${observationId}`);
+    if (!['human', 'automatic', 'unrelated'].includes(disposition)) throw new Error(`未知回复处理方式：${disposition}`);
+    if (disposition === 'unrelated') {
+      observation.kind = 'system';
+      observation.rootTaskId = '';
+      observation.relatedOutboundId = '';
+    } else {
+      observation.kind = disposition;
+    }
+    observation.evidence = { ...(observation.evidence || {}), manual: true, manualDisposition: disposition, changedAt: nowIso() };
+    observation.observedAt = nowIso();
+    const refreshed = refreshDerivedTaskBlocks(next);
+    refreshed.store.updatedAt = nowIso();
+    return { store: refreshed.store, observation: refreshed.store.replyObservations[observationId] };
+  }
+
+  function ingestMailboxSnapshot(storeInput, sentMessages = [], draftMessages = [], inboxMessages = [], options = {}) {
+    if (!Array.isArray(inboxMessages)) {
+      options = inboxMessages || {};
+      inboxMessages = [];
+    }
     const store = normalizeStore(storeInput);
     const full = options.mode === 'full' || options.full === true;
     if (full && options.complete !== true) throw new Error('完整覆盖要求 complete=true，避免用不完整邮箱快照删除事实。');
@@ -226,8 +464,10 @@
     const observedAt = nowIso();
     const incomingOutbound = {};
     const incomingDrafts = {};
+    const incomingInbound = {};
     let failedMessages = 0;
     let draftsWithoutRecipient = 0;
+    let inboundWithoutSender = 0;
 
     for (const message of sentMessages || []) {
       if (message?.failed) { failedMessages++; continue; }
@@ -258,33 +498,52 @@
         kind: existing.rootTaskId ? (existing.kind || 'initial') : record.kind
       };
     }
+    for (const message of inboxMessages || []) {
+      const record = inboundFromMailbox(message);
+      if (!record.sender.email) { inboundWithoutSender++; continue; }
+      const existing = next.inboundRecords[record.id] || {};
+      incomingInbound[record.id] = { ...existing, ...record, observedAt };
+    }
 
     if (full) {
       const linkedOutbound = Object.fromEntries(Object.entries(next.outboundRecords).filter(([, record]) => record?.source !== 'mailbox' || record?.taskId || record?.rootTaskId));
       const linkedDrafts = Object.fromEntries(Object.entries(next.draftRecords).filter(([, record]) => record?.source !== 'mailbox' || record?.taskId || record?.rootTaskId));
       next.outboundRecords = { ...linkedOutbound, ...incomingOutbound };
       next.draftRecords = { ...linkedDrafts, ...incomingDrafts };
+      next.inboundRecords = { ...incomingInbound };
     } else {
       next.outboundRecords = { ...next.outboundRecords, ...incomingOutbound };
       next.draftRecords = { ...next.draftRecords, ...incomingDrafts };
+      next.inboundRecords = { ...next.inboundRecords, ...incomingInbound };
     }
 
-    next.mailboxSync = {
-      ...next.mailboxSync,
+    const linked = reconcileOutboundsToDrafts(next);
+    const replies = reconcileInboundReplies(linked.store);
+    const finalStore = replies.store;
+    finalStore.mailboxSync = {
+      ...finalStore.mailboxSync,
       lastMode: full ? 'full' : 'quick',
       complete: full,
-      lastQuickAt: !full ? observedAt : next.mailboxSync.lastQuickAt || '',
-      lastFullAt: full ? observedAt : next.mailboxSync.lastFullAt || '',
+      lastQuickAt: !full ? observedAt : finalStore.mailboxSync.lastQuickAt || '',
+      lastFullAt: full ? observedAt : finalStore.mailboxSync.lastFullAt || '',
       sent: options.sentCoverage || { read: Object.keys(incomingOutbound).length },
-      drafts: options.draftCoverage || { read: Object.keys(incomingDrafts).length }
+      drafts: options.draftCoverage || { read: Object.keys(incomingDrafts).length },
+      inbox: options.inboxCoverage || { read: Object.keys(incomingInbound).length }
     };
-    next.updatedAt = observedAt;
+    finalStore.updatedAt = observedAt;
     return {
-      store: next,
+      store: finalStore,
       outboundRead: Object.keys(incomingOutbound).length,
       draftsRead: Object.keys(incomingDrafts).length,
+      inboxRead: Object.keys(incomingInbound).length,
+      linkedOutbounds: linked.linked,
+      repliesAssociated: replies.associated,
+      ambiguousReplies: replies.ambiguous,
+      automaticReplies: replies.automatic,
+      humanReplies: replies.human,
       failedMessages,
-      draftsWithoutRecipient
+      draftsWithoutRecipient,
+      inboundWithoutSender
     };
   }
 
@@ -408,6 +667,42 @@
     const threshold = timeMs(afterTime);
     return Object.values(store.replyObservations).filter(obs => obs?.rootTaskId === String(rootTaskId) && timeMs(obs.receivedAt) >= threshold)
       .sort((a, b) => timeMs(a.receivedAt) - timeMs(b.receivedAt));
+  }
+
+  function refreshDerivedTaskBlocks(storeInput) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    let blockedTasks = 0, restoredTasks = 0;
+    for (const task of Object.values(next.derivedTasks)) {
+      if (!task || task.kind !== 'follow_up' || task.state === 'sent' || task.state === 'cancelled') continue;
+      const parent = next.outboundRecords[task.parentOutboundId] || outboundForRoot(next, task.rootTaskId).find(item => Number(item.sequence || 0) === Number(task.sequence || 0) - 1) || null;
+      const after = parent?.sentAt || '';
+      const guard = guardForRecipients(next, (task.recipients || []).map(item => item.email).join(';'));
+      const replies = observationsAfter(next, task.rootTaskId, after);
+      const blockingObservation = replies.find(item => item.kind === 'human' || item.kind === 'ambiguous') || null;
+      const blocker = guard.blocked
+        ? { type: 'recipient-guard', modes: guard.modes, reasons: guard.reasons }
+        : blockingObservation
+          ? { type: 'reply', observationId: blockingObservation.id, kind: blockingObservation.kind, subject: blockingObservation.subject || '' }
+          : null;
+      if (blocker) {
+        if (task.state !== 'blocked') {
+          task.blockedFromState = task.state;
+          task.state = 'blocked';
+          blockedTasks++;
+        }
+        task.blocker = blocker;
+        task.updatedAt = nowIso();
+      } else if (task.state === 'blocked' && task.blocker && ['reply', 'recipient-guard'].includes(task.blocker.type)) {
+        task.state = task.blockedFromState && task.blockedFromState !== 'blocked' ? task.blockedFromState : (task.body || task.subject ? 'prepared' : 'due');
+        task.blockedFromState = '';
+        task.blocker = null;
+        task.updatedAt = nowIso();
+        restoredTasks++;
+      }
+    }
+    next.updatedAt = nowIso();
+    return { store: next, blockedTasks, restoredTasks };
   }
 
   function existingFollowUp(storeInput, rootTaskId, sequence) {
@@ -536,6 +831,31 @@
     return { sent, drafts, sentCount: sent.length, draftCount: drafts.length, lastSentAt: sent[0]?.sentAt || '', lastDraftAt: drafts[0]?.savedAt || '', lastSubject: sent[0]?.subject || '', lastDraftSubject: drafts[0]?.subject || '' };
   }
 
+  function monitoringRoots(storeInput) {
+    const store = normalizeStore(storeInput);
+    const groups = new Map();
+    for (const outbound of Object.values(store.outboundRecords)) {
+      if (!outbound?.rootTaskId || outbound.status !== 'sent') continue;
+      if (!groups.has(outbound.rootTaskId)) groups.set(outbound.rootTaskId, []);
+      groups.get(outbound.rootTaskId).push(outbound);
+    }
+    return [...groups.entries()].map(([rootTaskId, outbounds]) => {
+      outbounds.sort((a, b) => timeMs(a.sentAt) - timeMs(b.sentAt));
+      const lastOutbound = outbounds[outbounds.length - 1];
+      const replies = observationsAfter(store, rootTaskId, lastOutbound.sentAt);
+      const tasks = Object.values(store.derivedTasks).filter(task => task?.rootTaskId === rootTaskId).sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
+      const eligibility = evaluateFollowUpEligibility(store, rootTaskId);
+      const policy = policyForRoot(store, rootTaskId);
+      return { rootTaskId, outbounds, lastOutbound, replies, tasks, eligibility, policy };
+    }).sort((a, b) => timeMs(b.lastOutbound.sentAt) - timeMs(a.lastOutbound.sentAt));
+  }
+
+  function unmonitoredOutbounds(storeInput, limit = 100) {
+    const store = normalizeStore(storeInput);
+    return Object.values(store.outboundRecords).filter(record => record?.status === 'sent' && !record?.rootTaskId)
+      .sort((a, b) => timeMs(b.sentAt) - timeMs(a.sentAt)).slice(0, Math.max(1, Number(limit || 100)));
+  }
+
   function migrateLegacyContacts(storeInput, legacyContacts = {}) {
     const store = normalizeStore(storeInput);
     if (store.migration?.contactsV1At) return { store, migrated: false, outbound: 0, drafts: 0, guards: 0 };
@@ -625,11 +945,16 @@
     isoTime,
     formatDisplayTime,
     stableHash,
+    subjectThreadKey,
+    classifyInboundMessage,
     createStore,
     normalizeStore,
     load,
     save,
     ingestMailboxSnapshot,
+    reconcileOutboundsToDrafts,
+    reconcileInboundReplies,
+    adoptOutboundAsRoot,
     recordPreparedDraft,
     linkOutbound,
     setRecipientGuard,
@@ -637,15 +962,19 @@
     policyForRoot,
     setFollowUpPolicy,
     recordReplyObservation,
+    setReplyObservationDisposition,
     outboundForRoot,
     observationsAfter,
     existingFollowUp,
+    refreshDerivedTaskBlocks,
     evaluateFollowUpEligibility,
     createFollowUpTask,
     updateDerivedTaskContent,
     confirmDerivedTask,
     setDerivedTaskState,
     mailboxHistoryForRecipients,
+    monitoringRoots,
+    unmonitoredOutbounds,
     migrateLegacyContacts
   };
 })();

@@ -39,11 +39,11 @@
         <span class="nmda-dock-primary-label">作业</span>
       </button>
 
-      <button class="nmda-dock-primary-item" data-section="contacts" type="button" aria-label="联系人" aria-expanded="false">
+      <button class="nmda-dock-primary-item" data-section="monitor" type="button" aria-label="邮件监测" aria-expanded="false">
         <span class="nmda-dock-primary-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.25"/><path d="M3.75 18c.55-3.1 2.37-4.75 5.25-4.75s4.7 1.65 5.25 4.75M15.25 7.25h5M17.75 4.75v5"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M4 7.5h16v10H4z"/><path d="m4 8 8 6 8-6"/><circle cx="18" cy="6" r="2.5"/></svg>
         </span>
-        <span class="nmda-dock-primary-label">联系人</span>
+        <span class="nmda-dock-primary-label">监测</span>
       </button>
 
       <button class="nmda-dock-primary-item" id="nmda-dock-compose" type="button" aria-label="写信" title="打开网易写信">
@@ -86,11 +86,11 @@
         { target: 'batch', step: '作', title: '打开批量工作台', detail: '阶段切换统一使用工作台顶部导航', primary: true }
       ]
     },
-    contacts: {
-      name: '联系人',
-      desc: '邮箱状态与跟进记录',
+    monitor: {
+      name: '邮件监测',
+      desc: '回复识别与 Follow-up',
       items: [
-        { target: 'contacts', step: '联', title: '联系人工作区', detail: '查看邮箱状态与历史记录', primary: true }
+        { target: 'monitor', step: '监', title: '打开邮件监测', detail: '查看已发送、回复与跟进任务', primary: true }
       ]
     },
     status: {

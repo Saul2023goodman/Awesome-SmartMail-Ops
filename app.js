@@ -53,7 +53,8 @@
           subject: task.subject || '', body: task.body || '',
           bodyHtml: task.bodyHtml || '', bodyIsHtml: !!task.bodyIsHtml,
           priority: Number(task.priority || 0) || 0, requestReadReceipt: !!task.requestReadReceipt,
-          scheduleAt: task.scheduleAt || '', attachments: refs
+          scheduleAt: task.scheduleAt || '', attachments: refs,
+          composeMode: task.composeMode || 'new', parentMessageId: task.parentMessageId || task.providerMessageId || '', parentFid: Number(task.parentFid || 3) || 3
         }
       });
       if (!result?.ok) throw new Error(result?.reason || '网易邮箱执行器没有完成草稿创建。');
@@ -113,12 +114,16 @@
         <nav class="nmda-tabs" aria-label="工作台模块">
           <div class="nmda-nav-label">工作区</div>
           <button class="nmda-tab is-active" data-tab="batch" type="button" title="批量草稿"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg></span><span><strong>批量草稿</strong><small>导入 · 审阅 · 排期</small></span></button>
+          <button class="nmda-tab" data-tab="monitor" type="button" title="邮件监测"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7.5h16v10H4z"/><path d="m4 8 8 6 8-6"/><circle cx="18" cy="6" r="2.5"/></svg></span><span><strong>邮件监测</strong><small>回复 · Follow-up</small></span></button>
 
         </nav>
 
         <main class="nmda-main">
           <div class="nmda-page-head" data-page-head="batch">
             <div><h2>批量草稿</h2><p>导入 → 审阅 → 排期 → 创建</p></div>
+          </div>
+          <div class="nmda-page-head" data-page-head="monitor" hidden>
+            <div><h2>邮件监测</h2><p>已发送 → 回复识别 → Follow-up 到期 → 跟进准备</p></div>
           </div>
           <section class="nmda-tabpane nmda-page nmda-ingest-page nmda-bulk-workbench" data-pane="batch" data-phase="empty">
             <aside class="nmda-process-guide" aria-label="批量流程">
@@ -558,6 +563,75 @@
 
           </section>
 
+
+          <section class="nmda-tabpane nmda-page nmda-monitor-page" data-pane="monitor" hidden>
+            <div class="nmda-monitor-toolbar">
+              <div class="nmda-monitor-toolbar-copy"><span class="nmda-monitor-live-dot"></span><div><strong>邮箱事实监测</strong><small id="nmda-monitor-sync-copy">连接网易邮箱后自动监测；也可以立即同步。</small></div></div>
+              <div class="nmda-row nmda-wrap">
+                <button class="nmda-btn nmda-btn-small" id="nmda-monitor-sync" type="button">立即同步</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-full-sync" type="button">完整重建</button>
+              </div>
+            </div>
+
+            <div class="nmda-monitor-stats" id="nmda-monitor-stats"></div>
+
+            <details class="nmda-monitor-policy" id="nmda-monitor-policy">
+              <summary><span><strong>Follow-up 规则</strong><small>默认规则只控制已纳入监测的邮件；真人回复会立即阻断后续跟进。</small></span><span>设置</span></summary>
+              <div class="nmda-monitor-policy-grid">
+                <label class="nmda-field"><span class="nmda-label">等待天数</span><input id="nmda-monitor-delay" type="number" min="0" max="365" step="1"></label>
+                <label class="nmda-field"><span class="nmda-label">最多跟进次数</span><input id="nmda-monitor-max" type="number" min="0" max="20" step="1"></label>
+                <label class="nmda-field"><span class="nmda-label">默认方式</span><select id="nmda-monitor-compose-mode"><option value="forward">Forward</option><option value="reply">Reply</option><option value="new">New message</option></select></label>
+                <div class="nmda-monitor-policy-action"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-monitor-save-policy" type="button">保存默认规则</button></div>
+              </div>
+            </details>
+
+            <div class="nmda-monitor-filterbar">
+              <div class="nmda-monitor-filters" role="group" aria-label="邮件监测筛选">
+                <button type="button" data-monitor-filter="all" class="is-active">全部</button>
+                <button type="button" data-monitor-filter="due">待跟进</button>
+                <button type="button" data-monitor-filter="waiting">等待中</button>
+                <button type="button" data-monitor-filter="replied">已回复</button>
+                <button type="button" data-monitor-filter="blocked">需处理</button>
+              </div>
+              <input class="nmda-monitor-search" id="nmda-monitor-search" type="search" placeholder="搜索收件人或主题">
+            </div>
+
+            <div class="nmda-monitor-notice" id="nmda-monitor-notice" hidden></div>
+            <div class="nmda-monitor-list" id="nmda-monitor-list"></div>
+
+            <details class="nmda-monitor-unlinked" id="nmda-monitor-unlinked">
+              <summary><span><strong>尚未纳入监测的已发送邮件</strong><small>可从历史已发送邮件手动开始监测，不会恢复联系人模块。</small></span><span id="nmda-monitor-unlinked-count">0</span></summary>
+              <div class="nmda-monitor-unlinked-list" id="nmda-monitor-unlinked-list"></div>
+            </details>
+
+            <div class="nmda-workflow-modal-overlay" id="nmda-followup-editor" hidden>
+              <section class="nmda-workflow-dialog nmda-followup-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-followup-editor-title">
+                <header class="nmda-workflow-dialog-head">
+                  <div><span class="nmda-dialog-eyebrow" id="nmda-followup-editor-eyebrow">Follow-up</span><h3 id="nmda-followup-editor-title">准备跟进</h3><p id="nmda-followup-editor-meta"></p></div>
+                  <button class="nmda-dialog-close" id="nmda-followup-editor-close" type="button" aria-label="关闭">×</button>
+                </header>
+                <section class="nmda-followup-dialog-body">
+                  <div class="nmda-followup-parent" id="nmda-followup-parent"></div>
+                  <label class="nmda-field"><span class="nmda-label">收件人</span><input id="nmda-followup-recipient" type="text" readonly></label>
+                  <div class="nmda-followup-two-col">
+                    <label class="nmda-field"><span class="nmda-label">方式</span><select id="nmda-followup-mode"><option value="forward">Forward</option><option value="reply">Reply</option><option value="new">New message</option></select></label>
+                    <label class="nmda-field"><span class="nmda-label">主题</span><input id="nmda-followup-subject" type="text"></label>
+                  </div>
+                  <label class="nmda-field nmda-followup-body-field"><span class="nmda-label">本次新增正文</span><textarea id="nmda-followup-body" rows="10" placeholder="填写 Follow-up 正文"></textarea></label>
+                  <div class="nmda-followup-mode-note" id="nmda-followup-mode-note"></div>
+                  <div class="nmda-monitor-notice" id="nmda-followup-editor-status" hidden></div>
+                </section>
+                <footer class="nmda-workflow-dialog-foot">
+                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-followup-cancel-task" type="button">取消本次跟进</button>
+                  <div class="nmda-dialog-foot-spacer"></div>
+                  <button class="nmda-btn nmda-btn-small" id="nmda-followup-save" type="button">保存内容</button>
+                  <button class="nmda-btn nmda-btn-small" id="nmda-followup-confirm" type="button">确认版本</button>
+                  <button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-followup-create-draft" type="button">创建草稿</button>
+                </footer>
+              </section>
+            </div>
+          </section>
+
         </main>
       </section>`;
     document.documentElement.appendChild(root);
@@ -595,7 +669,7 @@
     }
   }
   function syncModalState(){
-    const modalOpen=[$('nmda-supplement-preflight'),$('nmda-schedule-modal')].some(el=>el&&!el.hidden);
+    const modalOpen=[$('nmda-supplement-preflight'),$('nmda-schedule-modal'),$('nmda-followup-editor')].some(el=>el&&!el.hidden);
     panel.classList.toggle('has-modal',modalOpen);
   }
   function setPanelOpen(open){panel.hidden=!open;setHostScrollLocked(open);if(open)syncModalState();}
@@ -622,6 +696,9 @@
   openMailEl?.addEventListener('click',async()=>{openMailEl.disabled=true;try{await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL',focus:true});}finally{openMailEl.disabled=false;setTimeout(refreshMailboxConnection,500);}});
   chrome.runtime.onMessage.addListener(message=>{
     if(message?.type==='NMDA_CONNECTION_CHANGED') refreshMailboxConnection();
+    if(message?.type==='NMDA_MONITOR_SYNCED' && operationState?.loaded){
+      ensureOperationStore(true).then(()=>{if(currentWorkbenchTab()==='monitor')renderMonitoring();invalidateBatchView(true);}).catch(()=>{});
+    }
     if(message?.type==='NMDA_EXECUTION_PROGRESS_BROADCAST'){
       const handler=executionProgressHandlers.get(String(message.executionId||'')); if(handler) handler(message);
     }
@@ -709,6 +786,280 @@
     try { operationState.store = await pending; }
     finally { if (viewPerf.operationPersistPromise === pending) viewPerf.operationPersistPromise = null; }
   }
+
+
+  const monitorState = { filter:'all', search:'', syncing:false, editorTaskId:'', lastRenderAt:0 };
+
+  function monitorEls() {
+    return {
+      stats:$('nmda-monitor-stats'), list:$('nmda-monitor-list'), unlinked:$('nmda-monitor-unlinked-list'), unlinkedCount:$('nmda-monitor-unlinked-count'),
+      notice:$('nmda-monitor-notice'), syncCopy:$('nmda-monitor-sync-copy'), delay:$('nmda-monitor-delay'), max:$('nmda-monitor-max'), compose:$('nmda-monitor-compose-mode')
+    };
+  }
+
+  function setMonitorNotice(message='', tone='') {
+    const el=$('nmda-monitor-notice'); if(!el)return;
+    el.hidden=!message; el.textContent=message||''; if(tone)el.dataset.tone=tone;else delete el.dataset.tone;
+  }
+
+  function monitorRecipientText(record) {
+    return (record?.recipients || []).map(item => item.name ? `${item.name} <${item.email}>` : item.email).filter(Boolean).join('; ');
+  }
+
+  function monitorGroupState(group) {
+    const activeTask=[...(group.tasks||[])].reverse().find(task=>!['sent','cancelled'].includes(task.state)) || null;
+    const human=[...(group.replies||[])].reverse().find(item=>item.kind==='human') || null;
+    const ambiguous=[...(group.replies||[])].reverse().find(item=>item.kind==='ambiguous') || null;
+    const automatic=[...(group.replies||[])].reverse().find(item=>item.kind==='automatic') || null;
+    if(human)return {key:'replied',tone:'replied',label:'已真人回复',detail:human.subject||'已停止后续 Follow-up',observation:human,activeTask};
+    if(ambiguous)return {key:'blocked',tone:'blocked',label:'回复待判断',detail:ambiguous.subject||'需要人工确认',observation:ambiguous,activeTask};
+    if(activeTask?.state==='blocked')return {key:'blocked',tone:'blocked',label:'跟进已阻断',detail:activeTask.blocker?.kind==='human'?'收到真人回复':'需要处理阻断原因',activeTask};
+    if(activeTask)return {key:'due',tone:'due',label:`Follow-up #${activeTask.sequence} · ${activeTask.state==='confirmed'?'已确认':activeTask.state==='prepared'?'待确认':activeTask.state==='scheduled'?'已排期':'待准备'}`,detail:activeTask.draftPreparedAt?'草稿已创建':(automatic?'收到自动回复，不阻断':'已有跟进任务'),activeTask,automatic};
+    if(group.eligibility?.eligible)return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:automatic?'收到自动回复，不阻断':'可以创建跟进任务',automatic};
+    if(group.eligibility?.reason==='waiting')return {key:'waiting',tone:'',label:'等待中',detail:`到期 ${Operations.formatDisplayTime(group.eligibility.dueAt)}`,automatic};
+    if(group.eligibility?.reason==='follow-up-disabled')return {key:'blocked',tone:'',label:'监测已暂停',detail:'不会创建新的 Follow-up'};
+    if(group.eligibility?.reason==='max-attempts-reached')return {key:'replied',tone:'',label:'已达跟进上限',detail:`最多 ${group.policy.maxAttempts} 次 Follow-up`};
+    if(group.eligibility?.reason==='recipient-guard')return {key:'blocked',tone:'blocked',label:'联系规则阻断',detail:(group.eligibility.guard?.reasons||[]).join('；')||'已暂停联系'};
+    return {key:'waiting',tone:'',label:'监测中',detail:group.eligibility?.reason||'等待邮箱事实'};
+  }
+
+  function renderMonitoring() {
+    if(!Operations || !operationState.loaded)return;
+    const els=monitorEls();
+    const groups=Operations.monitoringRoots(operationState.store);
+    const unlinked=Operations.unmonitoredOutbounds(operationState.store,100);
+    const enriched=groups.map(group=>({...group,viewState:monitorGroupState(group)}));
+    const due=enriched.filter(item=>item.viewState.key==='due').length;
+    const replied=enriched.filter(item=>item.viewState.key==='replied' && item.viewState.label==='已真人回复').length;
+    const blocked=enriched.filter(item=>item.viewState.key==='blocked').length;
+    const waiting=enriched.filter(item=>item.viewState.key==='waiting').length;
+    if(els.stats)els.stats.innerHTML=`
+      <div class="nmda-monitor-stat"><span>监测邮件</span><strong>${groups.length}</strong><small>按原始 outreach 聚合</small></div>
+      <div class="nmda-monitor-stat" data-tone="due"><span>待跟进</span><strong>${due}</strong><small>已到期或已有待处理 Follow-up</small></div>
+      <div class="nmda-monitor-stat" data-tone="reply"><span>真人回复</span><strong>${replied}</strong><small>后续 Follow-up 已停止</small></div>
+      <div class="nmda-monitor-stat" data-tone="block"><span>需人工处理</span><strong>${blocked}</strong><small>含模糊回复与联系规则</small></div>`;
+    const policy=operationState.store.followUpPolicies?.default || Operations.DEFAULT_FOLLOWUP_POLICY;
+    if(els.delay && document.activeElement!==els.delay)els.delay.value=String(policy.delayDays ?? 7);
+    if(els.max && document.activeElement!==els.max)els.max.value=String(policy.maxAttempts ?? 2);
+    if(els.compose && document.activeElement!==els.compose)els.compose.value=policy.composeMode || 'forward';
+    const sync=operationState.store.mailboxSync||{};
+    if(els.syncCopy){
+      const last=sync.lastQuickAt||sync.lastFullAt;
+      const coverage=sync.inbox?.read!==undefined?` · 收件 ${sync.inbox.read}/${sync.inbox.total ?? sync.inbox.read}`:'';
+      els.syncCopy.textContent=last?`上次同步 ${Operations.formatDisplayTime(last)}${coverage} · 后台每 5 分钟检查一次`:'连接网易邮箱后自动监测；也可以立即同步。';
+    }
+    const query=String(monitorState.search||'').toLocaleLowerCase('zh-CN').trim();
+    const visible=enriched.filter(item=>{
+      if(monitorState.filter!=='all' && item.viewState.key!==monitorState.filter)return false;
+      if(!query)return true;
+      const hay=[monitorRecipientText(item.lastOutbound),item.lastOutbound?.subject,item.viewState.label,item.viewState.detail].join(' ').toLocaleLowerCase('zh-CN');
+      return query.split(/\s+/).every(token=>hay.includes(token));
+    });
+    if(els.list){
+      if(!visible.length){
+        els.list.innerHTML=`<div class="nmda-monitor-empty"><div><strong>${groups.length?'当前筛选没有邮件':'还没有纳入监测的邮件'}</strong><small>${groups.length?'切换筛选条件，或清空搜索。':'同步邮箱后，可在下方“尚未纳入监测”中选择已发送邮件；SmartMail 创建并发送的邮件也会在邮箱对账后自动进入监测。'}</small></div></div>`;
+      }else{
+        els.list.innerHTML=visible.map(group=>{
+          const last=group.lastOutbound, st=group.viewState, active=st.activeTask;
+          const dueAt=group.eligibility?.dueAt || active?.dueAt || '';
+          const enabled=group.policy?.enabled!==false;
+          const actions=[];
+          if(active)actions.push(`<button class="nmda-btn nmda-btn-small" type="button" data-monitor-edit="${escapeHtml(active.id)}">打开跟进</button>`);
+          else if(group.eligibility?.eligible)actions.push(`<button class="nmda-btn nmda-btn-primary nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}">创建 Follow-up</button>`);
+          else if(group.eligibility?.reason==='waiting')actions.push(`<button class="nmda-btn nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}" data-manual="1">提前跟进</button>`);
+          actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-monitor-toggle="${escapeHtml(group.rootTaskId)}" data-enabled="${enabled?'1':'0'}">${enabled?'暂停监测':'恢复监测'}</button>`);
+          let evidence='';
+          const ambiguous=(group.replies||[]).filter(obs=>obs.kind==='ambiguous').slice(-1)[0];
+          if(ambiguous){
+            evidence=`<div class="nmda-monitor-reply-evidence"><span>模糊回复：${escapeHtml(ambiguous.sender||'')} · ${escapeHtml(ambiguous.subject||'(无主题)')}</span><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="human">视为真人回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="automatic">视为自动回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="unrelated">与本邮件无关</button></div>`;
+          }
+          return `<article class="nmda-monitor-row" data-tone="${escapeHtml(st.tone||'')}">
+            <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(last.kind==='follow_up'?`最近发送 Follow-up #${last.sequence}`:'初始 outreach')}</small><div class="nmda-monitor-subject" title="${escapeHtml(last.subject||'')}">${escapeHtml(last.subject||'(无主题)')}</div></div>
+            <div class="nmda-monitor-row-state"><span class="nmda-monitor-badge" data-tone="${escapeHtml(st.tone||'')}">${escapeHtml(st.label)}</span><small>${escapeHtml(st.detail||'')}</small></div>
+            <div class="nmda-monitor-row-time"><strong>${escapeHtml(Operations.formatDisplayTime(last.sentAt))}</strong><small>${dueAt?`Follow-up ${escapeHtml(Operations.formatDisplayTime(dueAt))}`:'—'}</small></div>
+            <div class="nmda-monitor-row-actions">${actions.join('')}</div>${evidence}</article>`;
+        }).join('');
+      }
+    }
+    if(els.unlinkedCount)els.unlinkedCount.textContent=String(unlinked.length);
+    if(els.unlinked){
+      els.unlinked.innerHTML=unlinked.length?unlinked.map(record=>`<div class="nmda-monitor-unlinked-row"><div><strong>${escapeHtml(monitorRecipientText(record)||'未知收件人')}</strong><small>${escapeHtml(record.subject||'(无主题)')}</small></div><div><strong>${escapeHtml(record.subject||'(无主题)')}</strong><small>尚无 Task lineage</small></div><small>${escapeHtml(Operations.formatDisplayTime(record.sentAt))}</small><button class="nmda-btn nmda-btn-small" type="button" data-monitor-adopt="${escapeHtml(record.id)}">开始监测</button></div>`).join(''):'<div class="nmda-monitor-empty"><div><strong>没有待纳入的已发送邮件</strong><small>已发送历史已全部归入监测，或当前邮箱尚未同步。</small></div></div>';
+    }
+    monitorState.lastRenderAt=Date.now();
+  }
+
+  async function loadMonitoring({sync=false}={}) {
+    await ensureOperationStore(sync);
+    if(sync)await syncMonitoringMailbox('quick');
+    renderMonitoring();
+  }
+
+  async function syncMonitoringMailbox(mode='quick') {
+    if(monitorState.syncing)return null;
+    monitorState.syncing=true;
+    const quick=$('nmda-monitor-sync'), full=$('nmda-monitor-full-sync');
+    if(quick)quick.disabled=true;if(full)full.disabled=true;
+    setMonitorNotice(mode==='full'?'正在完整读取已发送、草稿和收件箱…':'正在同步已发送、草稿和收件箱…');
+    try{
+      const result=await syncMailboxOperations(mode);
+      const extra=result?`已发送 ${result.outboundRead||0} · 收件 ${result.inboxRead||0} · 关联回复 ${result.repliesAssociated||0}`:'同步完成';
+      setMonitorNotice(`同步完成：${extra}`,'ok');
+      renderMonitoring();
+      return result;
+    }catch(error){
+      setMonitorNotice(`同步失败：${error?.message||String(error)}`,'error');
+      throw error;
+    }finally{
+      monitorState.syncing=false;if(quick)quick.disabled=false;if(full)full.disabled=false;
+    }
+  }
+
+  async function adoptMonitorOutbound(outboundId) {
+    await ensureOperationStore();
+    let adopted=Operations.adoptOutboundAsRoot(operationState.store,outboundId);
+    const replies=Operations.reconcileInboundReplies(adopted.store);
+    operationState.store=replies.store;
+    await persistOperations();
+    renderMonitoring();
+    setMonitorNotice('已开始监测这封已发送邮件；现有收件箱记录也已重新关联。','ok');
+  }
+
+  async function createMonitorFollowUp(rootTaskId, manual=false) {
+    await ensureOperationStore();
+    let created;
+    try{created=Operations.createFollowUpTask(operationState.store,rootTaskId,{manual});}
+    catch(error){setMonitorNotice(error?.message||String(error),'error');return;}
+    operationState.store=created.store;
+    const parent=operationState.store.outboundRecords[created.task.parentOutboundId];
+    const defaultSubject=created.task.composeMode==='new' ? `Re: ${parent?.subject||''}`.trim() : (parent?.subject||'');
+    if(defaultSubject){
+      const updated=Operations.updateDerivedTaskContent(operationState.store,created.task.id,{subject:defaultSubject});
+      operationState.store=updated.store;
+    }
+    await persistOperations();
+    renderMonitoring();
+    openFollowUpEditor(created.task.id);
+  }
+
+  function followUpEditorTask() {
+    return operationState.store?.derivedTasks?.[monitorState.editorTaskId] || null;
+  }
+
+  function setFollowUpEditorStatus(message='',tone='') {
+    const el=$('nmda-followup-editor-status');if(!el)return;el.hidden=!message;el.textContent=message||'';if(tone)el.dataset.tone=tone;else delete el.dataset.tone;
+  }
+
+  function refreshFollowUpModeNote() {
+    const mode=$('nmda-followup-mode')?.value||'forward';
+    const note=$('nmda-followup-mode-note');const subject=$('nmda-followup-subject');const create=$('nmda-followup-create-draft');
+    if(subject)subject.disabled=mode!=='new';
+    if(!note)return;
+    if(mode==='new'){
+      note.dataset.tone='ok';note.textContent='New message 会新建邮件；内容版本确认后由执行器保存为网易草稿。';
+      if(create)create.textContent='创建草稿';
+    }else{
+      note.dataset.tone='ok';note.textContent=`${mode==='forward'?'Forward':'Reply'} 会先打开原始 Sent 邮件，再使用网易原生“${mode==='forward'?'转发':'回复'}”进入写信上下文；本次正文插入在引用内容之前。`;
+      if(create)create.textContent=`创建${mode==='forward'?'转发':'回复'}草稿`;
+    }
+  }
+
+  function openFollowUpEditor(taskId) {
+    const task=operationState.store?.derivedTasks?.[taskId];if(!task)return;
+    monitorState.editorTaskId=taskId;
+    const parent=operationState.store.outboundRecords?.[task.parentOutboundId];
+    $('nmda-followup-editor').hidden=false;syncModalState();
+    $('nmda-followup-editor-eyebrow').textContent=`Follow-up #${task.sequence}`;
+    $('nmda-followup-editor-title').textContent=task.state==='blocked'?'跟进已阻断':'准备 Follow-up';
+    $('nmda-followup-editor-meta').textContent=`版本 ${task.contentVersion} · ${task.confirmedVersion===task.contentVersion?'已确认':'未确认'} · ${task.state}`;
+    $('nmda-followup-parent').innerHTML=`<strong>${escapeHtml(parent?.subject||'(原邮件无主题)')}</strong><small>${escapeHtml(monitorRecipientText(parent)||'')} · ${escapeHtml(Operations.formatDisplayTime(parent?.sentAt))}</small>`;
+    $('nmda-followup-recipient').value=monitorRecipientText({recipients:task.recipients})||'';
+    $('nmda-followup-mode').value=task.composeMode||'forward';
+    $('nmda-followup-subject').value=task.subject||parent?.subject||'';
+    $('nmda-followup-body').value=task.body||'';
+    $('nmda-followup-save').disabled=['sent','cancelled'].includes(task.state);
+    $('nmda-followup-confirm').disabled=['sent','cancelled','blocked'].includes(task.state);
+    $('nmda-followup-create-draft').disabled=['sent','cancelled','blocked'].includes(task.state) || ((task.composeMode==='forward'||task.composeMode==='reply') && !parent?.providerMessageId);
+    $('nmda-followup-cancel-task').disabled=['sent','cancelled'].includes(task.state);
+    refreshFollowUpModeNote();
+    const mode=$('nmda-followup-mode')?.value||'forward';if($('nmda-followup-create-draft'))$('nmda-followup-create-draft').disabled=['sent','cancelled','blocked'].includes(task.state)||((mode==='forward'||mode==='reply')&&!parent?.providerMessageId);
+    setFollowUpEditorStatus(task.blocker?`阻断：${task.blocker.kind==='human'?'收到真人回复':task.blocker.type==='recipient-guard'?'联系规则限制':'回复需要判断'}`:'',task.blocker?'error':'');
+  }
+
+  function closeFollowUpEditor() {
+    const el=$('nmda-followup-editor');if(el)el.hidden=true;monitorState.editorTaskId='';syncModalState();
+  }
+
+  async function saveFollowUpEditor() {
+    const task=followUpEditorTask();if(!task)return null;
+    const mode=$('nmda-followup-mode').value;
+    const patch={composeMode:mode,body:$('nmda-followup-body').value||''};
+    if(mode==='new')patch.subject=$('nmda-followup-subject').value||'';
+    const result=Operations.updateDerivedTaskContent(operationState.store,task.id,patch);
+    operationState.store=result.store;await persistOperations();renderMonitoring();openFollowUpEditor(task.id);setFollowUpEditorStatus('内容已保存；如内容版本发生变化，需要重新确认。','ok');return result.task;
+  }
+
+  async function confirmFollowUpEditor() {
+    let task=await saveFollowUpEditor();if(!task)return;
+    try{const result=Operations.confirmDerivedTask(operationState.store,task.id);operationState.store=result.store;await persistOperations();renderMonitoring();openFollowUpEditor(task.id);setFollowUpEditorStatus(`已确认内容版本 ${result.task.contentVersion}。`,'ok');}
+    catch(error){setFollowUpEditorStatus(error?.message||String(error),'error');}
+  }
+
+  async function createFollowUpDraftFromEditor() {
+    let task=await saveFollowUpEditor();if(!task)return;
+    if(Number(task.confirmedVersion)!==Number(task.contentVersion)){setFollowUpEditorStatus('请先确认当前内容版本，再创建草稿。','warn');return;}
+    const recipients=monitorRecipientText({recipients:task.recipients});
+    if(!recipients){setFollowUpEditorStatus('缺少收件人，不能创建草稿。','error');return;}
+    const btn=$('nmda-followup-create-draft');if(btn)btn.disabled=true;
+    setFollowUpEditorStatus('正在网易邮箱创建 Follow-up 草稿…');
+    try{
+      const mailTarget=await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL',focus:true});
+      if(!mailTarget?.ok)throw new Error('无法打开网易邮箱页面。');
+      const ready=await waitForMailboxExecutionReady();
+      if(!ready?.connected||!ready?.authenticated)throw new Error('网易邮箱尚未登录。');
+      const parent=operationState.store.outboundRecords?.[task.parentOutboundId];
+      if((task.composeMode==='forward'||task.composeMode==='reply') && !parent?.providerMessageId) throw new Error('原始 Sent 邮件缺少 provider message id，无法进入网易原生 Forward / Reply 上下文。');
+      const outcome=await executeDraftRemotely({id:task.id,editKey:task.id,kind:'follow_up',rootTaskId:task.rootTaskId,parentTaskId:task.parentTaskId,parentOutboundId:task.parentOutboundId,sequence:task.sequence,recipients,subject:task.subject||'',body:task.body||'',composeMode:task.composeMode||'forward',parentMessageId:parent?.providerMessageId||'',parentFid:3,contentVersion:task.contentVersion,files:[]},{fresh:true,onProgress:progress=>setFollowUpEditorStatus(progress.message||'正在创建草稿…')});
+      let recorded=Operations.recordPreparedDraft(operationState.store,{id:task.id,editKey:task.id,kind:'follow_up',rootTaskId:task.rootTaskId,parentTaskId:task.parentTaskId,parentOutboundId:task.parentOutboundId,sequence:task.sequence,recipients,subject:task.subject||'',body:task.body||'',composeMode:task.composeMode||'forward',contentVersion:task.contentVersion},outcome);
+      operationState.store=recorded.store;
+      const patched=Operations.setDerivedTaskState(operationState.store,task.id,'confirmed',{draftPreparedAt:new Date().toISOString(),draftRecordId:recorded.record.id});
+      operationState.store=patched.store;await persistOperations();renderMonitoring();openFollowUpEditor(task.id);setFollowUpEditorStatus(`Follow-up ${task.composeMode==='forward'?'转发':task.composeMode==='reply'?'回复':'新邮件'}草稿已在网易邮箱中确认保存。`,'ok');
+    }catch(error){setFollowUpEditorStatus(`创建失败：${error?.message||String(error)}`,'error');}
+    finally{const current=followUpEditorTask();const parent=current?operationState.store.outboundRecords?.[current.parentOutboundId]:null;if(btn)btn.disabled=!current||['sent','cancelled','blocked'].includes(current.state)||((current.composeMode==='forward'||current.composeMode==='reply')&&!parent?.providerMessageId);}
+  }
+
+  async function cancelFollowUpEditorTask() {
+    const task=followUpEditorTask();if(!task)return;
+    if(!confirm(`取消 Follow-up #${task.sequence}？已保存的网易草稿不会被自动删除。`))return;
+    try{const result=Operations.setDerivedTaskState(operationState.store,task.id,'cancelled');operationState.store=result.store;await persistOperations();closeFollowUpEditor();renderMonitoring();setMonitorNotice('本次 Follow-up 已取消。','ok');}
+    catch(error){setFollowUpEditorStatus(error?.message||String(error),'error');}
+  }
+
+  function bindMonitoringUI() {
+    $('nmda-monitor-sync')?.addEventListener('click',()=>void syncMonitoringMailbox('quick'));
+    $('nmda-monitor-full-sync')?.addEventListener('click',()=>{if(confirm('完整重建会读取全部已发送、草稿和收件箱，继续吗？'))void syncMonitoringMailbox('full');});
+    $('nmda-monitor-save-policy')?.addEventListener('click',async()=>{
+      await ensureOperationStore();
+      const result=Operations.setFollowUpPolicy(operationState.store,'',{delayDays:Number($('nmda-monitor-delay').value||0),maxAttempts:Number($('nmda-monitor-max').value||0),composeMode:$('nmda-monitor-compose-mode').value||'forward'});
+      operationState.store=result.store;await persistOperations();renderMonitoring();setMonitorNotice('默认 Follow-up 规则已保存。','ok');
+    });
+    ui.querySelectorAll('[data-monitor-filter]').forEach(button=>button.addEventListener('click',()=>{monitorState.filter=button.dataset.monitorFilter||'all';ui.querySelectorAll('[data-monitor-filter]').forEach(item=>item.classList.toggle('is-active',item===button));renderMonitoring();}));
+    $('nmda-monitor-search')?.addEventListener('input',event=>{monitorState.search=event.currentTarget.value||'';renderMonitoring();});
+    $('nmda-monitor-list')?.addEventListener('click',event=>{
+      const create=event.target.closest('[data-monitor-create]');if(create){void createMonitorFollowUp(create.dataset.monitorCreate,create.dataset.manual==='1');return;}
+      const edit=event.target.closest('[data-monitor-edit]');if(edit){openFollowUpEditor(edit.dataset.monitorEdit);return;}
+      const toggle=event.target.closest('[data-monitor-toggle]');if(toggle){void (async()=>{await ensureOperationStore();const enabled=toggle.dataset.enabled!=='1';const result=Operations.setFollowUpPolicy(operationState.store,toggle.dataset.monitorToggle,{enabled});operationState.store=result.store;await persistOperations();renderMonitoring();})();return;}
+      const disposition=event.target.closest('[data-reply-disposition]');if(disposition){void (async()=>{await ensureOperationStore();const result=Operations.setReplyObservationDisposition(operationState.store,disposition.dataset.replyId,disposition.dataset.replyDisposition);operationState.store=result.store;await persistOperations();renderMonitoring();setMonitorNotice('回复判断已更新，并重新计算 Follow-up 阻断状态。','ok');})();}
+    });
+    $('nmda-monitor-unlinked-list')?.addEventListener('click',event=>{const button=event.target.closest('[data-monitor-adopt]');if(button)void adoptMonitorOutbound(button.dataset.monitorAdopt);});
+    $('nmda-followup-editor-close')?.addEventListener('click',closeFollowUpEditor);
+    $('nmda-followup-mode')?.addEventListener('change',()=>{refreshFollowUpModeNote();const task=followUpEditorTask();const parent=task?operationState.store.outboundRecords?.[task.parentOutboundId]:null;const mode=$('nmda-followup-mode').value;const btn=$('nmda-followup-create-draft');if(btn)btn.disabled=!task||['sent','cancelled','blocked'].includes(task.state)||((mode==='forward'||mode==='reply')&&!parent?.providerMessageId);});
+    $('nmda-followup-save')?.addEventListener('click',()=>void saveFollowUpEditor());
+    $('nmda-followup-confirm')?.addEventListener('click',()=>void confirmFollowUpEditor());
+    $('nmda-followup-create-draft')?.addEventListener('click',()=>void createFollowUpDraftFromEditor());
+    $('nmda-followup-cancel-task')?.addEventListener('click',()=>void cancelFollowUpEditorTask());
+  }
+
+  bindMonitoringUI();
 
   function taskBusinessTags(task) {
     return Operations?.parseTags?.(task?.tags || []) || [];
@@ -878,9 +1229,8 @@
       ui.querySelectorAll('.nmda-tabpane').forEach(p => { p.hidden = p.dataset.pane !== name; });
       ui.querySelectorAll('[data-page-head]').forEach(head => { head.hidden = head.dataset.pageHead !== name; });
     }
-    // Switching workspace is intentionally cheap. Re-render only when data changed,
-    // and defer that work until the browser can paint the tab transition first.
     if (name === 'batch' && viewPerf.batchDirty) scheduleBatchRender();
+    if (name === 'monitor') requestAnimationFrame(() => { void loadMonitoring(); });
   }
 
   launcher.addEventListener('click', () => {
@@ -896,7 +1246,7 @@
     $('nmda-expand').textContent = panel.classList.contains('is-maximized') ? '◱' : '⛶';
     $('nmda-expand').title = panel.classList.contains('is-maximized') ? '还原工作台' : '全屏工作台';
   });
-  ui.querySelectorAll('.nmda-tab').forEach(tab => tab.addEventListener('click', () => { const name=tab.dataset.tab; setWorkbenchTab(name); history.replaceState(null,'',`#batch/${Number(batch.uiStep||1)}`); }));
+  ui.querySelectorAll('.nmda-tab').forEach(tab => tab.addEventListener('click', () => { const name=tab.dataset.tab; setWorkbenchTab(name); history.replaceState(null,'',name==='batch'?`#batch/${Number(batch.uiStep||1)}`:'#monitor'); }));
   ui.querySelectorAll('[data-flow-step]').forEach(button => button.addEventListener('click', () => { void goToProcessStep(button.dataset.flowStep); }));
 
   const batch = {
@@ -5274,12 +5624,13 @@
     await ensureOperationStore();
     const result = await chrome.runtime.sendMessage({ type: 'NMDA_READ_MAILBOX_STATE', mode: full ? 'full' : 'quick' });
     if (!result?.ok) throw new Error(`${result?.phase ? `${result.phase}：` : ''}${result?.reason || '邮箱读取失败'}`);
-    const sent = result.sent || {}, drafts = result.drafts || {};
-    if (full && (!sent.complete || !drafts.complete)) throw new Error('完整邮箱快照未完成，拒绝覆盖 operation store。');
-    const applied = Operations.ingestMailboxSnapshot(operationState.store, sent.messages || [], drafts.messages || [], {
+    const sent = result.sent || {}, drafts = result.drafts || {}, inbox = result.inbox || {};
+    if (full && (!sent.complete || !drafts.complete || !inbox.complete)) throw new Error('完整邮箱快照未完成，拒绝覆盖 operation store。');
+    const applied = Operations.ingestMailboxSnapshot(operationState.store, sent.messages || [], drafts.messages || [], inbox.messages || [], {
       mode: full ? 'full' : 'quick', complete: full,
       sentCoverage: result.coverage?.sent || { read: sent.messages?.length || 0, total: sent.total || 0, complete: !!sent.complete, pages: sent.pages || 0 },
-      draftCoverage: result.coverage?.drafts || { read: drafts.messages?.length || 0, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 }
+      draftCoverage: result.coverage?.drafts || { read: drafts.messages?.length || 0, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 },
+      inboxCoverage: result.coverage?.inbox || { read: inbox.messages?.length || 0, total: inbox.total || 0, complete: !!inbox.complete, pages: inbox.pages || 0 }
     });
     operationState.store = applied.store;
     await persistOperations();
@@ -5388,7 +5739,7 @@
 
   function applyDeepLink() {
     const raw = String(location.hash || '').replace(/^#/, '');
-    const match = raw.match(/^(batch)(?:\/([123]))?$/);
+    const match = raw.match(/^(batch|monitor)(?:\/([123]))?$/);
     if (!match) return;
     const [, tab, step] = match;
     setWorkbenchTab(tab);
