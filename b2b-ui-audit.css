@@ -1,0 +1,235 @@
+/* SmartMail Ops v3.8.24 — B2B UI audit
+   Dense operational UI: one typographic scale, one semantic palette, less explanatory chrome. */
+#nmda-root.nmda-standalone {
+  --nmda-bg:#f4f6f8;
+  --nmda-surface:#ffffff;
+  --nmda-surface-soft:#f7f9fb;
+  --nmda-border:#dde3ea;
+  --nmda-border-strong:#c8d1dc;
+  --nmda-text:#182230;
+  --nmda-muted:#667085;
+  --nmda-subtle:#98a2b3;
+  --nmda-blue:#1769e0;
+  --nmda-blue-dark:#1257bd;
+  --nmda-blue-soft:#edf4ff;
+  --nmda-green:#16834a;
+  --nmda-green-soft:#eaf7ef;
+  --nmda-amber:#9a5b00;
+  --nmda-amber-soft:#fff5df;
+  --nmda-red:#b42318;
+  --nmda-red-soft:#fff0ef;
+  --nmda-b2b-xs:10px;
+  --nmda-b2b-sm:11px;
+  --nmda-b2b-md:12px;
+  --nmda-b2b-lg:14px;
+  color:var(--nmda-text);
+  font-size:var(--nmda-b2b-md);
+}
+
+/* Type system: keep operational text readable; avoid 7–9 px microcopy. */
+#nmda-root.nmda-standalone small,
+#nmda-root.nmda-standalone .nmda-hint,
+#nmda-root.nmda-standalone .nmda-card-desc { font-size:var(--nmda-b2b-xs) !important; line-height:1.35 !important; }
+#nmda-root.nmda-standalone .nmda-btn { font-size:var(--nmda-b2b-sm) !important; font-weight:680 !important; letter-spacing:0 !important; }
+#nmda-root.nmda-standalone .nmda-btn-small { min-height:30px !important; padding:0 10px !important; font-size:var(--nmda-b2b-xs) !important; }
+#nmda-root.nmda-standalone input,
+#nmda-root.nmda-standalone select { font-size:var(--nmda-b2b-sm) !important; }
+#nmda-root.nmda-standalone textarea { font-size:var(--nmda-b2b-md) !important; }
+#nmda-root.nmda-standalone .nmda-label { font-size:var(--nmda-b2b-xs) !important; font-weight:700 !important; color:var(--nmda-muted) !important; }
+#nmda-root.nmda-standalone .nmda-card-title { font-size:13px !important; font-weight:740 !important; color:var(--nmda-text) !important; }
+#nmda-root.nmda-standalone .nmda-page-head h2 { font-size:16px !important; font-weight:760 !important; color:var(--nmda-text) !important; }
+
+/* Remove permanent prose where the controls/status already explain the state. */
+#nmda-root.nmda-standalone .nmda-inline-review-top .nmda-card-desc,
+#nmda-root.nmda-standalone .nmda-dispatch-intro > div:first-child small,
+#nmda-root.nmda-standalone .nmda-planning-head .nmda-card-desc,
+#nmda-root.nmda-standalone .nmda-monitor-toolbar-copy small:empty,
+#nmda-root.nmda-standalone .nmda-monitor-rulebar-title small:empty,
+#nmda-root.nmda-standalone .nmda-monitor-rule-note:empty,
+#nmda-root.nmda-standalone .nmda-review-action-copy:empty,
+#nmda-root.nmda-standalone .nmda-attachment-manager-foot .nmda-hint:empty { display:none !important; }
+
+/* Keep page chrome neutral. Semantic colors are reserved for status. */
+#nmda-root.nmda-standalone .nmda-card,
+#nmda-root.nmda-standalone .nmda-inline-review,
+#nmda-root.nmda-standalone .nmda-dispatch-intro,
+#nmda-root.nmda-standalone .nmda-monitor-toolbar,
+#nmda-root.nmda-standalone .nmda-monitor-rulebar { border-color:var(--nmda-border) !important; box-shadow:0 1px 2px rgba(16,24,40,.035) !important; }
+#nmda-root.nmda-standalone .nmda-btn-primary { background:var(--nmda-blue) !important; border-color:var(--nmda-blue) !important; }
+#nmda-root.nmda-standalone .nmda-btn-primary:hover { background:var(--nmda-blue-dark) !important; border-color:var(--nmda-blue-dark) !important; }
+#nmda-root.nmda-standalone .nmda-btn-quiet { color:#536171 !important; background:#f8fafc !important; border-color:var(--nmda-border) !important; }
+
+/* Review: template is a utility, not a permanent content block. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] {
+  grid-template-rows:auto auto auto auto auto minmax(0,1fr) !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > .nmda-inline-review-top { grid-row:1 !important; min-height:44px !important; padding:6px 9px 6px 11px !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > .nmda-review-followup-template { grid-row:2 !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > .nmda-review-boardbar { grid-row:3 !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > .nmda-review-subject-prompt { grid-row:4 !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > .nmda-review-batchbar { grid-row:5 !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > .nmda-review-page-empty,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue { grid-row:6 !important; }
+#nmda-root.nmda-standalone .nmda-review-template-toggle.is-active { color:var(--nmda-blue) !important; border-color:#bcd2f1 !important; background:var(--nmda-blue-soft) !important; }
+#nmda-root.nmda-standalone .nmda-review-followup-template[hidden] { display:none !important; }
+#nmda-root.nmda-standalone .nmda-review-followup-template {
+  margin:0 !important;
+  padding:7px 9px !important;
+  grid-template-columns:150px minmax(260px,1fr) auto !important;
+  align-items:center !important;
+  gap:8px !important;
+  border:0 !important;
+  border-bottom:1px solid var(--nmda-border) !important;
+  border-radius:0 !important;
+  background:#fbfcfd !important;
+}
+#nmda-root.nmda-standalone .nmda-review-followup-template-copy { display:flex !important; align-items:baseline !important; gap:7px !important; }
+#nmda-root.nmda-standalone .nmda-review-followup-template-copy strong { font-size:var(--nmda-b2b-sm) !important; color:var(--nmda-text) !important; }
+#nmda-root.nmda-standalone .nmda-review-followup-template-copy small { font-size:var(--nmda-b2b-xs) !important; color:var(--nmda-muted) !important; white-space:nowrap; }
+#nmda-root.nmda-standalone .nmda-review-followup-template-field { display:block !important; }
+#nmda-root.nmda-standalone .nmda-review-followup-template-field textarea {
+  min-height:38px !important;
+  max-height:76px !important;
+  padding:7px 9px !important;
+  resize:vertical !important;
+  border-color:var(--nmda-border-strong) !important;
+  border-radius:7px !important;
+  color:var(--nmda-text) !important;
+  line-height:1.4 !important;
+}
+
+/* Review command bar. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-boardbar.nmda-review-boardbar-unified {
+  min-height:42px !important;
+  padding:5px 8px !important;
+  background:#fafbfd !important;
+  border-color:var(--nmda-border) !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-status-tabs { min-height:30px !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-status-tabs button { min-height:28px !important; font-size:var(--nmda-b2b-xs) !important; color:var(--nmda-muted) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-status-tabs button span { font-size:var(--nmda-b2b-xs) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-status-tabs button strong { font-size:var(--nmda-b2b-sm) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-status-tabs button.is-active { color:var(--nmda-blue) !important; background:#fff !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-search,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-search input { min-height:30px !important; }
+
+/* Review cards: one status, one identity, one subject. Remove duplicated success prose. */
+#nmda-root.nmda-standalone .nmda-review-main-page #nmda-review-queue.nmda-review-mail-grid {
+  grid-auto-rows:136px !important;
+  gap:8px !important;
+  padding:8px !important;
+  background:#f6f8fa !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-review-card { height:136px !important; min-height:136px !important; border-color:var(--nmda-border) !important; border-radius:9px !important; box-shadow:none !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-review-card[data-state="auto"] { border-left-color:#55a979 !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-review-card[data-state="action"] { border-left-color:#d39a2f !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-status { min-height:34px !important; padding:6px 9px 4px 10px !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-status strong { font-size:var(--nmda-b2b-sm) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-status small { font-size:var(--nmda-b2b-xs) !important; color:var(--nmda-muted) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-main { height:102px !important; min-height:102px !important; padding:7px 9px 8px 10px !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-index { font-size:var(--nmda-b2b-xs) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-source-badge { min-height:18px !important; font-size:var(--nmda-b2b-xs) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-copy > strong { font-size:var(--nmda-b2b-md) !important; color:var(--nmda-text) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-copy > small { font-size:var(--nmda-b2b-xs) !important; color:var(--nmda-muted) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-copy > b { font-size:var(--nmda-b2b-sm) !important; color:#344054 !important; font-weight:650 !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-open,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-issues span { font-size:var(--nmda-b2b-xs) !important; }
+
+/* Preview: readable sidebar + document surface, same typography/palette as the board. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] { grid-template-columns:clamp(220px,18vw,272px) minmax(0,1fr) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar { min-height:44px !important; padding:6px 9px !important; border-color:var(--nmda-border) !important; background:rgba(250,251,252,.97) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar-copy strong { font-size:var(--nmda-b2b-sm) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar-copy small { font-size:var(--nmda-b2b-xs) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-key .nmda-semantic-legend-item strong { font-size:var(--nmda-b2b-xs) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail { border-color:var(--nmda-border) !important; background:#f5f7f9 !important; box-shadow:none !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-head { min-height:38px !important; padding:7px 9px !important; border-color:var(--nmda-border) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-head strong,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-head small { font-size:var(--nmda-b2b-xs) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-list { padding:6px !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card { grid-template-columns:26px minmax(0,1fr) !important; gap:8px !important; margin-bottom:5px !important; padding:7px !important; border-radius:8px !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy em,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy i,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy small,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-index { font-size:var(--nmda-b2b-xs) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy strong { font-size:var(--nmda-b2b-sm) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-active { border-color:#bfd1e8 !important; box-shadow:0 3px 10px rgba(31,55,80,.07) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] #nmda-review-queue.nmda-review-continuous-preview { background:#eef1f4 !important; padding:14px clamp(12px,2.5vw,36px) 28px !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page { border-color:#d9e0e8 !important; border-radius:10px !important; box-shadow:0 2px 8px rgba(16,24,40,.04) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-body { font-size:12.5px !important; line-height:1.62 !important; color:#2d3745 !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-mailhead { font-size:var(--nmda-b2b-sm) !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-hint { display:none !important; }
+
+/* Monitoring / Dispatch: compact headers, same control scale, no instructional paragraphs. */
+#nmda-root.nmda-standalone .nmda-monitor-toolbar { min-height:44px !important; padding:7px 9px !important; }
+#nmda-root.nmda-standalone .nmda-monitor-toolbar-copy strong,
+#nmda-root.nmda-standalone .nmda-monitor-rulebar-title strong,
+#nmda-root.nmda-standalone .nmda-dispatch-intro strong { font-size:13px !important; color:var(--nmda-text) !important; }
+#nmda-root.nmda-standalone .nmda-monitor-rulebar { padding:7px 9px !important; }
+#nmda-root.nmda-standalone .nmda-monitor-rule-note { display:none !important; }
+#nmda-root.nmda-standalone .nmda-monitor-filters button { font-size:var(--nmda-b2b-xs) !important; }
+#nmda-root.nmda-standalone .nmda-monitor-search { font-size:var(--nmda-b2b-sm) !important; }
+#nmda-root.nmda-standalone .nmda-dispatch-intro { min-height:44px !important; padding:7px 10px !important; }
+#nmda-root.nmda-standalone .nmda-planning-head { min-height:44px !important; }
+
+@media (max-width:900px) {
+  #nmda-root.nmda-standalone .nmda-review-followup-template { grid-template-columns:1fr auto !important; }
+  #nmda-root.nmda-standalone .nmda-review-followup-template-copy { grid-column:1 / -1; }
+}
+@media (max-width:720px) {
+  #nmda-root.nmda-standalone .nmda-review-followup-template { grid-template-columns:1fr !important; }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] { grid-template-columns:1fr !important; }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail { display:none !important; }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] #nmda-review-queue.nmda-review-continuous-preview { grid-column:1 !important; }
+}
+
+/* Minimum readable label scale across legacy modules. */
+#nmda-root.nmda-standalone .nmda-nav-label,
+#nmda-root.nmda-standalone .nmda-card-kicker,
+#nmda-root.nmda-standalone .nmda-import-metric span,
+#nmda-root.nmda-standalone .nmda-source-item-icon,
+#nmda-root.nmda-standalone .nmda-source-purpose,
+#nmda-root.nmda-standalone .nmda-source-item-index,
+#nmda-root.nmda-standalone .nmda-review-guidance,
+#nmda-root.nmda-standalone .nmda-review-progress,
+#nmda-root.nmda-standalone .nmda-process-guide button > span,
+#nmda-root.nmda-standalone .nmda-process-guide button strong,
+#nmda-root.nmda-standalone .nmda-stage-number,
+#nmda-root.nmda-standalone .nmda-review-filter button,
+#nmda-root.nmda-standalone .nmda-review-batchbar strong,
+#nmda-root.nmda-standalone .nmda-search-field input,
+#nmda-root.nmda-standalone .nmda-context-assist strong,
+#nmda-root.nmda-standalone .nmda-parse-steps span,
+#nmda-root.nmda-standalone .nmda-plan-minibadge,
+#nmda-root.nmda-standalone .nmda-plan-command-stats > span,
+#nmda-root.nmda-standalone .nmda-plan-matrix-coltop em,
+#nmda-root.nmda-standalone .nmda-plan-schoolbadge,
+#nmda-root.nmda-standalone .nmda-next-step-kicker { font-size:10px !important; }
+
+#nmda-root.nmda-standalone .nmda-source-item-main strong,
+#nmda-root.nmda-standalone .nmda-plan-matrix-taskline strong,
+#nmda-root.nmda-standalone .nmda-review-pane-title strong,
+#nmda-root.nmda-standalone .nmda-context-assist strong { font-size:11px !important; }
+
+/* Category accents are muted into the same operational palette. */
+#nmda-root.nmda-standalone .nmda-classify-file-row[data-tone="mail"] { --nmda-role:#1769e0; --nmda-role-soft:#f3f7fd; border-left-color:#9bbce7; }
+#nmda-root.nmda-standalone .nmda-classify-file-row[data-tone="roster"] { --nmda-role:#49705c; --nmda-role-soft:#f4f8f5; border-left-color:#abc4b5; }
+#nmda-root.nmda-standalone .nmda-classify-file-row[data-tone="attachment"] { --nmda-role:#667085; --nmda-role-soft:#f6f7f9; border-left-color:#c7ced8; }
+#nmda-root.nmda-standalone .nmda-classify-file-row[data-tone="review"] { --nmda-role:#9a5b00; --nmda-role-soft:#fff9ef; border-left-color:#e1bd7a; }
+#nmda-root.nmda-standalone .nmda-classify-file-row[data-tone="ignored"] { --nmda-role:#7b8490; --nmda-role-soft:#f7f8f9; border-left-color:#cfd4da; }
+
+/* Semantic mail markers keep their distinct meaning, but use quieter enterprise tones. */
+#nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="advisor"],
+#nmda-root.nmda-standalone .nmda-semantic-mark[data-semantic="advisor"] { --semantic:#2f6fba; --semantic-bg:#e6f0fb; }
+#nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="student"],
+#nmda-root.nmda-standalone .nmda-semantic-mark[data-semantic="student"] { --semantic:#3f7a5d; --semantic-bg:#e9f4ed; }
+#nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="institution"],
+#nmda-root.nmda-standalone .nmda-semantic-mark[data-semantic="institution"] { --semantic:#63738b; --semantic-bg:#edf1f5; }
+#nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="anchor"],
+#nmda-root.nmda-standalone .nmda-semantic-mark[data-semantic="anchor"] { --semantic:#9a650f; --semantic-bg:#fff3d9; }
+#nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="degree"],
+#nmda-root.nmda-standalone .nmda-semantic-mark[data-semantic="degree"] { --semantic:#3a7375; --semantic-bg:#e7f3f3; }
+
+/* Compact handoffs: status + action, not tutorial copy. */
+#nmda-root.nmda-standalone .nmda-next-step-copy > small:empty { display:none !important; }
+#nmda-root.nmda-standalone .nmda-next-step-card { min-height:58px !important; padding:9px 11px !important; }
+#nmda-root.nmda-standalone .nmda-next-step-copy > strong { font-size:12px !important; }
