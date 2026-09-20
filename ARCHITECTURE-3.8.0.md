@@ -122,3 +122,7 @@ The Preview reader and rail are bidirectionally synchronized: selecting a rail c
 ## UI layout contract (v3.8.25)
 
 First-class workspaces use content-driven layout. Hidden optional controls must consume zero space. Review board stacks active controls naturally and assigns the remaining viewport to the task grid; Preview remains a two-pane navigation + continuous-document reader. Monitoring and Dispatch use the same compact B2B density and semantic palette.
+
+## v3.8.26 mailbox surface boundary
+
+The 163 mailbox overlay is intentionally not a second SmartMail navigation shell. In the idle state it exposes only connection/account status and a direct SmartMail entry. A secondary panel appears only for active/recent execution context and contains execution progress/actions. Import, Review, Dispatch and Monitoring navigation remain inside the SmartMail app.

@@ -2,262 +2,215 @@
 #nmda-mail-dock-host * { box-sizing: border-box; }
 
 #nmda-mail-dock-host {
-  --nmda-accent: #356ae6;
-  --nmda-accent-soft: #edf3ff;
-  --nmda-text: #172033;
-  --nmda-muted: #758096;
-  --nmda-border: rgba(24,39,75,.12);
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 2147483000;
-  width: 54px;
-  height: 54px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  color: var(--nmda-text);
-  pointer-events: none;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: geometricPrecision;
+  --nmda-dock-accent:#2563eb;
+  --nmda-dock-text:#172033;
+  --nmda-dock-muted:#7a8798;
+  --nmda-dock-border:rgba(28,39,60,.12);
+  position:fixed;
+  right:16px;
+  bottom:16px;
+  z-index:2147483000;
+  width:48px;
+  height:48px;
+  color:var(--nmda-dock-text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  pointer-events:none;
+  -webkit-font-smoothing:antialiased;
 }
 
 .nmda-dock-launcher {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 54px;
-  height: 54px;
-  padding: 0;
-  border: 1px solid rgba(30,64,175,.16);
-  border-radius: 17px;
-  background: rgba(255,255,255,.98);
-  box-shadow: 0 14px 38px rgba(24,39,75,.18), 0 2px 8px rgba(24,39,75,.08);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  pointer-events: auto;
-  cursor: pointer;
-  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  position:absolute;
+  right:0;
+  bottom:0;
+  width:48px;
+  height:48px;
+  padding:0;
+  border:1px solid rgba(37,99,235,.18);
+  border-radius:15px;
+  background:rgba(255,255,255,.97);
+  box-shadow:0 10px 28px rgba(22,34,55,.16),0 2px 6px rgba(22,34,55,.08);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  pointer-events:auto;
+  cursor:pointer;
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
 }
-.nmda-dock-launcher:hover { transform: translateY(-1px); box-shadow: 0 18px 44px rgba(24,39,75,.2), 0 3px 10px rgba(24,39,75,.08); border-color: rgba(53,106,230,.28); }
-.nmda-dock-launcher[aria-expanded="true"] { border-color: rgba(53,106,230,.34); box-shadow: 0 18px 48px rgba(24,39,75,.22); }
+.nmda-dock-launcher:hover { transform:translateY(-1px); border-color:rgba(37,99,235,.3); box-shadow:0 14px 34px rgba(22,34,55,.19),0 2px 7px rgba(22,34,55,.08); }
+.nmda-dock-launcher[aria-expanded="true"] { border-color:rgba(37,99,235,.35); }
 .nmda-dock-launcher-mark {
-  width: 36px;
-  height: 36px;
-  margin: auto;
-  display: grid;
-  place-items: center;
-  border-radius: 11px;
-  background: linear-gradient(145deg,#3f76ed,#2f60d6);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 820;
-  letter-spacing: -.15px;
-  box-shadow: 0 6px 14px rgba(53,106,230,.24);
+  width:31px;
+  height:31px;
+  margin:auto;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+  background:linear-gradient(145deg,#3a73eb,#255ccc);
+  color:#fff;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:-.1px;
 }
 .nmda-dock-launcher-dot {
-  position: absolute;
-  right: 7px;
-  bottom: 7px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #aeb7c6;
-  box-shadow: 0 0 0 3px #fff;
+  position:absolute;
+  right:6px;
+  bottom:6px;
+  width:7px;
+  height:7px;
+  border-radius:999px;
+  background:#aab4c3;
+  box-shadow:0 0 0 2.5px #fff;
 }
-.nmda-dock-launcher-dot[data-state="online"] { background: #27ad72; }
+.nmda-dock-launcher-dot[data-state="online"] { background:#20a96b; }
 .nmda-dock-exec-badge {
-  position: absolute;
-  left: -7px;
-  top: -7px;
-  min-width: 25px;
-  height: 22px;
-  padding: 0 6px;
-  display: inline-grid;
-  place-items: center;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  background: #2563eb;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 1;
-  box-shadow: 0 5px 12px rgba(37,99,235,.25);
+  position:absolute;
+  left:-8px;
+  top:-8px;
+  min-width:24px;
+  height:20px;
+  padding:0 6px;
+  display:inline-grid;
+  place-items:center;
+  border:2px solid #fff;
+  border-radius:999px;
+  background:#2563eb;
+  color:#fff;
+  font-size:8.5px;
+  font-weight:800;
+  line-height:1;
+  box-shadow:0 4px 11px rgba(37,99,235,.24);
 }
 #nmda-mail-dock-host[data-execution="done"] .nmda-dock-exec-badge { background:#16803c; }
 #nmda-mail-dock-host[data-execution="error"] .nmda-dock-exec-badge,
 #nmda-mail-dock-host[data-execution="stopped"] .nmda-dock-exec-badge { background:#b45309; }
 
 .nmda-dock-panel {
-  position: absolute;
-  right: 0;
-  bottom: 66px;
-  width: min(330px, calc(100vw - 28px));
-  max-height: min(610px, calc(100vh - 92px));
-  display: grid;
-  grid-template-rows: auto auto minmax(0,1fr) auto;
-  overflow: hidden;
-  border: 1px solid var(--nmda-border);
-  border-radius: 17px;
-  background: rgba(255,255,255,.99);
-  box-shadow: 0 22px 64px rgba(24,39,75,.22), 0 3px 10px rgba(24,39,75,.08);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(8px) scale(.985);
-  transform-origin: right bottom;
-  transition: opacity .14s ease, transform .18s cubic-bezier(.2,.75,.2,1);
+  position:absolute;
+  right:0;
+  bottom:60px;
+  width:min(292px,calc(100vw - 24px));
+  overflow:hidden;
+  border:1px solid var(--nmda-dock-border);
+  border-radius:15px;
+  background:rgba(255,255,255,.985);
+  box-shadow:0 18px 52px rgba(22,34,55,.18),0 2px 8px rgba(22,34,55,.07);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  pointer-events:none;
+  opacity:0;
+  transform:translateY(7px) scale(.985);
+  transform-origin:right bottom;
+  transition:opacity .14s ease,transform .18s cubic-bezier(.2,.75,.2,1),width .18s ease;
 }
-#nmda-mail-dock-host[data-open="true"] .nmda-dock-panel { pointer-events: auto; opacity: 1; transform: translateY(0) scale(1); }
+#nmda-mail-dock-host[data-open="true"] .nmda-dock-panel { pointer-events:auto; opacity:1; transform:translateY(0) scale(1); }
+#nmda-mail-dock-host[data-execution="running"] .nmda-dock-panel,
+#nmda-mail-dock-host[data-execution="error"] .nmda-dock-panel,
+#nmda-mail-dock-host[data-execution="stopped"] .nmda-dock-panel,
+#nmda-mail-dock-host[data-execution="done"] .nmda-dock-panel { width:min(320px,calc(100vw - 24px)); }
 
-.nmda-dock-panel-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 14px 11px;
-  border-bottom: 1px solid rgba(24,39,75,.08);
-}
-.nmda-dock-panel-title { min-width: 0; }
-.nmda-dock-panel-title > span { display:block; color:#8b95a7; font-size:8.5px; font-weight:780; line-height:1.1; letter-spacing:.12em; }
-.nmda-dock-panel-title strong { display:block; margin-top:4px; color:var(--nmda-text); font-size:14px; font-weight:740; line-height:1.3; }
-.nmda-dock-panel-title small { display:block; margin-top:3px; color:var(--nmda-muted); font-size:10px; line-height:1.35; }
-.nmda-dock-close { width:29px; height:29px; flex:0 0 auto; border:0; border-radius:8px; background:transparent; color:#7e899a; font-size:20px; line-height:1; cursor:pointer; }
-.nmda-dock-close:hover { background:#f2f5f9; color:#475569; }
-
-.nmda-dock-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  padding: 7px 9px;
-  border-bottom: 1px solid rgba(24,39,75,.07);
-  background:#fbfcfe;
-}
-.nmda-dock-tabs button {
-  position: relative;
-  min-height: 30px;
-  padding: 0 5px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color:#6b778a;
-  font:inherit;
-  font-size:10px;
-  font-weight:700;
-  cursor:pointer;
-}
-.nmda-dock-tabs button:hover { background:#f0f4fb; color:#334155; }
-.nmda-dock-tabs button[data-active="true"] { background:var(--nmda-accent-soft); color:var(--nmda-accent); }
-.nmda-dock-tab-badge { margin-left:4px; min-width:16px; height:16px; padding:0 4px; border-radius:99px; display:inline-grid; place-items:center; background:#dbe7ff; color:#285cc9; font-size:8px; font-weight:800; vertical-align:middle; }
-
-.nmda-dock-panel-body {
-  min-height: 118px;
-  padding: 10px;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(112,125,148,.24) transparent;
-}
-.nmda-dock-menu { display:grid; gap:5px; }
-.nmda-dock-menu-row {
+.nmda-dock-primary {
   width:100%;
-  min-height:54px;
-  padding:7px 8px;
-  border:1px solid transparent;
-  border-radius:11px;
+  min-height:66px;
+  padding:10px 11px;
+  border:0;
   background:transparent;
-  color:var(--nmda-text);
   display:grid;
-  grid-template-columns:34px minmax(0,1fr) 18px;
+  grid-template-columns:34px minmax(0,1fr) 20px;
   align-items:center;
   gap:9px;
+  color:inherit;
   text-align:left;
   cursor:pointer;
 }
-.nmda-dock-menu-row:hover { background:#f6f8fc; border-color:rgba(53,106,230,.10); }
-.nmda-dock-menu-row > span { width:32px; height:32px; display:grid; place-items:center; border-radius:9px; background:#edf3ff; color:#356ae6; font-size:9px; font-weight:800; }
-.nmda-dock-menu-row div { min-width:0; }
-.nmda-dock-menu-row strong { display:block; font-size:12px; font-weight:690; line-height:1.3; }
-.nmda-dock-menu-row small { display:block; margin-top:3px; color:var(--nmda-muted); font-size:10px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.nmda-dock-menu-row > b { color:#9aa5b6; font-size:14px; font-weight:500; }
-
-.nmda-dock-callout,
-.nmda-dock-exec-empty { padding:12px; border:1px solid rgba(24,39,75,.09); border-radius:12px; background:#f8fafc; }
-.nmda-dock-callout strong,
-.nmda-dock-exec-empty strong { display:block; color:#263449; font-size:12px; font-weight:720; }
-.nmda-dock-callout small,
-.nmda-dock-exec-empty small { display:block; margin-top:5px; color:#748092; font-size:10px; line-height:1.5; }
-.nmda-dock-exec-empty > span { display:block; margin-bottom:5px; color:#8b95a7; font-size:8px; font-weight:800; letter-spacing:.11em; }
-.nmda-dock-callout button,
-.nmda-dock-exec-empty button { margin-top:11px; min-height:31px; padding:0 10px; border:1px solid #cdd8ea; border-radius:8px; background:#fff; color:#315ea8; font:inherit; font-size:10px; font-weight:720; cursor:pointer; }
-.nmda-dock-callout button:hover,
-.nmda-dock-exec-empty button:hover { background:#f5f8fe; }
-
-.nmda-dock-status-card { min-height:72px; padding:12px; border:1px solid rgba(24,39,75,.09); border-radius:12px; background:#f8fafc; display:grid; grid-template-columns:26px minmax(0,1fr); align-items:center; gap:10px; }
-.nmda-dock-status-card > i { width:11px; height:11px; margin:auto; border-radius:50%; background:#aeb7c6; box-shadow:0 0 0 5px rgba(174,183,198,.13); }
-.nmda-dock-status-card[data-state="online"] > i { background:#27ad72; box-shadow:0 0 0 5px rgba(39,173,114,.12); }
-.nmda-dock-status-card strong { display:block; font-size:12px; font-weight:720; }
-.nmda-dock-status-card small { display:block; margin-top:4px; color:var(--nmda-muted); font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.nmda-dock-note { margin-top:8px; padding:8px 10px; color:#7b8698; font-size:9px; line-height:1.45; }
-
-.nmda-dock-exec { display:grid; gap:9px; }
-.nmda-dock-exec-summary { display:flex; align-items:end; justify-content:space-between; gap:10px; }
-.nmda-dock-exec-summary > div:first-child span { display:block; color:#7a8796; font-size:9px; font-weight:700; }
-.nmda-dock-exec-summary > div:first-child strong { display:block; margin-top:1px; color:#253044; font-size:18px; font-weight:820; }
-.nmda-dock-exec-stats { display:flex; gap:9px; color:#718096; font-size:9px; }
-.nmda-dock-exec-stats b { color:#344054; font-size:10px; }
-.nmda-dock-exec-progress { height:4px; overflow:hidden; border-radius:99px; background:#e9eef5; }
-.nmda-dock-exec-progress > i { display:block; height:100%; border-radius:99px; background:#2563eb; transition:width .22s ease; }
-.nmda-dock-exec[data-state="done"] .nmda-dock-exec-progress > i { background:#16803c; }
-.nmda-dock-exec[data-state="error"] .nmda-dock-exec-progress > i,
-.nmda-dock-exec[data-state="stopped"] .nmda-dock-exec-progress > i { background:#b45309; }
-.nmda-dock-exec-current { padding:10px; border:1px solid #d9e5f5; border-radius:10px; background:#f6f9fe; }
-.nmda-dock-exec-current > div { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:5px; }
-.nmda-dock-exec-current > div span { color:#2563eb; font-size:9px; font-weight:800; }
-.nmda-dock-exec-current > div b { color:#708090; font-size:9px; font-weight:700; }
-.nmda-dock-exec-current > strong,
-.nmda-dock-exec-current > small { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.nmda-dock-exec-current > strong { color:#1f2937; font-size:11px; font-weight:730; }
-.nmda-dock-exec-current > small { margin-top:2px; color:#697586; font-size:9.5px; }
-.nmda-dock-exec-current > p { margin:7px 0 0; padding-top:7px; border-top:1px dashed #cfdaea; color:#4b5d73; font-size:9.5px; line-height:1.4; }
-.nmda-dock-exec-events { display:grid; gap:5px; max-height:128px; overflow:auto; }
-.nmda-dock-exec-event { display:grid; grid-template-columns:14px minmax(0,1fr); gap:7px; align-items:start; }
-.nmda-dock-exec-event > i { width:7px; height:7px; margin:4px 0 0 3px; border-radius:50%; background:#94a3b8; box-shadow:0 0 0 3px #f1f5f9; }
-.nmda-dock-exec-event[data-kind="done"] > i { background:#16a34a; box-shadow:0 0 0 3px #dcfce7; }
-.nmda-dock-exec-event[data-kind="error"] > i { background:#dc2626; box-shadow:0 0 0 3px #fee2e2; }
-.nmda-dock-exec-event[data-kind="running"] > i { background:#2563eb; box-shadow:0 0 0 3px #dbeafe; }
-.nmda-dock-exec-event strong { display:block; color:#344054; font-size:9.5px; font-weight:720; }
-.nmda-dock-exec-event small { display:block; margin-top:1px; color:#7b8794; font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.nmda-dock-exec-event.is-muted { opacity:.65; }
-.nmda-dock-exec-actions { display:flex; justify-content:flex-end; gap:6px; padding-top:1px; }
-.nmda-dock-exec-actions button { min-height:30px; padding:0 9px; border:1px solid #d4dae2; border-radius:8px; background:#fff; color:#435266; font:inherit; font-size:9.5px; font-weight:700; cursor:pointer; }
-.nmda-dock-exec-actions button[data-role="stop"] { color:#9a3412; border-color:#fed7aa; background:#fffaf5; }
-.nmda-dock-exec-actions button.is-primary { color:#fff; background:#2563eb; border-color:#2563eb; }
-.nmda-dock-exec-actions button:disabled { opacity:.58; cursor:default; }
-
-.nmda-dock-panel-foot {
-  min-height:42px;
-  padding:8px 10px 9px 12px;
-  border-top:1px solid rgba(24,39,75,.08);
+.nmda-dock-primary:hover { background:#f7f9fc; }
+.nmda-dock-primary:focus-visible { outline:2px solid rgba(37,99,235,.35); outline-offset:-2px; }
+.nmda-dock-brand {
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+  background:#edf3ff;
+  color:#2563eb;
+  font-size:9.5px;
+  font-weight:820;
+}
+.nmda-dock-primary-copy { min-width:0; }
+.nmda-dock-primary-copy > strong {
+  display:block;
+  color:#172033;
+  font-size:12px;
+  font-weight:740;
+  line-height:1.25;
+}
+.nmda-dock-primary-copy > small {
+  min-width:0;
+  margin-top:4px;
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  color:#8a94a5;
-  font-size:9px;
+  gap:6px;
+  color:#7a8798;
+  font-size:10px;
+  line-height:1.2;
 }
-.nmda-dock-account { min-width:0; display:flex; align-items:center; gap:7px; }
-.nmda-dock-account > i { width:7px; height:7px; flex:0 0 auto; border-radius:50%; background:#aeb7c6; }
-.nmda-dock-account > i[data-state="online"] { background:#27ad72; }
-.nmda-dock-account > span { min-width:0; max-width:190px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#nmda-dock-compose { min-height:28px; padding:0 9px; border:1px solid #d9dee7; border-radius:8px; background:#fff; color:#536176; font:inherit; font-size:9px; font-weight:700; cursor:pointer; }
-#nmda-dock-compose:hover { background:#f5f7fa; }
+.nmda-dock-primary-copy > small i {
+  width:7px;
+  height:7px;
+  flex:0 0 auto;
+  border-radius:50%;
+  background:#aab4c3;
+}
+.nmda-dock-primary-copy > small i[data-state="online"] { background:#20a96b; }
+.nmda-dock-primary-copy > small span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmda-dock-open-arrow { color:#9aa5b4; font-size:14px; font-weight:600; text-align:center; transition:transform .15s ease,color .15s ease; }
+.nmda-dock-primary:hover .nmda-dock-open-arrow { color:#2563eb; transform:translate(1px,-1px); }
 
-@media (max-width: 560px) {
-  #nmda-mail-dock-host { right:10px; bottom:10px; }
-  .nmda-dock-panel { width:min(318px, calc(100vw - 20px)); max-height:calc(100vh - 84px); }
+.nmda-dock-execution {
+  padding:10px 11px 11px;
+  border-top:1px solid rgba(28,39,60,.08);
+  background:#fbfcfe;
+  animation:nmdaDockExecReveal .2s cubic-bezier(.2,.75,.2,1) both;
 }
-@media (prefers-reduced-motion: reduce) {
+.nmda-dock-execution[hidden] { display:none !important; }
+@keyframes nmdaDockExecReveal { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+.nmda-dock-exec-head { display:flex; align-items:end; justify-content:space-between; gap:10px; }
+.nmda-dock-exec-head > div span { display:block; color:#758195; font-size:9px; font-weight:700; }
+.nmda-dock-exec-head > div strong { display:block; margin-top:1px; color:#1f2937; font-size:17px; font-weight:820; letter-spacing:-.02em; }
+.nmda-dock-exec-state { min-height:20px; padding:0 7px; display:inline-flex; align-items:center; border-radius:999px; background:#e9f0ff; color:#245fcf; font-size:9px; font-weight:760; }
+.nmda-dock-exec-state[data-state="done"] { background:#e8f7ef; color:#147447; }
+.nmda-dock-exec-state[data-state="error"],
+.nmda-dock-exec-state[data-state="stopped"] { background:#fff2df; color:#9a5b0a; }
+.nmda-dock-exec-progress { height:4px; margin-top:8px; overflow:hidden; border-radius:99px; background:#e8edf4; }
+.nmda-dock-exec-progress > i { display:block; width:0; height:100%; border-radius:99px; background:#2563eb; transition:width .2s ease; }
+#nmda-mail-dock-host[data-execution="done"] .nmda-dock-exec-progress > i { background:#16803c; }
+#nmda-mail-dock-host[data-execution="error"] .nmda-dock-exec-progress > i,
+#nmda-mail-dock-host[data-execution="stopped"] .nmda-dock-exec-progress > i { background:#b45309; }
+.nmda-dock-exec-current { margin-top:9px; padding:9px 10px; border:1px solid rgba(36,74,133,.11); border-radius:10px; background:#fff; }
+.nmda-dock-exec-current > strong,
+.nmda-dock-exec-current > small { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nmda-dock-exec-current > strong { color:#253044; font-size:10.5px; font-weight:720; }
+.nmda-dock-exec-current > small { margin-top:2px; color:#778397; font-size:9px; }
+.nmda-dock-exec-current > p { margin:6px 0 0; color:#526176; font-size:9.5px; line-height:1.35; }
+.nmda-dock-exec-actions { margin-top:9px; display:flex; justify-content:flex-end; gap:6px; }
+.nmda-dock-exec-actions button { min-height:28px; padding:0 9px; border:1px solid #d7dde7; border-radius:8px; background:#fff; color:#526176; font:inherit; font-size:9.5px; font-weight:700; cursor:pointer; }
+.nmda-dock-exec-actions button:hover { background:#f5f7fa; }
+.nmda-dock-exec-actions button#nmda-dock-stop { color:#9a3412; border-color:#fed7aa; background:#fffaf5; }
+.nmda-dock-exec-actions button.is-primary { color:#fff; border-color:#2563eb; background:#2563eb; }
+.nmda-dock-exec-actions button.is-primary:hover { background:#1f56cc; }
+.nmda-dock-exec-actions button:disabled { opacity:.58; cursor:default; }
+
+@media (max-width:560px) {
+  #nmda-mail-dock-host { right:10px; bottom:10px; }
+  .nmda-dock-panel,
+  #nmda-mail-dock-host[data-execution="running"] .nmda-dock-panel,
+  #nmda-mail-dock-host[data-execution="error"] .nmda-dock-panel,
+  #nmda-mail-dock-host[data-execution="stopped"] .nmda-dock-panel,
+  #nmda-mail-dock-host[data-execution="done"] .nmda-dock-panel { width:min(310px,calc(100vw - 20px)); }
+}
+
+@media (prefers-reduced-motion:reduce) {
   .nmda-dock-panel,
   .nmda-dock-launcher,
-  .nmda-dock-exec-progress > i { transition:none !important; }
+  .nmda-dock-open-arrow,
+  .nmda-dock-exec-progress > i,
+  .nmda-dock-execution { transition:none !important; animation:none !important; }
 }

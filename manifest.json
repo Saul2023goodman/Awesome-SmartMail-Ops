@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.25",
-  "description": "SmartMail Ops — runtime-only B2B batch mail operations with content-driven layouts and a unified visual system.",
+  "version": "3.8.26",
+  "description": "SmartMail Ops — runtime-only batch mail operations with a minimal mailbox launcher and execution-only secondary monitor.",
   "permissions": [
     "scripting",
     "tabs"

@@ -817,7 +817,7 @@ async function connectionStatus(sender) {
 
 function normalizeAppTarget(target = '') {
   const value = String(target || '').trim().replace(/^#+/, '');
-  return /^(batch(?:\/[12])?|dispatch|monitor)$/.test(value) ? value : 'batch';
+  return /^(batch(?:\/[12])?|review|dispatch|monitor)$/.test(value) ? value : 'batch';
 }
 
 async function openApp(target = 'batch') {
