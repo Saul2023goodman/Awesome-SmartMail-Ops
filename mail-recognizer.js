@@ -54,6 +54,41 @@
       .trim();
   }
 
+  function escapeRichText(value){return String(value??'').replace(/[&<>"']/g,ch=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));}
+  function plainParagraphHtml(value){return `<div>${escapeRichText(value).replace(/\n/g,'<br>')}</div>`;}
+  function richFormatFeatures(html){
+    const value=String(html||'');
+    return{
+      italic:(value.match(/<(?:em|i)\b/gi)||[]).length,
+      bold:(value.match(/<(?:strong|b)\b/gi)||[]).length,
+      underline:(value.match(/<u\b/gi)||[]).length,
+      strike:(value.match(/<s\b/gi)||[]).length,
+      link:(value.match(/<a\b/gi)||[]).length
+    };
+  }
+  function richBodyHtmlFromBlocks(blocks,bodyText,startBlock,endBlock,excludedBlocks=[]){
+    const paragraphs=String(bodyText||'').split(/\n{2,}/).map(x=>x.trim()).filter(Boolean);
+    if(!paragraphs.length)return'';
+    const excluded=new Set((excludedBlocks||[]).map(item=>Number(item?.index)).filter(Number.isFinite));
+    let cursor=Math.max(0,Number(startBlock||0));
+    const last=Math.min(blocks.length-1,Number.isFinite(Number(endBlock))?Number(endBlock):blocks.length-1),out=[];
+    for(const paragraph of paragraphs){
+      let matched=-1;
+      for(let i=cursor;i<=last;i++){
+        if(excluded.has(i))continue;
+        const candidate=cleanInlineMarkup(blocks[i]?.text||'');
+        if(!candidate)continue;
+        if(candidate===paragraph){matched=i;break;}
+      }
+      if(matched>=0){
+        const rich=String(blocks[matched]?.html||'').trim();
+        out.push(rich?`<div>${rich}</div>`:plainParagraphHtml(paragraph));
+        cursor=matched+1;
+      }else out.push(plainParagraphHtml(paragraph));
+    }
+    return out.join('');
+  }
+
   function presentationPrefixLength(value) {
     return String(value || '').match(/^\s*(?:(?:#{1,6}|>|[-*•▪◦])\s*)*/u)?.[0].length || 0;
   }
@@ -533,7 +568,15 @@
   }
 
   function recognizeMailFrames(inputBlocks,{sourceFile='',minConfidence=55,includeWeak=true}={}) {
-    const blocks=(inputBlocks||[]).map((b,index)=>({index,type:typeof b==='object'&&b?(b.type||'block'):'block',style:typeof b==='object'&&b?(b.style||''):'',text:cleanBlockText(textOfBlock(b))})).filter(b=>b.text);
+    const blocks=(inputBlocks||[]).map((b,index)=>({
+      index,
+      type:typeof b==='object'&&b?(b.type||'block'):'block',
+      style:typeof b==='object'&&b?(b.style||''):'',
+      tag:typeof b==='object'&&b?(b.tag||''):'',
+      text:cleanBlockText(textOfBlock(b)),
+      html:typeof b==='object'&&b?String(b.html||''):'',
+      formatFeatures:typeof b==='object'&&b&&b.formatFeatures?{...b.formatFeatures}:{}
+    })).filter(b=>b.text);
     if (!blocks.length) return {records:[],stats:{blocks:0,subjects:0,salutations:0,closings:0,emails:0},blocks:[]};
     const subjectBlocks=[];
     for(let i=0;i<blocks.length;i++)if(subjectAnchor(blocks[i].text))subjectBlocks.push(i);
@@ -559,7 +602,8 @@
       const contextStart=Math.max(0,previousConsumedEnd+1),recipientContext=nearestRecipientContext(blocks,contextStart,Math.max(subjectBlock,salutationBlock>=0?salutationBlock:subjectBlock),salutInfo?.text||'');
       const heading=headingContext(blocks,contextStart,subjectBlock),recipients=recipientContext.selected?.email||'',sidecar=sidecarFromExcluded(body.excludedBlocks||[]);
       const structure={subjectBlock,salutationBlock,bodyStartBlock:salutationBlock>=0?salutationBlock:subjectBlock+1,closeStartBlock:closeInfo?.startBlock??-1,closeEndBlock:closeInfo?.endBlock??-1,signatureStartBlock:(body.signatureBlocks||[])[0]??-1,signatureEndBlock:(body.signatureBlocks||[]).slice(-1)[0]??-1,mailStartBlock:subjectBlock,mailEndBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock};
-      const frame={id:deriveId(heading,ordinal),recipients,school:institutionFromHeading(heading?.text||''),subject,body:body.text,attachments:sidecar.attachments,scheduleAt:sidecar.scheduleAt,tags:'',sourceFile,salutation:salutInfo?.text||'',closing:closeInfo?.text||'',startBlock:subjectBlock,endBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock,heading:heading?.text||'',excludedBlocks:[...(body.excludedBlocks||[])],sourceReferences:[...sidecar.sources],structure,recipientEvidence:recipientContext.selected||null,recipientAmbiguous:recipientContext.ambiguous,recipientCandidates:(recipientContext.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),evidence:['subject',...(salutInfo?['salutation']:[]),...(closeInfo?['closing']:[]),...((body.signatureBlocks||[]).length?['signature']:[]),...(body.text.length>=80?['body']:[]),...(recipients?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],issues};
+      const bodyHtml=richBodyHtmlFromBlocks(blocks,body.text,structure.bodyStartBlock,body.endBlock,body.excludedBlocks||[]);
+      const frame={id:deriveId(heading,ordinal),recipients,school:institutionFromHeading(heading?.text||''),subject,body:body.text,bodyHtml,bodyIsHtml:!!bodyHtml,formatFeatures:richFormatFeatures(bodyHtml),attachments:sidecar.attachments,scheduleAt:sidecar.scheduleAt,tags:'',sourceFile,salutation:salutInfo?.text||'',closing:closeInfo?.text||'',startBlock:subjectBlock,endBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock,heading:heading?.text||'',excludedBlocks:[...(body.excludedBlocks||[])],sourceReferences:[...sidecar.sources],structure,recipientEvidence:recipientContext.selected||null,recipientAmbiguous:recipientContext.ambiguous,recipientCandidates:(recipientContext.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),evidence:['subject',...(salutInfo?['salutation']:[]),...(closeInfo?['closing']:[]),...((body.signatureBlocks||[]).length?['signature']:[]),...(body.text.length>=80?['body']:[]),...(recipients?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],issues};
       frame.blockRoles=buildBlockRoles(blocks,{subjectBlock,salutationBlock,salutInfo,closeInfo,body,heading,recipientEvidence:recipientContext.selected,recipientCandidates:recipientContext.candidates});
       frame.discourseEvidence=mailDiscourseEvidence(`${frame.salutation||''}\n${frame.body||''}`);
       frame.confidence=scoreFrame(frame);
@@ -593,7 +637,8 @@
       const prevEnd=records.filter(r=>r.endBlock<i).sort((a,b)=>(b.consumedEndBlock??b.endBlock)-(a.consumedEndBlock??a.endBlock))[0]?.consumedEndBlock??-1;
       const rc=nearestRecipientContext(blocks,prevEnd+1,i,salut.text),heading=headingContext(blocks,prevEnd+1,i),sidecar=sidecarFromExcluded(body.excludedBlocks||[]);
       const structure={subjectBlock:-1,salutationBlock:i,bodyStartBlock:i,closeStartBlock:closeInfo?.startBlock??-1,closeEndBlock:closeInfo?.endBlock??-1,signatureStartBlock:(body.signatureBlocks||[])[0]??-1,signatureEndBlock:(body.signatureBlocks||[]).slice(-1)[0]??-1,mailStartBlock:i,mailEndBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock};
-      const frame={id:deriveId(heading,records.length+1),recipients:rc.selected?.email||'',school:institutionFromHeading(heading?.text||''),subject:'',body:body.text,attachments:sidecar.attachments,scheduleAt:sidecar.scheduleAt,tags:'',sourceFile,salutation:salut.text,closing:closeInfo?.text||'',startBlock:i,endBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock,heading:heading?.text||'',recipientEvidence:rc.selected||null,recipientAmbiguous:rc.ambiguous,recipientCandidates:(rc.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),excludedBlocks:[...(body.excludedBlocks||[])],sourceReferences:[...sidecar.sources],structure,discourseEvidence,evidence:['salutation',...(closeInfo?['closing']:['recipient-directed-discourse']),...((body.signatureBlocks||[]).length?['signature']:[]),...(body.text.length>=80?['body']:[]),...(rc.selected?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],issues:['未找到 Subject 标记',...(!closeInfo?['未找到标准邮件落款，已按收件人导向语篇保留']:[]),...((body.excludedBlocks||[]).some(item=>item.role==='ambiguous-tail')?['邮件落款后存在未归类内容，已从正文隔离']:[])]};
+      const bodyHtml=richBodyHtmlFromBlocks(blocks,body.text,structure.bodyStartBlock,body.endBlock,body.excludedBlocks||[]);
+      const frame={id:deriveId(heading,records.length+1),recipients:rc.selected?.email||'',school:institutionFromHeading(heading?.text||''),subject:'',body:body.text,bodyHtml,bodyIsHtml:!!bodyHtml,formatFeatures:richFormatFeatures(bodyHtml),attachments:sidecar.attachments,scheduleAt:sidecar.scheduleAt,tags:'',sourceFile,salutation:salut.text,closing:closeInfo?.text||'',startBlock:i,endBlock:body.endBlock,consumedEndBlock:body.consumedEndBlock,heading:heading?.text||'',recipientEvidence:rc.selected||null,recipientAmbiguous:rc.ambiguous,recipientCandidates:(rc.candidates||[]).slice(0,8).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text})),excludedBlocks:[...(body.excludedBlocks||[])],sourceReferences:[...sidecar.sources],structure,discourseEvidence,evidence:['salutation',...(closeInfo?['closing']:['recipient-directed-discourse']),...((body.signatureBlocks||[]).length?['signature']:[]),...(body.text.length>=80?['body']:[]),...(rc.selected?['recipient-email']:[]),...((body.excludedBlocks||[]).length?['tail-boundary']:[])],issues:['未找到 Subject 标记',...(!closeInfo?['未找到标准邮件落款，已按收件人导向语篇保留']:[]),...((body.excludedBlocks||[]).some(item=>item.role==='ambiguous-tail')?['邮件落款后存在未归类内容，已从正文隔离']:[])]};
       frame.blockRoles=buildBlockRoles(blocks,{subjectBlock:-1,salutationBlock:i,salutInfo:salut,closeInfo,body,heading,recipientEvidence:rc.selected,recipientCandidates:rc.candidates});frame.confidence=scoreFrame(frame);
       if(rc.ambiguous)frame.issues.push('收件人存在多个相近候选');if(!frame.recipients)frame.issues.push('未定位收件人邮箱');if(frame.confidence<70)frame.issues.push('邮件边界识别置信度较低');
       if(includeWeak||frame.confidence>=minConfidence)records.push(frame);
@@ -612,7 +657,7 @@
 
   function rowMetaFromRecords(records) {
     const meta={};
-    (records||[]).forEach((r,i)=>{meta[i+1]={confidence:r.confidence||0,evidence:[...(r.evidence||[])],issues:[...(r.issues||[])],heading:r.heading||'',school:r.school||'',sourceFile:r.sourceFile||'',salutation:r.salutation||'',closing:r.closing||'',startBlock:r.startBlock,endBlock:r.endBlock,consumedEndBlock:r.consumedEndBlock??r.endBlock,structure:{...(r.structure||{})},blockRoles:(r.blockRoles||[]).map(item=>({index:item.index,roles:(item.roles||[]).map(role=>({...role}))})),recipientEvidence:r.recipientEvidence?{email:r.recipientEvidence.email,index:r.recipientEvidence.index,score:r.recipientEvidence.score,text:r.recipientEvidence.text||''}:null,recipientAmbiguous:!!r.recipientAmbiguous,recipientCandidates:(r.recipientCandidates||[]).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text||''})),excludedBlocks:(r.excludedBlocks||[]).map(item=>({...item})),sourceReferences:[...(r.sourceReferences||[])]};});
+    (records||[]).forEach((r,i)=>{meta[i+1]={confidence:r.confidence||0,evidence:[...(r.evidence||[])],issues:[...(r.issues||[])],heading:r.heading||'',school:r.school||'',sourceFile:r.sourceFile||'',salutation:r.salutation||'',closing:r.closing||'',bodyHtml:String(r.bodyHtml||''),bodyIsHtml:!!r.bodyIsHtml,formatFeatures:{...(r.formatFeatures||{})},startBlock:r.startBlock,endBlock:r.endBlock,consumedEndBlock:r.consumedEndBlock??r.endBlock,structure:{...(r.structure||{})},blockRoles:(r.blockRoles||[]).map(item=>({index:item.index,roles:(item.roles||[]).map(role=>({...role}))})),recipientEvidence:r.recipientEvidence?{email:r.recipientEvidence.email,index:r.recipientEvidence.index,score:r.recipientEvidence.score,text:r.recipientEvidence.text||''}:null,recipientAmbiguous:!!r.recipientAmbiguous,recipientCandidates:(r.recipientCandidates||[]).map(c=>({email:c.email,index:c.index,score:c.score,text:c.text||''})),excludedBlocks:(r.excludedBlocks||[]).map(item=>({...item})),sourceReferences:[...(r.sourceReferences||[])]};});
     return meta;
   }
 

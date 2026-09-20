@@ -136,6 +136,98 @@
     return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
   }
 
+  const MAIL_RICH_BLOCK_TAGS=new Set(['div','p','ul','ol','li','blockquote','pre']);
+  function safeMailRichHref(value){const href=String(value||'').trim();return /^(?:https?:|mailto:)/i.test(href)?href:'';}
+  function wrapMailRichFlags(content,{bold=false,italic=false,underline=false,strike=false}={}){
+    let out=content;if(strike)out=`<s>${out}</s>`;if(underline)out=`<u>${out}</u>`;if(italic)out=`<em>${out}</em>`;if(bold)out=`<strong>${out}</strong>`;return out;
+  }
+  function sanitizeEmailRichHtml(html){
+    const doc=new DOMParser().parseFromString(`<div>${String(html||'')}</div>`,'text/html'),root=doc.body.firstElementChild;
+    if(!root)return'';
+    const render=node=>{
+      if(node.nodeType===3)return escapeHtml(node.nodeValue||'');
+      if(node.nodeType!==1)return'';
+      const tag=String(node.tagName||'').toLowerCase();
+      if(tag==='br')return'<br>';
+      const content=Array.from(node.childNodes||[]).map(render).join('');
+      const style=String(node.getAttribute?.('style')||'').toLowerCase();
+      const flags={
+        bold:['strong','b'].includes(tag)||/font-weight\s*:\s*(?:bold|[6-9]00)/.test(style),
+        italic:['em','i'].includes(tag)||/font-style\s*:\s*italic/.test(style),
+        underline:tag==='u'||/text-decoration[^;]*underline/.test(style),
+        strike:['s','strike','del'].includes(tag)||/text-decoration[^;]*(?:line-through|strike)/.test(style)
+      };
+      let out=wrapMailRichFlags(content,flags);
+      if(tag==='a'){
+        const href=safeMailRichHref(node.getAttribute?.('href'));
+        if(href)out=`<a href="${escapeHtml(href)}">${out}</a>`;
+      }
+      if(MAIL_RICH_BLOCK_TAGS.has(tag))out=`<${tag}>${out}</${tag}>`;
+      return out;
+    };
+    return Array.from(root.childNodes||[]).map(render).join('');
+  }
+  function plainMailBodyToHtml(text){
+    const value=String(text||'').replace(/\r\n?/g,'\n');
+    return value.split(/\n{2,}/).map(part=>`<div>${escapeHtml(part).replace(/\n/g,'<br>')}</div>`).join('');
+  }
+  function mailRichFormatFeatures(html){
+    const value=String(html||'');
+    return{
+      italic:(value.match(/<(?:em|i)\b/gi)||[]).length,
+      bold:(value.match(/<(?:strong|b)\b/gi)||[]).length,
+      underline:(value.match(/<u\b/gi)||[]).length,
+      strike:(value.match(/<s\b/gi)||[]).length,
+      link:(value.match(/<a\b/gi)||[]).length,
+      list:(value.match(/<(?:ul|ol|li)\b/gi)||[]).length,
+      quote:(value.match(/<blockquote\b/gi)||[]).length
+    };
+  }
+  function mailRichHasMeaningfulFormatting(html){
+    const f=mailRichFormatFeatures(html);return Object.values(f).some(Number);
+  }
+  function mailRichFeatureLabel(html){
+    const f=mailRichFormatFeatures(html),labels=[];
+    if(f.italic)labels.push(`斜体 ${f.italic}`);if(f.bold)labels.push(`加粗 ${f.bold}`);if(f.underline)labels.push(`下划线 ${f.underline}`);if(f.link)labels.push(`链接 ${f.link}`);if(f.strike)labels.push(`删除线 ${f.strike}`);if(f.list)labels.push('列表');if(f.quote)labels.push('引用');
+    return labels.join(' · ');
+  }
+  function mailRichHtmlToText(html){
+    const doc=new DOMParser().parseFromString(`<div>${sanitizeEmailRichHtml(html)}</div>`,'text/html'),root=doc.body.firstElementChild;
+    if(!root)return'';
+    const blockTags=new Set(['div','p','li','blockquote','pre','ul','ol']);
+    const read=node=>{
+      if(node.nodeType===3)return node.nodeValue||'';
+      if(node.nodeType!==1)return'';
+      const tag=String(node.tagName||'').toLowerCase();if(tag==='br')return'\n';
+      const content=Array.from(node.childNodes||[]).map(read).join('');
+      return blockTags.has(tag)?`${content}\n\n`:content;
+    };
+    return Array.from(root.childNodes||[]).map(read).join('').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  }
+  function taskRichBodyHtml(task){
+    const source=task?.bodyIsHtml&&String(task?.bodyHtml||'').trim()?String(task.bodyHtml):plainMailBodyToHtml(task?.body||'');
+    return sanitizeEmailRichHtml(source);
+  }
+  function decorateReviewRichHtml(task){
+    const safe=taskRichBodyHtml(task);if(!safe)return escapeHtml(task?.body||'（正文为空）');
+    const doc=new DOMParser().parseFromString(`<div id="nmda-rich-root">${safe}</div>`,'text/html'),root=doc.getElementById('nmda-rich-root');if(!root)return safe;
+    const formatMap=[['em,i','italic','斜体'],['strong,b','bold','加粗'],['u','underline','下划线'],['s','strike','删除线'],['a','link','链接']];
+    for(const [selector,type,label] of formatMap)root.querySelectorAll(selector).forEach(el=>{el.classList.add('nmda-format-mark');el.dataset.format=type;el.title=label;});
+    const walker=doc.createTreeWalker(root,4),nodes=[];let node;
+    while((node=walker.nextNode()))if(String(node.nodeValue||'').trim())nodes.push(node);
+    for(const textNode of nodes){
+      const source=String(textNode.nodeValue||''),ranges=reviewSemanticRanges(source,task).ranges;if(!ranges.length)continue;
+      const frag=doc.createDocumentFragment();let cursor=0;
+      for(const range of ranges){
+        if(range.start>cursor)frag.appendChild(doc.createTextNode(source.slice(cursor,range.start)));
+        const mark=doc.createElement('mark');mark.className='nmda-semantic-mark';mark.dataset.semantic=range.type;mark.title=range.label;mark.textContent=source.slice(range.start,range.end);frag.appendChild(mark);cursor=range.end;
+      }
+      if(cursor<source.length)frag.appendChild(doc.createTextNode(source.slice(cursor)));
+      textNode.replaceWith(frag);
+    }
+    return root.innerHTML;
+  }
+
 
   const NMDA_ICONS = {
     app: '<path d="M5.25 6.5h6.5a4.75 4.75 0 0 1 0 9.5H8.5"/><circle cx="5.25" cy="6.5" r="1.75"/><circle cx="15.25" cy="11.25" r="1.75"/><circle cx="8.5" cy="16" r="1.75"/>',
@@ -579,6 +671,7 @@
                     <span class="nmda-semantic-legend-item" data-semantic="institution"><i></i><strong>学校 / 机构</strong></span>
                     <span class="nmda-semantic-legend-item" data-semantic="anchor"><i></i><strong>称呼 / 身份 / 意图 / 落款</strong></span>
                     <span class="nmda-semantic-legend-item" data-semantic="degree"><i></i><strong>学位 / 时间</strong></span>
+                    <span class="nmda-semantic-legend-item" data-semantic="format"><i></i><strong>原始格式</strong><small>斜体 / 加粗 / 下划线 / 链接</small></span>
                   </div>
                 </div>
                 <aside class="nmda-review-preview-rail" id="nmda-review-preview-rail" hidden aria-label="Preview 邮件导航">
@@ -624,7 +717,7 @@
                                 <div><span>主题</span><strong id="nmda-audit-subject">—</strong></div>
                               </div>
                               <div class="nmda-review-mail-sheet-title"><strong>完整邮件</strong><small>从头到尾连续显示；开头和结尾已在上方重点抽取</small></div>
-                              <pre class="nmda-review-mail-sheet-body" id="nmda-audit-full-body">—</pre>
+                              <div class="nmda-review-mail-sheet-body nmda-review-rich-body" id="nmda-audit-full-body">—</div>
                             </section>
                           </section>
 
@@ -637,7 +730,16 @@
                                 <div><strong id="nmda-subject-assist-title">还有邮件缺少主题</strong><small id="nmda-subject-assist-copy"></small></div>
                                 <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-subject-assist-apply" type="button">一键填写</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-subject-assist-dismiss" type="button">不用</button></div>
                               </div>
-                              <label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-body"><span class="nmda-label">正文</span><textarea id="nmda-import-edit-body"></textarea></label>
+                              <label class="nmda-field nmda-import-editor-wide" id="nmda-review-field-body">
+                                <span class="nmda-label">正文 <small>保留原始邮件格式</small></span>
+                                <div class="nmda-rich-editor-toolbar" aria-label="正文格式">
+                                  <button type="button" data-rich-command="bold" title="加粗（Ctrl+B）"><strong>B</strong></button>
+                                  <button type="button" data-rich-command="italic" title="斜体（Ctrl+I）"><em>I</em></button>
+                                  <button type="button" data-rich-command="underline" title="下划线（Ctrl+U）"><u>U</u></button>
+                                  <span>导入格式会持续保留到网易草稿</span>
+                                </div>
+                                <div id="nmda-import-edit-body" class="nmda-rich-compose-editor" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true"></div>
+                              </label>
                             </div>
                           </section>
                         </div>
@@ -1851,6 +1953,16 @@
   const batchTagIncludeEl = $('nmda-batch-tag-include');
   const importBusyBadgeEl = $('nmda-import-busy-badge'), resetImportEl = $('nmda-reset-import');
   let subjectAssistTimer = null;
+
+  if(importEditBodyEl && importEditBodyEl.tagName!=='TEXTAREA'){
+    try{
+      Object.defineProperty(importEditBodyEl,'value',{
+        configurable:true,
+        get(){return mailRichHtmlToText(importEditBodyEl.innerHTML||'');},
+        set(value){importEditBodyEl.textContent=String(value??'');}
+      });
+    }catch(_){ }
+  }
 
   function isCurrentBatchSession(token) { return Number(token) === Number(batch.sessionId); }
 
@@ -3597,6 +3709,24 @@
     if(subjectAssistEl) subjectAssistEl.hidden=true;
   }
 
+  function setReviewBodyEditorContent(task){
+    if(!importEditBodyEl)return;
+    const rich=taskRichBodyHtml(task);
+    importEditBodyEl.innerHTML=rich||plainMailBodyToHtml(task?.body||'');
+    importEditBodyEl.dataset.hadRich=task?.bodyIsHtml&&String(task?.bodyHtml||'').trim()?'1':'0';
+    importEditBodyEl.dataset.originalBody=String(task?.body||'');
+    importEditBodyEl.dataset.originalBodyHtml=task?.bodyIsHtml?sanitizeEmailRichHtml(task?.bodyHtml||''):'';
+  }
+
+  function currentReviewBodyPatch(task){
+    const body=String(importEditBodyEl?.value||'');
+    const html=sanitizeEmailRichHtml(importEditBodyEl?.innerHTML||'');
+    const originallyRich=importEditBodyEl?.dataset?.hadRich==='1';
+    const meaningfulFormat=mailRichHasMeaningfulFormatting(html);
+    const keepRich=originallyRich||meaningfulFormat;
+    return{body,bodyHtml:keepRich?html:'',bodyIsHtml:keepRich};
+  }
+
   function autoSizeReviewBody(){
     if(!importEditBodyEl || importEditorOverlayEl?.hidden) return;
     requestAnimationFrame(()=>{
@@ -3622,10 +3752,13 @@
 
   function stashCurrentReviewDraft(){
     const task=reviewCurrentTask(); if(!task)return null;
+    const bodyPatch=currentReviewBodyPatch(task);
     const patch={
       recipients:String(importEditRecipientsEl?.value||'').trim(),
       subject:String(importEditSubjectEl?.value||'').trim(),
-      body:String(importEditBodyEl?.value||''),
+      body:bodyPatch.body,
+      bodyHtml:bodyPatch.bodyHtml,
+      bodyIsHtml:bodyPatch.bodyIsHtml,
       attachments:String(importEditAttachmentsEl?.value||'').trim(),
       scheduleAt:String(importEditScheduleEl?.value||''),
       tags:String(importEditTagsEl?.value||'')
@@ -3644,6 +3777,8 @@
     const changed=patch.recipients!==String(task.recipients||'').trim()
       || patch.subject!==String(task.subject||'').trim()
       || patch.body!==String(task.body||'')
+      || patch.bodyHtml!==String(task.bodyHtml||'')
+      || !!patch.bodyIsHtml!==!!task.bodyIsHtml
       || patch.attachments!==currentAttachments
       || patch.scheduleAt!==String(task.scheduleAt||'')
       || patch.tags!==currentTags;
@@ -4393,7 +4528,7 @@
         </header>
         <section class="nmda-review-preview-sheet" aria-label="${escapeHtml(label)} 完整邮件预览">
           <div class="nmda-review-preview-mailhead"><span>To</span><strong>${semanticHighlightHtml(recipient,task)}</strong><span>Subject</span><strong>${semanticHighlightHtml(subject,task)}</strong></div>
-          <pre class="nmda-review-preview-body">${semanticHighlightHtml(body||'（正文为空）',task)}</pre>
+          <div class="nmda-review-preview-body nmda-review-rich-body">${decorateReviewRichHtml(task)}</div>
         </section>
         ${pending?`<footer class="nmda-review-preview-foot">${stateCopy}</footer>`:''}
       </article>`;
@@ -4552,6 +4687,8 @@
     if(model.institutions[0])items.push({type:'institution',label:'学校 / 机构',value:model.institutions[0]});
     items.push({type:'anchor',label:'语义锚点',value:'称呼 · 身份 · 意图 · 落款'});
     if(/\b(?:Ph\.?D\.?|MSc|Master(?:'s)?|Bachelor(?:'s)?|Fall\s+20\d{2}|Spring\s+20\d{2})\b/i.test(String(task?.body||'')+' '+String(task?.subject||'')))items.push({type:'degree',label:'学位 / 时间',value:'自动定位'});
+    const formatLabel=mailRichFeatureLabel(taskRichBodyHtml(task));
+    if(formatLabel)items.push({type:'format',label:'原始格式',value:formatLabel});
     el.innerHTML=items.map(item=>`<span class="nmda-semantic-legend-item" data-semantic="${item.type}"><i></i><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.value)}</small></span>`).join('');
   }
 
@@ -4578,7 +4715,7 @@
     if(subjectEl)subjectEl.innerHTML=semanticHighlightHtml(subject||'未识别主题',task);
     if(openingEl)openingEl.innerHTML=semanticHighlightHtml(boundary.slices.opening,task);
     if(closingEl)closingEl.innerHTML=semanticHighlightHtml(boundary.slices.closing,task);
-    if(fullEl)fullEl.innerHTML=semanticHighlightHtml(boundary.slices.full,task);
+    if(fullEl){fullEl.classList.add('nmda-review-rich-body');fullEl.innerHTML=decorateReviewRichHtml(task);}
     const openingCard=$('nmda-audit-opening')?.closest('.nmda-review-edge-card');
     const closingCard=$('nmda-audit-closing')?.closest('.nmda-review-edge-card');
     if(openingCard)openingCard.dataset.state=bodyOk&&boundary.hasOpening&&!openingWarn?'ok':'review';
@@ -4618,10 +4755,10 @@
     if((direct||correction)&&task){
       if(importEditRecipientsEl)importEditRecipientsEl.value=task?.recipients||'';
       if(importEditSubjectEl)importEditSubjectEl.value=task?.subject||'';
-      if(importEditBodyEl)importEditBodyEl.value=task?.body||'';
+      setReviewBodyEditorContent(task);
       autoSizeReviewBody();
       if(direct)requestAnimationFrame(()=>{
-        const first=fields.map(key=>fieldMap[key]?.querySelector('input,textarea')).find(Boolean);
+        const first=fields.map(key=>fieldMap[key]?.querySelector('input,textarea,[contenteditable="true"]')).find(Boolean);
         first?.focus?.({preventScroll:true});
       });
     }
@@ -4819,7 +4956,7 @@
     importEditRecipientsEl.value=task.recipients||'';
     importEditSubjectEl.value=task.subject||'';
     importEditSubjectEl.dataset.startedBlank=String(task.subject||'').trim()?'0':'1';
-    importEditBodyEl.value=task.body||'';
+    setReviewBodyEditorContent(task);
     hideSubjectAssist();
     importEditAttachmentsEl.value=(task.attachmentRefs||[]).join('; ');
     importEditScheduleEl.value=task.scheduleAt||'';
@@ -5081,9 +5218,12 @@
   function setTaskEdit(task, patch) {
     const prev = batch.taskEdits.get(task.editKey) || {};
     const beforeReviewIssues=unresolvedImportIssues(task);
+    const bodyFormatChanged=(patch.bodyHtml!=null && String(patch.bodyHtml||'')!==String(task.bodyHtml||''))
+      || (patch.bodyIsHtml!=null && !!patch.bodyIsHtml!==!!task.bodyIsHtml);
     const coreChanged=(patch.recipients!=null && String(patch.recipients||'').trim()!==String(task.recipients||'').trim())
       || (patch.subject!=null && String(patch.subject||'').trim()!==String(task.subject||'').trim())
-      || (patch.body!=null && String(patch.body||'')!==String(task.body||''));
+      || (patch.body!=null && String(patch.body||'')!==String(task.body||''))
+      || bodyFormatChanged;
     const next = { ...prev, ...patch };
     const duplicateIdentityChanged=(patch.recipients!=null && String(patch.recipients||'').trim()!==String(task.recipients||'').trim())
       || (patch.school!=null && String(patch.school||'').trim()!==String(task.school||'').trim());
@@ -5117,6 +5257,8 @@
     if (patch.recipients != null) task.recipients = String(patch.recipients || '').trim();
     if (patch.subject != null) task.subject = String(patch.subject || '').trim();
     if (patch.body != null) task.body = String(patch.body || '');
+    if (patch.bodyHtml != null) task.bodyHtml = sanitizeEmailRichHtml(patch.bodyHtml || '');
+    if (patch.bodyIsHtml != null) task.bodyIsHtml = !!patch.bodyIsHtml && !!String(task.bodyHtml||'').trim();
     if (patch.tags != null) task.tags = parseTaskClassifications(patch.tags);
     if (patch.school != null) task.school = String(patch.school || '').trim();
     if (patch.scheduleAt != null) task.scheduleAt = String(patch.scheduleAt || '');
@@ -5744,6 +5886,8 @@
         const mailboxBcc = String(mailboxDraft?.bcc || '').trim();
         const mailboxBodyHtml = String(mailboxDraft?.bodyHtml || '');
         const mailboxBodyIsHtml = mailboxDraft?.isHtml !== false && !!mailboxBodyHtml;
+        const recognizedBodyHtml = String(rowMeta?.bodyHtml || '');
+        const recognizedBodyIsHtml = rowMeta?.bodyIsHtml !== false && !!recognizedBodyHtml;
         const mailboxPriority = Number(mailboxDraft?.priority || 0) || 0;
         const mailboxReadReceipt = !!mailboxDraft?.requestReadReceipt;
         const rowSourceFile=String(rowMeta?.sourceFile||(collection.meta?.wordTaskRows?row?.[8]:'')||collection.source||'').trim();
@@ -5768,6 +5912,14 @@
         const school=schoolEvidence.valid?String(schoolEvidence.value||schoolRaw).trim():'';
         const subject = String(edit.subject != null ? edit.subject : sourceSubject).trim();
         const body = String(edit.body != null ? edit.body : sourceBody);
+        const inheritedBodyHtml = mailboxDraft ? mailboxBodyHtml : recognizedBodyHtml;
+        const inheritedBodyIsHtml = mailboxDraft ? mailboxBodyIsHtml : recognizedBodyIsHtml;
+        const bodyHtml = edit.bodyHtml != null
+          ? sanitizeEmailRichHtml(edit.bodyHtml || '')
+          : (edit.body == null && inheritedBodyIsHtml ? sanitizeEmailRichHtml(inheritedBodyHtml) : '');
+        const bodyIsHtml = edit.bodyIsHtml != null
+          ? !!edit.bodyIsHtml && !!bodyHtml
+          : !!bodyHtml;
         const attachmentRaw = edit.attachments != null ? edit.attachments : sourceAttachmentRaw;
         const rawAttachmentRefs = Importer.splitAttachments(attachmentRaw);
         const attachmentRefs = actionableAttachmentRefs(rawAttachmentRefs);
@@ -5825,7 +5977,7 @@
         tasks.push({
           id, rowIndex, collectionIndex, collectionName: collection.name || `内容 ${collectionIndex + 1}`, sourceFile: rowSourceFile,
           editKey, sourceRow: rowIndex + 1, recipients, cc:mailboxCc, bcc:mailboxBcc, school, schoolSource:school?schoolSource:'', ignoredSchool:schoolRaw&&!school?schoolRaw:'', subject, body,
-          bodyHtml: mailboxDraft && edit.body == null ? mailboxBodyHtml : '', bodyIsHtml: mailboxDraft && edit.body == null ? mailboxBodyIsHtml : false,
+          bodyHtml, bodyIsHtml, formatFeatures:mailRichFormatFeatures(bodyHtml),
           priority: mailboxPriority, requestReadReceipt: mailboxReadReceipt,
           attachmentRefs, ignoredAttachmentRefs:rawAttachmentRefs.filter(ref=>!attachmentRefs.includes(ref)),
           sourceKind:mailboxDraft?'mailbox-draft':'import', mailboxDraftId:String(mailboxDraft?.id||''), mailboxDraftSavedAt:String(mailboxDraft?.savedAt||''), remoteAttachments:[...(mailboxDraft?.attachments||[])],
@@ -5838,7 +5990,7 @@
           reviewConfirmed: !!edit.reviewConfirmed, reviewDraftPending: !!edit.reviewDraftPending, rosterConfirmed: !!edit.rosterConfirmed,
           duplicateConfirmedGroups:Array.isArray(edit.duplicateConfirmedGroups)?[...edit.duplicateConfirmedGroups]:[], duplicateIssues:[], duplicateGroupIds:[], importExcluded:false,
           draftHistoryDecision:String(edit.draftHistoryDecision||''), draftHistoryDecisionKey:String(edit.draftHistoryDecisionKey||''),
-          manuallyEdited: ['recipients','school','subject','body','attachments','scheduleAt','tags'].some(key=>edit[key]!=null), _searchStatic: staticSearch
+          manuallyEdited: ['recipients','school','subject','body','bodyHtml','attachments','scheduleAt','tags'].some(key=>edit[key]!=null), _searchStatic: staticSearch
         });
       }
     }
@@ -7023,6 +7175,17 @@
   $('nmda-review-correct')?.addEventListener('click',enterReviewEdit);
   $('nmda-review-back-audit')?.addEventListener('click',returnToReviewAudit);
   $('nmda-review-exclude')?.addEventListener('click', excludeCurrentReviewTask);
+  root.querySelectorAll?.('[data-rich-command]')?.forEach(button=>{
+    button.addEventListener('mousedown',event=>event.preventDefault());
+    button.addEventListener('click',()=>{
+      if(!importEditBodyEl)return;
+      importEditBodyEl.focus();
+      const command=String(button.dataset.richCommand||'');
+      try{document.execCommand(command,false,null);}catch(_){ }
+      const inputType=`format${command.charAt(0).toUpperCase()}${command.slice(1)}`;
+      importEditBodyEl.dispatchEvent(new InputEvent('input',{bubbles:true,inputType}));
+    });
+  });
   [importEditRecipientsEl,importEditSubjectEl,importEditBodyEl].forEach(el=>el?.addEventListener('input',()=>{refreshReviewDraftIndicators();if(el===importEditBodyEl)autoSizeReviewBody();}));
   importEditSubjectEl?.addEventListener('input',()=>{
     hideSubjectAssist();
@@ -7039,6 +7202,7 @@
       setReviewCorrectionMode(previousMode==='direct'?(taskNeedsDirectCorrection(current)?'direct':'audit'):'correction',current);
     }
   }));
+  if(importEditBodyEl && importEditBodyEl.tagName!=='TEXTAREA')importEditBodyEl.addEventListener('blur',()=>importEditBodyEl.dispatchEvent(new Event('change',{bubbles:true})));
   importEditSubjectEl?.addEventListener('change',()=>{
     if(subjectAssistTimer){clearTimeout(subjectAssistTimer);subjectAssistTimer=null;}
     const key=importEditorOverlayEl?.dataset.editKey||'';

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.55",
-  "description": "SmartMail Ops — effective replies stop Follow-up and hand off to manual mailbox handling; auto-reply is only a non-blocking detection feature.",
+  "version": "3.8.56",
+  "description": "SmartMail Ops — preserves semantic rich-mail formatting from import through highlighted review, editing and NetEase draft creation.",
   "permissions": [
     "scripting",
     "tabs",

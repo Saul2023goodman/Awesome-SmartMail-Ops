@@ -52,6 +52,54 @@
     return null;
   }
 
+  // Rich-mail import deliberately keeps only portable author emphasis.  The goal is
+  // not to reproduce arbitrary Word/HTML styling, but to preserve meaningful email
+  // formatting (italic/bold/underline/strike, links and line breaks) all the way to
+  // preview + NetEase compose without importing unsafe style/event markup.
+  function escapeRichText(value){return String(value??'').replace(/[&<>"']/g,ch=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));}
+  function wrapRichFlags(content,{bold=false,italic=false,underline=false,strike=false}={}){
+    let out=content;if(strike)out=`<s>${out}</s>`;if(underline)out=`<u>${out}</u>`;if(italic)out=`<em>${out}</em>`;if(bold)out=`<strong>${out}</strong>`;return out;
+  }
+  function safeRichHref(value){
+    const href=String(value||'').trim();
+    return /^(?:https?:|mailto:)/i.test(href)?href:'';
+  }
+  function sanitizeInlineRichHtml(html){
+    const doc=new DOMParser().parseFromString(`<div>${String(html||'')}</div>`,'text/html'),root=doc.body.firstElementChild;
+    if(!root)return'';
+    const render=node=>{
+      if(node.nodeType===3)return escapeRichText(node.nodeValue||'');
+      if(node.nodeType!==1)return'';
+      const tag=String(node.tagName||'').toLowerCase();
+      if(tag==='br')return'<br>';
+      const content=Array.from(node.childNodes||[]).map(render).join('');
+      const style=String(node.getAttribute?.('style')||'').toLowerCase();
+      const flags={
+        bold:['strong','b'].includes(tag)||/font-weight\s*:\s*(?:bold|[6-9]00)/.test(style),
+        italic:['em','i'].includes(tag)||/font-style\s*:\s*italic/.test(style),
+        underline:tag==='u'||/text-decoration[^;]*underline/.test(style),
+        strike:['s','strike','del'].includes(tag)||/text-decoration[^;]*(?:line-through|strike)/.test(style)
+      };
+      let out=wrapRichFlags(content,flags);
+      if(tag==='a'){
+        const href=safeRichHref(node.getAttribute?.('href'));
+        if(href)out=`<a href="${escapeRichText(href)}">${out}</a>`;
+      }
+      return out;
+    };
+    return Array.from(root.childNodes||[]).map(render).join('');
+  }
+  function richFormatFeatures(html){
+    const value=String(html||'');
+    return{
+      italic:(value.match(/<(?:em|i)\b/gi)||[]).length,
+      bold:(value.match(/<(?:strong|b)\b/gi)||[]).length,
+      underline:(value.match(/<u\b/gi)||[]).length,
+      strike:(value.match(/<s\b/gi)||[]).length,
+      link:(value.match(/<a\b/gi)||[]).length
+    };
+  }
+
   function detectDelimited(text,preferred=null){
     if(preferred)return preferred; const lines=text.split(/\r?\n/).filter(l=>l.trim()).slice(0,12), choices=[',','\t',';','|']; let best={d:',',score:-1};
     for(const d of choices){const counts=lines.map(line=>{let q=false,c=0;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(q&&line[i+1]==='"')i++;else q=!q;}else if(!q&&ch===d)c++;}return c;}); const nonZero=counts.filter(Boolean); const consistency=nonZero.length?1-(Math.max(...nonZero)-Math.min(...nonZero))/Math.max(1,Math.max(...nonZero)):0; const score=counts.reduce((a,b)=>a+b,0)+nonZero.length*4+consistency*12;if(score>best.score)best={d,score};}
@@ -107,7 +155,7 @@
     if(!scan.records.length)return null;
     const strong=scan.records.filter(r=>r.confidence>=70).length;
     if(strong<Math.max(1,Math.ceil(scan.records.length*minStrongRatio)))return null;
-    const sourceBlocks=(scan.blocks||[]).map(b=>({index:b.index,type:b.type||'block',style:b.style||'',text:b.text||''}));
+    const sourceBlocks=(scan.blocks||[]).map(b=>({index:b.index,type:b.type||'block',style:b.style||'',tag:b.tag||'',text:b.text||'',formatFeatures:{...(b.formatFeatures||{})}}));
     const rowMeta=Mail.rowMetaFromRecords(scan.records);
     // Keep a compact evidence window per mail row. This survives multi-file merging, where collection-level
     // sourceBlocks would otherwise become ambiguous across different source documents.
@@ -141,11 +189,11 @@
       if(tag==='tr')value=Array.from(el.querySelectorAll(':scope > th, :scope > td')).map(x=>x.textContent||'').join(' | ');
       else value=el.textContent||'';
       value=value.replace(/\r\n?/g,'\n').replace(/[ \t]+\n/g,'\n').trim();
-      if(value)blocks.push({type:`html-${tag}`,text:value});
+      if(value){const html=tag==='tr'?'':sanitizeInlineRichHtml(el.innerHTML||'');blocks.push({type:`html-${tag}`,tag,text:value,html,formatFeatures:richFormatFeatures(html)});}
     }
     if(!blocks.length){
       const raw=String(body.textContent||'').replace(/\r\n?/g,'\n');
-      for(const line of raw.split(/\n+/).map(x=>x.trim()).filter(Boolean))blocks.push({type:'html-text',text:line});
+      for(const line of raw.split(/\n+/).map(x=>x.trim()).filter(Boolean))blocks.push({type:'html-text',text:line,html:escapeRichText(line),formatFeatures:{italic:0,bold:0,underline:0,strike:0,link:0}});
     }
     return blocks;
   }
@@ -167,6 +215,36 @@
     };
     walk(root);
     return out.replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  }
+  function wordRunRichHtml(run){
+    if(!run)return'';
+    const rPr=Array.from(run.children||[]).find(x=>localName(x)==='rPr');
+    const on=name=>{
+      const node=rPr&&Array.from(rPr.children||[]).find(x=>localName(x)===name);if(!node)return false;
+      const val=String(attrLocal(node,'val')??'true').toLowerCase();return !['0','false','off','none'].includes(val);
+    };
+    let out='';
+    const walk=node=>{
+      const name=localName(node);
+      if(name==='t'||name==='delText'||name==='instrText')out+=escapeRichText(node.textContent||'');
+      else if(name==='tab')out+='&emsp;';
+      else if(name==='br'||name==='cr')out+='<br>';
+      else if(name==='noBreakHyphen')out+='-';
+      else if(name==='softHyphen')out+='&shy;';
+      else if(name!=='rPr')for(const child of Array.from(node.childNodes||[]))walk(child);
+    };
+    for(const child of Array.from(run.childNodes||[]))if(localName(child)!=='rPr')walk(child);
+    return wrapRichFlags(out,{bold:on('b')||on('bCs'),italic:on('i')||on('iCs'),underline:!!(rPr&&Array.from(rPr.children||[]).find(x=>localName(x)==='u'&&!['0','false','off','none'].includes(String(attrLocal(x,'val')??'single').toLowerCase()))),strike:on('strike')||on('dstrike')});
+  }
+  function wordParagraphRichHtml(p){
+    if(!p)return'';
+    const render=node=>{
+      const name=localName(node);
+      if(name==='r')return wordRunRichHtml(node);
+      if(['hyperlink','smartTag','sdt','sdtContent','ins','del'].includes(name))return Array.from(node.children||[]).map(render).join('');
+      return'';
+    };
+    return Array.from(p.children||[]).map(render).join('');
   }
   function wordParagraphStyle(p){
     const pPr=Array.from(p?.children||[]).find(x=>localName(x)==='pPr');
@@ -268,8 +346,8 @@
           for(const row of rows){const text=(row||[]).map(v=>String(v??'').trim()).filter(Boolean).join(' | ');if(text)blocks.push({type:'table-row',text,table:table.name});}
         }
       }else if(n==='p'){
-        const para={text:wordNodeText(child),style:wordParagraphStyle(child)};
-        paragraphs.push(para); if(para.text)blocks.push({type:'paragraph',text:para.text,style:para.style});
+        const html=wordParagraphRichHtml(child),para={text:wordNodeText(child),style:wordParagraphStyle(child),html,formatFeatures:richFormatFeatures(html)};
+        paragraphs.push(para); if(para.text)blocks.push({type:'paragraph',text:para.text,style:para.style,html:para.html,formatFeatures:para.formatFeatures});
       }
     }
     return{tables,paragraphs,blocks};

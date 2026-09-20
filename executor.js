@@ -289,6 +289,38 @@
     return div.innerHTML.replace(/\n/g, '<br>');
   }
 
+  function sanitizeComposeHtml(html) {
+    const doc = new DOMParser().parseFromString(`<div>${String(html || '')}</div>`, 'text/html');
+    const root = doc.body.firstElementChild;
+    if (!root) return '';
+    const blocks = new Set(['div','p','ul','ol','li','blockquote','pre']);
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+    const render = node => {
+      if (node.nodeType === 3) return esc(node.nodeValue || '');
+      if (node.nodeType !== 1) return '';
+      const tag = String(node.tagName || '').toLowerCase();
+      if (tag === 'br') return '<br>';
+      const content = Array.from(node.childNodes || []).map(render).join('');
+      const style = String(node.getAttribute?.('style') || '').toLowerCase();
+      const bold = ['strong','b'].includes(tag) || /font-weight\s*:\s*(?:bold|[6-9]00)/.test(style);
+      const italic = ['em','i'].includes(tag) || /font-style\s*:\s*italic/.test(style);
+      const underline = tag === 'u' || /text-decoration[^;]*underline/.test(style);
+      const strike = ['s','strike','del'].includes(tag) || /text-decoration[^;]*(?:line-through|strike)/.test(style);
+      let out = content;
+      if (strike) out = `<s>${out}</s>`;
+      if (underline) out = `<u>${out}</u>`;
+      if (italic) out = `<em>${out}</em>`;
+      if (bold) out = `<strong>${out}</strong>`;
+      if (tag === 'a') {
+        const href = String(node.getAttribute?.('href') || '').trim();
+        if (/^(?:https?:|mailto:)/i.test(href)) out = `<a href="${esc(href)}">${out}</a>`;
+      }
+      if (blocks.has(tag)) out = `<${tag}>${out}</${tag}>`;
+      return out;
+    };
+    return Array.from(root.childNodes || []).map(render).join('');
+  }
+
   async function setBody(root, bodyText, bodyHtml = '', bodyIsHtml = false) {
     const iframe = await waitFor(() => findEditorIframe(root), 8000, 120, '未找到正文编辑器 iframe。');
     const body = await waitFor(() => {
@@ -298,7 +330,7 @@
     // Drafts imported from the mailbox already contain NetEase-sanitized HTML.
     // Preserve that representation unless the user edited the plain-text body in
     // the workbench; ordinary file imports continue through the plain-text path.
-    if (bodyIsHtml && String(bodyHtml || '').trim()) body.innerHTML = String(bodyHtml);
+    if (bodyIsHtml && String(bodyHtml || '').trim()) body.innerHTML = sanitizeComposeHtml(bodyHtml);
     else body.innerHTML = plainTextToHtml(bodyText || '');
     fire(body, 'input'); fire(body, 'change'); fire(body, 'blur');
   }
@@ -309,7 +341,7 @@
     const body = await waitFor(() => {
       try { return iframe.contentDocument?.body || null; } catch (_) { return null; }
     }, 8000, 120, '无法访问正文编辑器内容。');
-    const html = bodyIsHtml && String(bodyHtml || '').trim() ? String(bodyHtml) : plainTextToHtml(bodyText || '');
+    const html = bodyIsHtml && String(bodyHtml || '').trim() ? sanitizeComposeHtml(bodyHtml) : plainTextToHtml(bodyText || '');
     if (!String(html || '').trim()) return;
     body.focus();
     const wrapper = body.ownerDocument.createElement('div');

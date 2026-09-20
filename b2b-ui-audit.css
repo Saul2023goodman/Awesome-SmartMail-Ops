@@ -756,3 +756,8 @@
 @media (max-width:560px) {
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid { --nmda-review-columns:1; }
 }
+
+/* v3.8.56 · imported rich-format attention marker. */
+#nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="format"],
+#nmda-root.nmda-standalone .nmda-format-mark { --semantic:#8b5aa7; --semantic-bg:#f3eaf7; }
+#nmda-root.nmda-standalone .nmda-format-mark { --format-accent:#8b5aa7; }
