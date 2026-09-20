@@ -164,3 +164,9 @@ A mailbox-observed outbound keeps its original linkage fields, but gains observa
 `automatic` replies do not reset the sent sequence. Any effective `human` reply remains a conversation-level automation stop. `ambiguous` replies remain blocking until disposition is resolved.
 
 If a live generated Follow-up task is already covered by a later Sent fact with the same effective sequence, reconciliation marks that task `sent` and removes it from Dispatch instead of allowing a duplicate send.
+
+## v3.8.67 template governance
+
+Follow-up body templates are configured from Preview -> Batch Processing. New derived Follow-up tasks carry `templateManaged: true` while their body remains fully template-derived. A manual body edit changes that flag to `false`, protecting customized copy from later shared-template updates.
+
+When the shared template version changes, `refreshTemplateManagedFollowUps()` may synchronize unsent, unscheduled, still-template-managed derived tasks. Sent/cancelled/blocked/scheduled tasks are not rewritten. The generated task records the new `generatedFromTemplateVersion` and is re-evaluated through the normal review gate.

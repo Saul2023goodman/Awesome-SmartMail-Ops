@@ -1196,6 +1196,7 @@
       reviewedAt: '',
       reviewDecision: '',
       generatedFromTemplateVersion: policy.templateVersion,
+      templateManaged: true,
       personalization: { salutation: rendered.personalization.salutation, signature: rendered.personalization.signature, initialOutboundId: rendered.initial.id },
       scheduledAt: '',
       sentOutboundId: '',
@@ -1237,6 +1238,7 @@
         body: rendered.body, composeMode: policy.composeMode,
         contentVersion: 1, confirmedVersion: null, confirmedAt: '', reviewedAt: '', reviewDecision: '',
         generatedFromTemplateVersion: policy.templateVersion,
+        templateManaged: true,
         personalization: { salutation: rendered.personalization.salutation, signature: rendered.personalization.signature, initialOutboundId: rendered.initial.id },
         scheduledAt: '', sentOutboundId: '', blocker: null,
         dispatch: { queued: false, enabled: true, scheduleAt: '', scheduleSource: '', scheduleReason: 'awaiting-review', queuedAt: '', dequeuedAt: '', dequeuedReason: '' }
@@ -1253,6 +1255,57 @@
     return { store: next, created, skipped };
   }
 
+  function refreshTemplateManagedFollowUps(storeInput, options = {}) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const rootFilter = new Set((Array.isArray(options.rootTaskIds) ? options.rootTaskIds : []).map(value => String(value || '').trim()).filter(Boolean));
+    const refreshed = [];
+    const skipped = [];
+    const now = nowIso();
+    for (const task of Object.values(next.derivedTasks || {})) {
+      if (!task || task.kind !== 'follow_up') continue;
+      if (rootFilter.size && !rootFilter.has(String(task.rootTaskId || ''))) continue;
+      if (['sent', 'cancelled', 'blocked', 'scheduled'].includes(task.state)) {
+        skipped.push({ taskId: task.id, rootTaskId: task.rootTaskId, reason: task.state === 'scheduled' ? 'already-scheduled' : `state-${task.state}` });
+        continue;
+      }
+      const managed = task.templateManaged === true || (task.templateManaged === undefined && Number(task.contentVersion || 1) === 1);
+      if (!managed) { skipped.push({ taskId: task.id, rootTaskId: task.rootTaskId, reason: 'manually-edited' }); continue; }
+      const policy = policyForRoot(next, task.rootTaskId);
+      if (Number(task.generatedFromTemplateVersion || 0) === Number(policy.templateVersion || 0)) continue;
+      const rendered = renderFollowUpTemplate(next, task.rootTaskId, policy);
+      if (!rendered.ok) { skipped.push({ taskId: task.id, rootTaskId: task.rootTaskId, reason: rendered.reason }); continue; }
+      const bodyChanged = String(task.body || '') !== String(rendered.body || '');
+      task.body = rendered.body;
+      task.bodyHtml = '';
+      task.bodyIsHtml = false;
+      task.generatedFromTemplateVersion = Number(policy.templateVersion || 0);
+      task.templateManaged = true;
+      task.personalization = { salutation: rendered.personalization.salutation, signature: rendered.personalization.signature, initialOutboundId: rendered.initial.id };
+      task.updatedAt = now;
+      if (bodyChanged) task.contentVersion = Math.max(1, Number(task.contentVersion || 1) + 1);
+      task.confirmedVersion = null;
+      task.confirmedAt = '';
+      task.reviewedAt = '';
+      task.reviewDecision = '';
+      if (task.dispatch?.queued) task.dispatch = { ...task.dispatch, queued: false, dequeuedAt: now, dequeuedReason: 'template-updated' };
+      task.state = 'prepared';
+      const review = applyFollowUpReviewDecision(task, 'auto', now);
+      if (!review.ok) {
+        task.state = 'prepared';
+        task.dispatch = { ...(task.dispatch || {}), queued: false, scheduleSource: '', scheduleReason: 'awaiting-review', queuedAt: '' };
+      }
+      // policyForRoot/renderFollowUpTemplate normalize the store and may replace the
+      // derived task object. Reattach this updated task explicitly so the refresh is
+      // authoritative rather than mutating a stale reference.
+      next.derivedTasks[task.id] = task;
+      refreshed.push({ taskId: task.id, rootTaskId: task.rootTaskId, sequence: Number(task.sequence || 1), bodyChanged, reviewDecision: task.reviewDecision || '', state: task.state });
+    }
+    next.updatedAt = now;
+    return { store: next, refreshed, skipped };
+  }
+
+
   function updateDerivedTaskContent(storeInput, taskId, patch = {}) {
     const store = normalizeStore(storeInput);
     const next = clone(store);
@@ -1264,6 +1317,8 @@
     const task = { ...current, ...patch, composeMode, updatedAt: nowIso() };
     if (changed) {
       task.contentVersion = Math.max(1, Number(current.contentVersion || 1) + 1);
+      const bodyChanged = ['body', 'bodyHtml', 'bodyIsHtml'].some(key => patch[key] !== undefined && JSON.stringify(patch[key]) !== JSON.stringify(current[key]));
+      if (bodyChanged) task.templateManaged = false;
       task.confirmedVersion = null;
       task.confirmedAt = '';
       task.reviewedAt = '';
@@ -1455,6 +1510,7 @@
     createFollowUpTask,
     createFollowUpTasks,
     passDerivedTaskReview,
+    refreshTemplateManagedFollowUps,
     updateDerivedTaskContent,
     setDerivedTaskState,
     updateDerivedTaskDispatch,

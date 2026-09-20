@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.66",
-  "description": "SmartMail Ops — Batch Standards now commits all subject/format repairs immediately, then shows a short Preview afterimage instead of slow per-message animation; sequential queue/HUD/scroll choreography removed.",
+  "version": "3.8.67",
+  "description": "SmartMail Ops — Preview-native Batch Processing unifies subject repair, format normalization, and Follow-up template governance with deterministic preview, one authorization, and protected template-derived task synchronization.",
   "permissions": [
     "scripting",
     "tabs",
