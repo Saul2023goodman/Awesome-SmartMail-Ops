@@ -670,3 +670,40 @@
   transform:none !important;
   z-index:auto !important;
 }
+
+/* v3.8.35 · Review board must always originate at the top edge.
+   With tiny batches, unused viewport space belongs below the cards, never above them. */
+#nmda-root.nmda-standalone .nmda-review-main-page #nmda-review-queue.nmda-review-mail-grid {
+  align-content:start !important;
+  justify-content:start !important;
+  place-content:start !important;
+  grid-auto-flow:row !important;
+  scroll-padding-top:10px !important;
+  overflow-anchor:none !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page #nmda-review-queue.nmda-review-mail-grid > * {
+  align-self:start !important;
+}
+
+#nmda-root.nmda-standalone .nmda-workspace-saved-badge {
+  display:inline-flex;
+  align-items:center;
+  min-height:24px;
+  padding:0 8px;
+  border:1px solid #c9ddf5;
+  border-radius:999px;
+  background:#f4f8fd;
+  color:#44637f;
+  font-size:9.5px;
+  font-weight:650;
+  white-space:nowrap;
+}
+#nmda-root.nmda-standalone .nmda-workspace-saved-badge::before {
+  content:"";
+  width:6px;
+  height:6px;
+  margin-right:5px;
+  border-radius:50%;
+  background:#4f8fd8;
+  box-shadow:0 0 0 3px rgba(79,143,216,.10);
+}

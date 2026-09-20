@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.34",
-  "description": "SmartMail Ops — runtime-only mail operations with one-click workspace Dock, live execution motion, unified icon system, automatic mailbox sync, and refined execution preflight warnings.",
+  "version": "3.8.35",
+  "description": "SmartMail Ops — cumulative local workspace, auto mailbox sync, unified review/dispatch flow, live execution motion, and schedule-aware draft operations.",
   "permissions": [
     "scripting",
-    "tabs"
+    "tabs",
+    "storage"
   ],
   "host_permissions": [
     "https://mail.163.com/*"

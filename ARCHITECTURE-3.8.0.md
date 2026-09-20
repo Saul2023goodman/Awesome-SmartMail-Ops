@@ -138,3 +138,11 @@ Execution uses one native NetEase Compose module at a time. A task captures the 
 `纳入网易已有排期` is enabled by default but can be disabled by the operator. A fresh read-only Draft mailbox scan runs before every automatic schedule calculation. Future NetEase scheduled drafts are treated as immutable anchors: they consume their deterministic institution/round capacity and reserve their existing minute, while only current SmartMail tasks may move. Existing provider drafts are never edited, cancelled, rescheduled, or rewritten.
 
 The integration fails closed: an enabled but failed/incomplete Draft scan blocks planning instead of pretending there are no existing schedules. Execution performs another fresh read and audits the current batch against the latest anchors; changed mailbox facts that introduce a same-school or exact-time collision require re-planning before execution. Anchor data is runtime-only and is not persisted as operational history.
+
+## v3.8.35 cumulative workspace persistence
+
+The v3.8.19 runtime-only boundary has been revised for operator workspace data. Parsed import data, collection configuration, task edits, Review decisions, reference-roster state and handoff state are now persisted locally through `chrome.storage.local`, so one working set can be built across multiple separate imports and recovered after a SmartMail page reload.
+
+Mailbox observations and live execution state are still treated as session-fresh external facts and are re-synchronized from NetEase. Local attachment bytes are not persisted; attachment files must be reselected after reload when required for execution.
+
+Import semantics are cumulative by default. Subsequent file/folder/drop/paste imports append to the existing dataset while retaining earlier task edits and Review decisions. Explicit `清空本批次` remains the reset boundary.

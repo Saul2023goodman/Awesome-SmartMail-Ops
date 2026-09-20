@@ -290,7 +290,7 @@
             </div>
             <div class="nmda-ingest-workspace nmda-ingest-workspace-v2">
               <div class="nmda-card nmda-ingest-source-card" id="nmda-import-card">
-                <div class="nmda-card-head"><div><div class="nmda-card-title" id="nmda-import-card-title">导入邮件资料</div><div class="nmda-card-desc" id="nmda-import-card-desc">把本批次邮件资料放进来。</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" id="nmda-import-busy-badge" hidden>正在处理…</span><button class="nmda-btn nmda-btn-small" id="nmda-open-supplement-preflight" type="button" hidden>批次准备</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button" hidden>清空本批次</button></div></div>
+                <div class="nmda-card-head"><div><div class="nmda-card-title" id="nmda-import-card-title">导入邮件资料</div><div class="nmda-card-desc" id="nmda-import-card-desc">把本批次邮件资料放进来。</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" id="nmda-import-busy-badge" hidden>正在处理…</span><span class="nmda-workspace-saved-badge" id="nmda-workspace-saved-badge" hidden>本地保存 · 可继续追加</span><button class="nmda-btn nmda-btn-small" id="nmda-open-supplement-preflight" type="button" hidden>批次准备</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button" hidden>清空本批次</button></div></div>
                 <input id="nmda-import-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip,.pdf,.ppt,.pptx,.rtf,.png,.jpg,.jpeg,.gif,.webp,.svg,.rar,.7z">
                 <input id="nmda-import-dir" type="file" webkitdirectory multiple hidden>
                 <input id="nmda-roster-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
@@ -943,8 +943,8 @@
 
   const REVIEW_RENDER_CHUNK = 32;
 
-  // All mailbox facts, Review tasks, Follow-up lineage and Dispatch state are runtime-only.
-  // Closing/reloading SmartMail discards them. Only tool preferences such as templates/rules persist.
+  // Mailbox facts / execution runtime remain session-scoped, but the parsed working set is persisted locally.
+  // This lets operators build one batch across multiple imports and recover parsed Review/Dispatch work after reload.
   const viewPerf = {
     batchDirty: true,
     batchAuxDirty: true,
@@ -972,6 +972,7 @@
 
   function scheduleBatchRender({ aux = false, force = false } = {}) {
     invalidateBatchView(aux);
+    if (typeof scheduleWorkspacePersist === 'function') scheduleWorkspacePersist();
     if (!force && !batchPaneVisible()) return;
     if (viewPerf.batchFrame) cancelAnimationFrame(viewPerf.batchFrame);
     viewPerf.batchFrame = requestAnimationFrame(() => {
@@ -1561,6 +1562,184 @@
     roster: emptyRosterState(), duplicateAudit:null,
     handoffComplete: false, autoAdvancing: false, reviewFilter: 'all', reviewSearch: '', reviewSelected: new Set(), reviewSurface:'board', reviewPreviewKey:'', duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, preflightView:'files', supportView:'roster', attachmentManagerOpen:false, uiStep:1, planningView:'mails', reviewReturnStep:2, sourceInspectName:'', preflightFolderPath:'', preflightSearch:'', preflightReviewOnly:false, preflightPurposeFilter:'', ignoredAttachmentIdentities:new Set(), bulkSubjectPromptAutoShown:false, bulkSubjectPromptDismissed:false
   };
+
+
+
+  const WORKSPACE_STORAGE_KEY = 'nmda.workspace.v2';
+  let workspaceSaveTimer = 0;
+  let workspaceRestoring = false;
+
+  function storagePlainClone(value) {
+    try {
+      return JSON.parse(JSON.stringify(value, (key, item) => {
+        if (typeof File !== 'undefined' && item instanceof File) {
+          return { __nmdaFileMeta:true, name:String(item.name||''), size:Number(item.size||0), type:String(item.type||''), lastModified:Number(item.lastModified||0), _nmdaPath:String(item._nmdaPath||item.webkitRelativePath||item.name||'') };
+        }
+        if (typeof Blob !== 'undefined' && item instanceof Blob) return undefined;
+        if (item instanceof Map) return { __nmdaMap:true, entries:[...item.entries()] };
+        if (item instanceof Set) return { __nmdaSet:true, values:[...item.values()] };
+        return item;
+      }));
+    } catch (error) {
+      console.warn(`[${APP}] workspace clone failed`, error);
+      return null;
+    }
+  }
+
+  function sourceFileMeta(file) {
+    return {
+      name:String(file?.name||sourceFileName(file)||''),
+      size:Number(file?.size||0),
+      type:String(file?.type||''),
+      lastModified:Number(file?.lastModified||0),
+      _nmdaPath:String(file?._nmdaPath||file?.webkitRelativePath||file?.name||'')
+    };
+  }
+
+  function serializableDataset(dataset) {
+    if (!dataset) return null;
+    const sets = storagePlainClone(dataset.recordSets || dataset.sheets || []) || [];
+    const meta = storagePlainClone(dataset.meta || {}) || {};
+    if (meta && Array.isArray(meta.containerFiles)) meta.containerFiles = meta.containerFiles.map(sourceFileMeta);
+    return {
+      ...storagePlainClone(dataset),
+      recordSets:sets,
+      sheets:sets,
+      sourceFiles:(dataset.sourceFiles||[]).map(sourceFileMeta),
+      // Attachment bytes are intentionally not persisted. After reload the parsed mail
+      // survives, but files must be reselected before execution.
+      embeddedFiles:[],
+      meta
+    };
+  }
+
+  function workspaceSnapshot() {
+    if (!batch.dataset) return null;
+    return {
+      version:2,
+      savedAt:new Date().toISOString(),
+      dataset:serializableDataset(batch.dataset),
+      collectionIndex:Number(batch.collectionIndex||0),
+      collectionConfigs:storagePlainClone([...batch.collectionConfigs.entries()]) || [],
+      taskEdits:storagePlainClone([...batch.taskEdits.entries()]) || [],
+      reviewSelected:[...batch.reviewSelected],
+      duplicateSelections:storagePlainClone([...batch.duplicateSelections.entries()]) || [],
+      handoffComplete:!!batch.handoffComplete,
+      reviewFilter:String(batch.reviewFilter||'all'),
+      reviewSearch:String(batch.reviewSearch||''),
+      roster:storagePlainClone(batch.roster),
+      supplementPreflightDone:!!batch.supplementPreflightDone,
+      rosterPromptChoice:String(batch.rosterPromptChoice||'idle'),
+      attachmentPrepChoice:String(batch.attachmentPrepChoice||'idle'),
+      scheduleRules:storagePlainClone(batch.scheduleRules),
+      planningView:String(batch.planningView||'mails')
+    };
+  }
+
+  async function persistWorkspaceNow() {
+    if (workspaceRestoring || !chrome?.storage?.local) return;
+    const snapshot = workspaceSnapshot();
+    try {
+      if (!snapshot) await chrome.storage.local.remove(WORKSPACE_STORAGE_KEY);
+      else await chrome.storage.local.set({ [WORKSPACE_STORAGE_KEY]:snapshot });
+    } catch (error) {
+      console.warn(`[${APP}] workspace persistence failed`, error);
+    }
+  }
+
+  function scheduleWorkspacePersist() {
+    if (workspaceRestoring) return;
+    if (workspaceSaveTimer) clearTimeout(workspaceSaveTimer);
+    workspaceSaveTimer = setTimeout(() => { workspaceSaveTimer=0; void persistWorkspaceNow(); }, 220);
+  }
+
+  async function restoreWorkspaceFromStorage() {
+    if (!chrome?.storage?.local) return false;
+    workspaceRestoring = true;
+    try {
+      const result = await chrome.storage.local.get(WORKSPACE_STORAGE_KEY);
+      const saved = result?.[WORKSPACE_STORAGE_KEY];
+      if (!saved?.dataset?.recordSets?.length) return false;
+      const sets = saved.dataset.recordSets || [];
+      batch.dataset = { ...saved.dataset, recordSets:sets, sheets:sets, embeddedFiles:[] };
+      batch.importMeta = batch.dataset.meta || null;
+      batch.collectionIndex = Math.max(0, Math.min(Number(saved.collectionIndex||0), Math.max(0,sets.length-1)));
+      batch.collectionConfigs = new Map(Array.isArray(saved.collectionConfigs)?saved.collectionConfigs:[]);
+      batch.taskEdits = new Map(Array.isArray(saved.taskEdits)?saved.taskEdits:[]);
+      batch.reviewSelected = new Set(Array.isArray(saved.reviewSelected)?saved.reviewSelected:[]);
+      batch.duplicateSelections = new Map(Array.isArray(saved.duplicateSelections)?saved.duplicateSelections:[]);
+      batch.handoffComplete = !!saved.handoffComplete;
+      batch.reviewFilter = String(saved.reviewFilter||'all');
+      batch.reviewSearch = String(saved.reviewSearch||'');
+      batch.roster = saved.roster ? { ...emptyRosterState(), ...saved.roster } : emptyRosterState();
+      batch.supplementPreflightDone = !!saved.supplementPreflightDone;
+      batch.rosterPromptChoice = String(saved.rosterPromptChoice||'pending');
+      batch.attachmentPrepChoice = 'pending'; // file bytes never survive a reload
+      batch.scheduleRules = saved.scheduleRules ? { ...freshScheduleRules(), ...saved.scheduleRules } : freshScheduleRules();
+      batch.planningView = String(saved.planningView||'mails');
+      batch.directoryFiles=[]; batch.taskFiles=[]; batch.routedAttachmentFiles=[];
+      batch.attachmentOverrides.clear(); batch.attachmentPolicies=new Map(); batch.fileIndex=Importer.buildFileIndex([]);
+      sets.forEach((_,index)=>{ if(!batch.collectionConfigs.has(index)) ensureCollectionConfig(index,{reset:true}); });
+      configureCollection(batch.collectionIndex,false);
+      renderSourceInventory();
+      renderImportLifecycleState();
+      renderAttachmentAssetViews();
+      renderSupplementPreflight();
+      syncScheduleRuleControls();
+      setImportStatus(`已恢复上次工作集 · ${batch.tasks.length} 封邮件。可继续添加文件、文件夹、名单或附件。`,'ok');
+      if ((batch.tasks||[]).some(task => (task.attachmentRefs||[]).length)) {
+        setBatchStatus('已恢复邮件与审阅状态；本地附件文件不会永久存储，请在执行前重新选择附件。','warn');
+      }
+      if(reviewQueueEl) reviewQueueEl.scrollTop=0;
+      return true;
+    } catch (error) {
+      console.warn(`[${APP}] workspace restore failed`, error);
+      return false;
+    } finally {
+      workspaceRestoring=false;
+    }
+  }
+
+  function fastRowsFingerprint(rows=[]) {
+    let hash=2166136261;
+    const text=JSON.stringify(rows||[]);
+    for(let i=0;i<text.length;i++){hash^=text.charCodeAt(i);hash=Math.imul(hash,16777619);}
+    return (hash>>>0).toString(36);
+  }
+
+  function recordSetImportKey(set={}) {
+    const meta=set.meta||{};
+    return [String(set.source||''),String(set.name||''),String(meta.format||''),String((set.rows||[]).length),fastRowsFingerprint(set.rows||[])].join('|');
+  }
+
+  function mergeImportedDatasets(existing,incoming) {
+    if(!existing)return incoming;
+    if(!incoming)return existing;
+    const oldSets=[...(existing.recordSets||existing.sheets||[])];
+    const seen=new Set(oldSets.map(recordSetImportKey));
+    const added=[];
+    for(const set of (incoming.recordSets||incoming.sheets||[])){
+      const key=recordSetImportKey(set);
+      if(seen.has(key))continue;
+      seen.add(key);added.push(set);
+    }
+    const sets=[...oldSets,...added];
+    const sources=uniqueFiles([...(existing.sourceFiles||[]),...(incoming.sourceFiles||[])]);
+    const embedded=uniqueFiles([...(existing.embeddedFiles||[]),...(incoming.embeddedFiles||[])]);
+    const warnings=[...new Set([...(existing.warnings||[]),...(incoming.warnings||[])])];
+    const oldMeta=existing.meta||{},newMeta=incoming.meta||{};
+    const containerFiles=uniqueFiles([...(oldMeta.containerFiles||[]),...(newMeta.containerFiles||[])]);
+    return {
+      ...existing,
+      recordSets:sets,
+      sheets:sets,
+      sourceFiles:sources,
+      embeddedFiles:embedded,
+      warnings,
+      format:String(existing.format||'')===String(incoming.format||'')?existing.format:'multi',
+      meta:{...oldMeta,...newMeta,containerFiles,duplicateSourceCount:Number(oldMeta.duplicateSourceCount||0)+Number(newMeta.duplicateSourceCount||0),incrementalImport:true,lastImportAt:new Date().toISOString()}
+    };
+  }
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), rosterFileEl = $('nmda-roster-file');
   const pasteSourceEl = $('nmda-paste-source');
@@ -2516,6 +2695,7 @@
     const active = !!batch.dataset || !!batch.importBusy || !!batch.roster?.entries?.length;
     if (resetImportEl) resetImportEl.hidden = !active;
     if (importBusyBadgeEl) importBusyBadgeEl.hidden = !batch.importBusy;
+    const savedBadge=$('nmda-workspace-saved-badge');if(savedBadge)savedBadge.hidden=!batch.dataset;
     const sourceCard = $('nmda-import-card');
     if (sourceCard) {
       sourceCard.dataset.busy = batch.importBusy ? '1' : '0';
@@ -2546,32 +2726,43 @@
   }
 
   function beginImportSession(message) {
-    // The reference roster is an independent master-data source. Replacing the mail source keeps it;
-    // only explicit ‘重新开始’ / ‘移除总名单’ clears the reference source.
-    const previousRoster=rosterState();
-    const keepRoster = previousRoster.manualEntries?.length ? emptyRosterState({
-      dataset:previousRoster.dataset,manualEntries:[...previousRoster.manualEntries],entries:[...previousRoster.manualEntries],manualWarnings:[...(previousRoster.manualWarnings||[])],warnings:[...(previousRoster.manualWarnings||[])],manualSourceNames:[...(previousRoster.manualSourceNames||[])],sourceNames:[...(previousRoster.manualSourceNames||[])],enabled:previousRoster.enabled!==false,autoSchool:previousRoster.autoSchool!==false,strict:!!previousRoster.strict
-    }) : null;
-    resetImportWorkspace({ keepStatus: true, invalidate: true });
-    if (keepRoster) {
-      batch.roster = keepRoster;
-      batch.rosterPromptChoice='added';
-      syncRosterParts();
-      renderRosterAudit();
+    const append=!!batch.dataset;
+    batch.importAppendMode=append;
+    if(append){
+      // A new import is additive by default. Never erase the existing working set just
+      // because the operator chooses another file five minutes later.
+      batch.sessionId += 1;
+      batch.importBusy = true;
+    }else{
+      // The reference roster is an independent master-data source. Starting the first
+      // mail import may keep a roster that was loaded before the mail files.
+      const previousRoster=rosterState();
+      const keepRoster = previousRoster.manualEntries?.length ? emptyRosterState({
+        dataset:previousRoster.dataset,manualEntries:[...previousRoster.manualEntries],entries:[...previousRoster.manualEntries],manualWarnings:[...(previousRoster.manualWarnings||[])],warnings:[...(previousRoster.manualWarnings||[])],manualSourceNames:[...(previousRoster.manualSourceNames||[])],sourceNames:[...(previousRoster.manualSourceNames||[])],enabled:previousRoster.enabled!==false,autoSchool:previousRoster.autoSchool!==false,strict:!!previousRoster.strict
+      }) : null;
+      resetImportWorkspace({ keepStatus: true, invalidate: true });
+      if (keepRoster) {
+        batch.roster = keepRoster;
+        batch.rosterPromptChoice='added';
+        syncRosterParts();
+        renderRosterAudit();
+      }
+      batch.importBusy = true;
     }
     const token = batch.sessionId;
-    batch.importBusy = true;
     if(schedulerCardEl)schedulerCardEl.open=true;
     if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent='收起';
     renderImportLifecycleState();
-    setImportStatus(message || '正在读取来源…');
+    setImportStatus(append ? `正在追加：${message || '读取新来源…'}` : (message || '正在读取来源…'));
     return token;
   }
 
   function finishImportSession(token) {
     if (!isCurrentBatchSession(token)) return false;
     batch.importBusy = false;
+    batch.importAppendMode = false;
     renderImportLifecycleState();
+    scheduleWorkspacePersist();
     return true;
   }
 
@@ -3710,6 +3901,7 @@
     if(allItems.length>list.length)reviewQueueEl.insertAdjacentHTML('beforeend',`<button type="button" class="nmda-review-load-more" data-review-load-more><span>已显示 ${list.length} / ${allItems.length}</span><small>继续滚动自动加载</small></button>`);
     if(preserveScroll)requestAnimationFrame(()=>{reviewQueueEl.scrollTop=Math.min(previousScrollTop,Math.max(0,reviewQueueEl.scrollHeight-reviewQueueEl.clientHeight));});
     else if(activeKey)requestAnimationFrame(()=>reviewQueueEl.querySelector(`[data-review-row="${CSS.escape(activeKey)}"]`)?.scrollIntoView?.({block:'nearest'}));
+    else requestAnimationFrame(()=>{reviewQueueEl.scrollTop=0;});
   }
 
   function reviewRailTitle(task,index=0) {
@@ -5794,18 +5986,25 @@
     }
   }
 
-  async function applyImportedDataset(dataset, label = '数据', sessionToken = batch.sessionId) {
+  async function applyImportedDataset(dataset, label = '数据', sessionToken = batch.sessionId, options = {}) {
     if (!isCurrentBatchSession(sessionToken)) return false;
-    batch.dataset = dataset;
+    const append = options.append !== false && !!batch.dataset;
+    const previousSetCount = recordSets().length;
+    const previousTaskCount = (batch.tasks||[]).length;
+    batch.dataset = append ? mergeImportedDatasets(batch.dataset,dataset) : dataset;
+    const importedDataset = batch.dataset;
     batch.duplicateAudit = null;
     batch.handoffComplete = false;
-    batch.importMeta = dataset?.meta || null;
-    batch.collectionConfigs.clear();
-    batch.taskEdits.clear();
-    batch.reviewSelected?.clear?.();
-    batch.duplicateSelections?.clear?.();
-    batch.reviewFilter='all';
-    batch.reviewSearch='';
+    batch.importMeta = importedDataset?.meta || null;
+    if(!append){
+      batch.collectionConfigs.clear();
+      batch.taskEdits.clear();
+      batch.reviewSelected?.clear?.();
+      batch.duplicateSelections?.clear?.();
+      batch.reviewFilter='all';
+      batch.reviewSearch='';
+      batch.directoryFiles=[]; batch.routedAttachmentFiles=[]; batch.attachmentOverrides.clear(); batch.attachmentPolicies=new Map(); batch.ignoredAttachmentIdentities=new Set();
+    }
     batch.reviewSurface='board';batch.reviewPreviewKey='';
     batch.bulkSubjectPromptAutoShown=false;
     batch.bulkSubjectPromptDismissed=false;
@@ -5814,7 +6013,7 @@
     batch.attachmentAttentionShown=false;
     batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.attachmentPrepChoice='pending';batch.sourceInspectName='';batch.preflightFolderPath='';batch.preflightSearch='';batch.preflightReviewOnly=false;batch.preflightPurposeFilter='';
     closeImportTaskEditor();
-    batch.directoryFiles = []; batch.taskFiles = uniqueFiles(dataset?.embeddedFiles || []); batch.routedAttachmentFiles=[]; batch.attachmentOverrides.clear(); batch.attachmentPolicies=new Map(); batch.attachmentTargetEditing=''; batch.attachmentTargetSearch=''; batch.ignoredAttachmentIdentities=new Set(); batch.attachmentManagerOpen=false;
+    batch.taskFiles = uniqueFiles([...(append?batch.taskFiles:[]),...(dataset?.embeddedFiles || [])]); batch.attachmentTargetEditing=''; batch.attachmentTargetSearch=''; batch.attachmentManagerOpen=false;
     for(const file of batch.taskFiles)ensureAttachmentPolicy(file,'task',{source:'随资料导入',mode:'smart'});
     batch.fileIndex = Importer.buildFileIndex(batch.taskFiles);
     dirEl.value = ''; taskFilesEl.value = '';
@@ -5822,7 +6021,7 @@
     if (batchTagIncludeEl) batchTagIncludeEl.value = '';
     try{await ensureOperationStore();}catch(error){console.warn(`[${APP}] duplicate history store load failed`,error);}
     const sets = recordSets();
-    sets.forEach((_, index) => ensureCollectionConfig(index, { reset: true }));
+    sets.forEach((_, index) => { if(!append || index>=previousSetCount) ensureCollectionConfig(index, { reset: true }); else ensureCollectionConfig(index); });
     syncRoutedSources();
     batch.fileIndex=Importer.buildFileIndex(allAttachmentFiles());
     const mailIndexes=sets.map((_,index)=>index).filter(index=>ensureCollectionConfig(index)?.purpose==='mail');
@@ -5837,12 +6036,13 @@
     batch.attachmentPromptDeferred=false;
     if (!isCurrentBatchSession(sessionToken)) return false;
     const routedCounts=[...batch.collectionConfigs.values()].reduce((acc,config)=>{acc[config.purpose]=(acc[config.purpose]||0)+1;return acc;},{mail:0,roster:0,attachment:0,ignored:0});
-    const sourceCount=dataset.sourceFiles?.length || 0;
-    const containerCount=dataset.meta?.containerFiles?.length||0;
-    const duplicateSourceCount=Number(dataset.meta?.duplicateSourceCount||0);
+    const sourceCount=importedDataset.sourceFiles?.length || 0;
+    const containerCount=importedDataset.meta?.containerFiles?.length||0;
+    const duplicateSourceCount=Number(importedDataset.meta?.duplicateSourceCount||0);
     $('nmda-import-format-info').textContent = `${containerCount?`已展开 ${containerCount} 个资料包 · `:''}${sourceCount?`${sourceCount} 个内容文件 · `:''}${batch.tasks.length} 封邮件${referenceRosterCount()?` · 参考名单 ${referenceRosterCount()} 条`:''}${duplicateSourceCount?` · 已忽略 ${duplicateSourceCount} 个重复副本`:''}`;
+    const addedTaskCount=Math.max(0,(batch.tasks||[]).length-previousTaskCount);
     setImportStatus(routedCounts.mail
-      ? `邮件已加入本批次。${duplicateSourceCount?`系统已在解析前合并 ${duplicateSourceCount} 个完全相同的重复来源。`:''}${referenceRosterCount()?'参考总名单已参与核对。':'有参考总名单可现在补充；没有可直接继续。'}`
+      ? `${append?`已追加到当前工作集${addedTaskCount?` · 新增 ${addedTaskCount} 封邮件`:''}`:'邮件已加入本批次'}。${duplicateSourceCount?`系统已在解析前合并 ${duplicateSourceCount} 个完全相同的重复来源。`:''}${referenceRosterCount()?'参考总名单已参与核对。':'有参考总名单可现在补充；没有可直接继续。'}`
       : `当前没有识别到可创建的邮件。已打开分类核验工作区，请先确认文件用途并直接修正。`,
       routedCounts.mail?'ok':'warn');
     renderImportLifecycleState();
@@ -5855,11 +6055,14 @@
       else scheduleMailboxAutoSync('quick',{source:'mailbox-draft-import'});
       scheduleReadyBatchAutoHandoff('导入与核验已完成');
     }
+    scheduleWorkspacePersist();
+    if(reviewQueueEl) reviewQueueEl.scrollTop=0;
     return true;
   }
 
   function resetImportWorkspace({ keepStatus = false, invalidate = true, message = '' } = {}) {
     if (invalidate) batch.sessionId += 1;
+    if(!workspaceRestoring && chrome?.storage?.local) void chrome.storage.local.remove(WORKSPACE_STORAGE_KEY).catch(()=>{});
     batch.importBusy = false;
     batch.handoffComplete = false;
     batch.autoAdvancing = false;
@@ -5949,8 +6152,13 @@
   function clearImportOnError(error, sessionToken = batch.sessionId) {
     if (!isCurrentBatchSession(sessionToken)) return;
     console.error(`[${APP}] import`, error);
-    resetImportWorkspace({ keepStatus: true, invalidate: true });
-    setImportStatus(`读取失败：${error.message}`, 'error');
+    if(!batch.importAppendMode) resetImportWorkspace({ keepStatus: true, invalidate: true });
+    else {
+      batch.importBusy=false;
+      renderImportLifecycleState();
+      scheduleBatchRender({aux:true,force:true});
+    }
+    setImportStatus(`${batch.importAppendMode?'追加失败，原工作集已保留':'读取失败'}：${error.message}`, 'error');
   }
 
 
@@ -6624,7 +6832,13 @@
   }
 
   window.addEventListener('hashchange', applyDeepLink);
-  invalidateBatchView(true);
-  ensureOperationStore(true).catch(error=>console.warn(`[${APP}] operations init failed`,error));
-  applyDeepLink();
+  window.addEventListener('pagehide',()=>{ void persistWorkspaceNow(); });
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') void persistWorkspaceNow(); });
+  void (async()=>{
+    await restoreWorkspaceFromStorage();
+    invalidateBatchView(true);
+    await ensureOperationStore(true).catch(error=>console.warn(`[${APP}] operations init failed`,error));
+    applyDeepLink();
+    scheduleBatchRender({aux:true,force:true});
+  })();
 })();
