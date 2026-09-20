@@ -146,6 +146,7 @@
 #nmda-root .nmda-monitor-row:hover { border-color:#c9d3de !important; box-shadow:0 5px 16px rgba(15,23,42,.06) !important; }
 #nmda-root .nmda-monitor-row[data-tone="due"] { border-left:4px solid #d29a3a !important; }
 #nmda-root .nmda-monitor-row[data-tone="replied"] { border-left:4px solid #4d9a68 !important; }
+#nmda-root .nmda-monitor-row[data-tone="scheduled"] { border-left:4px solid #5b88c8 !important; }
 #nmda-root .nmda-monitor-row[data-tone="blocked"] { border-left:4px solid #c9645c !important; }
 
 #nmda-root .nmda-monitor-row-main strong {

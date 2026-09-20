@@ -163,6 +163,7 @@
     const human = [...observations].reverse().find(obs => obs.kind === 'human') || null;
     const ambiguous = [...observations].reverse().find(obs => obs.kind === 'ambiguous') || null;
     const completedFollowUps = conversationOutbounds.reduce((max, record) => Math.max(max, Number(record.effectiveSequence || 0)), 0);
+    const scheduledDrafts = scheduledMailboxDraftsForConversation(store, { keys:[...keys], outbounds:conversationOutbounds });
     return {
       keys: [...keys],
       rootIds: [...rootIds],
@@ -171,7 +172,8 @@
       ambiguous,
       outbounds: conversationOutbounds,
       lastOutbound: conversationOutbounds[conversationOutbounds.length - 1] || null,
-      completedFollowUps
+      completedFollowUps,
+      scheduledDrafts
     };
   }
 
@@ -386,6 +388,9 @@
       subject: String(message?.subject || ''),
       savedAt: isoTime(message?.savedAt ?? message?.sentAt ?? message?.sentDate ?? message?.date ?? message?.receivedDate),
       scheduleAt: isoTime(message?.scheduleAt || message?.sendAt || ''),
+      scheduledDraft: message?.scheduledDraft === true || !!isoTime(message?.scheduleAt || message?.sendAt || ''),
+      scheduleEvidence: String(message?.scheduleEvidence || ''),
+      mailboxPresentAt: '',
       observedAt: nowIso(),
       mailboxFolder: 'draft'
     };
@@ -486,6 +491,135 @@
     }
     if (adopted) next.updatedAt = nowIso();
     return { store: next, adopted };
+  }
+
+
+  function scheduledMailboxDraftsForConversation(storeInput, conversation, options = {}) {
+    const store = normalizeStore(storeInput);
+    const keys = new Set((conversation?.keys || []).filter(Boolean));
+    if (!keys.size && Array.isArray(conversation?.outbounds)) {
+      for (const outbound of conversation.outbounds) {
+        const key = followUpConversationKeyForOutbound(outbound);
+        if (key) keys.add(key);
+      }
+    }
+    const now = timeMs(options.now || Date.now());
+    return Object.values(store.draftRecords || {}).filter(draft => {
+      if (!draft || draft.status === 'sent') return false;
+      if (draft.mailboxFolder !== 'draft') return false;
+      if (!draft.mailboxPresentAt && draft.source === 'mailbox') return false;
+      if (!(draft.scheduledDraft === true || !!draft.scheduleAt)) return false;
+      const scheduleMs = timeMs(draft.scheduleAt);
+      if (!scheduleMs || scheduleMs <= now - 60000) return false;
+      const key = recipientKey(draft.recipients || []);
+      return !!key && keys.has(`recipient:${key}`);
+    }).sort((a, b) => timeMs(a.scheduleAt) - timeMs(b.scheduleAt) || timeMs(a.savedAt) - timeMs(b.savedAt));
+  }
+
+  function reconcileScheduledFollowUpDrafts(storeInput, options = {}) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const now = timeMs(options.now || Date.now());
+    const buckets = new Map();
+    for (const outbound of Object.values(next.outboundRecords || {})) {
+      if (!outbound?.rootTaskId || outbound.status !== 'sent') continue;
+      const key = followUpConversationKeyForOutbound(outbound);
+      if (!key) continue;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(outbound);
+    }
+
+    // First release tasks that were only suppressed because a mailbox scheduled
+    // draft existed but is no longer present in the latest complete draft scan.
+    const liveScheduledDraftIds = new Set(Object.values(next.draftRecords || {}).filter(draft => {
+      if (!draft || draft.mailboxFolder !== 'draft') return false;
+      if (!draft.mailboxPresentAt && draft.source === 'mailbox') return false;
+      if (!(draft.scheduledDraft === true || !!draft.scheduleAt)) return false;
+      return timeMs(draft.scheduleAt) > now - 60000;
+    }).map(draft => draft.id));
+    let restoredTasks = 0;
+    for (const task of Object.values(next.derivedTasks || {})) {
+      if (!task?.scheduledExternally || task.state === 'sent' || task.state === 'cancelled') continue;
+      if (task.mailboxScheduledDraftId && liveScheduledDraftIds.has(task.mailboxScheduledDraftId)) continue;
+      const previousState = String(task.scheduledExternalPreviousState || '');
+      const previousDispatch = task.scheduledExternalPreviousDispatch && typeof task.scheduledExternalPreviousDispatch === 'object'
+        ? clone(task.scheduledExternalPreviousDispatch) : null;
+      task.state = previousState && previousState !== 'scheduled' ? previousState : (task.reviewedAt ? 'confirmed' : (task.body || task.subject ? 'prepared' : 'due'));
+      task.dispatch = previousDispatch || { ...(task.dispatch || {}), queued:false, scheduleAt:'', scheduleSource:'', scheduleReason:'', dequeuedAt:'', dequeuedReason:'' };
+      task.draftPreparedAt = String(task.scheduledExternalPreviousDraftPreparedAt || '');
+      task.scheduledAt = String(task.scheduledExternalPreviousScheduledAt || '');
+      task.scheduledExternally = false;
+      task.mailboxScheduledDraftId = '';
+      task.mailboxScheduledProviderId = '';
+      task.scheduledExternalPreviousState = '';
+      task.scheduledExternalPreviousDispatch = null;
+      task.scheduledExternalPreviousDraftPreparedAt = '';
+      task.scheduledExternalPreviousScheduledAt = '';
+      task.updatedAt = nowIso();
+      restoredTasks++;
+    }
+
+    let recognizedDrafts = 0;
+    let reconciledTasks = 0;
+    for (const [conversationKey, records] of buckets.entries()) {
+      const decorated = decorateConversationOutbounds(records);
+      if (!decorated.length) continue;
+      const rootIds = [...new Set(decorated.map(record => String(record.rootTaskId || '')).filter(Boolean))];
+      const canonicalRootId = String(decorated[0]?.rootTaskId || rootIds[0] || '');
+      const keys = [conversationKey];
+      const drafts = scheduledMailboxDraftsForConversation(next, { keys, outbounds: decorated }, { now });
+      if (!drafts.length) continue;
+      const completedFollowUps = decorated.reduce((max, record) => Math.max(max, Number(record.effectiveSequence || 0)), 0);
+      const lastOutbound = decorated[decorated.length - 1] || null;
+      drafts.forEach((draft, index) => {
+        const sequence = completedFollowUps + index + 1;
+        const live = next.draftRecords[draft.id];
+        if (!live) return;
+        live.rootTaskId = canonicalRootId;
+        live.parentTaskId = String(lastOutbound?.taskId || canonicalRootId || '');
+        live.parentOutboundId = String(lastOutbound?.id || '');
+        live.sequence = sequence;
+        live.kind = 'follow_up';
+        live.observedSequence = sequence;
+        live.observedKind = 'follow_up';
+        live.observedConversationKey = conversationKey;
+        live.observedSequenceSource = 'scheduled-mailbox-draft';
+        live.scheduledFollowUpRecognizedAt = nowIso();
+        recognizedDrafts++;
+
+        const rootSet = new Set(rootIds);
+        const task = Object.values(next.derivedTasks || {}).find(item => item?.kind === 'follow_up'
+          && rootSet.has(String(item.rootTaskId || ''))
+          && Number(item.sequence || 0) === Number(sequence)
+          && !['sent','cancelled'].includes(item.state));
+        if (!task) return;
+        if (!task.scheduledExternally) {
+          task.scheduledExternalPreviousState = task.state;
+          task.scheduledExternalPreviousDispatch = clone(task.dispatch || {});
+          task.scheduledExternalPreviousDraftPreparedAt = String(task.draftPreparedAt || '');
+          task.scheduledExternalPreviousScheduledAt = String(task.scheduledAt || '');
+        }
+        task.state = 'scheduled';
+        task.scheduledExternally = true;
+        task.mailboxScheduledDraftId = live.id;
+        task.mailboxScheduledProviderId = live.providerMessageId || '';
+        task.draftPreparedAt = task.draftPreparedAt || live.mailboxPresentAt || live.observedAt || nowIso();
+        task.scheduledAt = live.scheduleAt || task.scheduledAt || '';
+        task.dispatch = {
+          ...(task.dispatch || {}),
+          queued: false,
+          scheduleAt: live.scheduleAt || '',
+          scheduleSource: 'mailbox-scheduled-draft',
+          scheduleReason: '网易草稿箱已存在定时 Follow-up',
+          dequeuedAt: nowIso(),
+          dequeuedReason: 'mailbox-scheduled-followup-exists'
+        };
+        task.updatedAt = nowIso();
+        reconciledTasks++;
+      });
+    }
+    if (recognizedDrafts || reconciledTasks || restoredTasks) next.updatedAt = nowIso();
+    return { store: next, recognizedDrafts, reconciledTasks, restoredTasks };
   }
 
   function reconcileObservedFollowUpHistory(storeInput) {
@@ -720,12 +854,17 @@
         kind: existing.rootTaskId ? (existing.kind || 'initial') : record.kind
       };
     }
+    if (options.draftCoverage?.complete === true) {
+      for (const draft of Object.values(next.draftRecords || {})) {
+        if (draft && draft.mailboxFolder === 'draft') draft.mailboxPresentAt = '';
+      }
+    }
     for (const message of draftMessages || []) {
       const record = draftFromMailbox(message);
       if (!record.recipients.length) { draftsWithoutRecipient++; continue; }
       const existing = next.draftRecords[record.id] || {};
       incomingDrafts[record.id] = {
-        ...existing, ...record, observedAt,
+        ...existing, ...record, observedAt, mailboxPresentAt: observedAt,
         taskId: existing.taskId || record.taskId || '',
         rootTaskId: existing.rootTaskId || record.rootTaskId || '',
         parentTaskId: existing.parentTaskId || record.parentTaskId || '',
@@ -760,7 +899,8 @@
     const monitored = ensureMonitoringRoots(linked.store);
     const replies = reconcileInboundReplies(monitored.store);
     const observed = reconcileObservedFollowUpHistory(replies.store);
-    const refreshed = refreshDerivedTaskBlocks(observed.store);
+    const scheduledDrafts = reconcileScheduledFollowUpDrafts(observed.store);
+    const refreshed = refreshDerivedTaskBlocks(scheduledDrafts.store);
     const finalStore = refreshed.store;
     finalStore.mailboxSync = {
       ...finalStore.mailboxSync,
@@ -788,6 +928,8 @@
       humanReplies: replies.human,
       historicalFollowUpsRecognized: observed.recognizedFollowUps,
       followUpTasksReconciled: observed.reconciledTasks,
+      scheduledFollowUpDraftsRecognized: scheduledDrafts.recognizedDrafts,
+      scheduledFollowUpTasksReconciled: scheduledDrafts.reconciledTasks,
       followUpsBlocked: refreshed.blockedTasks,
       followUpsDequeued: refreshed.dequeuedTasks,
       failedMessages,
@@ -822,12 +964,17 @@
         kind: existing.rootTaskId ? (existing.kind || 'initial') : record.kind
       };
     }
+    if (options.draftCoverage?.complete === true || options.complete === true) {
+      for (const draft of Object.values(next.draftRecords || {})) {
+        if (draft && draft.mailboxFolder === 'draft') draft.mailboxPresentAt = '';
+      }
+    }
     for (const message of draftMessages || []) {
       const record = draftFromMailbox(message);
       if (!record.recipients.length) { draftsWithoutRecipient++; continue; }
       const existing = next.draftRecords[record.id] || {};
       incomingDrafts[record.id] = {
-        ...existing, ...record, observedAt,
+        ...existing, ...record, observedAt, mailboxPresentAt: observedAt,
         taskId: existing.taskId || record.taskId || '',
         rootTaskId: existing.rootTaskId || record.rootTaskId || '',
         parentTaskId: existing.parentTaskId || record.parentTaskId || '',
@@ -847,7 +994,8 @@
     const linked = reconcileOutboundsToDrafts(next);
     const monitored = ensureMonitoringRoots(linked.store);
     const observed = reconcileObservedFollowUpHistory(monitored.store);
-    const finalStore = observed.store;
+    const scheduledDrafts = reconcileScheduledFollowUpDrafts(observed.store);
+    const finalStore = scheduledDrafts.store;
     finalStore.mailboxSync = {
       ...finalStore.mailboxSync,
       lastDedupeAt: observedAt,
@@ -866,6 +1014,8 @@
       linkedOutbounds: linked.linked,
       historicalFollowUpsRecognized: observed.recognizedFollowUps,
       followUpTasksReconciled: observed.reconciledTasks,
+      scheduledFollowUpDraftsRecognized: scheduledDrafts.recognizedDrafts,
+      scheduledFollowUpTasksReconciled: scheduledDrafts.reconciledTasks,
       failedMessages,
       draftsWithoutRecipient
     };
@@ -1155,7 +1305,9 @@
     const completedFollowUps = Math.max(0, Number(conversation.completedFollowUps || 0));
     const sequence = completedFollowUps + 1;
     const human = conversation.human;
-    if (human) return { eligible: false, hardBlocked: true, reason: 'human-managed-conversation', policy, lastOutbound, sequence, completedFollowUps, blockingObservation: human, conversationRootIds: conversation.rootIds };
+    if (human) return { eligible: false, hardBlocked: true, reason: 'human-managed-conversation', policy, lastOutbound, sequence, completedFollowUps, blockingObservation: human, conversationRootIds: conversation.rootIds, scheduledDrafts: conversation.scheduledDrafts || [] };
+    const scheduledDraft = (conversation.scheduledDrafts || []).find(draft => Number(draft.sequence || draft.observedSequence || 0) === Number(sequence)) || (conversation.scheduledDrafts || [])[0] || null;
+    if (scheduledDraft) return { eligible: false, hardBlocked: true, reason: 'scheduled-follow-up-exists', policy, lastOutbound, sequence:Number(scheduledDraft.sequence || scheduledDraft.observedSequence || sequence), completedFollowUps, scheduledDraft, scheduledDrafts:conversation.scheduledDrafts || [], dueAt:scheduledDraft.scheduleAt || '', conversationRootIds: conversation.rootIds };
     if (completedFollowUps >= policy.maxAttempts) return { eligible: false, hardBlocked: true, reason: 'max-attempts-reached', policy, lastOutbound, sequence, completedFollowUps, conversationRootIds: conversation.rootIds };
     const guard = guardForRecipients(store, (lastOutbound.recipients || []).map(item => item.email).join(';'));
     if (guard.blocked) return { eligible: false, hardBlocked: true, reason: 'recipient-guard', policy, lastOutbound, sequence, completedFollowUps, guard, conversationRootIds: conversation.rootIds };
@@ -1496,6 +1648,7 @@
         humanManaged: !!humanReply,
         humanReply,
         operatorContinued,
+        scheduledFollowUpDrafts: eligibility?.scheduledDrafts || (conversationContextFromStore(store, canonicalRootId).scheduledDrafts || []),
         completedFollowUps: Math.max(0, Number(eligibility?.completedFollowUps ?? outbounds[outbounds.length - 1]?.effectiveSequence ?? 0))
       });
     }
@@ -1537,6 +1690,7 @@
     reconcileOutboundsToDrafts,
     reconcileInboundReplies,
     reconcileObservedFollowUpHistory,
+    reconcileScheduledFollowUpDrafts,
     ensureMonitoringRoots,
     recordPreparedDraft,
     linkOutbound,
