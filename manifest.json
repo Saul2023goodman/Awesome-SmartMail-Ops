@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.51",
-  "description": "SmartMail Ops — separates within-school priority rounds (R1/R2…) from calendar scheduling: priority rounds only order contacts inside each institution, while the scheduler independently assigns real dates and schedule cycles.",
+  "version": "3.8.52",
+  "description": "SmartMail Ops — priority rounds (R1/R2…) are optional within-school ordering hints, never a scheduling prerequisite; scheduling works normally without them and applies them only when explicitly provided.",
   "permissions": [
     "scripting",
     "tabs",

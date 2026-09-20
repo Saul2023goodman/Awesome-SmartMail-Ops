@@ -329,8 +329,8 @@
           }
           preserved.push({task,group,scheduleAt:task.scheduleAt,source:source||'existing'});
         }else{
-          const priorityRound=priorityRoundForTask(task);
-          if((task?.rosterMeta?.priorityRoundRequired??task?.rosterMeta?.batchRequired)&&!priorityRound.has)throw new Error(`${group.label} 中仍有联系人未设置同校优先轮次。请先在“优先轮次”中设置 R1/R2…；系统不会自动猜优先级。`);
+          // Priority round is optional. Missing R1/R2 never blocks scheduling; when present,
+          // it is used only as an explicit within-school ordering constraint below.
           autoQueue.push(task);
         }
       }
