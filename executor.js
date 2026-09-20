@@ -882,7 +882,8 @@
 
     let actualMinute = null;
     if (task.scheduleAt) {
-      reportProgress(executionId, 'schedule', `正在设置定时 ${String(task.scheduleAt).replace('T', ' ')}…`);
+      const displaySchedule=String(task.scheduleDisplayAt||task.scheduleAt).replace('T',' '), zoneLabel=String(task.scheduleTimeZoneLabel||'').trim();
+      reportProgress(executionId, 'schedule', `正在设置定时 ${displaySchedule}${zoneLabel?` · ${zoneLabel} 当地时间`:''}…`);
       actualMinute = await setSchedule(root, task.scheduleAt);
     } else {
       reportProgress(executionId, 'schedule', '未设置定时，将保存普通草稿。');

@@ -3,12 +3,36 @@
 
   const DEFAULT_RULES = Object.freeze({
     maxPerGroupPerRound: 1,
-    intervalDays: 7,
+    weekdays: Object.freeze([4]),
+    localTime: '07:30',
+    timeZone: 'system',
+    skipStart: '',
+    skipEnd: '',
     preserveExisting: true,
     includeMailboxScheduled: true,
     intraRoundMinutes: 10,
     skipHolidays: true
   });
+
+  const REGION_PRESETS = Object.freeze([
+    { value:'system', label:'本机 / 网易当前时区', country:'' },
+    { value:'Asia/Shanghai', label:'中国 · 上海', country:'CN' },
+    { value:'Asia/Hong_Kong', label:'中国香港', country:'HK' },
+    { value:'Asia/Singapore', label:'新加坡', country:'SG' },
+    { value:'Asia/Kuala_Lumpur', label:'马来西亚 · 吉隆坡', country:'MY' },
+    { value:'Australia/Sydney', label:'澳大利亚 · Sydney / Melbourne', country:'AU' },
+    { value:'Australia/Brisbane', label:'澳大利亚 · Brisbane', country:'AU' },
+    { value:'Australia/Adelaide', label:'澳大利亚 · Adelaide', country:'AU' },
+    { value:'Australia/Perth', label:'澳大利亚 · Perth', country:'AU' },
+    { value:'Pacific/Auckland', label:'新西兰 · Auckland', country:'NZ' },
+    { value:'Europe/London', label:'英国 · London', country:'UK' },
+    { value:'America/New_York', label:'美国 / 加拿大 · Eastern', country:'US' },
+    { value:'America/Chicago', label:'美国 · Central', country:'US' },
+    { value:'America/Denver', label:'美国 · Mountain', country:'US' },
+    { value:'America/Los_Angeles', label:'美国 / 加拿大 · Pacific', country:'US' },
+    { value:'America/Toronto', label:'加拿大 · Toronto', country:'CA' },
+    { value:'America/Vancouver', label:'加拿大 · Vancouver', country:'CA' }
+  ]);
 
   const HOLIDAY_CACHE=new Map();
   const COUNTRY_ALIASES=new Map([
@@ -34,6 +58,57 @@
   }
   function defaultStart(now=new Date()){
     const d=new Date(now.getTime()+60*60*1000); d.setMinutes(0,0,0); return formatLocalDateTime(d);
+  }
+  function systemTimeZone(){
+    try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';}catch(_){return'UTC';}
+  }
+  function normalizeTimeZone(value){
+    const raw=String(value||'system').trim()||'system';
+    if(raw==='system')return'system';
+    try{new Intl.DateTimeFormat('en-US',{timeZone:raw}).format(new Date());return raw;}catch(_){return'system';}
+  }
+  function timeZoneLabel(value){
+    const zone=normalizeTimeZone(value);if(zone==='system')return '本机 / 网易当前时区';
+    return REGION_PRESETS.find(item=>item.value===zone)?.label||zone;
+  }
+  function regionCountryForTimeZone(value){
+    const zone=normalizeTimeZone(value);return REGION_PRESETS.find(item=>item.value===zone)?.country||'';
+  }
+  function datePartsInZone(value,timeZone='system'){
+    const date=value instanceof Date?value:new Date(value);if(Number.isNaN(date.getTime()))return null;
+    const zone=normalizeTimeZone(timeZone);
+    if(zone==='system')return {year:date.getFullYear(),month:date.getMonth()+1,day:date.getDate(),hour:date.getHours(),minute:date.getMinutes(),weekday:date.getDay()};
+    const parts=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);
+    const bag={};for(const part of parts)if(part.type!=='literal')bag[part.type]=Number(part.value);
+    const utc=new Date(Date.UTC(bag.year,(bag.month||1)-1,bag.day||1));
+    return {year:bag.year,month:bag.month,day:bag.day,hour:bag.hour===24?0:bag.hour,minute:bag.minute,weekday:utc.getUTCDay()};
+  }
+  function dateKeyFromParts(parts){return parts?`${parts.year}-${pad(parts.month)}-${pad(parts.day)}`:'';}
+  function localDateKey(value,timeZone='system'){return dateKeyFromParts(datePartsInZone(value,timeZone));}
+  function formatInTimeZone(value,timeZone='system'){
+    const parts=datePartsInZone(value,timeZone);if(!parts)return'';
+    return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}T${pad(parts.hour)}:${pad(parts.minute)}`;
+  }
+  function zonedLocalToDate(dayKey,timeValue='00:00',timeZone='system'){
+    const dm=String(dayKey||'').match(/^(\d{4})-(\d{2})-(\d{2})$/),tm=String(timeValue||'00:00').match(/^(\d{1,2}):(\d{2})$/);if(!dm||!tm)return null;
+    const y=+dm[1],m=+dm[2],d=+dm[3],h=+tm[1],mi=+tm[2],zone=normalizeTimeZone(timeZone);
+    if(zone==='system'){const out=new Date(y,m-1,d,h,mi,0,0);return Number.isNaN(out.getTime())?null:out;}
+    const wanted=Date.UTC(y,m-1,d,h,mi,0,0);let out=new Date(wanted);
+    for(let i=0;i<5;i++){
+      const parts=datePartsInZone(out,zone);if(!parts)break;
+      const represented=Date.UTC(parts.year,parts.month-1,parts.day,parts.hour,parts.minute,0,0),delta=wanted-represented;
+      if(Math.abs(delta)<1000)break;out=new Date(out.getTime()+delta);
+    }
+    return out;
+  }
+  function defaultStartDate(now=new Date(),timeZone='system'){return localDateKey(now,timeZone);}
+  function defaultLocalTime(){return DEFAULT_RULES.localTime;}
+  function addDateKeyDays(key,days){
+    const m=String(key||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return'';const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]+Number(days||0)));return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+  }
+  function weekdayForDateKey(key){const m=String(key||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return NaN;return new Date(Date.UTC(+m[1],+m[2]-1,+m[3])).getUTCDay();}
+  function normalizeWeekdays(value){
+    const source=Array.isArray(value)?value:String(value||'').split(',');const out=[...new Set(source.map(Number).filter(n=>Number.isInteger(n)&&n>=1&&n<=5))].sort((a,b)=>a-b);return out.length?out:[...DEFAULT_RULES.weekdays];
   }
   function recipientDomain(recipients){
     const m=String(recipients||'').match(/@([A-Z0-9.-]+\.[A-Z]{2,})(?![A-Z0-9.-])/i); if(!m)return'';
@@ -76,11 +151,24 @@
   }
   function normalizeRules(input={}){
     const max=Math.max(1,Math.min(20,Number(input.maxPerGroupPerRound)||DEFAULT_RULES.maxPerGroupPerRound));
-    const days=Math.max(1,Math.min(365,Number(input.intervalDays)||DEFAULT_RULES.intervalDays));
+    const timeZone=normalizeTimeZone(input.timeZone||DEFAULT_RULES.timeZone);
+    const legacyStart=parseLocalDateTime(input.startAt||'');
+    const legacyParts=legacyStart?datePartsInZone(legacyStart,timeZone):null;
+    const startDate=String(input.startDate||dateKeyFromParts(legacyParts)||defaultStartDate(new Date(),timeZone)).trim();
+    const localTime=String(input.localTime||(legacyParts?`${pad(legacyParts.hour)}:${pad(legacyParts.minute)}`:DEFAULT_RULES.localTime)).trim();
+    let weekdays=input.weekdays;
+    if((!Array.isArray(weekdays)||!weekdays.length)&&legacyParts)weekdays=[legacyParts.weekday].filter(n=>n>=1&&n<=5);
+    const skipStart=String(input.skipStart||'').trim(),skipEnd=String(input.skipEnd||'').trim();
+    const startInstant=zonedLocalToDate(startDate,localTime,timeZone);
     return {
-      startAt:String(input.startAt||'').trim(),
+      startAt:startInstant?formatLocalDateTime(startInstant):'',
+      startDate,
+      localTime:/^\d{1,2}:\d{2}$/.test(localTime)?localTime:DEFAULT_RULES.localTime,
+      timeZone,
+      weekdays:normalizeWeekdays(weekdays),
+      skipStart,
+      skipEnd,
       maxPerGroupPerRound:max,
-      intervalDays:days,
       preserveExisting:input.preserveExisting!==false,
       includeMailboxScheduled:input.includeMailboxScheduled!==false,
       intraRoundMinutes:Math.max(0,Math.min(120,Number(input.intraRoundMinutes)||DEFAULT_RULES.intraRoundMinutes)),
@@ -211,21 +299,62 @@
   function holidayName(date,code){
     if(!code)return'';const key=dateKey(date);for(const year of [date.getFullYear()-1,date.getFullYear(),date.getFullYear()+1]){const name=holidayMap(code,year).get(key);if(name)return name;}return'';
   }
-  function nonWorkingInfo(date,task){
-    const country=countryForTask(task),weekend=date.getDay()===0||date.getDay()===6,holiday=holidayName(date,country.code);
-    return {nonWorking:weekend||!!holiday,weekend,holiday,country,countrySupported:!!country.code};
+  function skipRangeBounds(rules){
+    let start=String(rules?.skipStart||'').trim(),end=String(rules?.skipEnd||'').trim();
+    if(start&&!end)end=start;if(end&&!start)start=end;if(start&&end&&start>end)[start,end]=[end,start];return {start,end};
+  }
+  function isSkippedDateKey(key,rules){const {start,end}=skipRangeBounds(rules);return !!(start&&end&&key>=start&&key<=end);}
+  function countryForSchedule(task,rules={}){
+    const regionCode=regionCountryForTimeZone(rules.timeZone);if(regionCode)return {raw:timeZoneLabel(rules.timeZone),code:regionCode};
+    return countryForTask(task);
+  }
+  function holidayNameForDateKey(key,code){
+    const m=String(key||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m||!code)return'';
+    return holidayName(new Date(+m[1],+m[2]-1,+m[3]),code);
+  }
+  function nonWorkingInfo(date,task,rules={}){
+    const normalized=normalizeRules(rules),zone=normalized.timeZone,key=localDateKey(date,zone),weekday=weekdayForDateKey(key),country=countryForSchedule(task,normalized);
+    const selected=!normalized.weekdays.includes(weekday),skipRange=isSkippedDateKey(key,normalized),holiday=normalized.skipHolidays?holidayNameForDateKey(key,country.code):'';
+    const weekend=weekday===0||weekday===6;
+    return {nonWorking:selected||skipRange||!!holiday,selected,skipRange,weekend,holiday,country,countrySupported:!!country.code,dateKey:key,weekday};
   }
   function adjustForNonWorkingDay(date,task,rules){
-    const original=new Date(date);if(!rules.skipHolidays)return {date:original,shiftedDays:0,reasons:[],country:countryForTask(task),countrySupported:!!countryForTask(task).code};
-    let d=new Date(original),shifted=0;const reasons=[];let country=countryForTask(task),countrySupported=!!country.code;
-    for(let guard=0;guard<21;guard++){
-      const info=nonWorkingInfo(d,task);country=info.country;countrySupported=info.countrySupported;
-      if(!info.nonWorking)break;
+    const normalized=normalizeRules(rules),original=new Date(date),reasons=[];let key=localDateKey(original,normalized.timeZone),shifted=0,country=countryForSchedule(task,normalized),countrySupported=!!country.code;
+    for(let guard=0;guard<370;guard++){
+      const candidate=zonedLocalToDate(key,normalized.localTime,normalized.timeZone);if(!candidate)break;
+      const info=nonWorkingInfo(candidate,task,normalized);country=info.country;countrySupported=info.countrySupported;
+      if(!info.nonWorking)return {date:candidate,shiftedDays:shifted,reasons,country,countrySupported,dateKey:key};
+      if(info.selected&&!reasons.includes('非所选工作日'))reasons.push('非所选工作日');
+      if(info.skipRange&&!reasons.includes('跳过时间段'))reasons.push('跳过时间段');
       if(info.holiday&&!reasons.includes(info.holiday))reasons.push(info.holiday);
-      if(info.weekend&&!reasons.includes('周末'))reasons.push('周末');
-      d=addDays(d,1);shifted++;
+      key=addDateKeyDays(key,1);shifted++;
     }
-    return {date:d,shiftedDays:shifted,reasons,country,countrySupported};
+    return {date:original,shiftedDays:0,reasons,country,countrySupported,dateKey:localDateKey(original,normalized.timeZone)};
+  }
+
+  function localMinuteValue(time){const m=String(time||'').match(/^(\d{1,2}):(\d{2})$/);return m?Math.max(0,Math.min(1439,(+m[1])*60+(+m[2]))):450;}
+  function minuteTime(value){const total=Math.max(0,Math.min(1439,Number(value)||0));return `${pad(Math.floor(total/60))}:${pad(total%60)}`;}
+  function scheduleInstantForDate(key,rules,slot=0){
+    const normalized=normalizeRules(rules),minute=localMinuteValue(normalized.localTime)+Math.max(0,Number(slot)||0)*Math.max(1,Number(normalized.intraRoundMinutes)||10);
+    if(minute>=1440)return null;return zonedLocalToDate(key,minuteTime(minute),normalized.timeZone);
+  }
+  function calendarReasonForKey(key,task,rules){
+    const normalized=normalizeRules(rules),weekday=weekdayForDateKey(key),reasons=[],country=countryForSchedule(task,normalized);
+    if(!normalized.weekdays.includes(weekday))reasons.push('非所选工作日');
+    if(isSkippedDateKey(key,normalized))reasons.push('跳过时间段');
+    if(normalized.skipHolidays){const holiday=holidayNameForDateKey(key,country.code);if(holiday)reasons.push(holiday);}
+    return {blocked:reasons.length>0,reasons,country,weekday};
+  }
+  function nextEligibleDateKey(fromKey,task,rules,now=null,minInstant=null){
+    const normalized=normalizeRules(rules);let key=String(fromKey||normalized.startDate||'');
+    for(let guard=0;guard<730;guard++,key=addDateKeyDays(key,1)){
+      const calendar=calendarReasonForKey(key,task,normalized);if(calendar.blocked)continue;
+      const instant=scheduleInstantForDate(key,normalized,0);if(!instant)continue;
+      if(now&&instant.getTime()<=now.getTime()+60*1000)continue;
+      if(minInstant&&instant.getTime()<minInstant.getTime())continue;
+      return key;
+    }
+    return '';
   }
 
   function normalizeExternalAnchor(anchor){
@@ -244,151 +373,132 @@
       _scheduleDate:date
     };
   }
-  function scheduleRound(date,start,intervalMs){
-    let round=Math.floor((date.getTime()-start.getTime())/intervalMs);
-    if(round<0&&date.getTime()+intervalMs>start.getTime())round=0;
-    return round;
-  }
   function scheduleMinuteKey(value){const date=parseLocalDateTime(value);return date?formatLocalDateTime(date):'';}
 
   function audit(tasks,rulesInput={},context={}){
-    const rules=normalizeRules(rulesInput), start=parseLocalDateTime(rules.startAt);
-    if(!start)return {conflicts:[],externalConflicts:[],timeConflicts:[],holidayConflicts:[],scheduled:0,externalCount:0};
-    const intervalMs=rules.intervalDays*24*60*60*1000, buckets=new Map(); let scheduled=0;
-    const holidayConflicts=[];
-    const currentScheduled=[];
+    const rules=normalizeRules(rulesInput),buckets=new Map();let scheduled=0;
+    const holidayConflicts=[],currentScheduled=[];
     for(const task of (tasks||[]).filter(t=>t&&t.enabled&&t.status==='ready'&&t.scheduleAt)){
-      const date=parseLocalDateTime(task.scheduleAt); if(!date)continue; scheduled++;currentScheduled.push({task,date});
-      if(rules.skipHolidays){const info=nonWorkingInfo(date,task);if(info.nonWorking)holidayConflicts.push({task,date,info});}
-      const round=scheduleRound(date,start,intervalMs); if(round<0)continue;
-      const group=groupForTask(task), key=`${group.key}|${round}`;
-      if(!buckets.has(key))buckets.set(key,{group,round,tasks:[],anchors:[]}); buckets.get(key).tasks.push(task);
+      const date=parseLocalDateTime(task.scheduleAt);if(!date)continue;scheduled++;currentScheduled.push({task,date});
+      const dayKey=localDateKey(date,rules.timeZone),calendar=calendarReasonForKey(dayKey,task,rules);
+      if(calendar.blocked)holidayConflicts.push({task,date,info:{...calendar,dateKey:dayKey,nonWorking:true}});
+      const group=groupForTask(task),key=`${group.key}|${dayKey}`;
+      if(!buckets.has(key))buckets.set(key,{group,dayKey,tasks:[],anchors:[]});buckets.get(key).tasks.push(task);
     }
     const currentDraftIds=new Set((tasks||[]).map(task=>String(task?.mailboxDraftId||'')).filter(Boolean));
     const anchors=rules.includeMailboxScheduled?(context.externalAnchors||[]).map(normalizeExternalAnchor).filter(anchor=>anchor&&!currentDraftIds.has(anchor.id)):[];
     const anchorTimes=new Map();
     for(const anchor of anchors){
-      const round=scheduleRound(anchor._scheduleDate,start,intervalMs);
-      const group=groupForTask(anchor);
-      if(round>=0){const key=`${group.key}|${round}`;if(!buckets.has(key))buckets.set(key,{group,round,tasks:[],anchors:[]});buckets.get(key).anchors.push(anchor);}
+      const dayKey=localDateKey(anchor._scheduleDate,rules.timeZone),group=groupForTask(anchor),key=`${group.key}|${dayKey}`;
+      if(!buckets.has(key))buckets.set(key,{group,dayKey,tasks:[],anchors:[]});buckets.get(key).anchors.push(anchor);
       const timeKey=scheduleMinuteKey(anchor.scheduleAt);if(timeKey){if(!anchorTimes.has(timeKey))anchorTimes.set(timeKey,[]);anchorTimes.get(timeKey).push(anchor);}
     }
-    const conflicts=[...buckets.values()].filter(x=>x.tasks.length>rules.maxPerGroupPerRound).map(x=>({groupLabel:x.group.label,roundIndex:x.round,count:x.tasks.length,limit:rules.maxPerGroupPerRound,tasks:x.tasks}));
-    const externalConflicts=[...buckets.values()].filter(x=>x.tasks.length&&x.tasks.length+x.anchors.length>rules.maxPerGroupPerRound).map(x=>({groupLabel:x.group.label,roundIndex:x.round,count:x.tasks.length+x.anchors.length,currentCount:x.tasks.length,lockedCount:x.anchors.length,limit:rules.maxPerGroupPerRound,tasks:x.tasks,anchors:x.anchors}));
+    const conflicts=[...buckets.values()].filter(x=>x.tasks.length>rules.maxPerGroupPerRound).map(x=>({groupLabel:x.group.label,dayKey:x.dayKey,count:x.tasks.length,limit:rules.maxPerGroupPerRound,tasks:x.tasks}));
+    const externalConflicts=[...buckets.values()].filter(x=>x.tasks.length&&x.tasks.length+x.anchors.length>rules.maxPerGroupPerRound).map(x=>({groupLabel:x.group.label,dayKey:x.dayKey,count:x.tasks.length+x.anchors.length,currentCount:x.tasks.length,lockedCount:x.anchors.length,limit:rules.maxPerGroupPerRound,tasks:x.tasks,anchors:x.anchors}));
     const timeConflicts=currentScheduled.map(({task,date})=>({task,date,anchors:anchorTimes.get(formatLocalDateTime(date))||[]})).filter(item=>item.anchors.length);
     return {conflicts,externalConflicts,timeConflicts,holidayConflicts,scheduled,externalCount:anchors.length};
   }
 
   function buildPlan(tasks,rulesInput={},now=new Date(),context={}){
-    const rules=normalizeRules(rulesInput), start=parseLocalDateTime(rules.startAt);
-    if(!start) throw new Error('请先设置排程起始时间。');
-    if(start.getTime() <= now.getTime()+60*1000) throw new Error('排程起始时间需要晚于当前时间。');
-    const intervalMs=rules.intervalDays*24*60*60*1000;
-    const candidates=(tasks||[]).filter(t=>t && t.enabled && t.status==='ready');
-    if(!candidates.length) throw new Error('当前没有已选择且预检通过的任务可排程。');
+    const rules=normalizeRules(rulesInput);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(rules.startDate))throw new Error('请选择开始日期。');
+    if(!/^\d{1,2}:\d{2}$/.test(rules.localTime))throw new Error('请选择当地发送时间。');
+    if(!rules.weekdays.length)throw new Error('请至少选择一个工作日。');
+    const candidates=(tasks||[]).filter(t=>t&&t.enabled&&t.status==='ready');
+    if(!candidates.length)throw new Error('当前没有已选择且预检通过的任务可排程。');
 
     const currentDraftIds=new Set(candidates.map(task=>String(task.mailboxDraftId||'')).filter(Boolean));
     const externalAnchors=rules.includeMailboxScheduled?(context.externalAnchors||[]).map(normalizeExternalAnchor).filter(anchor=>anchor&&anchor._scheduleDate.getTime()>now.getTime()+60*1000&&!currentDraftIds.has(anchor.id)):[];
-    const externalByGroup=new Map();
-    const lockedTimes=new Set();
+    const externalByGroup=new Map(),lockedTimes=new Set();
     for(const anchor of externalAnchors){
       const group=groupForTask(anchor);if(!externalByGroup.has(group.key))externalByGroup.set(group.key,[]);externalByGroup.get(group.key).push({anchor,group});
       lockedTimes.add(formatLocalDateTime(anchor._scheduleDate));
     }
 
-    const taskOrder=new Map(candidates.map((task,index)=>[task,index]));
-    const groups=new Map();
+    const taskOrder=new Map(candidates.map((task,index)=>[task,index])),groups=new Map();
     for(const task of candidates){
-      const group=groupForTask(task); if(!groups.has(group.key)) groups.set(group.key,{...group,tasks:[]});
-      groups.get(group.key).tasks.push(task);
+      const group=groupForTask(task);if(!groups.has(group.key))groups.set(group.key,{...group,tasks:[]});groups.get(group.key).tasks.push(task);
       const source=String(task.scheduleSource||''),existingDate=parseLocalDateTime(task.scheduleAt);
       const providerLocked=source==='mailbox'&&!!task.mailboxDraftId&&existingDate&&existingDate.getTime()>now.getTime()+60*1000;
       const rosterFixed=source==='roster-fixed'&&existingDate&&existingDate.getTime()>now.getTime()+60*1000;
       if(providerLocked||rosterFixed||(rules.preserveExisting&&task.scheduleAt&&source!=='auto'&&existingDate&&existingDate.getTime()>now.getTime()+60*1000))lockedTimes.add(formatLocalDateTime(existingDate));
     }
 
-    const assignments=[], preserved=[]; let maxRound=0, priorityOrderedGroups=0, holidayAdjusted=0, lockedTimeAdjusted=0;
+    const assignments=[],preserved=[],usedSendDays=new Set();
+    let priorityOrderedGroups=0,holidayAdjusted=0,skipAdjusted=0,lockedTimeAdjusted=0;
     for(const group of groups.values()){
       const occupancy=new Map(),protectedPriority=[];
       for(const item of externalByGroup.get(group.key)||[]){
-        const round=scheduleRound(item.anchor._scheduleDate,start,intervalMs);
-        if(round>=0){occupancy.set(round,(occupancy.get(round)||0)+1);maxRound=Math.max(maxRound,round);}
+        const key=localDateKey(item.anchor._scheduleDate,rules.timeZone);occupancy.set(key,(occupancy.get(key)||0)+1);usedSendDays.add(key);
       }
       const autoQueue=[];
       for(const task of group.tasks){
-        const source=String(task.scheduleSource||'');
-        const existingDate=parseLocalDateTime(task.scheduleAt);
+        const source=String(task.scheduleSource||''),existingDate=parseLocalDateTime(task.scheduleAt);
         const providerLocked=source==='mailbox'&&!!task.mailboxDraftId&&existingDate&&existingDate.getTime()>now.getTime()+60*1000;
         const rosterFixed=source==='roster-fixed'&&existingDate&&existingDate.getTime()>now.getTime()+60*1000;
-        const isProtected=providerLocked || rosterFixed || (rules.preserveExisting && task.scheduleAt && source!=='auto' && existingDate && existingDate.getTime()>now.getTime()+60*1000);
+        const isProtected=providerLocked||rosterFixed||(rules.preserveExisting&&task.scheduleAt&&source!=='auto'&&existingDate&&existingDate.getTime()>now.getTime()+60*1000);
         if(isProtected){
-          const round=scheduleRound(existingDate,start,intervalMs);
-          if(round>=0){
-            occupancy.set(round,(occupancy.get(round)||0)+1);maxRound=Math.max(maxRound,round);
-            const protectedRound=priorityRoundForTask(task);if(protectedRound.has)protectedPriority.push({priority:protectedRound.round,cycle:round,label:protectedRound.raw||`R${protectedRound.round+1}`,date:existingDate});
-          }
+          const key=localDateKey(existingDate,rules.timeZone);occupancy.set(key,(occupancy.get(key)||0)+1);usedSendDays.add(key);
+          const protectedRound=priorityRoundForTask(task);if(protectedRound.has)protectedPriority.push({priority:protectedRound.round,instant:existingDate,label:protectedRound.raw||`R${protectedRound.round+1}`,dateKey:key});
           preserved.push({task,group,scheduleAt:task.scheduleAt,source:source||'existing'});
-        }else{
-          // Priority round is optional. Missing R1/R2 never blocks scheduling; when present,
-          // it is used only as an explicit within-school ordering constraint below.
-          autoQueue.push(task);
-        }
+        }else autoQueue.push(task);
       }
-      const withPriority=autoQueue.filter(task=>priorityForTask(task).has);
-      if(withPriority.length&&autoQueue.length>1)priorityOrderedGroups++;
+      const withPriority=autoQueue.filter(task=>priorityForTask(task).has);if(withPriority.length&&autoQueue.length>1)priorityOrderedGroups++;
       autoQueue.sort((a,b)=>{
-        const ra=priorityRoundForTask(a),rb=priorityRoundForTask(b);
-        if(ra.has!==rb.has)return ra.has?-1:1;
-        if(ra.has&&rb.has&&ra.round!==rb.round)return ra.round-rb.round;
-        const pa=priorityForTask(a),pb=priorityForTask(b);
-        if(pa.has!==pb.has)return pa.has?-1:1;
-        if(pa.rank!==pb.rank)return pa.rank-pb.rank;
-        return (taskOrder.get(a)||0)-(taskOrder.get(b)||0);
+        const ra=priorityRoundForTask(a),rb=priorityRoundForTask(b);if(ra.has!==rb.has)return ra.has?-1:1;if(ra.has&&rb.has&&ra.round!==rb.round)return ra.round-rb.round;
+        const pa=priorityForTask(a),pb=priorityForTask(b);if(pa.has!==pb.has)return pa.has?-1:1;if(pa.rank!==pb.rank)return pa.rank-pb.rank;return (taskOrder.get(a)||0)-(taskOrder.get(b)||0);
       });
-      let cursorRound=0;
+
+      let cursorKey=rules.startDate;
       for(const task of autoQueue){
-        // Priority round controls order only. It never pins a task to a calendar/schedule cycle.
-        const priorityRound=priorityRoundForTask(task);let targetRound=cursorRound;
-        if(priorityRound.has){
-          const earlierProtected=protectedPriority.filter(item=>item.priority<priorityRound.round);if(earlierProtected.length)targetRound=Math.max(targetRound,...earlierProtected.map(item=>item.cycle));
+        const priorityRound=priorityRoundForTask(task),earlierProtected=priorityRound.has?protectedPriority.filter(item=>item.priority<priorityRound.round):[];
+        const laterProtected=priorityRound.has?protectedPriority.filter(item=>item.priority>priorityRound.round):[];
+        const minInstant=earlierProtected.length?new Date(Math.max(...earlierProtected.map(item=>item.instant.getTime()))+60*1000):null;
+        const ceilingInstant=laterProtected.length?new Date(Math.min(...laterProtected.map(item=>item.instant.getTime()))):null;
+        let key=cursorKey||rules.startDate,when=null,slot=0,collisionShifts=0,calendarHolidaySeen=false,calendarSkipSeen=false;
+        for(let guard=0;guard<730&&!when;guard++,key=addDateKeyDays(key,1)){
+          const calendar=calendarReasonForKey(key,task,rules);
+          if(calendar.blocked){if(calendar.reasons.includes('跳过时间段'))calendarSkipSeen=true;if(calendar.reasons.some(r=>r!=='非所选工作日'&&r!=='跳过时间段'))calendarHolidaySeen=true;continue;}
+          slot=occupancy.get(key)||0;if(slot>=rules.maxPerGroupPerRound)continue;
+          let candidate=scheduleInstantForDate(key,rules,slot);if(!candidate)continue;
+          if(candidate.getTime()<=now.getTime()+60*1000)continue;
+          if(minInstant&&candidate.getTime()<minInstant.getTime())continue;
+          if(ceilingInstant&&candidate.getTime()>=ceilingInstant.getTime()){
+            const blocker=laterProtected.sort((a,b)=>a.instant-b.instant||a.priority-b.priority)[0];
+            throw new Error(`${group.label} 的固定/已有时间与同校优先轮次冲突：${priorityRound.raw||`R${priorityRound.round+1}`} 无法排在 ${blocker.label} 之前。请调整固定时间或优先轮次。`);
+          }
+          const stepMinutes=Math.max(1,Number(rules.intraRoundMinutes)||10);collisionShifts=0;
+          while(lockedTimes.has(formatLocalDateTime(candidate))&&collisionShifts<144){candidate=new Date(candidate.getTime()+stepMinutes*60*1000);collisionShifts++;}
+          if(collisionShifts>=144)continue;
+          if(localDateKey(candidate,rules.timeZone)!==key)continue;
+          if(ceilingInstant&&candidate.getTime()>=ceilingInstant.getTime())continue;
+          when=candidate;
         }
-        while((occupancy.get(targetRound)||0)>=rules.maxPerGroupPerRound)targetRound++;
-        if(priorityRound.has){
-          const laterProtected=protectedPriority.filter(item=>item.priority>priorityRound.round);const ceiling=laterProtected.length?Math.min(...laterProtected.map(item=>item.cycle)):null;
-          if(ceiling!=null&&targetRound>=ceiling){const blocker=laterProtected.sort((a,b)=>a.cycle-b.cycle||a.priority-b.priority)[0];throw new Error(`${group.label} 的固定/已有时间与同校优先轮次冲突：${priorityRound.raw||`R${priorityRound.round+1}`} 无法排在 ${blocker.label} 之前。请调整固定时间或优先轮次。`);}
-        }
-        cursorRound=targetRound;
-        const slot=occupancy.get(targetRound)||0;
-        const rawWhen=new Date(start.getTime()+targetRound*intervalMs+slot*rules.intraRoundMinutes*60*1000);
-        const adjusted=adjustForNonWorkingDay(rawWhen,task,rules);
-        let when=adjusted.date, collisionShifts=0;
-        const stepMinutes=Math.max(1,Number(rules.intraRoundMinutes)||10);
-        while(lockedTimes.has(formatLocalDateTime(when))&&collisionShifts<288){when=new Date(when.getTime()+stepMinutes*60*1000);collisionShifts++;}
-        if(collisionShifts>=288)throw new Error('无法在现有排期之外找到可用时间槽。');
-        if(adjusted.shiftedDays)holidayAdjusted++;
-        if(collisionShifts)lockedTimeAdjusted++;
-        occupancy.set(targetRound,slot+1); maxRound=Math.max(maxRound,targetRound);
-        const priority=priorityForTask(task),reasonParts=[`${group.label} · 排期周期 ${targetRound+1}${rules.maxPerGroupPerRound>1?` · 周期内第 ${slot+1} 位`:''}`];
+        if(!when)throw new Error(`无法为 ${group.label} 找到可用的工作日时间槽。请检查开始日期、工作日、跳过时间段或已有排期。`);
+        if(calendarHolidaySeen)holidayAdjusted++;if(calendarSkipSeen)skipAdjusted++;if(collisionShifts)lockedTimeAdjusted++;
+        occupancy.set(key,slot+1);lockedTimes.add(formatLocalDateTime(when));usedSendDays.add(key);cursorKey=key;
+        const priority=priorityForTask(task),localLabel=formatInTimeZone(when,rules.timeZone).replace('T',' '),reasonParts=[`${group.label} · ${localLabel} · ${timeZoneLabel(rules.timeZone)}`];
+        if(rules.maxPerGroupPerRound>1)reasonParts.push(`当日第 ${slot+1} 位`);
         if(priorityRound.has)reasonParts.push(`同校优先轮次 ${priorityRound.raw||`R${priorityRound.round+1}`}`);
         if(priority.has)reasonParts.push(`名单顺序 ${priority.raw||priority.rank}`);
-        if(adjusted.shiftedDays)reasonParts.push(`避开${adjusted.reasons.join('、')}，顺延 ${adjusted.shiftedDays} 天`);
-        if(collisionShifts)reasonParts.push(`避开已有排期，顺延 ${collisionShifts*stepMinutes} 分钟`);
+        if(calendarSkipSeen)reasonParts.push('已避开跳过时间段');if(calendarHolidaySeen)reasonParts.push('已避开当地节假日');if(collisionShifts)reasonParts.push(`避开已有排期，顺延 ${collisionShifts*Math.max(1,Number(rules.intraRoundMinutes)||10)} 分钟`);
         assignments.push({
-          editKey:task.editKey, task, groupKey:group.key, groupLabel:group.label, groupSource:group.source,
-          scheduleAt:formatLocalDateTime(when), originalScheduleAt:formatLocalDateTime(rawWhen), scheduleCycleIndex:targetRound, roundIndex:targetRound, slotIndex:slot,
-          priorityRoundIndex:priorityRound.has?priorityRound.round:null, priorityRoundLabel:priorityRound.has?(priorityRound.raw||`R${priorityRound.round+1}`):'',
-          priorityRank:priority.has?priority.rank:null, priorityLabel:priority.has?(priority.raw||String(priority.rank)):'',
-          holidayShiftDays:adjusted.shiftedDays, holidayReasons:adjusted.reasons, country:adjusted.country.raw||adjusted.country.code||'',
-          lockedTimeShiftMinutes:collisionShifts*stepMinutes,
+          editKey:task.editKey,task,groupKey:group.key,groupLabel:group.label,groupSource:group.source,
+          scheduleAt:formatLocalDateTime(when),originalScheduleAt:formatLocalDateTime(scheduleInstantForDate(key,rules,slot)),scheduleDayKey:key,scheduleCycleIndex:0,roundIndex:0,slotIndex:slot,
+          priorityRoundIndex:priorityRound.has?priorityRound.round:null,priorityRoundLabel:priorityRound.has?(priorityRound.raw||`R${priorityRound.round+1}`):'',
+          priorityRank:priority.has?priority.rank:null,priorityLabel:priority.has?(priority.raw||String(priority.rank)):'',
+          holidayShiftDays:calendarHolidaySeen?1:0,holidayReasons:calendarHolidaySeen?['当地节假日']:[],country:countryForSchedule(task,rules).raw||countryForSchedule(task,rules).code||'',
+          lockedTimeShiftMinutes:collisionShifts*Math.max(1,Number(rules.intraRoundMinutes)||10),localScheduleAt:formatInTimeZone(when,rules.timeZone),timeZone:rules.timeZone,
           reason:reasonParts.join(' · ')
         });
       }
     }
+    const autoDays=new Set(assignments.map(item=>item.scheduleDayKey).filter(Boolean));
     return {
-      rules, assignments, preserved, externalAnchors,
-      summary:{selected:candidates.length,groups:groups.size,auto:assignments.length,preserved:preserved.length,externalAnchors:externalAnchors.length,externalGroups:externalByGroup.size,scheduleCycles:maxRound+1,rounds:maxRound+1,priorityOrderedGroups,holidayAdjusted,lockedTimeAdjusted}
+      rules,assignments,preserved,externalAnchors,
+      summary:{selected:candidates.length,groups:groups.size,auto:assignments.length,preserved:preserved.length,externalAnchors:externalAnchors.length,externalGroups:externalByGroup.size,scheduleDays:autoDays.size,scheduleCycles:autoDays.size,rounds:autoDays.size,priorityOrderedGroups,holidayAdjusted,skipAdjusted,lockedTimeAdjusted}
     };
   }
 
-  globalThis.NMDAScheduler={DEFAULT_RULES,formatLocalDateTime,parseLocalDateTime,defaultStart,recipientDomain,cleanInstitution,normalizeInstitutionKey,institutionEvidence,groupForTask,normalizeRules,normalizeCountry,countryForTask,parsePriority,priorityForTask,priorityRoundForTask,roundForTask,holidayName,nonWorkingInfo,adjustForNonWorkingDay,audit,buildPlan};
+  globalThis.NMDAScheduler={DEFAULT_RULES,REGION_PRESETS,formatLocalDateTime,parseLocalDateTime,defaultStart,defaultStartDate,defaultLocalTime,systemTimeZone,normalizeTimeZone,timeZoneLabel,regionCountryForTimeZone,datePartsInZone,localDateKey,formatInTimeZone,zonedLocalToDate,weekdayForDateKey,normalizeWeekdays,recipientDomain,cleanInstitution,normalizeInstitutionKey,institutionEvidence,groupForTask,normalizeRules,normalizeCountry,countryForTask,parsePriority,priorityForTask,priorityRoundForTask,roundForTask,holidayName,nonWorkingInfo,adjustForNonWorkingDay,isSkippedDateKey,audit,buildPlan};
 })();

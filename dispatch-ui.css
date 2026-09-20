@@ -1420,3 +1420,74 @@
   #nmda-root .nmda-roster-batch-create,
   #nmda-root .nmda-roster-batch-clear { width:100%; }
 }
+
+/* Scheduling calendar: weekday selection + target-region local time + blackout range */
+#nmda-root .nmda-schedule-dialog { width:min(900px,calc(100vw - 32px)) !important; }
+#nmda-root .nmda-schedule-dialog .nmda-scheduler-calendar-grid {
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  align-items:stretch !important;
+}
+#nmda-root .nmda-schedule-dialog .nmda-schedule-region-field,
+#nmda-root .nmda-schedule-dialog .nmda-workday-field,
+#nmda-root .nmda-schedule-dialog .nmda-skip-range-field { grid-column:1 / -1 !important; }
+#nmda-root .nmda-schedule-dialog .nmda-field-hint {
+  display:block;
+  margin-top:6px;
+  color:#7a8796;
+  font-size:10.5px;
+  line-height:1.35;
+}
+#nmda-root .nmda-schedule-dialog .nmda-workday-picker {
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:7px;
+  margin-top:7px;
+}
+#nmda-root .nmda-schedule-dialog .nmda-workday-picker label { position:relative; min-width:0; cursor:pointer; }
+#nmda-root .nmda-schedule-dialog .nmda-workday-picker input {
+  position:absolute;
+  inline-size:1px;
+  block-size:1px;
+  opacity:0;
+  pointer-events:none;
+}
+#nmda-root .nmda-schedule-dialog .nmda-workday-picker span {
+  min-height:36px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid #d8e1eb;
+  border-radius:8px;
+  background:#f8fafc;
+  color:#5f6d7d;
+  font-size:12px;
+  font-weight:700;
+  transition:border-color .15s ease,background .15s ease,color .15s ease,box-shadow .15s ease;
+}
+#nmda-root .nmda-schedule-dialog .nmda-workday-picker input:checked + span {
+  border-color:#9fc2f3;
+  background:#eef5ff;
+  color:#1769e0;
+  box-shadow:inset 0 0 0 1px rgba(23,105,224,.08);
+}
+#nmda-root .nmda-schedule-dialog .nmda-workday-picker input:focus-visible + span { outline:2px solid rgba(23,105,224,.28); outline-offset:2px; }
+#nmda-root .nmda-schedule-dialog .nmda-workday-picker input:disabled + span { opacity:.5; cursor:not-allowed; }
+#nmda-root .nmda-schedule-dialog .nmda-skip-range-inputs {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;
+  gap:8px;
+  margin-top:7px;
+}
+#nmda-root .nmda-schedule-dialog .nmda-skip-range-inputs > span { color:#7a8796; font-size:11px; }
+#nmda-root .nmda-schedule-dialog .nmda-schedule-region-field select { width:100%; }
+
+@media (max-width:720px) {
+  #nmda-root .nmda-schedule-dialog .nmda-scheduler-calendar-grid { grid-template-columns:1fr !important; }
+  #nmda-root .nmda-schedule-dialog .nmda-schedule-region-field,
+  #nmda-root .nmda-schedule-dialog .nmda-workday-field,
+  #nmda-root .nmda-schedule-dialog .nmda-skip-range-field { grid-column:auto !important; }
+  #nmda-root .nmda-schedule-dialog .nmda-workday-picker { grid-template-columns:repeat(5,minmax(48px,1fr)); overflow-x:auto; }
+  #nmda-root .nmda-schedule-dialog .nmda-skip-range-inputs { grid-template-columns:1fr; }
+  #nmda-root .nmda-schedule-dialog .nmda-skip-range-inputs > span { text-align:center; }
+}
