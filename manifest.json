@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.36",
-  "description": "SmartMail Ops — cumulative local workspace, explicit roster↔Draft reconciliation, automatic mailbox sync, unified icon system, schedule controls, and exact Compose lifecycle cleanup.",
+  "version": "3.8.37",
+  "description": "SmartMail Ops — cumulative local workspace with imported-mail ↔ roster reconciliation, auto mailbox sync, unified review/dispatch flow, and schedule-aware draft operations.",
   "permissions": [
     "scripting",
     "tabs",

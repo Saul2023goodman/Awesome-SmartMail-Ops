@@ -57,6 +57,9 @@
   function taskNameCandidates(task){
     const values=[task?.name,task?.supervisor,task?.contactName];
     const evidence=clean(task?.importRecipientEvidence?.text||'');if(evidence&&!emailOf(evidence))values.push(evidence);
+    const rawSalutation=clean(task?.importSalutation||'') || clean(String(task?.body||'').match(/(?:^|\n)\s*(?:Dear|Hello|Hi)\s+([^\n,:：]{2,90})/i)?.[1]||'');
+    const salutation=rawSalutation.replace(/^\s*(?:dear|hello|hi)\s+/i,'').replace(/^\s*(?:(?:associate|assistant)\s+)?(?:prof(?:essor)?|dr)\.?\s+/i,'').replace(/[,:：].*$/,'').trim();
+    if(salutation&&!emailOf(salutation))values.push(salutation);
     const heading=clean(task?.importHeading||'').replace(/^\d+[.、)）:]\s*/,'');
     if(heading)values.push(heading.split(/\s+[—–-]\s+/)[0]);
     for(const part of String(task?.recipients||'').split(/[;；,，\n]+/)){
@@ -213,75 +216,10 @@
     }
     const entry=top.entry;
     const schoolConflict=!!(school&&entry.school&&!sameSchool(school,entry.school));
-    return {status:schoolConflict?'conflict':'matched',task,email,emails,name,names,entry,score:top.score,by:top.by,schoolConflict,
+    const emailConflict=!!(email&&entry.email&&!emails.includes(String(entry.email).toLowerCase())&&top.score>=108);
+    return {status:schoolConflict?'conflict':'matched',task,email,emails,name,names,entry,score:top.score,by:top.by,schoolConflict,emailConflict,
       schoolSupplement:!school&&!!entry.school&&top.score>=84,
       emailCandidate:!email&&!!entry.email&&top.score>=84?entry.email:''};
-  }
-
-
-  function draftTaskView(draft){
-    const recipients=(draft?.recipients||[]).map(item=>{
-      const email=clean(item?.email||item?.address||'');
-      const name=clean(item?.name||'');
-      return email ? (name?`${name} <${email}>`:email) : name;
-    }).filter(Boolean).join('; ');
-    const first=(draft?.recipients||[])[0]||{};
-    return {
-      id:String(draft?.id||draft?.providerMessageId||''),
-      recipients,
-      name:clean(first?.name||''),
-      subject:String(draft?.subject||''),
-      school:String(draft?.school||''),
-      sourceKind:'mailbox-draft'
-    };
-  }
-
-  function reconcileDrafts(entries,draftsInput){
-    const entriesList=Array.isArray(entries)?entries:[];
-    const drafts=Array.isArray(draftsInput)?draftsInput:Object.values(draftsInput||{});
-    const index=buildMatchIndex(entriesList);
-    const matches=[];
-    const byRoster=new Map();
-    for(const draft of drafts){
-      if(!draft)continue;
-      const task=draftTaskView(draft);
-      if(!task.recipients)continue;
-      const matched=matchOne(task,index);
-      const row={...matched,task,draft};
-      matches.push(row);
-      if(matched.entry){
-        const key=matched.entry.key||`${matched.entry.email}|${matched.entry.name}|${matched.entry.school}`;
-        if(!byRoster.has(key))byRoster.set(key,[]);
-        byRoster.get(key).push(row);
-      }
-    }
-    const rosterWithDraft=new Set();
-    const duplicateDrafts=[];
-    for(const [key,rows] of byRoster){
-      const good=rows.filter(row=>row.status==='matched'||row.status==='conflict');
-      if(good.length){rosterWithDraft.add(key);}
-      if(good.length>1){
-        good.sort((a,b)=>Date.parse(b.draft?.savedAt||b.draft?.scheduleAt||0)-Date.parse(a.draft?.savedAt||a.draft?.scheduleAt||0));
-        duplicateDrafts.push({entry:index.byKey.get(key)||good[0]?.entry||null,matches:good,primary:good[0]||null});
-      }
-    }
-    const missing=entriesList.filter(entry=>{
-      const key=entry?.key||`${entry?.email||''}|${entry?.name||''}|${entry?.school||''}`;
-      return !rosterWithDraft.has(key);
-    });
-    const unmatched=matches.filter(row=>row.status==='off-roster');
-    const ambiguous=matches.filter(row=>row.status==='ambiguous');
-    const matched=matches.filter(row=>row.status==='matched'||row.status==='conflict');
-    const scheduled=matched.filter(row=>!!String(row.draft?.scheduleAt||'').trim());
-    return {
-      matches,matched,unmatched,ambiguous,missing,duplicateDrafts,byRoster,
-      summary:{
-        roster:entriesList.length,drafts:matches.length,matchedDrafts:matched.length,
-        rosterWithDraft:rosterWithDraft.size,missingDrafts:missing.length,
-        unmatchedDrafts:unmatched.length,ambiguousDrafts:ambiguous.length,
-        duplicateDraftContacts:duplicateDrafts.length,scheduledDrafts:scheduled.length
-      }
-    };
   }
 
   function auditTaskDuplicates(tasks){
@@ -353,10 +291,11 @@
         conflicts:matches.filter(m=>m.status==='conflict').length,
         unwritten:unwritten.length,duplicates:duplicateMatches.length,
         schoolSupplements:matches.filter(m=>m.schoolSupplement).length,
-        emailCandidates:matches.filter(m=>m.emailCandidate).length
+        emailCandidates:matches.filter(m=>m.emailCandidate).length,
+        emailConflicts:matches.filter(m=>m.emailConflict).length
       }
     };
   }
 
-  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,nameKeys,taskName,taskNameCandidates,schoolKey,sameSchool,parsePriorityOrder,parseDataset,auditTaskDuplicates,crossCheck,matchOne,buildMatchIndex,reconcileDrafts};
+  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,nameKeys,taskName,taskNameCandidates,schoolKey,sameSchool,parsePriorityOrder,parseDataset,auditTaskDuplicates,crossCheck,matchOne,buildMatchIndex};
 })();

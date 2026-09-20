@@ -321,8 +321,8 @@
                   <div class="nmda-context-cue-main">
                     <span class="nmda-context-eyebrow" id="nmda-roster-context-eyebrow">推荐 · 导入时补充</span>
                     <strong id="nmda-roster-context-title">有参考总名单？建议一起加入</strong>
-                    <small id="nmda-roster-context-copy">用于查重、名单核对和院校排期；没有也可以继续。</small>
-                    <div class="nmda-context-benefits" id="nmda-roster-context-benefits"><span>匹配已有 Draft</span><span>发现名单遗漏</span><span>辅助院校排期</span></div>
+                    <small id="nmda-roster-context-copy">会自动匹配导入邮件，用于联系人核对与信息补全；没有也可以继续。</small>
+                    <div class="nmda-context-benefits" id="nmda-roster-context-benefits"><span>匹配导入邮件</span><span>补全院校 / 邮箱</span><span>发现名单遗漏</span></div>
                     <div id="nmda-roster-source-status" class="nmda-context-status">未添加参考总名单。</div>
                   </div>
                   <div class="nmda-context-cue-actions">
@@ -334,7 +334,7 @@
                 <div id="nmda-import-status" class="nmda-summary nmda-import-status">还没有添加资料。</div>
                 <div id="nmda-source-inventory" class="nmda-source-inventory" hidden></div>
                 <section class="nmda-import-dedupe-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
-                  <div class="nmda-import-dedupe-head"><div><span>导入核验</span><strong>批次重复 · 邮箱历史 · 总名单 ↔ Draft</strong></div><div class="nmda-import-dedupe-head-actions"><small id="nmda-import-dedupe-state">正在核验</small><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">重新核验</button></div></div>
+                  <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>批次重复 + 邮箱历史防重</strong></div><div class="nmda-import-dedupe-head-actions"><small id="nmda-import-dedupe-state">正在核验</small><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">重新核验</button></div></div>
                   <input id="nmda-roster-enabled" type="checkbox" checked hidden>
                   <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
                   <input id="nmda-roster-strict" type="checkbox" hidden>
@@ -1672,6 +1672,9 @@
       batch.reviewFilter = String(saved.reviewFilter||'all');
       batch.reviewSearch = String(saved.reviewSearch||'');
       batch.roster = saved.roster ? { ...emptyRosterState(), ...saved.roster } : emptyRosterState();
+      // Normalize persisted roster fragments before task rebuilding so historical multi-import
+      // workspaces get the same stable identity keys and dedupe behavior as new imports.
+      syncRosterParts();
       batch.supplementPreflightDone = !!saved.supplementPreflightDone;
       batch.rosterPromptChoice = String(saved.rosterPromptChoice||'pending');
       batch.attachmentPrepChoice = 'pending'; // file bytes never survive a reload
@@ -2666,13 +2669,13 @@
     if(state==='prepare'){
       if(eyebrow)eyebrow.textContent='可选 · 参考名单';
       if(title)title.textContent='有参考总名单？可以一起加入';
-      if(copy)copy.textContent='有名单可一起加入；没有也可以继续。';
+      if(copy)copy.textContent='加入后会自动与当前及后续导入邮件匹配；没有也可以继续。';
       if(upload)upload.textContent='上传参考总名单';
       if(skip)skip.hidden=true;if(remove)remove.hidden=true;
     }else if(state==='pending'){
       if(eyebrow)eyebrow.textContent='可选增强';
       if(title)title.textContent='参考总名单可减少重复联系';
-      if(copy)copy.textContent='有名单就加入；没有可直接跳过。';
+      if(copy)copy.textContent='用于匹配导入邮件、补全联系人信息；没有可直接跳过。';
       if(upload)upload.textContent='上传总名单';
       if(skip){skip.hidden=false;skip.textContent='暂不添加';}if(remove)remove.hidden=true;
     }else if(state==='added'){
@@ -3411,7 +3414,7 @@
     draftHistoryListEl.innerHTML=hits.map(({task,history})=>{
       const recent=Operations.formatDisplayTime(history.lastDraftAt)||'时间未知';
       const subject=String(history.lastDraftSubject||'').trim();
-      return `<label class="nmda-draft-history-filter-row"><input type="checkbox" data-draft-history-pick="${escapeHtml(task.editKey)}" checked><span><strong>${escapeHtml(task.recipients||task.id||'当前邮件')}</strong><small>已有草稿 ${history.draftCount}${history.viaRoster?' · 总名单关联':''} · 最近 ${escapeHtml(recent)}${subject?` · ${escapeHtml(subject)}`:''}</small></span><em>建议筛除</em></label>`;
+      return `<label class="nmda-draft-history-filter-row"><input type="checkbox" data-draft-history-pick="${escapeHtml(task.editKey)}" checked><span><strong>${escapeHtml(task.recipients||task.id||'当前邮件')}</strong><small>已有草稿 ${history.draftCount} · 最近 ${escapeHtml(recent)}${subject?` · ${escapeHtml(subject)}`:''}</small></span><em>建议筛除</em></label>`;
     }).join('');
     if(draftHistoryExcludeEl)draftHistoryExcludeEl.textContent=`筛除所选（${hits.length}）`;
     if(draftHistoryKeepEl)draftHistoryKeepEl.textContent=`仍保留所选（${hits.length}）`;
@@ -4782,7 +4785,7 @@
   }
 
   function emptyRosterState(overrides={}) {
-    return {dataset:null,entries:[],manualEntries:[],routedEntries:[],audit:null,draftAudit:null,warnings:[],manualWarnings:[],routedWarnings:[],enabled:true,autoSchool:true,strict:false,sourceNames:[],manualSourceNames:[],routedSourceNames:[],...overrides};
+    return {dataset:null,entries:[],manualEntries:[],routedEntries:[],audit:null,warnings:[],manualWarnings:[],routedWarnings:[],enabled:true,autoSchool:true,strict:false,sourceNames:[],manualSourceNames:[],routedSourceNames:[],...overrides};
   }
 
   function rosterState() {
@@ -4798,12 +4801,58 @@
   }
 
   function mergeUniqueRosterEntries(entries){
-    const out=[],seen=new Set();
-    for(const entry of entries||[]){
-      const key=[String(entry?.email||'').toLowerCase(),Roster?.normalizeName?.(entry?.name||'')||'',String(entry?.schoolKey||entry?.school||'').toLowerCase()].join('|');
-      if(key!=='||'&&seen.has(key))continue;if(key!=='||')seen.add(key);out.push(entry);
+    const out=[];
+    const byEmail=new Map(),byNameSchool=new Map();
+    const cleanText=value=>String(value||'').trim();
+    const merge=(base,next)=>{
+      const pick=(a,b)=>cleanText(a)||cleanText(b);
+      const tags=[...new Set([...(base?.tags||[]),...(next?.tags||[])].map(cleanText).filter(Boolean))];
+      const merged={...base,...next,
+        email:pick(base?.email,next?.email).toLowerCase(),
+        name:pick(base?.name,next?.name),school:pick(base?.school,next?.school),country:pick(base?.country,next?.country),batch:pick(base?.batch,next?.batch),status:pick(base?.status,next?.status),priority:pick(base?.priority,next?.priority),notes:pick(base?.notes,next?.notes),tags,
+        priorityOrder:base?.priorityOrder!=null?base.priorityOrder:next?.priorityOrder,
+        source:[...new Set([...(String(base?.source||'').split(' · ')),...(String(next?.source||'').split(' · '))].map(cleanText).filter(Boolean))].join(' · '),
+        sourceRow:base?.sourceRow||next?.sourceRow||0
+      };
+      merged.nameKey=Roster?.normalizeName?.(merged.name||'')||'';
+      merged.nameKeys=Roster?.nameKeys?.(merged.name||'')||[];
+      merged.schoolKey=Roster?.schoolKey?.(merged.school||'')||'';
+      return merged;
+    };
+    for(const raw of entries||[]){
+      if(!raw)continue;
+      const entry={...raw};
+      const email=cleanText(entry.email).toLowerCase();
+      const nameKey=Roster?.normalizeName?.(entry.name||'')||'';
+      const schoolKey=Roster?.schoolKey?.(entry.school||'')||'';
+      const nameSchool=nameKey&&schoolKey?`${nameKey}|${schoolKey}`:'';
+      let index=email&&byEmail.has(email)?byEmail.get(email):-1;
+      if(index<0 && nameSchool && byNameSchool.has(nameSchool)){
+        const candidateIndex=byNameSchool.get(nameSchool),candidate=out[candidateIndex];
+        const candidateEmail=cleanText(candidate?.email).toLowerCase();
+        // Name + institution may merge incomplete roster fragments, but never collapse
+        // two explicitly different email identities into one person.
+        if(!email||!candidateEmail||email===candidateEmail)index=candidateIndex;
+      }
+      if(index>=0){
+        out[index]=merge(out[index],entry);
+      }else{
+        index=out.length;out.push(entry);
+      }
+      const current=out[index];
+      const currentEmail=cleanText(current.email).toLowerCase();
+      const currentName=Roster?.normalizeName?.(current.name||'')||'';
+      const currentSchool=Roster?.schoolKey?.(current.school||'')||'';
+      if(currentEmail)byEmail.set(currentEmail,index);
+      if(currentName&&currentSchool)byNameSchool.set(`${currentName}|${currentSchool}`,index);
     }
-    return out;
+    return out.map((entry,index)=>{
+      const email=cleanText(entry.email).toLowerCase();
+      const nameKey=Roster?.normalizeName?.(entry.name||'')||'';
+      const schoolKey=Roster?.schoolKey?.(entry.school||'')||'';
+      const identity=email||(nameKey||schoolKey?`${nameKey}|${schoolKey}`:`row-${index+1}`);
+      return {...entry,key:`roster:${identity}`,email,nameKey,nameKeys:Roster?.nameKeys?.(entry.name||'')||[],schoolKey};
+    });
   }
 
   function syncRosterParts(){
@@ -4811,7 +4860,7 @@
     state.entries=mergeUniqueRosterEntries([...(state.manualEntries||[]),...(state.routedEntries||[])]);
     state.sourceNames=[...new Set([...(state.manualSourceNames||[]),...(state.routedSourceNames||[])])];
     state.warnings=[...new Set([...(state.manualWarnings||[]),...(state.routedWarnings||[])])];
-    state.audit=null;state.draftAudit=null;
+    state.audit=null;
     const status=$('nmda-roster-source-status');
     if(status)status.textContent=state.entries.length?`已添加 ${state.entries.length} 条参考名单${state.sourceNames.length?` · ${state.sourceNames.join('、')}`:''}`:'未添加总名单。';
     const remove=$('nmda-roster-remove');if(remove)remove.hidden=!state.entries.length;
@@ -4842,74 +4891,21 @@
     return !!(sync.lastDedupeAt||sync.lastFullAt);
   }
 
-
-  function rosterEntryStableKey(entry){
-    if(!entry)return '';
-    return String(entry.key||[String(entry.email||'').toLowerCase(),Roster?.normalizeName?.(entry.name||'')||'',String(entry.schoolKey||entry.school||'').toLowerCase()].join('|'));
-  }
-
-  function mailboxDraftsForRosterMatching(){
-    if(!operationState.loaded||!operationState.store)return[];
-    return Object.values(operationState.store.draftRecords||{}).filter(record=>{
-      if(!record || record.status==='sent' || record.status==='cancelled')return false;
-      if(record.kind==='follow_up'||Number(record.sequence||0)>0)return false;
-      return Array.isArray(record.recipients)&&record.recipients.some(item=>item?.email);
-    });
-  }
-
-  function rosterDraftReconciliation(){
-    const state=rosterState();
-    if(!Roster?.reconcileDrafts || !state.entries.length || !operationState.loaded)return null;
-    const audit=Roster.reconcileDrafts(state.entries,mailboxDraftsForRosterMatching());
-    audit.complete=mailboxDedupeSnapshotAvailable();
-    audit.syncedAt=operationState.store?.mailboxSync?.lastDedupeAt||operationState.store?.mailboxSync?.lastFullAt||operationState.store?.mailboxSync?.lastQuickAt||'';
-    state.draftAudit=audit;
-    return audit;
-  }
-
-  function strongRosterDraftBridge(taskMatch,draftMatch){
-    if(!taskMatch?.entry||!draftMatch?.entry)return false;
-    if(rosterEntryStableKey(taskMatch.entry)!==rosterEntryStableKey(draftMatch.entry))return false;
-    if(!['matched','conflict'].includes(taskMatch.status)||!['matched','conflict'].includes(draftMatch.status))return false;
-    const a=Number(taskMatch.score||0),b=Number(draftMatch.score||0),hi=Math.max(a,b),lo=Math.min(a,b);
-    return (a>=102&&b>=102)||(hi>=120&&lo>=90);
-  }
-
-  function rosterDraftBridgeForTask(task){
-    const state=rosterState();
-    if(!taskNeedsDuplicateGate(task)||!state.entries.length||!Roster?.matchOne||!operationState.loaded)return[];
-    const taskMatch=task?.rosterReference
-      ? {entry:task.rosterReference,status:task.rosterMatchStatus||'matched',score:Number(task.rosterMatchScore||0),by:task.rosterMatchBy||''}
-      : Roster.matchOne(task,state.entries);
-    if(!taskMatch?.entry||!['matched','conflict'].includes(taskMatch.status))return[];
-    const audit=state.draftAudit||rosterDraftReconciliation();
-    if(!audit)return[];
-    const rows=audit.byRoster?.get?.(rosterEntryStableKey(taskMatch.entry))||[];
-    return rows.filter(row=>strongRosterDraftBridge(taskMatch,row));
-  }
-
   function mailboxHistoryForTask(task){
-    if(!Operations || !operationState.loaded || !taskNeedsDuplicateGate(task))return {sent:[],drafts:[],sentCount:0,draftCount:0,lastSentAt:'',lastDraftAt:'',lastSubject:'',lastDraftSubject:'',viaRoster:false};
+    if(!Operations || !operationState.loaded || !taskNeedsDuplicateGate(task))return {sent:[],drafts:[],sentCount:0,draftCount:0,lastSentAt:'',lastDraftAt:'',lastSubject:'',lastDraftSubject:''};
     const raw=Operations.mailboxHistoryForRecipients(operationState.store,task?.recipients||'');
     const selfKey=String(task?.editKey||task?.id||'');
     const sent=(raw.sent||[]).filter(record=>String(record?.taskId||'')!==selfKey);
-    const directDrafts=(raw.drafts||[]).filter(record=>String(record?.taskId||'')!==selfKey);
-    const draftMap=new Map(directDrafts.map((record,index)=>[String(record?.id||record?.providerMessageId||`${record?.savedAt||''}|${record?.subject||''}|${index}`),record]));
-    let viaRoster=false,rosterEntry=null;
-    for(const bridge of rosterDraftBridgeForTask(task)){
-      const record=bridge?.draft;if(!record||String(record?.taskId||'')===selfKey)continue;
-      const key=String(record.id||record.providerMessageId||'');if(key&&!draftMap.has(key)){draftMap.set(key,record);viaRoster=true;rosterEntry=bridge.entry||rosterEntry;}
-    }
-    const drafts=[...draftMap.values()].sort((a,b)=>Date.parse(b?.savedAt||b?.scheduleAt||0)-Date.parse(a?.savedAt||a?.scheduleAt||0));
+    const drafts=(raw.drafts||[]).filter(record=>String(record?.taskId||'')!==selfKey);
     return {
       sent,drafts,sentCount:sent.length,draftCount:drafts.length,
-      lastSentAt:sent[0]?.sentAt||'',lastDraftAt:drafts[0]?.savedAt||drafts[0]?.scheduleAt||'',
-      lastSubject:sent[0]?.subject||'',lastDraftSubject:drafts[0]?.subject||'',viaRoster,rosterEntry
+      lastSentAt:sent[0]?.sentAt||'',lastDraftAt:drafts[0]?.savedAt||'',
+      lastSubject:sent[0]?.subject||'',lastDraftSubject:drafts[0]?.subject||''
     };
   }
 
   function draftHistoryHitKey(task,history){
-    return [String(task?.recipients||'').trim().toLowerCase(),history?.viaRoster?'roster':'direct',rosterEntryStableKey(history?.rosterEntry),history?.draftCount||0,history?.lastDraftAt||'-',history?.lastDraftSubject||'-'].join('|');
+    return [String(task?.recipients||'').trim().toLowerCase(),history?.draftCount||0,history?.lastDraftAt||'-',history?.lastDraftSubject||'-'].join('|');
   }
 
   function unresolvedDraftHistoryHits(tasks=batch.tasks||[]){
@@ -4988,10 +4984,21 @@
 
   function applyRosterCrossCheck(tasks) {
     const state=rosterState();
-    if(!Roster || !state.enabled || !state.entries.length){state.audit=null;state.draftAudit=null;return null;}
-    const audit=Roster.crossCheck(tasks,state.entries);
-    const draftAudit=rosterDraftReconciliation();
-    const byKey=new Map((tasks||[]).map(t=>[t.editKey,t]));
+    const allTasks=Array.isArray(tasks)?tasks:[];
+    // Reference-roster reconciliation belongs only to locally imported Initial mail.
+    // Mailbox drafts remain mailbox-history facts and never participate in roster mapping.
+    const eligible=allTasks.filter(task=>task?.sourceKind==='import');
+    for(const task of allTasks){
+      task.rosterMatchStatus='';task.rosterMatchScore=0;task.rosterMatchBy='';task.rosterReference=null;
+      task.rosterEmailCandidate='';task.rosterIssues=[];task.rosterDuplicate=false;task.rosterRecipientSupplemented=false;task.rosterSchoolSupplemented=false;
+    }
+    if(!Roster || !state.enabled || !state.entries.length || !eligible.length){state.audit=null;return null;}
+
+    const audit=Roster.crossCheck(eligible,state.entries);
+    const byKey=new Map(eligible.map(t=>[t.editKey,t]));
+    let autoRecipientSupplements=0,schoolSupplements=0;
+    const methodCounts={email:0,nameSchool:0,nameDomain:0,uniqueName:0,emailName:0,other:0};
+
     for(const match of audit.matches){
       const task=match.task;if(!task)continue;
       const edit=batch.taskEdits.get(task.editKey)||{};
@@ -5001,22 +5008,44 @@
       task.rosterReference=match.entry?{...match.entry}:null;
       task.rosterEmailCandidate=match.emailCandidate||'';
       task.rosterIssues=[];
+      if(match.by==='email')methodCounts.email++;
+      else if(match.by==='name+school')methodCounts.nameSchool++;
+      else if(match.by==='name+domain')methodCounts.nameDomain++;
+      else if(match.by==='unique-name')methodCounts.uniqueName++;
+      else if(match.by==='email-name')methodCounts.emailName++;
+      else methodCounts.other++;
+
+      // Only deterministic name+institution evidence may silently repair a missing recipient.
+      // A unique-name-only match stays a review candidate rather than mutating the imported mail.
+      const canSupplementRecipient=match.status==='matched'
+        && !recipientLooksValid(task.recipients||'')
+        && !!match.entry?.email
+        && match.by==='name+school'
+        && Number(match.score||0)>=108;
+      if(canSupplementRecipient){
+        task.recipients=String(match.entry.email||'').trim();
+        task.rosterEmailCandidate='';
+        task.rosterRecipientSupplemented=true;
+        task.rosterRecipientSource='roster:name+school';
+        autoRecipientSupplements++;
+        refreshTaskCoreValidation(task);
+        refreshTaskSearchStatic(task);
+      }
+
       if(match.status==='conflict'&&match.entry?.school){
         task.scheduleGroupNotice=`院校信息不一致，排程已使用总名单中的“${match.entry.school}”`;
-        if(state.autoSchool){task.school=match.entry.school;task.schoolSource='roster';}
+        if(state.autoSchool){task.school=match.entry.school;task.schoolSource='roster';refreshTaskSearchStatic(task);}
       }
       if(match.schoolSupplement && state.autoSchool && match.entry?.school && !task.school){
-        task.school=match.entry.school;task.schoolSource='roster';task.rosterSchoolSupplemented=true;
+        task.school=match.entry.school;task.schoolSource='roster';task.rosterSchoolSupplemented=true;schoolSupplements++;refreshTaskSearchStatic(task);
       }
       if(!edit.rosterConfirmed){
         if(match.status==='ambiguous')task.rosterIssues.push('总名单中找到多条相似记录，请检查联系人');
-        if(match.status==='off-roster' && state.strict)task.rosterIssues.push('当前邮件未在总套磁名单中找到对应导师');
+        if(match.emailConflict)task.rosterIssues.push('导入邮件收件人邮箱与总名单记录不一致，请核对联系人');
+        if(match.status==='off-roster' && state.strict)task.rosterIssues.push('当前导入邮件未在参考总名单中找到对应联系人');
       }
       if(match.entry){
         task.rosterMeta={country:match.entry.country||'',batch:match.entry.batch||'',status:match.entry.status||'',priority:match.entry.priority||'',priorityOrder:match.entry.priorityOrder!=null&&String(match.entry.priorityOrder).trim()!==''&&Number.isFinite(Number(match.entry.priorityOrder))?Number(match.entry.priorityOrder):null,tags:[...(match.entry.tags||[])],notes:match.entry.notes||''};
-        const draftRows=(draftAudit?.byRoster?.get?.(rosterEntryStableKey(match.entry))||[]).filter(row=>strongRosterDraftBridge(match,row));
-        task.rosterDraftMatches=draftRows.map(row=>({id:String(row.draft?.id||''),subject:String(row.draft?.subject||''),savedAt:String(row.draft?.savedAt||''),scheduleAt:String(row.draft?.scheduleAt||''),score:Number(row.score||0),by:String(row.by||'')}));
-        task.rosterDraftBridgeHit=task.rosterDraftMatches.length>0;
       }
     }
     for(const dup of audit.duplicateMatches||[]){
@@ -5024,13 +5053,14 @@
         const task=byKey.get(m.task?.editKey);if(!task)continue;
         const edit=batch.taskEdits.get(task.editKey)||{};
         task.rosterDuplicate=true;
-        if(taskNeedsDuplicateGate(task) && !task.batchDuplicate && !edit.rosterConfirmed && !task.rosterIssues.includes('总名单核验：同一导师对应多封当前邮件'))task.rosterIssues.push('总名单核验：同一导师对应多封当前邮件');
+        if(taskNeedsDuplicateGate(task) && !task.batchDuplicate && !edit.rosterConfirmed && !task.rosterIssues.includes('总名单核验：同一联系人对应多封导入邮件'))task.rosterIssues.push('总名单核验：同一联系人对应多封导入邮件');
       }
     }
-    for(const task of tasks||[]){
-      if(task.rosterMatchStatus==='off-roster' && !state.strict) task.warnings=[...new Set([...(task.warnings||[]),'总名单：当前邮件未匹配到参考名单（仅提示）'])];
+    for(const task of eligible){
+      if(task.rosterMatchStatus==='off-roster' && !state.strict) task.warnings=[...new Set([...(task.warnings||[]),'总名单：当前导入邮件未匹配到参考名单（仅提示）'])];
       if((task.rosterIssues||[]).length){task.errors=[...new Set([...(task.errors||[]),...task.rosterIssues])];task.status='error';}
     }
+    audit.summary={...(audit.summary||{}),tasks:eligible.length,autoRecipientSupplements,schoolSupplements,methodCounts};
     state.audit=audit;
     return audit;
   }
@@ -5066,8 +5096,8 @@
 
     const duplicateAudit=batch.duplicateAudit || Roster?.auditTaskDuplicates?.(tasks) || {groups:[],summary:{tasks:tasks.length,groups:0,exact:0,probable:0,affectedTasks:0}};
     const history=operationHistoryAudit(tasks);
-    const rosterAudit=state.entries.length ? (state.audit || (Roster&&tasks.length?Roster.crossCheck(tasks,state.entries):null)) : null;
-    const draftAudit=state.entries.length ? (state.draftAudit || rosterDraftReconciliation()) : null;
+    const rosterEligible=tasks.filter(task=>task?.sourceKind==='import');
+    const rosterAudit=state.entries.length ? (state.audit || (Roster&&rosterEligible.length?Roster.crossCheck(rosterEligible,state.entries):null)) : null;
     const dx=duplicateAudit.summary||{},pendingDuplicates=unresolvedDuplicateGroupCount();
     const metrics=[];
     if(tasks.length)metrics.push(`<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>当前邮件</span></div>`);
@@ -5077,20 +5107,11 @@
     if(state.entries.length)metrics.push(`<div class="nmda-import-metric"><strong>${state.entries.length}</strong><span>参考名单</span></div>`);
     if(rosterAudit){
       const x=rosterAudit.summary||{};
-      metrics.push(`<div class="nmda-import-metric"><strong>${x.matched||0}</strong><span>名单匹配</span></div>`);
+      metrics.push(`<div class="nmda-import-metric"><strong>${x.matched||0}</strong><span>邮件↔名单</span></div>`);
+      if(x.autoRecipientSupplements)metrics.push(`<div class="nmda-import-metric"><strong>${x.autoRecipientSupplements}</strong><span>名单补全邮箱</span></div>`);
       if(x.unwritten)metrics.push(`<div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>尚未加入</span></div>`);
+      if(x.emailConflicts)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${x.emailConflicts}</strong><span>邮箱不一致</span></div>`);
       if(x.ambiguous||x.duplicates)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${(x.ambiguous||0)+(x.duplicates||0)}</strong><span>名单待核对</span></div>`);
-    }
-    if(draftAudit){
-      const d=draftAudit.summary||{};
-      if(draftAudit.complete){
-        metrics.push(`<div class="nmda-import-metric"><strong>${d.rosterWithDraft||0}</strong><span>名单 ↔ 草稿</span></div>`);
-        if(d.missingDrafts)metrics.push(`<div class="nmda-import-metric"><strong>${d.missingDrafts}</strong><span>名单缺草稿</span></div>`);
-        const draftIssues=(d.unmatchedDrafts||0)+(d.ambiguousDrafts||0)+(d.duplicateDraftContacts||0);
-        if(draftIssues)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${draftIssues}</strong><span>草稿待核对</span></div>`);
-      }else{
-        metrics.push(`<div class="nmda-import-metric"><strong>…</strong><span>草稿匹配中</span></div>`);
-      }
     }
     if(summary)summary.innerHTML=metrics.join('');
 
@@ -5108,21 +5129,13 @@
         const x=rosterAudit.summary||{};
         const rosterParts=[];
         if(x.schoolSupplements)rosterParts.push(`补充 ${x.schoolSupplements} 条院校信息`);
-        if(x.emailCandidates)rosterParts.push(`找到 ${x.emailCandidates} 个缺失邮箱候选`);
+        if(x.autoRecipientSupplements)rosterParts.push(`自动补全 ${x.autoRecipientSupplements} 个高置信邮箱`);
+        const reviewEmailCandidates=Math.max(0,Number(x.emailCandidates||0)-Number(x.autoRecipientSupplements||0));
+        if(reviewEmailCandidates)rosterParts.push(`找到 ${reviewEmailCandidates} 个邮箱候选待核对`);
+        if(x.emailConflicts)rosterParts.push(`${x.emailConflicts} 封邮件邮箱与名单不一致`);
         if(x.unwritten)rosterParts.push(`${x.unwritten} 位名单联系人尚未加入本批次`);
-        parts.push(`参考总名单${rosterParts.length?`额外${rosterParts.join('、')}`:'已完成交叉核对'}`);
-      }else if(state.entries.length&&!tasks.length)parts.push('参考总名单已就绪；加入邮件后会自动进行交叉核对');
-      if(draftAudit){
-        const d=draftAudit.summary||{};
-        if(draftAudit.complete){
-          const draftParts=[`${d.rosterWithDraft||0} 位名单联系人已有 Draft`];
-          if(d.missingDrafts)draftParts.push(`${d.missingDrafts} 位尚无 Draft`);
-          if(d.unmatchedDrafts)draftParts.push(`${d.unmatchedDrafts} 封 Draft 不在名单`);
-          if(d.ambiguousDrafts)draftParts.push(`${d.ambiguousDrafts} 封 Draft 匹配不唯一`);
-          if(d.duplicateDraftContacts)draftParts.push(`${d.duplicateDraftContacts} 位联系人存在多份 Draft`);
-          parts.push(`总名单 ↔ Draft 已完成：${draftParts.join('、')}`);
-        }else parts.push('总名单 ↔ Draft 正在等待完整草稿箱历史；完成后会自动建立关联');
-      }
+        parts.push(`参考总名单已与导入邮件交叉匹配${rosterParts.length?`，并${rosterParts.join('、')}`:''}`);
+      }else if(state.entries.length&&!tasks.length)parts.push('参考总名单已就绪；后续导入邮件会自动匹配，无需重新上传名单');
       note.innerHTML=parts.length?`${parts.join('；')}。`:'核验将在加入邮件后自动开始。';
     }
 
@@ -5147,25 +5160,15 @@
         const off=(rosterAudit.matches||[]).filter(m=>m.status==='off-roster').slice(0,12);
         const ambiguities=(rosterAudit.matches||[]).filter(m=>m.status==='ambiguous').slice(0,12);
         const scheduleDiffs=(rosterAudit.matches||[]).filter(m=>m.status==='conflict').slice(0,12);
+        const emailDiffs=(rosterAudit.matches||[]).filter(m=>m.emailConflict).slice(0,12);
         const unwritten=(rosterAudit.unwritten||[]).slice(0,12);
         const rosterDups=(rosterAudit.duplicateMatches||[]).slice(0,8);
         html+=section('尚未加入本批次',unwritten,e=>`<span>${escapeHtml(rosterEntryLabel(e))}${e.batch?` · ${escapeHtml(e.batch)}`:''}</span>`,rosterAudit.unwritten?.length||0);
         html+=section('不在参考名单',off,m=>`<span>${escapeHtml(m.task?.id||m.task?.recipients||'邮件')} · ${escapeHtml(m.task?.recipients||'')}</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='off-roster').length);
-        html+=section('名单匹配待核对',ambiguities,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → 多个参考名单候选</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='ambiguous').length);
+        html+=section('邮件 ↔ 名单待核对',ambiguities,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → 多个参考名单候选</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='ambiguous').length);
+        html+=section('收件人邮箱不一致',emailDiffs,m=>`<span>${escapeHtml(m.task?.recipients||m.task?.id||'邮件')} → 名单：${escapeHtml(m.entry?.email||'')}</span>`,(rosterAudit.matches||[]).filter(m=>m.emailConflict).length);
         html+=section('排程参考（不影响邮件）',scheduleDiffs,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → ${escapeHtml(rosterEntryLabel(m.entry))}</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='conflict').length);
-        html+=section('名单映射重复',rosterDups,d=>`<span>${escapeHtml(rosterEntryLabel(d.entry))} · ${d.matches?.length||0} 封邮件</span>`,rosterAudit.duplicateMatches?.length||0);
-      }
-      if(draftAudit&&draftAudit.complete){
-        const matched=(draftAudit.matched||[]).slice(0,12);
-        const missing=(draftAudit.missing||[]).slice(0,12);
-        const unmatched=(draftAudit.unmatched||[]).slice(0,12);
-        const ambiguous=(draftAudit.ambiguous||[]).slice(0,12);
-        const multi=(draftAudit.duplicateDrafts||[]).slice(0,8);
-        html+=section('总名单 ↔ Draft',matched,m=>`<span>${escapeHtml(rosterEntryLabel(m.entry))} ← ${escapeHtml(m.draft?.subject||m.draft?.recipients?.[0]?.email||'草稿')} · ${escapeHtml(m.by||'匹配')}</span>`,draftAudit.matched?.length||0);
-        html+=section('名单尚无 Draft',missing,e=>`<span>${escapeHtml(rosterEntryLabel(e))}</span>`,draftAudit.missing?.length||0);
-        html+=section('Draft 不在名单',unmatched,m=>`<span>${escapeHtml(m.draft?.recipients?.[0]?.email||'未知收件人')} · ${escapeHtml(m.draft?.subject||'无主题')}</span>`,draftAudit.unmatched?.length||0);
-        html+=section('Draft 匹配待核对',ambiguous,m=>`<span>${escapeHtml(m.draft?.recipients?.[0]?.email||m.task?.name||'草稿')} → ${m.candidates?.length||0} 个名单候选</span>`,draftAudit.ambiguous?.length||0);
-        html+=section('同一名单联系人多份 Draft',multi,d=>`<span>${escapeHtml(rosterEntryLabel(d.entry))} · ${d.matches?.length||0} 份草稿</span>`,draftAudit.duplicateDrafts?.length||0);
+        html+=section('同一名单联系人对应多封导入邮件',rosterDups,d=>`<span>${escapeHtml(rosterEntryLabel(d.entry))} · ${d.matches?.length||0} 封邮件</span>`,rosterAudit.duplicateMatches?.length||0);
       }
       details.innerHTML=html;
     }
@@ -5184,15 +5187,22 @@
       if(!parsed.entries.length)throw new Error('总名单中没有找到可用导师信息。请至少提供姓名、邮箱或学校中的一项。');
       for(const [key,edit] of batch.taskEdits.entries()){if(edit?.rosterConfirmed){const next={...edit};delete next.rosterConfirmed;batch.taskEdits.set(key,next);}}
       batch.handoffComplete=false;
-      const state=rosterState();state.dataset=dataset;state.manualEntries=parsed.entries;state.manualWarnings=parsed.warnings||[];state.manualSourceNames=list.map(f=>f.name);syncRosterParts();
+      const state=rosterState();
+      state.dataset=dataset;
+      state.manualEntries=mergeUniqueRosterEntries([...(state.manualEntries||[]),...(parsed.entries||[])]);
+      state.manualWarnings=[...new Set([...(state.manualWarnings||[]),...(parsed.warnings||[])])];
+      state.manualSourceNames=[...new Set([...(state.manualSourceNames||[]),...list.map(f=>f.name)])];
+      syncRosterParts();
       batch.rosterPromptChoice='added';
       if(status)status.textContent=`已添加 ${state.entries.length} 条参考名单${parsed.stats.invalidEmails?` · ${parsed.stats.invalidEmails} 条邮箱待检查`:''}${parsed.stats.duplicates?` · ${parsed.stats.duplicates} 条重复`:''}`;
-      if(batch.dataset)rebuildTasks();else renderRosterAudit();
+      if(batch.dataset){
+        rebuildTasks();
+        const x=state.audit?.summary||{};
+        if(status)status.textContent=`参考名单 ${state.entries.length} 条 · 已匹配导入邮件 ${x.matched||0} 封${x.autoRecipientSupplements?` · 补全邮箱 ${x.autoRecipientSupplements}`:''}${x.ambiguous?` · 待核对 ${x.ambiguous}`:''}`;
+      }else renderRosterAudit();
       renderImportLifecycleState();
       renderSupplementPreflight();
       if(batch.dataset&&batch.supplementPreflightDone)renderImportHandoff();
-      scheduleWorkspacePersist();
-      scheduleMailboxAutoSync('history',{source:'roster',force:true});
     }catch(error){console.error(`[${APP}] roster`,error);if(status)status.textContent=`总名单读取失败：${error.message}`;}
     finally{if(rosterFileEl)rosterFileEl.value='';}
   }
@@ -5207,7 +5217,6 @@
     const remove=$('nmda-roster-remove');if(remove)remove.hidden=true;
     if(batch.dataset){rebuildTasks();renderSourceInventory();}else renderRosterAudit();
     renderImportLifecycleState();
-    scheduleWorkspacePersist();
   }
 
   function mergedRowSourcePurpose(sourceFile) {
@@ -5370,7 +5379,7 @@
           policyBlocked, policyReasons: gate.reasons,
           files: mergedFiles, tableFiles: resolved.files, attachmentDetails: resolved.details,
           scheduleAt, scheduleSource, scheduleReason:String(edit.scheduleReason||(scheduleSource==='mailbox'?'草稿箱原排期':scheduleSource==='imported'?'导入自带排期':'')), scheduleEvidenceHeaders:[...(scheduleEvidence.headers||[])], errors:[...new Set(errors)], warnings:[...new Set(warnings)], status: errors.length ? 'error' : 'ready', runtimeError: '', note: '',
-          importConfidence, importEvidence:[...(rowMeta?.evidence || [])], importIssues, importHeading:rowMeta?.heading || '', importRecipientEvidence:rowMeta?.recipientEvidence || null,
+          importConfidence, importEvidence:[...(rowMeta?.evidence || [])], importIssues, importHeading:rowMeta?.heading || '', importSalutation:rowMeta?.salutation || '', importRecipientEvidence:rowMeta?.recipientEvidence || null,
           reviewConfirmed: !!edit.reviewConfirmed, reviewDraftPending: !!edit.reviewDraftPending, rosterConfirmed: !!edit.rosterConfirmed,
           duplicateConfirmedGroups:Array.isArray(edit.duplicateConfirmedGroups)?[...edit.duplicateConfirmedGroups]:[], duplicateIssues:[], duplicateGroupIds:[], importExcluded:false,
           draftHistoryDecision:String(edit.draftHistoryDecision||''), draftHistoryDecisionKey:String(edit.draftHistoryDecisionKey||''),
@@ -5378,8 +5387,10 @@
         });
       }
     }
-    applyBatchDuplicateAudit(tasks);
+    // Roster enrichment runs first so deterministic recipient/institution supplements
+    // participate in duplicate detection and mailbox-history checks.
     applyRosterCrossCheck(tasks);
+    applyBatchDuplicateAudit(tasks);
     batch.tasks = tasks;
     scheduleBatchRender({aux:true});
     scheduleReadyBatchAutoHandoff('邮件已准备好');
@@ -6137,7 +6148,7 @@
     $('nmda-import-format-info').textContent = `${containerCount?`已展开 ${containerCount} 个资料包 · `:''}${sourceCount?`${sourceCount} 个内容文件 · `:''}${batch.tasks.length} 封邮件${referenceRosterCount()?` · 参考名单 ${referenceRosterCount()} 条`:''}${duplicateSourceCount?` · 已忽略 ${duplicateSourceCount} 个重复副本`:''}`;
     const addedTaskCount=Math.max(0,(batch.tasks||[]).length-previousTaskCount);
     setImportStatus(routedCounts.mail
-      ? `${append?`已追加到当前工作集${addedTaskCount?` · 新增 ${addedTaskCount} 封邮件`:''}`:'邮件已加入本批次'}。${duplicateSourceCount?`系统已在解析前合并 ${duplicateSourceCount} 个完全相同的重复来源。`:''}${referenceRosterCount()?'参考总名单已参与核对。':'有参考总名单可现在补充；没有可直接继续。'}`
+      ? `${append?`已追加到当前工作集${addedTaskCount?` · 新增 ${addedTaskCount} 封邮件`:''}`:'邮件已加入本批次'}。${duplicateSourceCount?`系统已在解析前合并 ${duplicateSourceCount} 个完全相同的重复来源。`:''}${referenceRosterCount()?'参考总名单已自动匹配当前导入邮件，后续追加邮件也会继续匹配。':'有参考总名单可现在补充；没有可直接继续。'}`
       : `当前没有识别到可创建的邮件。已打开分类核验工作区，请先确认文件用途并直接修正。`,
       routedCounts.mail?'ok':'warn');
     renderImportLifecycleState();
@@ -6696,7 +6707,7 @@
         setMailboxAutoSyncCue('waiting',connection?.connected?'完成登录后自动读取':'连接网易邮箱后自动读取');
         return null;
       }
-      const sourceLabel=source==='import'?'导入后核验历史':source==='roster'?'总名单匹配草稿':source==='ready-handoff'?'任务就绪自动同步':source?.startsWith?.('tab:')?'页面切换刷新':source==='connection'?'邮箱连接完成':'自动刷新';
+      const sourceLabel=source==='import'?'导入后核验历史':source==='ready-handoff'?'任务就绪自动同步':source?.startsWith?.('tab:')?'页面切换刷新':source==='connection'?'邮箱连接完成':'自动刷新';
       const detail=normalizedKind==='history'?`${sourceLabel} · 已发送 + 草稿`:normalizedKind==='full'?`${sourceLabel} · 完整邮箱`:`${sourceLabel} · 已发送 + 草稿 + 收件`;
       setMailboxAutoSyncCue('syncing',detail);
       try{
@@ -6933,7 +6944,6 @@
     await restoreWorkspaceFromStorage();
     invalidateBatchView(true);
     await ensureOperationStore(true).catch(error=>console.warn(`[${APP}] operations init failed`,error));
-    if(referenceRosterCount())scheduleMailboxAutoSync('history',{source:'roster'});
     applyDeepLink();
     scheduleBatchRender({aux:true,force:true});
   })();
