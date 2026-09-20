@@ -120,10 +120,12 @@
   }
   function roundForTask(task){
     const explicit=task?.rosterMeta?.plannerRound;
-    if(Number.isInteger(Number(explicit))&&Number(explicit)>=0)return {has:true,round:Number(explicit),raw:String(task?.rosterMeta?.batch||`R${Number(explicit)+1}`)};
+    if(explicit!=null&&String(explicit).trim()!==''&&Number.isInteger(Number(explicit))&&Number(explicit)>=0)return {has:true,round:Number(explicit),raw:String(task?.rosterMeta?.batch||`R${Number(explicit)+1}`)};
     const raw=String(task?.rosterMeta?.batch||task?.rosterReference?.batch||'').normalize('NFKC').trim();if(!raw)return {has:false,round:null,raw:''};
     const match=raw.match(/(?:^|\b)R\s*(\d+)\b/i)||raw.match(/(?:第\s*)?(\d+)\s*(?:批|轮)/)||(/^\d+$/.test(raw)?[raw,raw]:null);
-    const n=Number(match?.[1]);return Number.isInteger(n)&&n>0?{has:true,round:n-1,raw}:{has:false,round:null,raw};
+    let n=Number(match?.[1]);
+    if(!Number.isInteger(n)||n<=0){const cm=raw.match(/(?:第\s*)?([一二三四五六七八九十]{1,3})\s*(?:批|轮)/);if(cm){const digit={一:1,二:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9},chars=cm[1];if(chars==='十')n=10;else if(chars.includes('十')){const [a,b]=chars.split('十');n=(a?digit[a]||0:1)*10+(b?digit[b]||0:0);}else n=digit[chars]||0;}}
+    return Number.isInteger(n)&&n>0?{has:true,round:n-1,raw}:{has:false,round:null,raw};
   }
 
   function dateKey(date){return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;}
@@ -320,7 +322,11 @@
           const round=scheduleRound(existingDate,start,intervalMs);
           if(round>=0){occupancy.set(round,(occupancy.get(round)||0)+1);maxRound=Math.max(maxRound,round);}
           preserved.push({task,group,scheduleAt:task.scheduleAt,source:source||'existing'});
-        }else autoQueue.push(task);
+        }else{
+          const requested=roundForTask(task);
+          if(task?.rosterMeta?.batchRequired&&!requested.has)throw new Error(`${group.label} 中仍有未分批联系人。请先在“名单分批”中新建批次并加入联系人；系统不会自动猜轮次。`);
+          autoQueue.push(task);
+        }
       }
       const withPriority=autoQueue.filter(task=>priorityForTask(task).has);
       if(withPriority.length&&autoQueue.length>1)priorityOrderedGroups++;

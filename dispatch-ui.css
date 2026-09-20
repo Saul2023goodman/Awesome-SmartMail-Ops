@@ -1310,3 +1310,113 @@
   #nmda-root .nmda-roster-planner-view .nmda-roster-intent-summary { grid-template-columns:1fr; }
   #nmda-root .nmda-roster-planner-view .nmda-roster-intent-summary > small { max-width:none; text-align:left; }
 }
+
+/* v3.8.48 — explicit-only batch planning: users create rounds, visual traits only select people */
+#nmda-root .nmda-roster-planner-view .nmda-roster-selection-context {
+  grid-template-columns:minmax(210px,1fr) auto auto auto auto !important;
+  gap:6px !important;
+}
+#nmda-root .nmda-roster-active-batch {
+  min-width:92px;
+  min-height:34px;
+  display:grid;
+  align-content:center;
+  gap:1px;
+  padding:4px 9px;
+  border:1px solid #dce4ed;
+  border-radius:7px;
+  background:#fff;
+}
+#nmda-root .nmda-roster-active-batch span {
+  color:#8a94a4;
+  font-size:7.8px;
+  line-height:1;
+}
+#nmda-root .nmda-roster-active-batch strong {
+  color:#344054;
+  font-size:10px;
+  line-height:1.2;
+}
+#nmda-root .nmda-roster-active-batch[data-state="ready"] {
+  border-color:#9bbde6;
+  background:#f4f8fd;
+}
+#nmda-root .nmda-roster-active-batch[data-state="ready"] strong { color:#245b96; }
+#nmda-root .nmda-roster-batch-add,
+#nmda-root .nmda-roster-batch-create,
+#nmda-root .nmda-roster-batch-clear {
+  min-height:34px !important;
+  white-space:nowrap;
+}
+#nmda-root .nmda-roster-batch-create {
+  border-color:#cfd9e5;
+  background:#fff;
+  color:#344054;
+}
+#nmda-root .nmda-roster-batch-create:hover { border-color:#9eb8d6; background:#f8fbff; }
+#nmda-root .nmda-roster-batch-track .nmda-roster-batch-empty-state {
+  min-width:220px;
+  flex:1 1 260px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:0 10px;
+  border:1px dashed #d7dee7;
+  border-radius:7px;
+  background:#fbfcfd;
+}
+#nmda-root .nmda-roster-batch-empty-state strong { color:#566273; font-size:9px; }
+#nmda-root .nmda-roster-batch-empty-state span { color:#929baa; font-size:8.2px; }
+#nmda-root .nmda-roster-batch-segment.is-fixed {
+  border-color:#d7e2d5;
+  background:#f6faf5;
+  color:#567154;
+}
+#nmda-root .nmda-roster-batch-segment.is-fixed b { color:#456b45; }
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip .is-format-mark,
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip .is-font-color,
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip .is-border-mark {
+  width:14px !important;
+  height:14px !important;
+  flex:0 0 14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:4px !important;
+  background:#f5f7fa;
+  border:1px solid #d7dee7;
+  color:#596579;
+  font-size:9px;
+  line-height:1;
+}
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip .is-border-mark {
+  border:2px solid #6f7b8d;
+  background:#fff;
+}
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip .is-font-color {
+  font-weight:800;
+  background:#fff;
+}
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip b { min-width:12px; text-align:right; }
+#nmda-root .nmda-roster-planner-view .nmda-roster-intent-summary > small {
+  max-width:210px;
+}
+@media (max-width:1180px) {
+  #nmda-root .nmda-roster-planner-view .nmda-roster-selection-context {
+    grid-template-columns:minmax(180px,1fr) auto auto auto !important;
+  }
+  #nmda-root .nmda-roster-planner-view .nmda-roster-batch-clear { grid-column:auto !important; }
+}
+@media (max-width:900px) {
+  #nmda-root .nmda-roster-planner-view .nmda-roster-selection-context {
+    grid-template-columns:1fr auto auto !important;
+  }
+  #nmda-root .nmda-roster-planner-view .nmda-roster-selection-copy { grid-column:1 / -1; }
+}
+@media (max-width:640px) {
+  #nmda-root .nmda-roster-planner-view .nmda-roster-selection-context { grid-template-columns:1fr 1fr !important; }
+  #nmda-root .nmda-roster-active-batch { min-width:0; }
+  #nmda-root .nmda-roster-batch-add,
+  #nmda-root .nmda-roster-batch-create,
+  #nmda-root .nmda-roster-batch-clear { width:100%; }
+}

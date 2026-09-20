@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.47",
-  "description": "SmartMail Ops — canvas-first roster batching with visual batch overview, in-sheet batch markers, color/box selection, merge-aware XLSX restoration, focused roster columns, attachment transaction barrier, and cumulative workspace.",
+  "version": "3.8.48",
+  "description": "SmartMail Ops — explicit-only roster batching: recognized Excel rounds/fixed times are preserved; ambiguous colors and formatting only select people; users create batches manually, with canvas-first verification, merge-aware XLSX restoration, and attachment transaction barriers.",
   "permissions": [
     "scripting",
     "tabs",

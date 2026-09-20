@@ -12,7 +12,11 @@
   }
   function createState(saved={}){
     const intents=saved?.intents&&typeof saved.intents==='object'?saved.intents:{};
-    return {version:2,sourceKey:clean(saved?.sourceKey),intents:{...intents},lastSelection:saved?.lastSelection||null,lastUpdatedAt:clean(saved?.lastUpdatedAt),showIrrelevantColumns:!!saved?.showIrrelevantColumns};
+    const batches=[];
+    for(const raw of (Array.isArray(saved?.batches)?saved.batches:[])){const label=clean(typeof raw==='string'?raw:raw?.label);if(label&&!batches.includes(label))batches.push(label);}
+    // Migrate batches created by older planner versions without inventing any new rounds.
+    for(const intent of Object.values(intents)){const label=clean(intent?.batch);if(label&&intent?.batchSource&&intent.batchSource!=='excel'&&!batches.includes(label))batches.push(label);}
+    return {version:3,sourceKey:clean(saved?.sourceKey),intents:{...intents},batches,activeBatch:clean(saved?.activeBatch),lastSelection:saved?.lastSelection||null,lastUpdatedAt:clean(saved?.lastUpdatedAt),showIrrelevantColumns:!!saved?.showIrrelevantColumns};
   }
   function excelVisual(set){return set?.meta?.excelVisual||null;}
   function styleLookup(set){
@@ -112,6 +116,43 @@
     }
     return groups.sort((a,b)=>b.count-a.count||a.fill.localeCompare(b.fill));
   }
+
+  function featureGroups(set,{rows:rowFilter=null,startRow=1}={}){
+    const allowed=rowFilter?new Set(rowFilter):null,cache=styleLookup(set),groups=new Map();
+    const add=(key,data,row)=>{if(!key)return;if(!groups.has(key))groups.set(key,{key,rows:[],...data});const g=groups.get(key);if(!g.rows.includes(row))g.rows.push(row);};
+    for(let row=Math.max(0,startRow);row<(set?.rows?.length||0);row++){
+      if(allowed&&!allowed.has(row))continue;
+      const values=set?.rows?.[row]||[];
+      const fill=dominantRowFill(set,row,cache);if(fill)add(`fill:${fill}`,{kind:'fill',value:fill,label:'颜色'},row);
+      let bold=false,italic=false;const fontColors=new Map(),strongBorders=new Map();
+      for(let col=0;col<values.length;col++){
+        if(clean(values[col])==='')continue;const style=styleAt(set,row,col,cache)||{};
+        if(style.font?.bold)bold=true;if(style.font?.italic)italic=true;
+        const fontColor=clean(style.font?.color);if(fontColor&&!/^#?(?:000000|111111|222222|333333)$/i.test(fontColor))fontColors.set(fontColor,(fontColors.get(fontColor)||0)+1);
+        for(const side of ['top','right','bottom','left']){const b=style.border?.[side];if(b?.style&&/^(?:medium|thick|double)$/i.test(String(b.style)))strongBorders.set(String(b.style).toLowerCase(),(strongBorders.get(String(b.style).toLowerCase())||0)+1);}
+      }
+      if(bold)add('font:bold',{kind:'bold',value:'bold',label:'加粗'},row);
+      if(italic)add('font:italic',{kind:'italic',value:'italic',label:'斜体'},row);
+      if(fontColors.size){const [color]=[...fontColors.entries()].sort((a,b)=>b[1]-a[1])[0];add(`font-color:${color}`,{kind:'font-color',value:color,label:'字体色'},row);}
+      if(strongBorders.size){const [style]=[...strongBorders.entries()].sort((a,b)=>b[1]-a[1])[0];add(`border:${style}`,{kind:'border',value:style,label:'粗边框'},row);}
+    }
+    return [...groups.values()].map(g=>({...g,count:g.rows.length})).filter(g=>g.kind==='fill'||g.count>=2).sort((a,b)=>{
+      const weight={fill:0,bold:1,'font-color':2,border:3,italic:4};return (weight[a.kind]??9)-(weight[b.kind]??9)||b.count-a.count||a.key.localeCompare(b.key);
+    });
+  }
+  function explicitBatch(entry={}){const label=clean(entry?.batch);return parseRound(label)!=null?label:'';}
+  function knownBatches(state,entries=[]){
+    const labels=[];const push=raw=>{const label=clean(raw);if(label&&!labels.includes(label))labels.push(label);};
+    for(const label of state?.batches||[])push(label);
+    for(const entry of entries||[])push(explicitBatch(entry));
+    for(const entry of entries||[])push(intentForEntry(state,entry)?.batch);
+    return labels.sort((a,b)=>{const ar=parseRound(a),br=parseRound(b);if(ar!=null||br!=null)return (ar??9999)-(br??9999)||a.localeCompare(b);return a.localeCompare(b);});
+  }
+  function nextBatchLabel(state,entries=[]){const used=new Set();for(const label of knownBatches(state,entries)){const round=parseRound(label);if(round!=null)used.add(round+1);}let n=1;while(used.has(n)&&n<999)n++;return `R${n}`;}
+  function createBatch(state,entries=[],preferred=''){
+    const next=createState(state),label=clean(preferred)||nextBatchLabel(next,entries);if(!next.batches.includes(label))next.batches.push(label);next.activeBatch=label;next.lastUpdatedAt=new Date().toISOString();return {state:next,label};
+  }
+  function setActiveBatch(state,label=''){const next=createState(state);next.activeBatch=clean(label);return next;}
   function entriesForRange(entries,set,range){
     const n=normalizeRange(range);if(!n)return[];const source=clean(set?.source),collection=clean(set?.name);
     return (entries||[]).filter(entry=>{
@@ -122,9 +163,14 @@
     }).sort((a,b)=>Number(a.sourceRow||0)-Number(b.sourceRow||0));
   }
   function intentForEntry(state,entry){return state?.intents?.[entryKey(entry)]||null;}
+  function chineseRoundNumber(raw){
+    const m=String(raw||'').match(/(?:第\s*)?([一二三四五六七八九十]{1,3})\s*(?:批|轮)/);if(!m)return null;
+    const chars=m[1],digit={一:1,二:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9};
+    if(chars==='十')return 10;if(chars.includes('十')){const [a,b]=chars.split('十');return (a?digit[a]||0:1)*10+(b?digit[b]||0:0);}return digit[chars]||null;
+  }
   function parseRound(value){
     const raw=clean(value);if(!raw)return null;let m=raw.match(/(?:^|\b)R\s*(\d+)\b/i)||raw.match(/(?:第\s*)?(\d+)\s*(?:批|轮)/);if(!m&&/^\d+$/.test(raw))m=[raw,raw];
-    const n=Number(m?.[1]);return Number.isInteger(n)&&n>0?n-1:null;
+    const n=m?Number(m[1]):chineseRoundNumber(raw);return Number.isInteger(n)&&n>0?n-1:null;
   }
   function applyInterpretation(state,entries,set,range,{semantic,value}={}){
     const next=createState(state),targets=entriesForRange(entries,set,range),stamp=new Date().toISOString(),evidence={source:clean(set?.source),collection:clean(set?.name),range:rangeLabel(range),at:stamp};
@@ -134,7 +180,7 @@
     }else if(semantic==='priority-sequence'){
       let rank=Math.max(1,Number(value)||1);for(const entry of targets){const key=entryKey(entry),base=next.intents[key]||{};next.intents[key]={...base,priorityOrder:rank++,prioritySource:'manual-selection',evidence};}
     }else if(semantic==='batch'){
-      const label=clean(value)||'R1',roundIndex=parseRound(label);for(const entry of targets){const key=entryKey(entry),base=next.intents[key]||{};next.intents[key]={...base,batch:label,roundIndex, batchSource:'manual-selection',evidence};}
+      const label=clean(value);if(!label)return {state:next,targets:[],warning:'请先新建或选择一个批次。'};const roundIndex=parseRound(label);for(const entry of targets){const key=entryKey(entry),base=next.intents[key]||{};next.intents[key]={...base,batch:label,roundIndex, batchSource:'manual-selection',evidence};}
     }else if(semantic==='fixed-time'){
       const fixedAt=clean(value);if(!fixedAt)return {state:next,targets:[],warning:'请选择固定发送时间。'};for(const entry of targets){const key=entryKey(entry),base=next.intents[key]||{};next.intents[key]={...base,fixedAt,fixedSource:'manual-selection',evidence};}
     }else if(semantic==='label'){
@@ -144,13 +190,18 @@
     return {state:next,targets};
   }
 
-  function applyBatchToEntries(state,targets,set,{batch='R1',clear=false,evidenceSource='manual'}={}){
+  function applyBatchToEntries(state,targets,set,{batch='',clear=false,evidenceSource='manual'}={}){
     const next=createState(state),stamp=new Date().toISOString(),unique=[],seen=new Set(),evidence={source:clean(set?.source),collection:clean(set?.name),selection:evidenceSource,at:stamp};
     for(const entry of targets||[]){const key=entryKey(entry);if(seen.has(key))continue;seen.add(key);unique.push(entry);const base={...(next.intents[key]||{})};
-      if(clear){delete base.batch;delete base.roundIndex;delete base.batchSource;if(!Object.keys(base).some(k=>!['evidence'].includes(k)))delete next.intents[key];else next.intents[key]={...base,evidence};}
-      else{const label=clean(batch)||'R1';next.intents[key]={...base,batch:label,roundIndex:parseRound(label),batchSource:evidenceSource,evidence};}
+      if(clear){
+        delete base.batch;delete base.roundIndex;delete base.batchSource;
+        if(explicitBatch(entry)){base.batchSuppressed=true;base.batchSource='manual-clear';next.intents[key]={...base,evidence};}
+        else{delete base.batchSuppressed;if(!Object.keys(base).some(k=>!['evidence'].includes(k)))delete next.intents[key];else next.intents[key]={...base,evidence};}
+      }
+      else{const label=clean(batch);if(!label)continue;delete base.batchSuppressed;next.intents[key]={...base,batch:label,roundIndex:parseRound(label),batchSource:evidenceSource,evidence};if(!next.batches.includes(label))next.batches.push(label);next.activeBatch=label;}
     }
     if(!unique.length)return {state:next,targets:[],warning:'当前选择没有命中联系人。'};
+    if(!clear&&!clean(batch))return {state:next,targets:[],warning:'请先新建或选择一个批次。'};
     next.sourceKey=sourceKey(set);next.lastUpdatedAt=stamp;return {state:next,targets:unique};
   }
   function summary(state,entries=[]){
@@ -159,5 +210,5 @@
     return {priority,batch,fixed,label,total:new Set(entries.filter(e=>intentForEntry(state,e)).map(entryKey)).size};
   }
 
-  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,visualGroups,entriesForRange,intentForEntry,parseRound,applyInterpretation,applyBatchToEntries,summary};
+  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,visualGroups,featureGroups,entriesForRange,intentForEntry,parseRound,explicitBatch,knownBatches,nextBatchLabel,createBatch,setActiveBatch,applyInterpretation,applyBatchToEntries,summary};
 })();
