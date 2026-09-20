@@ -3136,3 +3136,55 @@
   .nmda-roster-intent-summary > small { width:100%; margin-left:0; }
 }
 #nmda-root.nmda-standalone .nmda-schedule-dialog { grid-template-rows:auto auto minmax(0,1fr) auto !important; }
+
+/* v3.8.53 — time planning is the primary action; within-school priority is an optional nested constraint. */
+#nmda-root.nmda-standalone .nmda-schedule-priority-card {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  min-height:58px;
+  margin-top:10px;
+  padding:9px 10px 9px 12px;
+  border:1px solid #e1e7ef;
+  border-radius:10px;
+  background:#fbfcfe;
+}
+#nmda-root.nmda-standalone .nmda-schedule-priority-copy {
+  min-width:0;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:baseline;
+  gap:2px 8px;
+}
+#nmda-root.nmda-standalone .nmda-schedule-priority-copy > span {
+  grid-column:1;
+  color:#7a8798;
+  font-size:9.5px;
+  font-weight:750;
+  letter-spacing:.02em;
+}
+#nmda-root.nmda-standalone .nmda-schedule-priority-copy > strong {
+  grid-column:2;
+  color:#263244;
+  font-size:12px;
+}
+#nmda-root.nmda-standalone .nmda-schedule-priority-copy > small {
+  grid-column:1 / -1;
+  min-width:0;
+  color:#667085;
+  font-size:10.5px;
+  line-height:1.35;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#nmda-root.nmda-standalone .nmda-schedule-priority-card .nmda-btn {
+  flex:0 0 auto;
+  min-height:32px !important;
+}
+@media(max-width:640px){
+  #nmda-root.nmda-standalone .nmda-schedule-priority-card { align-items:stretch; flex-direction:column; gap:7px; }
+  #nmda-root.nmda-standalone .nmda-schedule-priority-copy > small { white-space:normal; }
+  #nmda-root.nmda-standalone .nmda-schedule-priority-card .nmda-btn { align-self:flex-start; }
+}
