@@ -1000,9 +1000,10 @@
           <section class="nmda-tabpane nmda-page nmda-monitor-page" data-pane="monitor" hidden>
             <div class="nmda-monitor-toolbar">
               <div class="nmda-monitor-toolbar-copy"><div><strong>邮件监测</strong><small id="nmda-monitor-sync-copy"></small></div></div>
-              <div class="nmda-row nmda-wrap">
+              <div class="nmda-row nmda-wrap nmda-monitor-toolbar-actions">
+                <label class="nmda-monitor-history-window" title="超过读取范围的邮件不会请求，也不会参与查重、回复识别或 Follow-up 计算。"><span>读取范围</span><select id="nmda-monitor-history-months"><option value="3">最近 3 个月</option><option value="6">最近 6 个月</option><option value="9">最近 9 个月</option><option value="12">最近 12 个月</option><option value="18">最近 18 个月</option><option value="24">最近 24 个月</option><option value="0">全部邮件</option></select></label>
                 <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-sync" type="button">立即刷新</button>
-                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-full-sync" type="button">完整重读</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-full-sync" type="button">重读范围</button>
               </div>
             </div>
 
@@ -1016,8 +1017,6 @@
                 <label><span>最多</span><input id="nmda-monitor-max" type="number" min="0" max="20" step="1"><span>次</span></label>
                 <span class="nmda-monitor-rule-sep">·</span>
                 <label><span>方式</span><select id="nmda-monitor-compose-mode"><option value="forward">Forward</option><option value="reply">Reply</option><option value="new">New message</option></select></label>
-                <span class="nmda-monitor-rule-sep">·</span>
-                <label class="nmda-monitor-refresh-option" title="达到常规跟进上限后，如距最近一次发送已满半年，可再次生成一封 Follow-up"><input id="nmda-monitor-refresh-enabled" type="checkbox"><span>半年无往来后可再次跟进</span></label>
                 <button class="nmda-btn nmda-btn-small" id="nmda-monitor-save-policy" type="button">保存规则</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-open-template" type="button">批量处理 →</button>
               </div>
               <small class="nmda-monitor-rule-note"></small>
@@ -1177,6 +1176,24 @@
   refreshMailboxConnection();
   setTimeout(()=>scheduleMailboxAutoSync('quick',{source:'startup'}),120);
 
+  const MAILBOX_HISTORY_MONTHS_KEY = 'nmda.mailbox.historyMonths';
+  const DEFAULT_MAILBOX_HISTORY_MONTHS = 6;
+
+  function readMailboxHistoryMonths() {
+    try {
+      const raw = localStorage.getItem(MAILBOX_HISTORY_MONTHS_KEY);
+      if (raw == null || raw === '') return DEFAULT_MAILBOX_HISTORY_MONTHS;
+      const value = Math.floor(Number(raw));
+      return Number.isFinite(value) ? Math.max(0, Math.min(60, value)) : DEFAULT_MAILBOX_HISTORY_MONTHS;
+    } catch (_) { return DEFAULT_MAILBOX_HISTORY_MONTHS; }
+  }
+
+  function writeMailboxHistoryMonths(value) {
+    const months = Math.max(0, Math.min(60, Math.floor(Number(value) || 0)));
+    try { localStorage.setItem(MAILBOX_HISTORY_MONTHS_KEY, String(months)); } catch (_) {}
+    return months;
+  }
+
   const FOLLOWUP_PREFS_KEY = 'nmda.followup.settings.v1';
 
   function readFollowUpPrefs() {
@@ -1188,9 +1205,7 @@
         maxAttempts: Math.max(0, Math.floor(Number(raw.maxAttempts ?? Operations?.DEFAULT_FOLLOWUP_POLICY?.maxAttempts ?? 2) || 0)),
         composeMode: ['forward','reply','new'].includes(raw.composeMode) ? raw.composeMode : (Operations?.DEFAULT_FOLLOWUP_POLICY?.composeMode || 'forward'),
         templateBody: String(raw.templateBody || '').replace(/\r\n?/g, '\n').trim(),
-        templateVersion: Math.max(0, Math.floor(Number(raw.templateVersion || 0) || 0)),
-        refreshEnabled: raw.refreshEnabled === true,
-        refreshAfterDays: 180
+        templateVersion: Math.max(0, Math.floor(Number(raw.templateVersion || 0) || 0))
       };
     } catch (_) { return { ...(Operations?.DEFAULT_FOLLOWUP_POLICY || {}) }; }
   }
@@ -1208,8 +1223,7 @@
     try {
       localStorage.setItem(FOLLOWUP_PREFS_KEY, JSON.stringify({
         enabled: policy.enabled !== false, delayDays:Number(policy.delayDays||0), maxAttempts:Number(policy.maxAttempts||0),
-        composeMode:String(policy.composeMode||'forward'), templateBody:String(policy.templateBody||''), templateVersion:Number(policy.templateVersion||0),
-        refreshEnabled:policy.refreshEnabled===true, refreshAfterDays:180
+        composeMode:String(policy.composeMode||'forward'), templateBody:String(policy.templateBody||''), templateVersion:Number(policy.templateVersion||0)
       }));
     } catch (_) {}
   }
@@ -1340,7 +1354,7 @@
   function monitorEls() {
     return {
       stats:$('nmda-monitor-stats'), list:$('nmda-monitor-list'),
-      notice:$('nmda-monitor-notice'), syncCopy:$('nmda-monitor-sync-copy'), delay:$('nmda-monitor-delay'), max:$('nmda-monitor-max'), compose:$('nmda-monitor-compose-mode'), refresh:$('nmda-monitor-refresh-enabled'),
+      notice:$('nmda-monitor-notice'), syncCopy:$('nmda-monitor-sync-copy'), delay:$('nmda-monitor-delay'), max:$('nmda-monitor-max'), compose:$('nmda-monitor-compose-mode'), historyMonths:$('nmda-monitor-history-months'),
       bulkbar:$('nmda-monitor-bulkbar'), selectVisible:$('nmda-monitor-select-visible'), selectionCopy:$('nmda-monitor-selection-copy'), batchCreate:$('nmda-monitor-batch-create')
     };
   }
@@ -1371,17 +1385,11 @@
       const detail=activeTask.draftPreparedAt?'草稿已创建':activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:(autoReviewed?'模板检查完整，已进入选择与排期':'已进入选择与排期')):(reviewed?'等待进入选择与排期':'模板生成后检测到异常，请到邮件审阅处理');
       return {key:'due',tone:'due',label,detail,activeTask};
     }
-    if(group.eligibility?.eligible){
-      if(group.eligibility.reason==='refresh-due')return {key:'due',tone:'due',label:'可再次跟进',detail:'距最近一次发送已满半年，可重新联系'};
-      return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:'可以创建跟进任务'};
-    }
+    if(group.eligibility?.eligible)return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:'可以创建跟进任务'};
     if(group.eligibility?.reason==='waiting')return {key:'waiting',tone:'',label:'等待中',detail:`到期 ${Operations.formatDisplayTime(group.eligibility.dueAt)}`};
     if(group.eligibility?.reason==='human-managed-conversation')return {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成 Follow-up',observation:group.eligibility.blockingObservation||null,humanManaged:true};
     if(group.eligibility?.reason==='follow-up-disabled')return {key:'blocked',tone:'',label:'Follow-up 已暂停',detail:'仍检测回复，只暂停生成新的 Follow-up'};
-    if(group.eligibility?.reason==='max-attempts-reached'){
-      const refreshCopy=group.policy?.refreshEnabled && group.eligibility?.refreshDueAt ? ` · ${Operations.formatDisplayTime(group.eligibility.refreshDueAt)} 后可再次跟进` : '';
-      return {key:'waiting',tone:'',label:'已达跟进上限',detail:`最多 ${group.policy.maxAttempts} 次 Follow-up${refreshCopy}`};
-    }
+    if(group.eligibility?.reason==='max-attempts-reached')return {key:'waiting',tone:'',label:'已达跟进上限',detail:`最多 ${group.policy.maxAttempts} 次 Follow-up`};
     if(group.eligibility?.reason==='recipient-guard')return {key:'blocked',tone:'blocked',label:'联系规则阻断',detail:(group.eligibility.guard?.reasons||[]).join('；')||'已暂停联系'};
     return {key:'waiting',tone:'',label:'监测中',detail:group.eligibility?.reason||'等待邮箱事实'};
   }
@@ -1419,12 +1427,14 @@
     if(els.delay && document.activeElement!==els.delay)els.delay.value=String(policy.delayDays ?? 7);
     if(els.max && document.activeElement!==els.max)els.max.value=String(policy.maxAttempts ?? 2);
     if(els.compose && document.activeElement!==els.compose)els.compose.value=policy.composeMode || 'forward';
-    if(els.refresh && document.activeElement!==els.refresh)els.refresh.checked=policy.refreshEnabled===true;
+    const configuredHistoryMonths=readMailboxHistoryMonths();
+    if(els.historyMonths && document.activeElement!==els.historyMonths)els.historyMonths.value=String(configuredHistoryMonths);
     const sync=operationState.store.mailboxSync||{};
     if(els.syncCopy){
       const last=sync.lastQuickAt||sync.lastFullAt;
       const coverage=sync.inbox?.read!==undefined?` · 收件 ${sync.inbox.read}/${sync.inbox.total ?? sync.inbox.read}`:'';
-      els.syncCopy.textContent=last?`自动同步 ${Operations.formatDisplayTime(last)}${coverage}`:'正在等待首次自动同步；连接网易邮箱后会自动读取已发送、草稿和收件箱事实。';
+      const historyCopy=configuredHistoryMonths?` · 最近 ${configuredHistoryMonths} 个月`:' · 全部邮件';
+      els.syncCopy.textContent=last?`自动同步 ${Operations.formatDisplayTime(last)}${historyCopy}${coverage}`:`等待首次自动同步${historyCopy}；连接网易邮箱后自动读取。`;
     }
     const query=String(monitorState.search||'').toLocaleLowerCase('zh-CN').trim();
     const visible=enriched.filter(item=>{
@@ -1451,7 +1461,7 @@
       }else{
         els.list.innerHTML=visible.map(group=>{
           const last=group.lastOutbound, st=group.viewState, active=st.activeTask;
-          const dueAt=group.eligibility?.dueAt || group.eligibility?.refreshDueAt || active?.dueAt || '';
+          const dueAt=group.eligibility?.dueAt || active?.dueAt || '';
           const enabled=group.policy?.enabled!==false;
           const actions=[];
           if(st.key==='replied' && st.observation){
@@ -1495,9 +1505,11 @@
   async function syncMonitoringMailbox(mode='quick') {
     if(monitorState.syncing)return null;
     monitorState.syncing=true;
-    const quick=$('nmda-monitor-sync'), full=$('nmda-monitor-full-sync');
-    if(quick)quick.disabled=true;if(full)full.disabled=true;
-    setMonitorNotice(mode==='full'?'正在完整读取已发送、草稿和收件箱…':'正在读取当前已发送、草稿和收件箱…');
+    const quick=$('nmda-monitor-sync'), full=$('nmda-monitor-full-sync'), historySelect=$('nmda-monitor-history-months');
+    if(quick)quick.disabled=true;if(full)full.disabled=true;if(historySelect)historySelect.disabled=true;
+    const historyMonths=readMailboxHistoryMonths();
+    const rangeCopy=historyMonths?`最近 ${historyMonths} 个月`:'全部邮件';
+    setMonitorNotice(mode==='full'?`正在重读${rangeCopy}的已发送、草稿和收件箱…`:`正在读取${rangeCopy}的邮箱事实…`);
     try{
       const result=await requestAutoMailboxSync(mode==='full'?'full':'quick',{source:'monitor-manual',force:true});
       const extra=result?`已发送 ${result.outboundRead||0} · 收件 ${result.inboxRead||0} · 关联回复 ${result.repliesAssociated||0}${result.historicalFollowUpsRecognized?` · 识别历史 Follow-up ${result.historicalFollowUpsRecognized}`:''}${result.autoMonitored?` · 自动纳入 ${result.autoMonitored}`:''}`:'同步完成';
@@ -1509,7 +1521,7 @@
       setMonitorNotice(`读取失败：${error?.message||String(error)}`,'error');
       throw error;
     }finally{
-      monitorState.syncing=false;if(quick)quick.disabled=false;if(full)full.disabled=false;
+      monitorState.syncing=false;if(quick)quick.disabled=false;if(full)full.disabled=false;if(historySelect)historySelect.disabled=false;
     }
   }
 
@@ -1603,10 +1615,9 @@
       await commitRuntimeOperations();
       renderMonitoring();
       const autoPassed=created.task.reviewDecision==='auto' && created.task.dispatch?.queued===true;
-      const generatedLabel=created.eligibility?.reason==='refresh-due'?'重新跟进邮件':`Follow-up #${created.task.sequence}`;
       setMonitorNotice(autoPassed
-        ? `${generatedLabel}已按模板生成并自动通过审阅，已进入“选择与排期”。`
-        : `${generatedLabel}已按模板生成；检测到异常，请到“邮件审阅”处理。`,autoPassed?'ok':'warn');
+        ? `Follow-up #${created.task.sequence} 已按模板生成并自动通过审阅，已进入“选择与排期”。`
+        : `Follow-up #${created.task.sequence} 已按模板生成；检测到异常，请到“邮件审阅”处理。`,autoPassed?'ok':'warn');
       renderReviewPageOverview();
     }catch(error){setMonitorNotice(error?.message||String(error),'error');}
   }
@@ -1652,10 +1663,17 @@
 
   function bindMonitoringUI() {
     $('nmda-monitor-sync')?.addEventListener('click',()=>void syncMonitoringMailbox('quick'));
-    $('nmda-monitor-full-sync')?.addEventListener('click',()=>{if(confirm('完整重读会重新读取全部已发送、草稿和收件箱，继续吗？'))void syncMonitoringMailbox('full');});
+    $('nmda-monitor-full-sync')?.addEventListener('click',()=>{const months=readMailboxHistoryMonths();const range=months?`最近 ${months} 个月`:'全部邮件';if(confirm(`将按“${range}”重新读取已发送、草稿和收件箱，并用该范围重建邮箱历史，继续吗？`))void syncMonitoringMailbox('full');});
+    $('nmda-monitor-history-months')?.addEventListener('change',event=>{void (async()=>{
+      const months=writeMailboxHistoryMonths(event.currentTarget.value);
+      mailboxAutoSyncState.lastQuickAt=0;mailboxAutoSyncState.lastHistoryAt=0;mailboxAutoSyncState.lastFullAt=0;
+      renderMonitoring();
+      setMonitorNotice(months?`读取范围已改为最近 ${months} 个月；正在清理旧范围并重读。`:'读取范围已改为全部邮件；正在重读邮箱历史。');
+      try{await syncMonitoringMailbox('full');}catch(_){}
+    })();});
     $('nmda-monitor-save-policy')?.addEventListener('click',async()=>{
       await ensureOperationStore();
-      const result=Operations.setFollowUpPolicy(operationState.store,'',{delayDays:Number($('nmda-monitor-delay').value||0),maxAttempts:Number($('nmda-monitor-max').value||0),composeMode:$('nmda-monitor-compose-mode').value||'forward',refreshEnabled:$('nmda-monitor-refresh-enabled')?.checked===true,refreshAfterDays:180});
+      const result=Operations.setFollowUpPolicy(operationState.store,'',{delayDays:Number($('nmda-monitor-delay').value||0),maxAttempts:Number($('nmda-monitor-max').value||0),composeMode:$('nmda-monitor-compose-mode').value||'forward'});
       operationState.store=result.store;writeFollowUpPrefs(result.policy);await commitRuntimeOperations();renderMonitoring();setMonitorNotice('Follow-up 规则已保存；模板正文在“邮件审阅”中维护。','ok');
     });
     $('nmda-monitor-open-template')?.addEventListener('click',()=>void openBatchProcessingToFollowUp());
@@ -2367,7 +2385,7 @@
   async function readExistingScheduleAnchors({required=true}={}){
     batch.existingScheduleStatus='loading';batch.existingScheduleError='';renderScheduleCenter();
     let result;
-    try{result=await chrome.runtime.sendMessage({type:'NMDA_READ_SCHEDULED_DRAFTS'});}
+    try{result=await chrome.runtime.sendMessage({type:'NMDA_READ_SCHEDULED_DRAFTS',historyMonths:readMailboxHistoryMonths()});}
     catch(error){result={ok:false,reason:error?.message||String(error)};}
     if(!result?.ok){
       batch.existingScheduleAnchors=[];batch.existingScheduleStatus='error';batch.existingScheduleError=String(result?.reason||'读取失败');renderScheduleCenter();
@@ -7500,9 +7518,11 @@
         renderMonitoring();
         renderReviewPageOverview();
         const inferred=result?.historicalFollowUpsRecognized?` · 历史 Follow-up ${result.historicalFollowUpsRecognized}`:'';
+        const historyMonths=readMailboxHistoryMonths();
+        const historyScope=historyMonths?`最近 ${historyMonths} 个月 · `:'';
         const facts=normalizedKind==='history'
-          ? `历史核验完成${result?.outboundRead!=null?` · 已发送 ${result.outboundRead}`:''}${result?.draftsRead!=null?` · 草稿 ${result.draftsRead}`:''}${inferred}`
-          : `已发送 ${result?.outboundRead||0} · 草稿 ${result?.draftsRead||0} · 收件 ${result?.inboxRead||0}${inferred}`;
+          ? `${historyScope}历史核验完成${result?.outboundRead!=null?` · 已发送 ${result.outboundRead}`:''}${result?.draftsRead!=null?` · 草稿 ${result.draftsRead}`:''}${inferred}`
+          : `${historyScope}已发送 ${result?.outboundRead||0} · 草稿 ${result?.draftsRead||0} · 收件 ${result?.inboxRead||0}${inferred}`;
         setMailboxAutoSyncCue('success',facts);
         setTimeout(()=>{if(mailboxAutoSyncState.generation===runGeneration && !mailboxAutoSyncState.running)setMailboxAutoSyncCue('idle','后台按需保持最新');},2200);
         return result;
@@ -7522,11 +7542,12 @@
   async function syncMailboxDedupeHistory(){
     if(!Operations)return null;
     await ensureOperationStore();
-    const result=await chrome.runtime.sendMessage({type:'NMDA_READ_DEDUPE_HISTORY'});
+    const result=await chrome.runtime.sendMessage({type:'NMDA_READ_DEDUPE_HISTORY',historyMonths:readMailboxHistoryMonths()});
     if(!result?.ok)throw new Error(`${result?.phase?`${result.phase}：`:''}${result?.reason||'邮箱历史读取失败'}`);
     if(!result.complete||!result.sent?.complete||!result.drafts?.complete)throw new Error('已发送或草稿箱未完整读取，拒绝将不完整结果用于导入查重。');
     const applied=Operations.ingestMailboxDedupeSnapshot(operationState.store,result.sent.messages||[],result.drafts.messages||[],{
       complete:true,
+      historyMonths:Number(result.historyMonths ?? readMailboxHistoryMonths())||0, historyCutoffAt:String(result.cutoffAt||''),
       sentCoverage:result.coverage?.sent||{read:result.sent.messages?.length||0,total:result.sent.total||0,complete:true,pages:result.sent.pages||0},
       draftCoverage:result.coverage?.drafts||{read:result.drafts.messages?.length||0,total:result.drafts.total||0,complete:true,pages:result.drafts.pages||0}
     });
@@ -7541,12 +7562,13 @@
     if (!Operations) return null;
     const full = mode === 'full';
     await ensureOperationStore();
-    const result = await chrome.runtime.sendMessage({ type: 'NMDA_READ_MAILBOX_STATE', mode: full ? 'full' : 'quick' });
+    const result = await chrome.runtime.sendMessage({ type: 'NMDA_READ_MAILBOX_STATE', mode: full ? 'full' : 'quick', historyMonths: readMailboxHistoryMonths() });
     if (!result?.ok) throw new Error(`${result?.phase ? `${result.phase}：` : ''}${result?.reason || '邮箱读取失败'}`);
     const sent = result.sent || {}, drafts = result.drafts || {}, inbox = result.inbox || {};
     if (full && (!sent.complete || !drafts.complete || !inbox.complete)) throw new Error('完整邮箱快照未完成，拒绝覆盖 operation store。');
     const applied = Operations.ingestMailboxSnapshot(operationState.store, sent.messages || [], drafts.messages || [], inbox.messages || [], {
       mode: full ? 'full' : 'quick', complete: full,
+      historyMonths:Number(result.historyMonths ?? readMailboxHistoryMonths())||0, historyCutoffAt:String(result.cutoffAt||''),
       sentCoverage: result.coverage?.sent || { read: sent.messages?.length || 0, total: sent.total || 0, complete: !!sent.complete, pages: sent.pages || 0 },
       draftCoverage: result.coverage?.drafts || { read: drafts.messages?.length || 0, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 },
       inboxCoverage: result.coverage?.inbox || { read: inbox.messages?.length || 0, total: inbox.total || 0, complete: !!inbox.complete, pages: inbox.pages || 0 }

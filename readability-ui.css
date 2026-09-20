@@ -577,25 +577,39 @@
 @media (max-width:920px){.nmda-format-governance-builder{grid-template-columns:1fr}.nmda-format-governance-formats{flex-wrap:wrap}.nmda-format-governance-case{width:max-content}.nmda-format-governance-add{width:max-content}.nmda-format-governance-suggestion-head{align-items:flex-start;flex-direction:column}.nmda-format-governance-suggestion-head>span:first-child{align-items:flex-start;flex-direction:column;gap:2px}.nmda-format-governance-suggestion-head small{white-space:normal}.nmda-format-governance-row{grid-template-columns:1fr auto}.nmda-format-governance-row p{grid-column:1/-1}.nmda-format-governance-history{display:none}}
 
 
-/* Optional long-gap re-engagement stays compact inside the Follow-up rule bar. */
-#nmda-root .nmda-monitor-rulebar-controls .nmda-monitor-refresh-option {
-  gap:7px;
-  padding:0 8px;
-  height:30px;
+/* Mailbox history window: a compact operational scope control, separate from Follow-up policy. */
+#nmda-root .nmda-monitor-toolbar-actions {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+#nmda-root .nmda-monitor-history-window {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  height:32px;
+  padding:0 7px 0 9px;
   border:1px solid #dfe5eb;
-  border-radius:7px;
+  border-radius:8px;
   background:#fbfcfd;
-  color:#596777;
-  cursor:pointer;
+  color:#637083;
+  font-size:11.5px;
+  font-weight:620;
+  white-space:nowrap;
 }
-#nmda-root .nmda-monitor-rulebar-controls .nmda-monitor-refresh-option input[type="checkbox"] {
-  width:14px !important;
-  height:14px !important;
-  min-height:14px !important;
-  padding:0 !important;
+#nmda-root .nmda-monitor-history-window select {
+  height:28px !important;
+  min-height:28px !important;
   margin:0 !important;
-  accent-color:#2f68e8;
+  padding:0 24px 0 7px !important;
+  border:0 !important;
+  background:transparent !important;
+  color:#273444 !important;
+  font-size:11.5px !important;
+  font-weight:650 !important;
+  outline:none !important;
 }
-#nmda-root.nmda-standalone .nmda-monitor-rulebar-controls .nmda-monitor-refresh-option {
-  height:28px;
+@media (max-width:760px){
+  #nmda-root .nmda-monitor-toolbar-actions{width:100%;flex-wrap:wrap}
+  #nmda-root .nmda-monitor-history-window{flex:1 1 180px;justify-content:space-between}
 }

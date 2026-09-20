@@ -5,7 +5,7 @@
   const REPLY_KINDS = ['human', 'automatic', 'ambiguous', 'bounce', 'system'];
   const GUARD_MODES = ['normal', 'paused', 'do-not-contact'];
   const COMPOSE_MODES = ['forward', 'reply', 'new'];
-  const DEFAULT_FOLLOWUP_POLICY = Object.freeze({ enabled: true, delayDays: 7, maxAttempts: 2, composeMode: 'forward', templateBody: '', templateVersion: 0, refreshEnabled: false, refreshAfterDays: 180 });
+  const DEFAULT_FOLLOWUP_POLICY = Object.freeze({ enabled: true, delayDays: 7, maxAttempts: 2, composeMode: 'forward', templateBody: '', templateVersion: 0 });
 
   function normalizeEmail(value) {
     return String(value || '').trim().toLowerCase();
@@ -282,9 +282,7 @@
     const composeMode = COMPOSE_MODES.includes(value.composeMode) ? value.composeMode : DEFAULT_FOLLOWUP_POLICY.composeMode;
     const templateBody = String(value.templateBody ?? DEFAULT_FOLLOWUP_POLICY.templateBody).replace(/\r\n?/g, '\n').trim();
     const templateVersion = Math.max(0, Math.floor(Number(value.templateVersion ?? DEFAULT_FOLLOWUP_POLICY.templateVersion) || 0));
-    const refreshEnabled = value.refreshEnabled === true;
-    const refreshAfterDays = Math.max(1, Math.floor(Number(value.refreshAfterDays ?? DEFAULT_FOLLOWUP_POLICY.refreshAfterDays) || DEFAULT_FOLLOWUP_POLICY.refreshAfterDays));
-    return { enabled: value.enabled !== false, delayDays, maxAttempts, composeMode, templateBody, templateVersion, refreshEnabled, refreshAfterDays };
+    return { enabled: value.enabled !== false, delayDays, maxAttempts, composeMode, templateBody, templateVersion };
   }
 
   function normalizeStore(raw, account = '') {
@@ -661,6 +659,35 @@
     return { store: observed.store, observation: observed.store.replyObservations[observationId] };
   }
 
+  function retainExistingMailboxRecord(record, historyCutoffAt = '', timeField = '') {
+    if (!record || record.source !== 'mailbox') return true;
+    const cutoffMs = timeMs(historyCutoffAt);
+    if (!cutoffMs) return !!(record.taskId || record.rootTaskId);
+    const recordMs = timeMs(record?.[timeField]);
+    return !!recordMs && recordMs >= cutoffMs;
+  }
+
+  function pruneMailboxReplyObservationsForWindow(observations = {}, historyCutoffAt = '') {
+    const cutoffMs = timeMs(historyCutoffAt);
+    if (!cutoffMs) return observations;
+    return Object.fromEntries(Object.entries(observations || {}).filter(([, observation]) => {
+      if (!observation || observation.source !== 'mailbox') return true;
+      const receivedMs = timeMs(observation.receivedAt);
+      return !!receivedMs && receivedMs >= cutoffMs;
+    }));
+  }
+
+  function pruneOrphanedMailboxFollowUps(storeInput) {
+    const store = storeInput;
+    const liveRoots = new Set(Object.values(store.outboundRecords || {}).map(record => String(record?.rootTaskId || '')).filter(Boolean));
+    for (const [taskId, task] of Object.entries(store.derivedTasks || {})) {
+      const rootTaskId = String(task?.rootTaskId || '');
+      if (task?.kind !== 'follow_up' || !rootTaskId.startsWith('mailroot:') || liveRoots.has(rootTaskId)) continue;
+      delete store.derivedTasks[taskId];
+    }
+    return store;
+  }
+
   function ingestMailboxSnapshot(storeInput, sentMessages = [], draftMessages = [], inboxMessages = [], options = {}) {
     if (!Array.isArray(inboxMessages)) {
       options = inboxMessages || {};
@@ -715,11 +742,14 @@
     }
 
     if (full) {
-      const linkedOutbound = Object.fromEntries(Object.entries(next.outboundRecords).filter(([, record]) => record?.source !== 'mailbox' || record?.taskId || record?.rootTaskId));
-      const linkedDrafts = Object.fromEntries(Object.entries(next.draftRecords).filter(([, record]) => record?.source !== 'mailbox' || record?.taskId || record?.rootTaskId));
+      const historyCutoffAt = String(options.historyCutoffAt || '');
+      const linkedOutbound = Object.fromEntries(Object.entries(next.outboundRecords).filter(([, record]) => retainExistingMailboxRecord(record, historyCutoffAt, 'sentAt')));
+      const linkedDrafts = Object.fromEntries(Object.entries(next.draftRecords).filter(([, record]) => retainExistingMailboxRecord(record, historyCutoffAt, 'savedAt')));
       next.outboundRecords = { ...linkedOutbound, ...incomingOutbound };
       next.draftRecords = { ...linkedDrafts, ...incomingDrafts };
       next.inboundRecords = { ...incomingInbound };
+      next.replyObservations = pruneMailboxReplyObservationsForWindow(next.replyObservations, historyCutoffAt);
+      if (historyCutoffAt) pruneOrphanedMailboxFollowUps(next);
     } else {
       next.outboundRecords = { ...next.outboundRecords, ...incomingOutbound };
       next.draftRecords = { ...next.draftRecords, ...incomingDrafts };
@@ -740,7 +770,9 @@
       lastFullAt: full ? observedAt : finalStore.mailboxSync.lastFullAt || '',
       sent: options.sentCoverage || { read: Object.keys(incomingOutbound).length },
       drafts: options.draftCoverage || { read: Object.keys(incomingDrafts).length },
-      inbox: options.inboxCoverage || { read: Object.keys(incomingInbound).length }
+      inbox: options.inboxCoverage || { read: Object.keys(incomingInbound).length },
+      historyMonths: Math.max(0, Math.floor(Number(options.historyMonths || 0) || 0)),
+      historyCutoffAt: String(options.historyCutoffAt || '')
     };
     finalStore.updatedAt = observedAt;
     return {
@@ -805,10 +837,12 @@
       };
     }
 
-    const linkedOutbound = Object.fromEntries(Object.entries(next.outboundRecords).filter(([, record]) => record?.source !== 'mailbox' || record?.taskId || record?.rootTaskId));
-    const linkedDrafts = Object.fromEntries(Object.entries(next.draftRecords).filter(([, record]) => record?.source !== 'mailbox' || record?.taskId || record?.rootTaskId));
+    const historyCutoffAt = String(options.historyCutoffAt || '');
+    const linkedOutbound = Object.fromEntries(Object.entries(next.outboundRecords).filter(([, record]) => retainExistingMailboxRecord(record, historyCutoffAt, 'sentAt')));
+    const linkedDrafts = Object.fromEntries(Object.entries(next.draftRecords).filter(([, record]) => retainExistingMailboxRecord(record, historyCutoffAt, 'savedAt')));
     next.outboundRecords = { ...linkedOutbound, ...incomingOutbound };
     next.draftRecords = { ...linkedDrafts, ...incomingDrafts };
+    if (historyCutoffAt) pruneOrphanedMailboxFollowUps(next);
 
     const linked = reconcileOutboundsToDrafts(next);
     const monitored = ensureMonitoringRoots(linked.store);
@@ -819,7 +853,9 @@
       lastDedupeAt: observedAt,
       dedupeComplete: true,
       sent: options.sentCoverage || { read: Object.keys(incomingOutbound).length, complete: true },
-      drafts: options.draftCoverage || { read: Object.keys(incomingDrafts).length, complete: true }
+      drafts: options.draftCoverage || { read: Object.keys(incomingDrafts).length, complete: true },
+      historyMonths: Math.max(0, Math.floor(Number(options.historyMonths || 0) || 0)),
+      historyCutoffAt: String(options.historyCutoffAt || '')
     };
     finalStore.updatedAt = observedAt;
     return {
@@ -1118,14 +1154,9 @@
     const lastOutbound = conversation.lastOutbound || outbound[outbound.length - 1];
     const completedFollowUps = Math.max(0, Number(conversation.completedFollowUps || 0));
     const sequence = completedFollowUps + 1;
-    const now = timeMs(options.now || Date.now());
-    const refreshDueAtMs = timeMs(lastOutbound.sentAt) + Math.max(1, Number(policy.refreshAfterDays || 180)) * 86400000;
-    const refreshDueAt = refreshDueAtMs ? new Date(refreshDueAtMs).toISOString() : '';
-    const refreshDue = policy.refreshEnabled === true && !!refreshDueAtMs && now >= refreshDueAtMs;
-    const maxReached = completedFollowUps >= policy.maxAttempts;
     const human = conversation.human;
-    if (human) return { eligible: false, hardBlocked: true, reason: 'human-managed-conversation', policy, lastOutbound, sequence, completedFollowUps, blockingObservation: human, conversationRootIds: conversation.rootIds, refreshDueAt };
-    if (maxReached && !refreshDue) return { eligible: false, hardBlocked: true, reason: 'max-attempts-reached', policy, lastOutbound, sequence, completedFollowUps, conversationRootIds: conversation.rootIds, refreshDueAt };
+    if (human) return { eligible: false, hardBlocked: true, reason: 'human-managed-conversation', policy, lastOutbound, sequence, completedFollowUps, blockingObservation: human, conversationRootIds: conversation.rootIds };
+    if (completedFollowUps >= policy.maxAttempts) return { eligible: false, hardBlocked: true, reason: 'max-attempts-reached', policy, lastOutbound, sequence, completedFollowUps, conversationRootIds: conversation.rootIds };
     const guard = guardForRecipients(store, (lastOutbound.recipients || []).map(item => item.email).join(';'));
     if (guard.blocked) return { eligible: false, hardBlocked: true, reason: 'recipient-guard', policy, lastOutbound, sequence, completedFollowUps, guard, conversationRootIds: conversation.rootIds };
     const threshold = timeMs(lastOutbound.sentAt);
@@ -1134,14 +1165,13 @@
     if (ambiguous) return { eligible: false, hardBlocked: true, reason: 'ambiguous-reply', policy, lastOutbound, sequence, completedFollowUps, blockingObservation: ambiguous, conversationRootIds: conversation.rootIds };
     const existing = existingFollowUp(store, rootTaskId, sequence);
     if (existing) return { eligible: false, hardBlocked: true, reason: 'follow-up-already-exists', policy, lastOutbound, sequence, completedFollowUps, existing, conversationRootIds: conversation.rootIds };
-    const regularDueAtMs = timeMs(lastOutbound.sentAt) + policy.delayDays * 86400000;
-    const dueAtMs = maxReached && refreshDue ? refreshDueAtMs : regularDueAtMs;
+    const dueAtMs = timeMs(lastOutbound.sentAt) + policy.delayDays * 86400000;
     const dueAt = dueAtMs ? new Date(dueAtMs).toISOString() : '';
+    const now = timeMs(options.now || Date.now());
     const due = !!dueAtMs && now >= dueAtMs;
     const automaticReplies = replies.filter(item => item.kind === 'automatic');
-    if (!due && options.ignoreTiming !== true) return { eligible: false, hardBlocked: false, reason: 'waiting', policy, lastOutbound, sequence, completedFollowUps, dueAt, refreshDueAt, automaticReplies, conversationRootIds: conversation.rootIds };
-    const reason = maxReached && refreshDue ? 'refresh-due' : (due ? 'due' : 'manual-early');
-    return { eligible: true, hardBlocked: false, reason, policy, lastOutbound, sequence, completedFollowUps, dueAt, refreshDueAt, automaticReplies, conversationRootIds: conversation.rootIds };
+    if (!due && options.ignoreTiming !== true) return { eligible: false, hardBlocked: false, reason: 'waiting', policy, lastOutbound, sequence, completedFollowUps, dueAt, automaticReplies, conversationRootIds: conversation.rootIds };
+    return { eligible: true, hardBlocked: false, reason: due ? 'due' : 'manual-early', policy, lastOutbound, sequence, completedFollowUps, dueAt, automaticReplies, conversationRootIds: conversation.rootIds };
   }
 
   function followUpReviewIssues(task) {

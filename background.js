@@ -11,10 +11,11 @@ function runMain(tabId, func, args = []) {
   }).then(results => results?.[0]?.result || { ok: false, reason: 'no-execution-result' });
 }
 
-function readMailbox(tabId, fid, requested) {
+function readMailbox(tabId, fid, requested, historyMonths = 0) {
   const raw = String(requested ?? '200').trim().toLowerCase();
   const requestedLimit = raw === 'all' || raw === '-1' ? -1 : Number(raw || 200);
-  return runMain(tabId, (fidArg, requestedArg) => new Promise(async resolve => {
+  const historyMonthsLimit = Math.max(0, Math.min(60, Math.floor(Number(historyMonths) || 0)));
+  return runMain(tabId, (fidArg, requestedArg, historyMonthsArg) => new Promise(async resolve => {
     try {
       if (!window.$?.DataAction) return resolve({ ok: false, reason: '$.DataAction unavailable' });
       const uid = typeof window.$S === 'function' ? String(window.$S('uid') || '') : '';
@@ -25,6 +26,21 @@ function readMailbox(tabId, fid, requested) {
       const MAX_PAGES = 600;
       const requestedAll = Number(requestedArg) < 0;
       const wanted = requestedAll ? HARD_MAX : Math.max(1, Math.min(HARD_MAX, Number(requestedArg) || 200));
+      const historyMonths = Math.max(0, Math.min(60, Math.floor(Number(historyMonthsArg) || 0)));
+
+      function subtractCalendarMonths(date, months) {
+        const copy = new Date(date.getTime());
+        const originalDay = copy.getDate();
+        copy.setDate(1);
+        copy.setMonth(copy.getMonth() - months);
+        const lastDay = new Date(copy.getFullYear(), copy.getMonth() + 1, 0).getDate();
+        copy.setDate(Math.min(originalDay, lastDay));
+        return copy;
+      }
+
+      const cutoffDate = historyMonths > 0 ? subtractCalendarMonths(new Date(), historyMonths) : null;
+      const cutoffMs = cutoffDate ? cutoffDate.getTime() : 0;
+      const cutoffAt = cutoffDate ? cutoffDate.toISOString() : '';
 
       function requestPage(extra = {}, limit = PAGE_SIZE) {
         return new Promise((res, rej) => {
@@ -149,6 +165,20 @@ function readMailbox(tabId, fid, requested) {
         };
       }
 
+      function mailboxRecordTimeMs(parsed) {
+        const candidates = fidArg === 2
+          ? [parsed?.scheduleAt, parsed?.savedAt, parsed?.sentAt]
+          : fidArg === 1
+            ? [parsed?.receivedAt, parsed?.sentAt]
+            : [parsed?.sentAt];
+        for (const value of candidates) {
+          if (!value) continue;
+          const ms = new Date(value).getTime();
+          if (Number.isFinite(ms)) return ms;
+        }
+        return 0;
+      }
+
       const seen = new Set();
       const messages = [];
       let total = 0;
@@ -158,19 +188,28 @@ function readMailbox(tabId, fid, requested) {
       let lastRaw = null;
       let pages = 0;
       let stopReason = '';
+      let rawRowsRead = 0;
+      let cutoffReached = false;
+      let excludedOlder = 0;
 
       function append(response) {
         const items = Array.isArray(response?.var) ? response.var : [];
+        rawRowsRead += items.length;
         if (response?.total !== undefined && response?.total !== null && Number.isFinite(Number(response.total))) { total = Math.max(total, Number(response.total)); totalKnown = true; }
         let added = 0;
+        let oldestParsedMs = 0;
         for (const item of items) {
           const parsed = normalize(item);
+          const recordMs = mailboxRecordTimeMs(parsed);
+          if (recordMs && (!oldestParsedMs || recordMs < oldestParsedMs)) oldestParsedMs = recordMs;
+          if (cutoffMs && recordMs && recordMs < cutoffMs) { excludedOlder++; continue; }
           const key = parsed.id || `${parsed.savedAt}|${parsed.subject}|${parsed.toRaw}`;
           if (seen.has(key)) continue;
           seen.add(key);
           messages.push(parsed);
           added++;
         }
+        if (cutoffMs && oldestParsedMs && oldestParsedMs < cutoffMs) cutoffReached = true;
         lastRaw = items[items.length - 1] || lastRaw;
         return { items, added };
       }
@@ -185,8 +224,8 @@ function readMailbox(tabId, fid, requested) {
         const lastId = String(lastRaw?.id || lastRaw?.mid || '');
         const candidates = [];
         if (lastId) candidates.push({ name: 'start-id', extra: { start: lastId } });
-        candidates.push({ name: 'offset', extra: { offset: messages.length } });
-        candidates.push({ name: 'start-index', extra: { start: messages.length } });
+        candidates.push({ name: 'offset', extra: { offset: rawRowsRead } });
+        candidates.push({ name: 'start-index', extra: { start: rawRowsRead } });
         for (const candidate of candidates) {
           try {
             const before = messages.length;
@@ -198,12 +237,13 @@ function readMailbox(tabId, fid, requested) {
               if (outcome.items.length < Math.min(PAGE_SIZE, Math.max(1, wanted - before))) exhausted = true;
               return true;
             }
+            if (cutoffReached) { mode = candidate.name; return true; }
           } catch (_) {}
         }
         return false;
       }
 
-      while (messages.length < wanted && !exhausted && (!totalKnown || messages.length < total) && pages < MAX_PAGES) {
+      while (messages.length < wanted && !exhausted && !cutoffReached && (!totalKnown || rawRowsRead < total) && pages < MAX_PAGES) {
         if (!mode) {
           const ok = await probeMode();
           if (!ok) { stopReason = 'pagination-unavailable'; break; }
@@ -212,8 +252,8 @@ function readMailbox(tabId, fid, requested) {
         const lastId = String(lastRaw?.id || lastRaw?.mid || '');
         let extra = {};
         if (mode === 'start-id') extra = { start: lastId };
-        else if (mode === 'offset') extra = { offset: messages.length };
-        else extra = { start: messages.length };
+        else if (mode === 'offset') extra = { offset: rawRowsRead };
+        else extra = { start: rawRowsRead };
         try {
           const before = messages.length;
           const pageLimit = Math.min(PAGE_SIZE, Math.max(1, wanted - messages.length));
@@ -228,37 +268,47 @@ function readMailbox(tabId, fid, requested) {
         }
       }
 
-      const effectiveTotal = totalKnown ? Math.max(total, messages.length) : messages.length;
-      const targetCount = requestedAll ? Math.min(totalKnown ? effectiveTotal : messages.length, HARD_MAX) : Math.min(wanted, totalKnown ? effectiveTotal : messages.length);
+      const effectiveTotal = totalKnown ? Math.max(total, rawRowsRead, messages.length) : Math.max(rawRowsRead, messages.length);
+      const targetCount = requestedAll ? Math.min(messages.length, HARD_MAX) : Math.min(wanted, messages.length);
       const resultMessages = messages.slice(0, targetCount);
-      const complete = totalKnown ? (resultMessages.length >= effectiveTotal || effectiveTotal === 0) : exhausted;
+      const serverComplete = totalKnown ? (rawRowsRead >= effectiveTotal || effectiveTotal === 0) : exhausted;
+      const complete = cutoffMs ? (cutoffReached || serverComplete) : serverComplete;
       const reachedRequested = requestedAll ? complete : (resultMessages.length >= wanted || complete);
-      if (requestedAll && totalKnown && effectiveTotal > HARD_MAX) stopReason = `hard-cap-${HARD_MAX}`;
+      if (requestedAll && !cutoffMs && totalKnown && effectiveTotal > HARD_MAX) stopReason = `hard-cap-${HARD_MAX}`;
       if (!complete && pages >= MAX_PAGES && !stopReason) stopReason = `page-cap-${MAX_PAGES}`;
+      if (cutoffReached) stopReason = 'history-window-reached';
+      const scopedTotal = cutoffMs && complete ? resultMessages.length : effectiveTotal;
 
       resolve({
         ok: true,
         uid,
         fid: fidArg,
-        total: effectiveTotal,
+        total: scopedTotal,
+        serverTotal: effectiveTotal,
         messages: resultMessages,
         pages,
         paginationMode: mode || 'single-page',
         complete,
+        serverComplete,
         reachedRequested,
-        truncated: !complete && (requestedAll || resultMessages.length < effectiveTotal),
+        truncated: !complete && (requestedAll || resultMessages.length < scopedTotal),
+        serverTruncated: !serverComplete,
         stopReason,
-        hardMax: HARD_MAX
+        hardMax: HARD_MAX,
+        historyMonths,
+        cutoffAt,
+        cutoffReached,
+        excludedOlder
       });
     } catch (error) {
       resolve({ ok: false, reason: error?.message || String(error) });
     }
-  }), [fid, requestedLimit]);
+  }), [fid, requestedLimit, historyMonthsLimit]);
 }
 
 
-async function readScheduledDraftAnchors(tabId) {
-  const drafts = await readMailbox(tabId, 2, -1);
+async function readScheduledDraftAnchors(tabId, historyMonths = 0) {
+  const drafts = await readMailbox(tabId, 2, -1, historyMonths);
   if (!drafts?.ok) return { ok:false, reason:drafts?.reason || '读取草稿箱失败', drafts };
   const now = Date.now() + 60 * 1000;
   const scheduled = (drafts.messages || []).filter(item => {
@@ -285,14 +335,15 @@ async function readScheduledDraftAnchors(tabId) {
   };
 }
 
-async function readDedupeHistory(tabId) {
-  const sent = await readMailbox(tabId, 3, -1);
+async function readDedupeHistory(tabId, historyMonths = 0) {
+  const sent = await readMailbox(tabId, 3, -1, historyMonths);
   if (!sent?.ok) return { ok:false, phase:'sent', reason:sent?.reason||'读取已发送失败', sent };
-  const drafts = await readMailbox(tabId, 2, -1);
+  const drafts = await readMailbox(tabId, 2, -1, historyMonths);
   if (!drafts?.ok) return { ok:false, phase:'drafts', reason:drafts?.reason||'读取草稿箱失败', sent, drafts };
   const complete = !!sent.complete && !!drafts.complete;
   return {
     ok:true, uid:sent.uid||drafts.uid||'', sent, drafts, complete,
+    historyMonths:Math.max(0, Number(historyMonths)||0), cutoffAt:sent.cutoffAt||drafts.cutoffAt||'',
     coverage:{
       sent:{read:sent.messages?.length||0,total:sent.total||0,complete:!!sent.complete,pages:sent.pages||0},
       drafts:{read:drafts.messages?.length||0,total:drafts.total||0,complete:!!drafts.complete,pages:drafts.pages||0}
@@ -300,14 +351,14 @@ async function readDedupeHistory(tabId) {
   };
 }
 
-async function readMailboxState(tabId, mode = 'quick') {
+async function readMailboxState(tabId, mode = 'quick', historyMonths = 0) {
   const full = mode === 'full';
   const requested = full ? -1 : 500;
-  const sent = await readMailbox(tabId, 3, requested);
+  const sent = await readMailbox(tabId, 3, requested, historyMonths);
   if (!sent?.ok) return { ok: false, phase: 'sent', reason: sent?.reason || '读取已发送失败', sent };
-  const drafts = await readMailbox(tabId, 2, requested);
+  const drafts = await readMailbox(tabId, 2, requested, historyMonths);
   if (!drafts?.ok) return { ok: false, phase: 'drafts', reason: drafts?.reason || '读取草稿箱失败', sent, drafts };
-  const inbox = await readMailbox(tabId, 1, requested);
+  const inbox = await readMailbox(tabId, 1, requested, historyMonths);
   if (!inbox?.ok) return { ok: false, phase: 'inbox', reason: inbox?.reason || '读取收件箱失败', sent, drafts, inbox };
   const complete = !!sent.complete && !!drafts.complete && !!inbox.complete;
   return {
@@ -315,6 +366,7 @@ async function readMailboxState(tabId, mode = 'quick') {
     mode: full ? 'full' : 'quick',
     uid: sent.uid || drafts.uid || inbox.uid || '',
     sent, drafts, inbox, complete,
+    historyMonths:Math.max(0, Number(historyMonths)||0), cutoffAt:sent.cutoffAt||drafts.cutoffAt||inbox.cutoffAt||'',
     coverage: {
       sent: { read: sent.messages?.length || 0, total: sent.total || 0, complete: !!sent.complete, pages: sent.pages || 0 },
       drafts: { read: drafts.messages?.length || 0, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 },
@@ -1035,9 +1087,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     }
     if (message?.type === 'NMDA_ACCOUNT_INFO') return accountInfo(tabId);
-    if (message?.type === 'NMDA_READ_MAILBOX_STATE') return readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick');
-    if (message?.type === 'NMDA_READ_DEDUPE_HISTORY') return readDedupeHistory(tabId);
-    if (message?.type === 'NMDA_READ_SCHEDULED_DRAFTS') return readScheduledDraftAnchors(tabId);
+    if (message?.type === 'NMDA_READ_MAILBOX_STATE') return readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick', message.historyMonths);
+    if (message?.type === 'NMDA_READ_DEDUPE_HISTORY') return readDedupeHistory(tabId, message.historyMonths);
+    if (message?.type === 'NMDA_READ_SCHEDULED_DRAFTS') return readScheduledDraftAnchors(tabId, message.historyMonths);
     if (message?.type === 'NMDA_READ_SENT_DETAILS') return readSentDetails(tabId, message.messageIds || []);
     if (message?.type === 'NMDA_IMPORT_DRAFTS') return readDraftImport(tabId,message.limit ?? 300);
     return {ok:false,reason:'unknown-message'};
