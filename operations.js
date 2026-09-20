@@ -112,22 +112,57 @@
     return recipients && subject ? `${recipients}|${subject}` : '';
   }
 
+  function decorateConversationOutbounds(records = []) {
+    const sorted = [...(records || [])].filter(record => record?.status === 'sent').sort((a, b) => timeMs(a.sentAt) - timeMs(b.sentAt));
+    return sorted.map((record, index) => {
+      const declaredSequence = Math.max(0, Number(record.sequence || 0) || 0);
+      const observedSequence = Math.max(index, Math.max(0, Number(record.observedSequence || 0) || 0), declaredSequence);
+      const effectiveKind = observedSequence > 0 ? 'follow_up' : 'initial';
+      const sequenceSource = declaredSequence > 0 || record.kind === 'follow_up'
+        ? 'linked-task'
+        : observedSequence > 0 ? 'mailbox-history' : 'initial';
+      return {
+        ...record,
+        declaredSequence,
+        declaredKind: record.kind || 'unlinked',
+        observedSequence,
+        effectiveSequence: observedSequence,
+        effectiveKind,
+        sequence: observedSequence,
+        kind: effectiveKind,
+        sequenceSource
+      };
+    });
+  }
+
   function conversationContextFromStore(store, rootTaskId) {
-    const ownOutbounds = Object.values(store?.outboundRecords || {}).filter(record => record?.rootTaskId === String(rootTaskId) && record?.status === 'sent');
+    const allOutbounds = Object.values(store?.outboundRecords || {}).filter(record => record?.rootTaskId && record?.status === 'sent');
+    const ownOutbounds = allOutbounds.filter(record => record?.rootTaskId === String(rootTaskId));
     const keys = new Set(ownOutbounds.map(conversationKeyForOutbound).filter(Boolean));
     const rootIds = new Set([String(rootTaskId)]);
     if (keys.size) {
-      for (const outbound of Object.values(store?.outboundRecords || {})) {
-        if (!outbound?.rootTaskId || outbound.status !== 'sent') continue;
+      for (const outbound of allOutbounds) {
         const key = conversationKeyForOutbound(outbound);
         if (key && keys.has(key)) rootIds.add(String(outbound.rootTaskId));
       }
     }
+    const conversationOutbounds = decorateConversationOutbounds(allOutbounds.filter(outbound => rootIds.has(String(outbound.rootTaskId)) && (!keys.size || keys.has(conversationKeyForOutbound(outbound)))));
     const observations = Object.values(store?.replyObservations || {})
       .filter(obs => obs?.rootTaskId && rootIds.has(String(obs.rootTaskId)))
       .sort((a, b) => timeMs(a.receivedAt) - timeMs(b.receivedAt));
     const human = [...observations].reverse().find(obs => obs.kind === 'human') || null;
-    return { keys: [...keys], rootIds: [...rootIds], observations, human };
+    const ambiguous = [...observations].reverse().find(obs => obs.kind === 'ambiguous') || null;
+    const completedFollowUps = conversationOutbounds.reduce((max, record) => Math.max(max, Number(record.effectiveSequence || 0)), 0);
+    return {
+      keys: [...keys],
+      rootIds: [...rootIds],
+      observations,
+      human,
+      ambiguous,
+      outbounds: conversationOutbounds,
+      lastOutbound: conversationOutbounds[conversationOutbounds.length - 1] || null,
+      completedFollowUps
+    };
   }
 
   function conversationContextForRoot(storeInput, rootTaskId) {
@@ -443,6 +478,78 @@
     return { store: next, adopted };
   }
 
+  function reconcileObservedFollowUpHistory(storeInput) {
+    const store = normalizeStore(storeInput);
+    const next = clone(store);
+    const buckets = new Map();
+    for (const outbound of Object.values(next.outboundRecords || {})) {
+      if (!outbound?.rootTaskId || outbound.status !== 'sent') continue;
+      const key = conversationKeyForOutbound(outbound);
+      if (!key) continue;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(outbound);
+    }
+
+    let recognizedFollowUps = 0;
+    let reconciledTasks = 0;
+    let conversations = 0;
+    for (const [conversationKey, records] of buckets.entries()) {
+      const decorated = decorateConversationOutbounds(records);
+      if (!decorated.length) continue;
+      conversations++;
+      const rootIds = new Set(decorated.map(record => String(record.rootTaskId || '')).filter(Boolean));
+      const humanManaged = Object.values(next.replyObservations || {}).some(obs => obs?.kind === 'human' && rootIds.has(String(obs.rootTaskId || '')));
+      const byId = new Map(decorated.map(record => [record.id, record]));
+
+      for (const decoratedRecord of decorated) {
+        const record = next.outboundRecords[decoratedRecord.id];
+        if (!record) continue;
+        const previousObserved = Math.max(0, Number(record.observedSequence || 0) || 0);
+        record.observedConversationKey = conversationKey;
+        record.observedSequence = Number(decoratedRecord.effectiveSequence || 0);
+        record.observedKind = decoratedRecord.effectiveKind;
+        record.observedSequenceSource = decoratedRecord.sequenceSource;
+        if (decoratedRecord.effectiveSequence > 0 && previousObserved !== decoratedRecord.effectiveSequence && decoratedRecord.sequenceSource === 'mailbox-history') recognizedFollowUps++;
+      }
+
+      // Mailbox sent history is authoritative. If an already-created Follow-up task
+      // is covered by an observed second/third outbound in the same conversation,
+      // reconcile the task to Sent instead of allowing a duplicate Follow-up to be
+      // generated. A valid reply still ends automation, so do not auto-reconcile
+      // post-reply operator correspondence into the bulk Follow-up workflow.
+      if (!humanManaged) {
+        const outboundIds = new Set(decorated.map(record => record.id));
+        const tasks = Object.values(next.derivedTasks || {}).filter(task => task?.kind === 'follow_up' && (rootIds.has(String(task.rootTaskId || '')) || outboundIds.has(String(task.parentOutboundId || ''))));
+        for (const task of tasks) {
+          if (!task || ['sent', 'cancelled'].includes(task.state)) continue;
+          const sequence = Math.max(1, Number(task.sequence || 0) || 0);
+          const target = decorated.find(record => Number(record.effectiveSequence || 0) === sequence);
+          if (!target) continue;
+          task.state = 'sent';
+          task.sentOutboundId = target.id;
+          task.sentAt = target.sentAt || task.sentAt || '';
+          task.sentReconciledAt = nowIso();
+          task.sentReconciledReason = 'observed-mailbox-followup';
+          task.updatedAt = task.sentReconciledAt;
+          task.dispatch = {
+            ...(task.dispatch || {}),
+            queued: false,
+            scheduleAt: '',
+            scheduleSource: '',
+            scheduleReason: 'observed-mailbox-followup',
+            dequeuedAt: task.sentReconciledAt,
+            dequeuedReason: 'already-sent-in-mailbox'
+          };
+          const targetRecord = next.outboundRecords[target.id];
+          if (targetRecord) targetRecord.observedTaskId = task.id;
+          reconciledTasks++;
+        }
+      }
+    }
+    if (recognizedFollowUps || reconciledTasks) next.updatedAt = nowIso();
+    return { store: next, recognizedFollowUps, reconciledTasks, conversations };
+  }
+
   function findReplyAssociationCandidates(storeInput, inbound) {
     const store = normalizeStore(storeInput);
     const sender = normalizeEmail(inbound?.sender?.email || inbound?.sender || '');
@@ -537,8 +644,9 @@
     observation.evidence = { ...(observation.evidence || {}), manual: true, manualDisposition: disposition, autoReplyFeature: disposition === 'automatic' ? true : (disposition === 'human' ? false : observation.evidence?.autoReplyFeature), changedAt: nowIso() };
     observation.observedAt = nowIso();
     const refreshed = refreshDerivedTaskBlocks(next);
-    refreshed.store.updatedAt = nowIso();
-    return { store: refreshed.store, observation: refreshed.store.replyObservations[observationId] };
+    const observed = reconcileObservedFollowUpHistory(refreshed.store);
+    observed.store.updatedAt = nowIso();
+    return { store: observed.store, observation: observed.store.replyObservations[observationId] };
   }
 
   function ingestMailboxSnapshot(storeInput, sentMessages = [], draftMessages = [], inboxMessages = [], options = {}) {
@@ -609,7 +717,8 @@
     const linked = reconcileOutboundsToDrafts(next);
     const monitored = ensureMonitoringRoots(linked.store);
     const replies = reconcileInboundReplies(monitored.store);
-    const refreshed = refreshDerivedTaskBlocks(replies.store);
+    const observed = reconcileObservedFollowUpHistory(replies.store);
+    const refreshed = refreshDerivedTaskBlocks(observed.store);
     const finalStore = refreshed.store;
     finalStore.mailboxSync = {
       ...finalStore.mailboxSync,
@@ -633,6 +742,8 @@
       ambiguousReplies: replies.ambiguous,
       automaticReplies: replies.automatic,
       humanReplies: replies.human,
+      historicalFollowUpsRecognized: observed.recognizedFollowUps,
+      followUpTasksReconciled: observed.reconciledTasks,
       followUpsBlocked: refreshed.blockedTasks,
       followUpsDequeued: refreshed.dequeuedTasks,
       failedMessages,
@@ -689,7 +800,8 @@
 
     const linked = reconcileOutboundsToDrafts(next);
     const monitored = ensureMonitoringRoots(linked.store);
-    const finalStore = monitored.store;
+    const observed = reconcileObservedFollowUpHistory(monitored.store);
+    const finalStore = observed.store;
     finalStore.mailboxSync = {
       ...finalStore.mailboxSync,
       lastDedupeAt: observedAt,
@@ -704,6 +816,8 @@
       draftsRead: Object.keys(incomingDrafts).length,
       autoMonitored: monitored.adopted,
       linkedOutbounds: linked.linked,
+      historicalFollowUpsRecognized: observed.recognizedFollowUps,
+      followUpTasksReconciled: observed.reconciledTasks,
       failedMessages,
       draftsWithoutRecipient
     };
@@ -898,7 +1012,8 @@
     };
     next.updatedAt = nowIso();
     const refreshed = refreshDerivedTaskBlocks(next);
-    return { store: refreshed.store, observation: refreshed.store.replyObservations[id] };
+    const observed = reconcileObservedFollowUpHistory(refreshed.store);
+    return { store: observed.store, observation: observed.store.replyObservations[id] };
   }
 
   function outboundForRoot(storeInput, rootTaskId) {
@@ -920,16 +1035,17 @@
     let blockedTasks = 0, restoredTasks = 0, dequeuedTasks = 0;
     for (const task of Object.values(next.derivedTasks)) {
       if (!task || task.kind !== 'follow_up' || task.state === 'sent' || task.state === 'cancelled') continue;
-      const rootOutbounds = Object.values(next.outboundRecords).filter(record => record?.rootTaskId === String(task.rootTaskId) && record?.status === 'sent').sort((a, b) => timeMs(a.sentAt) - timeMs(b.sentAt));
-      const parent = next.outboundRecords[task.parentOutboundId] || rootOutbounds.find(item => Number(item.sequence || 0) === Number(task.sequence || 0) - 1) || null;
+      const conversation = conversationContextFromStore(next, task.rootTaskId);
+      const parent = next.outboundRecords[task.parentOutboundId]
+        || conversation.outbounds.find(item => Number(item.effectiveSequence || item.sequence || 0) === Number(task.sequence || 0) - 1)
+        || null;
       const after = parent?.sentAt || '';
       const recipientEmails = (task.recipients || []).map(item => normalizeEmail(item?.email || item?.address)).filter(Boolean);
       const guardMatches = recipientEmails.map(email => next.recipientGuards[email]).filter(guard => guard && guard.mode !== 'normal');
       const guard = { blocked: guardMatches.length > 0, modes: [...new Set(guardMatches.map(item => item.mode))], reasons: guardMatches.map(item => `${item.email}：${item.mode === 'do-not-contact' ? '不再联系' : '暂停'}`) };
-      const conversation = conversationContextFromStore(next, task.rootTaskId);
       const human = conversation.human;
       const threshold = timeMs(after);
-      const replies = Object.values(next.replyObservations).filter(obs => obs?.rootTaskId === String(task.rootTaskId) && timeMs(obs.receivedAt) >= threshold).sort((a, b) => timeMs(a.receivedAt) - timeMs(b.receivedAt));
+      const replies = conversation.observations.filter(obs => timeMs(obs.receivedAt) >= threshold);
       const ambiguous = replies.find(item => item.kind === 'ambiguous') || null;
       const blocker = guard.blocked
         ? { type: 'recipient-guard', modes: guard.modes, reasons: guard.reasons }
@@ -969,7 +1085,9 @@
 
   function existingFollowUp(storeInput, rootTaskId, sequence) {
     const store = normalizeStore(storeInput);
-    return Object.values(store.derivedTasks).find(task => task?.kind === 'follow_up' && task?.rootTaskId === String(rootTaskId) && Number(task.sequence) === Number(sequence) && task.state !== 'cancelled') || null;
+    const conversation = conversationContextFromStore(store, rootTaskId);
+    const rootIds = new Set(conversation.rootIds.length ? conversation.rootIds : [String(rootTaskId)]);
+    return Object.values(store.derivedTasks).find(task => task?.kind === 'follow_up' && rootIds.has(String(task.rootTaskId || '')) && Number(task.sequence) === Number(sequence) && task.state !== 'cancelled') || null;
   }
 
   function evaluateFollowUpEligibility(storeInput, rootTaskId, options = {}) {
@@ -978,27 +1096,34 @@
     if (!rootTaskId) return { eligible: false, hardBlocked: true, reason: 'missing-root-task' };
     const policy = policyForRoot(store, rootTaskId);
     if (!policy.enabled) return { eligible: false, hardBlocked: true, reason: 'follow-up-disabled', policy };
-    const outbound = outboundForRoot(store, rootTaskId);
-    if (!outbound.length) return { eligible: false, hardBlocked: true, reason: 'no-sent-outbound', policy };
-    const lastOutbound = outbound[outbound.length - 1];
-    const sequence = Math.max(1, Number(lastOutbound.sequence || 0) + 1);
+
+    // Eligibility is conversation-based, not task-record-based. A second outbound
+    // with the same recipient + normalized subject is already Follow-up #1 even
+    // when it was sent manually or by an older version of the plugin.
     const conversation = conversationContextForRoot(store, rootTaskId);
+    const outbound = conversation.outbounds;
+    if (!outbound.length) return { eligible: false, hardBlocked: true, reason: 'no-sent-outbound', policy };
+    const lastOutbound = conversation.lastOutbound || outbound[outbound.length - 1];
+    const completedFollowUps = Math.max(0, Number(conversation.completedFollowUps || 0));
+    const sequence = completedFollowUps + 1;
     const human = conversation.human;
-    if (human) return { eligible: false, hardBlocked: true, reason: 'human-managed-conversation', policy, lastOutbound, sequence, blockingObservation: human, conversationRootIds: conversation.rootIds };
-    if (Number(lastOutbound.sequence || 0) >= policy.maxAttempts) return { eligible: false, hardBlocked: true, reason: 'max-attempts-reached', policy, lastOutbound, sequence };
+    if (human) return { eligible: false, hardBlocked: true, reason: 'human-managed-conversation', policy, lastOutbound, sequence, completedFollowUps, blockingObservation: human, conversationRootIds: conversation.rootIds };
+    if (completedFollowUps >= policy.maxAttempts) return { eligible: false, hardBlocked: true, reason: 'max-attempts-reached', policy, lastOutbound, sequence, completedFollowUps, conversationRootIds: conversation.rootIds };
     const guard = guardForRecipients(store, (lastOutbound.recipients || []).map(item => item.email).join(';'));
-    if (guard.blocked) return { eligible: false, hardBlocked: true, reason: 'recipient-guard', policy, lastOutbound, sequence, guard };
-    const replies = observationsAfter(store, rootTaskId, lastOutbound.sentAt);
+    if (guard.blocked) return { eligible: false, hardBlocked: true, reason: 'recipient-guard', policy, lastOutbound, sequence, completedFollowUps, guard, conversationRootIds: conversation.rootIds };
+    const threshold = timeMs(lastOutbound.sentAt);
+    const replies = conversation.observations.filter(obs => timeMs(obs.receivedAt) >= threshold);
     const ambiguous = replies.find(item => item.kind === 'ambiguous');
-    if (ambiguous) return { eligible: false, hardBlocked: true, reason: 'ambiguous-reply', policy, lastOutbound, sequence, blockingObservation: ambiguous };
+    if (ambiguous) return { eligible: false, hardBlocked: true, reason: 'ambiguous-reply', policy, lastOutbound, sequence, completedFollowUps, blockingObservation: ambiguous, conversationRootIds: conversation.rootIds };
     const existing = existingFollowUp(store, rootTaskId, sequence);
-    if (existing) return { eligible: false, hardBlocked: true, reason: 'follow-up-already-exists', policy, lastOutbound, sequence, existing };
+    if (existing) return { eligible: false, hardBlocked: true, reason: 'follow-up-already-exists', policy, lastOutbound, sequence, completedFollowUps, existing, conversationRootIds: conversation.rootIds };
     const dueAtMs = timeMs(lastOutbound.sentAt) + policy.delayDays * 86400000;
     const dueAt = dueAtMs ? new Date(dueAtMs).toISOString() : '';
     const now = timeMs(options.now || Date.now());
     const due = !!dueAtMs && now >= dueAtMs;
-    if (!due && options.ignoreTiming !== true) return { eligible: false, hardBlocked: false, reason: 'waiting', policy, lastOutbound, sequence, dueAt, automaticReplies: replies.filter(item => item.kind === 'automatic') };
-    return { eligible: true, hardBlocked: false, reason: due ? 'due' : 'manual-early', policy, lastOutbound, sequence, dueAt, automaticReplies: replies.filter(item => item.kind === 'automatic') };
+    const automaticReplies = replies.filter(item => item.kind === 'automatic');
+    if (!due && options.ignoreTiming !== true) return { eligible: false, hardBlocked: false, reason: 'waiting', policy, lastOutbound, sequence, completedFollowUps, dueAt, automaticReplies, conversationRootIds: conversation.rootIds };
+    return { eligible: true, hardBlocked: false, reason: due ? 'due' : 'manual-early', policy, lastOutbound, sequence, completedFollowUps, dueAt, automaticReplies, conversationRootIds: conversation.rootIds };
   }
 
   function followUpReviewIssues(task) {
@@ -1226,54 +1351,48 @@
 
   function monitoringRoots(storeInput) {
     const store = normalizeStore(storeInput);
-    const base = new Map();
-    for (const outbound of Object.values(store.outboundRecords)) {
+    const buckets = new Map();
+    for (const outbound of Object.values(store.outboundRecords || {})) {
       if (!outbound?.rootTaskId || outbound.status !== 'sent') continue;
-      if (!base.has(outbound.rootTaskId)) base.set(outbound.rootTaskId, []);
-      base.get(outbound.rootTaskId).push(outbound);
-    }
-    for (const outbounds of base.values()) outbounds.sort((a, b) => timeMs(a.sentAt) - timeMs(b.sentAt));
-
-    const conversationBuckets = new Map();
-    for (const [rootTaskId, outbounds] of base.entries()) {
-      const key = conversationKeyForOutbound(outbounds[0] || outbounds[outbounds.length - 1]);
-      if (!key) continue;
-      if (!conversationBuckets.has(key)) conversationBuckets.set(key, []);
-      conversationBuckets.get(key).push(rootTaskId);
+      const conversationKey = conversationKeyForOutbound(outbound);
+      const bucketKey = conversationKey || `root:${String(outbound.rootTaskId)}`;
+      if (!buckets.has(bucketKey)) buckets.set(bucketKey, { conversationKey, records: [] });
+      buckets.get(bucketKey).records.push(outbound);
     }
 
-    const consumed = new Set();
     const result = [];
-    for (const [conversationKey, rootIds] of conversationBuckets.entries()) {
-      const humanObservations = Object.values(store.replyObservations)
-        .filter(obs => obs?.kind === 'human' && rootIds.includes(String(obs.rootTaskId)))
-        .sort((a, b) => timeMs(a.receivedAt) - timeMs(b.receivedAt));
-      if (!humanObservations.length) continue;
-      const humanReply = humanObservations[humanObservations.length - 1];
-      const canonicalRootId = rootIds.includes(String(humanReply.rootTaskId)) ? String(humanReply.rootTaskId) : rootIds[0];
-      const outbounds = rootIds.flatMap(id => base.get(id) || []).sort((a, b) => timeMs(a.sentAt) - timeMs(b.sentAt));
-      const lastOutbound = outbounds[outbounds.length - 1];
-      const replies = Object.values(store.replyObservations)
+    for (const { conversationKey, records } of buckets.values()) {
+      const outbounds = decorateConversationOutbounds(records);
+      if (!outbounds.length) continue;
+      const rootIds = [...new Set(outbounds.map(record => String(record.rootTaskId || '')).filter(Boolean))];
+      const canonicalRootId = String(outbounds[0]?.rootTaskId || rootIds[0] || '');
+      const replies = Object.values(store.replyObservations || {})
         .filter(obs => obs?.rootTaskId && rootIds.includes(String(obs.rootTaskId)))
         .sort((a, b) => timeMs(a.receivedAt) - timeMs(b.receivedAt));
-      const tasks = Object.values(store.derivedTasks)
+      const humanObservations = replies.filter(obs => obs.kind === 'human');
+      const humanReply = humanObservations[humanObservations.length - 1] || null;
+      const tasks = Object.values(store.derivedTasks || {})
         .filter(task => task?.rootTaskId && rootIds.includes(String(task.rootTaskId)))
         .sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
       const eligibility = evaluateFollowUpEligibility(store, canonicalRootId);
       const policy = policyForRoot(store, canonicalRootId);
-      const operatorContinued = !!lastOutbound && timeMs(lastOutbound.sentAt) > timeMs(humanReply.receivedAt);
-      result.push({ rootTaskId: canonicalRootId, conversationKey, conversationRootIds: rootIds.slice(), outbounds, lastOutbound, replies, tasks, eligibility, policy, humanManaged: true, humanReply, operatorContinued });
-      rootIds.forEach(id => consumed.add(id));
-    }
-
-    for (const [rootTaskId, outbounds] of base.entries()) {
-      if (consumed.has(rootTaskId)) continue;
       const lastOutbound = outbounds[outbounds.length - 1];
-      const replies = observationsAfter(store, rootTaskId, lastOutbound.sentAt);
-      const tasks = Object.values(store.derivedTasks).filter(task => task?.rootTaskId === rootTaskId).sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
-      const eligibility = evaluateFollowUpEligibility(store, rootTaskId);
-      const policy = policyForRoot(store, rootTaskId);
-      result.push({ rootTaskId, conversationKey: conversationKeyForOutbound(lastOutbound), conversationRootIds: [rootTaskId], outbounds, lastOutbound, replies, tasks, eligibility, policy, humanManaged: false, humanReply: null, operatorContinued: false });
+      const operatorContinued = !!humanReply && !!lastOutbound && timeMs(lastOutbound.sentAt) > timeMs(humanReply.receivedAt);
+      result.push({
+        rootTaskId: canonicalRootId,
+        conversationKey,
+        conversationRootIds: rootIds,
+        outbounds,
+        lastOutbound,
+        replies,
+        tasks,
+        eligibility,
+        policy,
+        humanManaged: !!humanReply,
+        humanReply,
+        operatorContinued,
+        completedFollowUps: Math.max(0, Number(eligibility?.completedFollowUps ?? outbounds[outbounds.length - 1]?.effectiveSequence ?? 0))
+      });
     }
     return result.sort((a, b) => timeMs(b.lastOutbound?.sentAt) - timeMs(a.lastOutbound?.sentAt));
   }
@@ -1300,6 +1419,7 @@
     stableHash,
     subjectThreadKey,
     conversationKeyForOutbound,
+    decorateConversationOutbounds,
     conversationContextForRoot,
     classifyInboundMessage,
     isEffectiveReplyObservation,
@@ -1310,6 +1430,7 @@
     ingestMailboxDedupeSnapshot,
     reconcileOutboundsToDrafts,
     reconcileInboundReplies,
+    reconcileObservedFollowUpHistory,
     ensureMonitoringRoots,
     recordPreparedDraft,
     linkOutbound,

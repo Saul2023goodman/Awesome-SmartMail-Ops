@@ -1542,7 +1542,7 @@
           const selectionCell=selectable?`<label class="nmda-monitor-row-select" title="选择生成 Follow-up"><input type="checkbox" data-monitor-select="${escapeHtml(group.rootTaskId)}" ${selected.has(group.rootTaskId)?'checked':''}><span class="sr-only">选择此邮件</span></label>`:`<span class="nmda-monitor-row-select-placeholder" aria-hidden="true"></span>`;
           return `<article class="nmda-monitor-row${selectable?' is-selectable':''}" data-tone="${escapeHtml(st.tone||'')}">
             ${selectionCell}
-            <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(st.key==='replied'?'有效回复 · 待人工回复':(last.kind==='follow_up'?`最近发送 Follow-up #${last.sequence}`:'初始 outreach'))}</small><div class="nmda-monitor-subject" title="${escapeHtml(last.subject||'')}">${escapeHtml(last.subject||'(无主题)')}</div></div>
+            <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(st.key==='replied'?'有效回复 · 待人工回复':(last.kind==='follow_up'?`最近发送 Follow-up #${last.sequence}${last.sequenceSource==='mailbox-history'?' · 邮箱历史识别':''}`:'初始 outreach'))}</small><div class="nmda-monitor-subject" title="${escapeHtml(last.subject||'')}">${escapeHtml(last.subject||'(无主题)')}</div></div>
             <div class="nmda-monitor-row-state"><span class="nmda-monitor-badge" data-tone="${escapeHtml(st.tone||'')}">${escapeHtml(st.label)}</span><small>${escapeHtml(st.detail||'')}</small></div>
             <div class="nmda-monitor-row-time"><div><span>最近发送</span><strong>${escapeHtml(Operations.formatDisplayTime(last.sentAt))}</strong></div><div><span>下一节点</span><strong>${dueAt?escapeHtml(Operations.formatDisplayTime(dueAt)):'—'}</strong></div></div>
             <div class="nmda-monitor-row-actions">${actions.join('')}</div>${evidence}</article>`;
@@ -1565,7 +1565,7 @@
     setMonitorNotice(mode==='full'?'正在完整读取已发送、草稿和收件箱…':'正在读取当前已发送、草稿和收件箱…');
     try{
       const result=await requestAutoMailboxSync(mode==='full'?'full':'quick',{source:'monitor-manual',force:true});
-      const extra=result?`已发送 ${result.outboundRead||0} · 收件 ${result.inboxRead||0} · 关联回复 ${result.repliesAssociated||0}${result.autoMonitored?` · 自动纳入 ${result.autoMonitored}`:''}`:'同步完成';
+      const extra=result?`已发送 ${result.outboundRead||0} · 收件 ${result.inboxRead||0} · 关联回复 ${result.repliesAssociated||0}${result.historicalFollowUpsRecognized?` · 识别历史 Follow-up ${result.historicalFollowUpsRecognized}`:''}${result.autoMonitored?` · 自动纳入 ${result.autoMonitored}`:''}`:'同步完成';
       setMonitorNotice(`读取完成：${extra}`,'ok');
       renderMonitoring();
       renderReviewPageOverview();
@@ -7887,9 +7887,10 @@
         if(batch?.dataset){renderDuplicateDecision();renderRosterAudit();renderProcessGuide();}
         renderMonitoring();
         renderReviewPageOverview();
+        const inferred=result?.historicalFollowUpsRecognized?` · 历史 Follow-up ${result.historicalFollowUpsRecognized}`:'';
         const facts=normalizedKind==='history'
-          ? `历史核验完成${result?.outboundRead!=null?` · 已发送 ${result.outboundRead}`:''}${result?.draftsRead!=null?` · 草稿 ${result.draftsRead}`:''}`
-          : `已发送 ${result?.outboundRead||0} · 草稿 ${result?.draftsRead||0} · 收件 ${result?.inboxRead||0}`;
+          ? `历史核验完成${result?.outboundRead!=null?` · 已发送 ${result.outboundRead}`:''}${result?.draftsRead!=null?` · 草稿 ${result.draftsRead}`:''}${inferred}`
+          : `已发送 ${result?.outboundRead||0} · 草稿 ${result?.draftsRead||0} · 收件 ${result?.inboxRead||0}${inferred}`;
         setMailboxAutoSyncCue('success',facts);
         setTimeout(()=>{if(mailboxAutoSyncState.generation===runGeneration && !mailboxAutoSyncState.running)setMailboxAutoSyncCue('idle','后台按需保持最新');},2200);
         return result;

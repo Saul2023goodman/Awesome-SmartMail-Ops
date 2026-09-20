@@ -86,3 +86,11 @@ Follow-up 的“已回复”指**有效回复**。自动回复在事实层仍被
 Auto-reply 不再作为与“已回复”并列的用户状态，而只是判断入站邮件是否构成有效回复的一项 feature。邮件监测的主语义只有“未回复 / 已回复”：自动回复 feature 仍按未回复处理；有效回复则进入“已回复”。
 
 一旦进入“已回复”，SmartMail 的批量自动化职责结束：停止该 conversation 的后续 Follow-up，提示“有效回复，需要人工回复”，并只提供“前往邮箱”。该按钮直接打开对应的网易入站邮件，后续高度定制的交流由操作者在邮箱中完成。SmartMail 不提供已回复后的批量 Reply 流程。
+
+## v3.8.61 已发送历史反推 Follow-up
+
+Follow-up 次数以网易 Sent 历史事实为准，不再要求每一次跟进都必须由 SmartMail 自己创建。
+
+`Initial Sent -> 无有效回复 -> 第二次 Sent` 会被还原为 `Initial -> Follow-up #1`；因此下一次候选是 Follow-up #2，而不是再次生成 Follow-up #1。Re / Fw / Fwd 等主题前缀会先归一化，再判断是否属于同一 conversation。
+
+监测页会把这类记录折叠到同一线程，并标记“邮箱历史识别”。如果之前已有一个尚未执行、但实际上已被第二次 Sent 覆盖的 Follow-up Task，reconciliation 会把该 Task 标记为已发送并退出执行池。自动回复不打断这条历史链；有效回复仍然直接结束 SmartMail 的 Follow-up 自动化。

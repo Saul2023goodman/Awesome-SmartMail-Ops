@@ -146,3 +146,21 @@ Review is an exception-detection layer rather than a mandatory per-message appro
 - `dispatch.scheduleReason = review-auto-passed`
 
 A task that fails deterministic checks remains `prepared / awaiting-review`. Manual confirmation records `reviewDecision = manual` and `review-passed`. Editing recipients, subject, body, or compose mode always increments `contentVersion`, clears the previous decision, returns the task to `prepared`, and dequeues it.
+
+## v3.8.61 — Sent history is authoritative for Follow-up sequence
+
+Follow-up sequence is no longer derived only from SmartMail-created `derivedTasks`.
+Mailbox Sent facts are authoritative evidence of completed touches.
+
+For one deterministic conversation key (normalized recipient set + subject with Re/Fw-style prefixes removed), sent messages are ordered by `sentAt`:
+
+- first outbound = Initial (`effectiveSequence = 0`)
+- second outbound, when no effective reply has ended automation = Follow-up #1
+- third outbound = Follow-up #2
+- and so on
+
+A mailbox-observed outbound keeps its original linkage fields, but gains observational metadata (`observedSequence`, `observedKind`, `observedConversationKey`, `observedSequenceSource`). This preserves provenance: SmartMail can distinguish a Follow-up proven by mailbox history from one linked directly to a SmartMail task.
+
+`automatic` replies do not reset the sent sequence. Any effective `human` reply remains a conversation-level automation stop. `ambiguous` replies remain blocking until disposition is resolved.
+
+If a live generated Follow-up task is already covered by a later Sent fact with the same effective sequence, reconciliation marks that task `sent` and removes it from Dispatch instead of allowing a duplicate send.
