@@ -707,3 +707,52 @@
   background:#4f8fd8;
   box-shadow:0 0 0 3px rgba(79,143,216,.10);
 }
+
+/* v3.8.40 · Review board origin hard-fix
+   Grid alignment proved vulnerable to competing historical layout rules. The
+   board now uses an explicit wrapping flex surface so the first card has one
+   possible origin only: top-left. Unused viewport space always remains below. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid {
+  --nmda-review-columns:4;
+  display:flex !important;
+  flex-flow:row wrap !important;
+  align-content:flex-start !important;
+  align-items:flex-start !important;
+  justify-content:flex-start !important;
+  place-content:normal !important;
+  gap:10px !important;
+  padding:10px !important;
+  width:100% !important;
+  height:auto !important;
+  min-height:0 !important;
+  flex:1 1 0 !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  scroll-padding:10px 0 0 !important;
+  overflow-anchor:none !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > .nmda-mail-review-card {
+  flex:0 0 calc((100% - (var(--nmda-review-columns) - 1) * 10px) / var(--nmda-review-columns)) !important;
+  width:auto !important;
+  max-width:calc((100% - (var(--nmda-review-columns) - 1) * 10px) / var(--nmda-review-columns)) !important;
+  align-self:flex-start !important;
+  margin:0 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > .nmda-review-empty,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > .nmda-review-load-more {
+  flex:0 0 100% !important;
+  width:100% !important;
+  max-width:none !important;
+}
+@media (min-width:1500px) {
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid { --nmda-review-columns:5; }
+}
+@media (max-width:1180px) {
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid { --nmda-review-columns:3; }
+}
+@media (max-width:820px) {
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid { --nmda-review-columns:2; }
+}
+@media (max-width:560px) {
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid { --nmda-review-columns:1; }
+}
