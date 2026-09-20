@@ -2758,7 +2758,7 @@
 }
 
 
-/* v3.8.64 · Preview is the single-mail Review surface; edit permission opens in place. */
+/* v3.8.65 · Preview is the single-mail Review surface; edit permission opens in place. */
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-editing{
   border-color:#8ab5ee;
   box-shadow:0 0 0 3px rgba(23,105,224,.10),0 16px 36px rgba(29,37,48,.12);

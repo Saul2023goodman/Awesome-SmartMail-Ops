@@ -6744,8 +6744,7 @@
       batch.directoryFiles=[]; batch.routedAttachmentFiles=[]; batch.attachmentOverrides.clear(); batch.attachmentPolicies=new Map(); batch.ignoredAttachmentIdentities=new Set();
     }
     batch.reviewSurface='board';batch.reviewPreviewKey='';batch.reviewEditingKey='';
-    if(reviewBulkSubjectInputEl)reviewBulkSubjectInputEl.value='';
-    hideBulkSubjectPrompt();
+    if(batchStandardSubjectInputEl)batchStandardSubjectInputEl.value='';
     batch.attachmentAttentionShown=false;
     batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.attachmentPrepChoice='pending';batch.sourceInspectName='';batch.preflightFolderPath='';batch.preflightSearch='';batch.preflightReviewOnly=false;batch.preflightPurposeFilter='';
     batch.reviewEditingKey='';
@@ -6826,8 +6825,7 @@
     batch.reviewFilter='all';
     batch.reviewSearch='';
     batch.reviewSurface='board';batch.reviewPreviewKey='';batch.reviewEditingKey='';
-    if(reviewBulkSubjectInputEl)reviewBulkSubjectInputEl.value='';
-    hideBulkSubjectPrompt();
+    if(batchStandardSubjectInputEl)batchStandardSubjectInputEl.value='';
     batch.attachmentAttentionShown=false;
     batch.rosterPromptChoice='idle';
     batch.attachmentPromptDeferred=false;
