@@ -4997,7 +4997,7 @@
     const audit=Roster.crossCheck(eligible,state.entries);
     const byKey=new Map(eligible.map(t=>[t.editKey,t]));
     let autoRecipientSupplements=0,schoolSupplements=0;
-    const methodCounts={email:0,nameSchool:0,nameDomain:0,uniqueName:0,emailName:0,other:0};
+    const methodCounts={email:0,sourceFileName:0,nameSchool:0,nameDomain:0,uniqueName:0,surnameSalutation:0,emailName:0,other:0};
 
     for(const match of audit.matches){
       const task=match.task;if(!task)continue;
@@ -5009,24 +5009,28 @@
       task.rosterEmailCandidate=match.emailCandidate||'';
       task.rosterIssues=[];
       if(match.by==='email')methodCounts.email++;
+      else if(match.by==='source-file-name')methodCounts.sourceFileName++;
       else if(match.by==='name+school')methodCounts.nameSchool++;
       else if(match.by==='name+domain')methodCounts.nameDomain++;
       else if(match.by==='unique-name')methodCounts.uniqueName++;
+      else if(match.by==='unique-surname-salutation')methodCounts.surnameSalutation++;
       else if(match.by==='email-name')methodCounts.emailName++;
       else methodCounts.other++;
 
-      // Only deterministic name+institution evidence may silently repair a missing recipient.
-      // A unique-name-only match stays a review candidate rather than mutating the imported mail.
+      // Silent recipient repair requires deterministic identity evidence. A source filename
+      // that exactly identifies one roster contact (one-file-per-contact workflow) is as
+      // strong as name+institution. Surname-only salutations remain review evidence only.
+      const deterministicRecipientMethods=new Set(['name+school','source-file-name']);
       const canSupplementRecipient=match.status==='matched'
         && !recipientLooksValid(task.recipients||'')
         && !!match.entry?.email
-        && match.by==='name+school'
-        && Number(match.score||0)>=108;
+        && deterministicRecipientMethods.has(match.by)
+        && Number(match.score||0)>=(match.by==='source-file-name'?112:108);
       if(canSupplementRecipient){
         task.recipients=String(match.entry.email||'').trim();
         task.rosterEmailCandidate='';
         task.rosterRecipientSupplemented=true;
-        task.rosterRecipientSource='roster:name+school';
+        task.rosterRecipientSource=match.by==='source-file-name'?'roster:source-file-name':'roster:name+school';
         autoRecipientSupplements++;
         refreshTaskCoreValidation(task);
         refreshTaskSearchStatic(task);
@@ -5109,6 +5113,7 @@
       const x=rosterAudit.summary||{};
       metrics.push(`<div class="nmda-import-metric"><strong>${x.matched||0}</strong><span>邮件↔名单</span></div>`);
       if(x.autoRecipientSupplements)metrics.push(`<div class="nmda-import-metric"><strong>${x.autoRecipientSupplements}</strong><span>名单补全邮箱</span></div>`);
+      if(x.methodCounts?.sourceFileName)metrics.push(`<div class="nmda-import-metric"><strong>${x.methodCounts.sourceFileName}</strong><span>文件名识别</span></div>`);
       if(x.unwritten)metrics.push(`<div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>尚未加入</span></div>`);
       if(x.emailConflicts)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${x.emailConflicts}</strong><span>邮箱不一致</span></div>`);
       if(x.ambiguous||x.duplicates)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${(x.ambiguous||0)+(x.duplicates||0)}</strong><span>名单待核对</span></div>`);
@@ -5130,6 +5135,7 @@
         const rosterParts=[];
         if(x.schoolSupplements)rosterParts.push(`补充 ${x.schoolSupplements} 条院校信息`);
         if(x.autoRecipientSupplements)rosterParts.push(`自动补全 ${x.autoRecipientSupplements} 个高置信邮箱`);
+        if(x.methodCounts?.sourceFileName)rosterParts.push(`按源文件名识别 ${x.methodCounts.sourceFileName} 封`);
         const reviewEmailCandidates=Math.max(0,Number(x.emailCandidates||0)-Number(x.autoRecipientSupplements||0));
         if(reviewEmailCandidates)rosterParts.push(`找到 ${reviewEmailCandidates} 个邮箱候选待核对`);
         if(x.emailConflicts)rosterParts.push(`${x.emailConflicts} 封邮件邮箱与名单不一致`);

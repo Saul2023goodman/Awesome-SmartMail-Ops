@@ -14,7 +14,13 @@
   };
 
   function norm(v){return String(v??'').normalize('NFKC').trim().toLowerCase().replace(/[\s\u00a0\u200b_\-—–:：()（）\[\]【】<>《》\/\\.,，;；]+/g,'');}
-  function clean(v){return String(v??'').normalize('NFKC').replace(/[\u00a0\u200b\u200c\u200d\ufeff]/g,' ').replace(/\s+/g,' ').trim();}
+  function decodeEscapedUnicode(v){
+    return String(v??'')
+      .replace(/#U([0-9a-f]{4,6})/giu,(_,hex)=>{try{return String.fromCodePoint(parseInt(hex,16));}catch(_e){return _;}})
+      .replace(/_x([0-9a-f]{4})_/giu,(_,hex)=>{try{return String.fromCharCode(parseInt(hex,16));}catch(_e){return _;}});
+  }
+  function clean(v){return decodeEscapedUnicode(v).normalize('NFKC').replace(/[\u00a0\u200b\u200c\u200d\ufeff]/g,' ').replace(/\s+/g,' ').trim();}
+  function foldLatin(v){return clean(v).normalize('NFKD').replace(/[\u0300-\u036f]/g,'');}
   function emailOf(v){const m=String(v??'').match(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}(?![A-Z0-9.\-])/i);return m?m[0].toLowerCase():'';}
   function emailsOf(v){
     const out=[],seen=new Set();
@@ -33,7 +39,7 @@
     const m=raw.match(/(?:第\s*)?(\d+(?:\.\d+)?)/);return m?Number(m[1]):null;
   }
   function normalizeName(v){
-    return clean(v).toLowerCase()
+    return foldLatin(v).toLowerCase()
       .replace(/^\s*(?:prof(?:essor)?|dr|mr|mrs|ms)\.?\s+/i,'')
       .replace(/[（(][^）)]{0,60}[）)]/g,'')
       .replace(/\s+[—–-]\s+.*$/,'')
@@ -53,9 +59,26 @@
     if(latinTokens.length>=2&&latinTokens.length<=8)out.add([...latinTokens].sort().join(''));
     return [...out];
   }
+  function sourceNameCandidate(task){
+    const raw=clean(task?.sourceFile||task?.collectionName||'');
+    if(!raw)return'';
+    const base=raw.split(/[\\/]/).pop()||raw;
+    return clean(base.replace(/\.(?:docx?|docm|dotx|txt|html?|rtf|pdf)$/i,'').replace(/\.paras$/i,'').replace(/\s*\((?:copy|副本|\d+)\)\s*$/i,''));
+  }
+  function surnameKey(v){
+    const raw=foldLatin(v).toLowerCase()
+      .replace(/^\s*(?:(?:associate|assistant|adjunct|emeritus)\s+)?(?:prof(?:essor)?|dr|mr|mrs|ms)\.?\s+/i,'')
+      .replace(/[（(][^）)]{0,60}[）)]/g,'')
+      .replace(/[^a-z0-9\p{L}'’\-]+/gu,' ')
+      .trim();
+    if(!raw||emailOf(raw))return'';
+    const tokens=raw.split(/\s+/).filter(Boolean);
+    return normalizeName(tokens[tokens.length-1]||'');
+  }
   function looksGenericId(v){const s=clean(v);return !s||/^\d+(?:[-.]\d+)*$/.test(s)||/^\d+[-_]\d+$/.test(s);}
   function taskNameCandidates(task){
     const values=[task?.name,task?.supervisor,task?.contactName];
+    const sourceName=sourceNameCandidate(task);if(sourceName)values.push(sourceName);
     const evidence=clean(task?.importRecipientEvidence?.text||'');if(evidence&&!emailOf(evidence))values.push(evidence);
     const rawSalutation=clean(task?.importSalutation||'') || clean(String(task?.body||'').match(/(?:^|\n)\s*(?:Dear|Hello|Hi)\s+([^\n,:：]{2,90})/i)?.[1]||'');
     const salutation=rawSalutation.replace(/^\s*(?:dear|hello|hi)\s+/i,'').replace(/^\s*(?:(?:associate|assistant)\s+)?(?:prof(?:essor)?|dr)\.?\s+/i,'').replace(/[,:：].*$/,'').trim();
@@ -171,23 +194,35 @@
 
   function buildMatchIndex(entries){
     const list=Array.isArray(entries)?entries:[];
-    const byEmail=new Map(),byName=new Map(),byKey=new Map();
+    const byEmail=new Map(),byName=new Map(),bySurname=new Map(),byKey=new Map();
+    const push=(map,key,entry)=>{if(!key)return;if(!map.has(key))map.set(key,[]);map.get(key).push(entry);};
     for(const entry of list){
       if(entry?.key)byKey.set(entry.key,entry);
-      if(entry?.email){if(!byEmail.has(entry.email))byEmail.set(entry.email,[]);byEmail.get(entry.email).push(entry);}
-      const keys=entry?.nameKeys?.length?entry.nameKeys:nameKeys(entry?.name||'');
-      for(const key of keys){if(!byName.has(key))byName.set(key,[]);byName.get(key).push(entry);}
+      if(entry?.email)push(byEmail,String(entry.email).toLowerCase(),entry);
+      // Always rebuild keys from the current display name so persisted rosters from
+      // older versions immediately benefit from Unicode folding and new aliases.
+      const keys=[...new Set([...(entry?.nameKeys||[]),...nameKeys(entry?.name||'')])];
+      for(const key of keys)push(byName,key,entry);
+      const surname=surnameKey(entry?.name||'');if(surname&&surname.length>=3)push(bySurname,surname,entry);
     }
-    return {entries:list,byEmail,byName,byKey};
+    return {entries:list,byEmail,byName,bySurname,byKey};
   }
 
   function matchOne(task,entriesOrIndex){
     const index=Array.isArray(entriesOrIndex)?buildMatchIndex(entriesOrIndex):(entriesOrIndex?.byEmail?entriesOrIndex:buildMatchIndex([]));
     const emails=emailsOf(task?.recipients||''),email=emails[0]||'',names=taskNameCandidates(task),name=names[0]||'',keys=[...new Set(names.flatMap(nameKeys))],school=clean(task?.school||'');
+    const sourceName=sourceNameCandidate(task),sourceKeys=nameKeys(sourceName),salutationName=clean(task?.importSalutation||'').replace(/^\s*(?:dear|hello|hi)\s+/i,'').replace(/^\s*(?:(?:associate|assistant)\s+)?(?:prof(?:essor)?|dr)\.?\s+/i,'').replace(/[,，:：!！].*$/,'').trim(),salutationSurname=surnameKey(salutationName);
     const domainOf=value=>globalThis.NMDAScheduler?.recipientDomain?.(value)||String(value||'').split('@')[1]?.toLowerCase()||'';
     const taskDomains=new Set(emails.map(domainOf).filter(Boolean)),found=new Map();
     const add=(entry,score,by)=>{if(!entry)return;const key=entry.key||`${entry.email}|${entry.name}|${entry.school}`;const prev=found.get(key);if(!prev||score>prev.score)found.set(key,{entry,score,by});};
     for(const address of emails)for(const entry of (index.byEmail.get(address)||[]))add(entry,120,'email');
+    // One-document-per-contact imports carry high-quality identity evidence in the
+    // source filename even when the email body contains only a surname salutation.
+    for(const key of sourceKeys){
+      const same=[...new Map((index.byName.get(key)||[]).map(entry=>[entry.key||`${entry.email}|${entry.school}`,entry])).values()];
+      if(same.length===1)add(same[0],116,'source-file-name');
+      else for(const entry of same)add(entry,92,'ambiguous-source-file-name');
+    }
     for(const key of keys){
       const same=[...new Map((index.byName.get(key)||[]).map(entry=>[entry.key||`${entry.email}|${entry.school}`,entry])).values()];
       for(const entry of same){
@@ -196,6 +231,14 @@
       }
       if(same.length===1)add(same[0],90,'unique-name');
       else for(const entry of same)add(entry,70,'ambiguous-name');
+    }
+    // A surname-only salutation (e.g. "Dear Prof. Bemmann") is useful when it is
+    // unique inside the current roster. It is intentionally weaker than a source
+    // filename/full-name match and does not override conflicting stronger evidence.
+    if(salutationSurname&&salutationSurname.length>=3){
+      const same=[...new Map((index.bySurname?.get(salutationSurname)||[]).map(entry=>[entry.key||`${entry.email}|${entry.school}`,entry])).values()];
+      if(same.length===1)add(same[0],88,'unique-surname-salutation');
+      else for(const entry of same)add(entry,68,'ambiguous-surname-salutation');
     }
     // A structured mailbox such as first.last@school.edu is useful only when it maps
     // to one roster name; it never overrides stronger email/name evidence.
@@ -297,5 +340,5 @@
     };
   }
 
-  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,nameKeys,taskName,taskNameCandidates,schoolKey,sameSchool,parsePriorityOrder,parseDataset,auditTaskDuplicates,crossCheck,matchOne,buildMatchIndex};
+  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,nameKeys,taskName,taskNameCandidates,sourceNameCandidate,surnameKey,decodeEscapedUnicode,schoolKey,sameSchool,parsePriorityOrder,parseDataset,auditTaskDuplicates,crossCheck,matchOne,buildMatchIndex};
 })();

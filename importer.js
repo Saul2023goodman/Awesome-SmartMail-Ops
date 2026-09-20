@@ -456,9 +456,19 @@
       const manifestBytes=entries.get('manifest.json')||entries.get('nmda-manifest.json');
       if(manifestBytes){try{manifest=JSON.parse(A.decodeText(manifestBytes));}catch(e){throw new Error(`ZIP manifest.json 无法解析：${e.message}`);}}
       const names=[...entries.keys()].filter(n=>n&&!n.endsWith('/')&&!n.startsWith('__MACOSX/'));
+      // Some outreach generators ship a `Name.paras.json` diagnostic sidecar next to
+      // `Name.docx`. It is parser evidence, not a second business source. Importing both
+      // used to create noisy/ambiguous source rows and could obscure the real Word task.
+      const primaryNameSet=new Set(names.map(n=>String(n||'').toLowerCase()));
+      const diagnosticSidecars=new Set(names.filter(name=>{
+        if(!/\.paras\.json$/i.test(name))return false;
+        const base=name.replace(/\.paras\.json$/i,'');
+        return ['.docx','.docm','.dotx','.doc'].some(ext=>primaryNameSet.has(`${base}${ext}`.toLowerCase()));
+      }));
+      if(diagnosticSidecars.size)warnings.push(`已忽略 ${diagnosticSidecars.size} 个与 Word 邮件同名的解析 sidecar（*.paras.json）。`);
       let taskNames=[];
       if(manifest?.taskFile){const exact=String(manifest.taskFile).replace(/^\.\//,'');if(!entries.has(exact))throw new Error(`ZIP manifest 指定的任务文件不存在：${exact}`);taskNames=[exact];}
-      else taskNames=names.filter(n=>A.SUPPORTED_EXT.has(A.extOf(n))&&A.extOf(n)!=='zip'&&!/^manifest\.json$/i.test(n));
+      else taskNames=names.filter(n=>!diagnosticSidecars.has(n)&&A.SUPPORTED_EXT.has(A.extOf(n))&&A.extOf(n)!=='zip'&&!/^manifest\.json$/i.test(n));
       if(!taskNames.length)throw new Error('ZIP 中没有找到任务数据文件。建议包含 manifest.json + tasks.xlsx/csv/json/docx。');
       const recordSets=[],sourceFiles=[];
       for(const name of taskNames){
@@ -475,7 +485,7 @@
       const taskSet=new Set(taskNames);
       const attachmentRoot=String(manifest?.attachmentRoot||'').replace(/^\.\//,'').replace(/\/+$/,'');
       for(const name of names){
-        if(taskSet.has(name)||/^manifest\.json$/i.test(name))continue;
+        if(taskSet.has(name)||diagnosticSidecars.has(name)||/^manifest\.json$/i.test(name))continue;
         if(attachmentRoot&&!(name===attachmentRoot||name.startsWith(`${attachmentRoot}/`)))continue;
         const bytes=entries.get(name),vf=A.makeVirtualFile(name,bytes);
         // Embedded attachments are not business sources and never enter the source-role
