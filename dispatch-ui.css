@@ -814,3 +814,121 @@
   #nmda-root .nmda-roster-planner-canvas-tools { flex-wrap:wrap; }
   #nmda-root .nmda-roster-column-focus { max-width:220px; }
 }
+
+/* v3.8.46 — roster batching simplified to two user actions: color or box selection */
+#nmda-root .nmda-roster-planner-workspace {
+  grid-template-columns:190px minmax(0,1fr) 244px;
+}
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip {
+  grid-template-columns:18px minmax(0,1fr) auto;
+  min-height:38px;
+  padding:7px 8px;
+  border-radius:9px;
+  font-size:10px;
+}
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip i {
+  width:18px;
+  height:18px;
+  border-radius:5px;
+}
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip span {
+  color:#344054;
+  font-weight:700;
+}
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip b {
+  color:#7a8595;
+  font-size:9px;
+  font-weight:650;
+}
+#nmda-root .nmda-roster-planner-view .nmda-roster-visual-chip.is-active {
+  border-color:#8bb8f2;
+  background:#f1f7ff;
+  box-shadow:inset 0 0 0 1px rgba(23,105,224,.12);
+}
+#nmda-root .nmda-roster-batch-panel {
+  gap:12px;
+}
+#nmda-root .nmda-roster-batch-quick {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+}
+#nmda-root .nmda-roster-batch-quick button {
+  min-width:0;
+  min-height:54px;
+  display:grid;
+  align-content:center;
+  gap:2px;
+  border:1px solid #d8e0e9;
+  border-radius:10px;
+  background:#fff;
+  color:#344054;
+  cursor:pointer;
+  transition:border-color .16s ease,background .16s ease,transform .16s ease;
+}
+#nmda-root .nmda-roster-batch-quick button b { font-size:11px; font-weight:750; }
+#nmda-root .nmda-roster-batch-quick button span { color:#8a94a4; font-size:9px; }
+#nmda-root .nmda-roster-batch-quick button:not(:disabled):hover {
+  border-color:#95bdf1;
+  background:#f5f9ff;
+  transform:translateY(-1px);
+}
+#nmda-root .nmda-roster-batch-quick button:disabled { opacity:.42; cursor:not-allowed; }
+#nmda-root .nmda-roster-batch-more {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:6px;
+  align-items:end;
+  padding-top:2px;
+}
+#nmda-root .nmda-roster-batch-more label {
+  min-width:0;
+  display:grid;
+  gap:4px;
+  color:#667085;
+  font-size:9px;
+  font-weight:700;
+}
+#nmda-root .nmda-roster-batch-more select {
+  width:100%;
+  min-height:34px;
+  border:1px solid #d5dde7;
+  border-radius:8px;
+  padding:0 8px;
+  background:#fff;
+  color:#263244;
+  font-size:10px;
+}
+#nmda-root .nmda-roster-batch-clear { width:100%; }
+#nmda-root .nmda-roster-batch-stats {
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+}
+#nmda-root .nmda-roster-batch-stat {
+  min-height:25px;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:0 7px;
+  border:1px solid #dde5ee;
+  border-radius:999px;
+  background:#f8fafc;
+  color:#697586;
+  font-size:9px;
+}
+#nmda-root .nmda-roster-batch-stat b { color:#2f5f9d; font-size:9px; }
+#nmda-root .nmda-roster-batch-stat.is-empty { color:#8b95a5; }
+#nmda-root .nmda-roster-planner-rail-note {
+  background:#f8fafc;
+}
+#nmda-root .nmda-roster-planner-rail-note strong { font-size:10px; }
+#nmda-root .nmda-roster-planner-rail-note span { font-size:9px; }
+@media (max-width:1100px) {
+  #nmda-root .nmda-roster-planner-workspace { grid-template-columns:180px minmax(0,1fr) 230px; }
+}
+#nmda-root .nmda-roster-batch-quick button.is-current {
+  border-color:#7fb0ed;
+  background:#eef6ff;
+  box-shadow:inset 0 0 0 1px rgba(23,105,224,.1);
+}

@@ -143,11 +143,21 @@
     next.sourceKey=sourceKey(set);next.lastSelection=normalizeRange(range);next.lastUpdatedAt=stamp;
     return {state:next,targets};
   }
+
+  function applyBatchToEntries(state,targets,set,{batch='R1',clear=false,evidenceSource='manual'}={}){
+    const next=createState(state),stamp=new Date().toISOString(),unique=[],seen=new Set(),evidence={source:clean(set?.source),collection:clean(set?.name),selection:evidenceSource,at:stamp};
+    for(const entry of targets||[]){const key=entryKey(entry);if(seen.has(key))continue;seen.add(key);unique.push(entry);const base={...(next.intents[key]||{})};
+      if(clear){delete base.batch;delete base.roundIndex;delete base.batchSource;if(!Object.keys(base).some(k=>!['evidence'].includes(k)))delete next.intents[key];else next.intents[key]={...base,evidence};}
+      else{const label=clean(batch)||'R1';next.intents[key]={...base,batch:label,roundIndex:parseRound(label),batchSource:evidenceSource,evidence};}
+    }
+    if(!unique.length)return {state:next,targets:[],warning:'当前选择没有命中联系人。'};
+    next.sourceKey=sourceKey(set);next.lastUpdatedAt=stamp;return {state:next,targets:unique};
+  }
   function summary(state,entries=[]){
     let priority=0,batch=0,fixed=0,label=0;
     for(const entry of entries){const intent=intentForEntry(state,entry);if(!intent)continue;if(Number.isFinite(Number(intent.priorityOrder)))priority++;if(intent.batch)batch++;if(intent.fixedAt)fixed++;if(intent.label)label++;}
     return {priority,batch,fixed,label,total:new Set(entries.filter(e=>intentForEntry(state,e)).map(entryKey)).size};
   }
 
-  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,visualGroups,entriesForRange,intentForEntry,parseRound,applyInterpretation,summary};
+  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,visualGroups,entriesForRange,intentForEntry,parseRound,applyInterpretation,applyBatchToEntries,summary};
 })();
