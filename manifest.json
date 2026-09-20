@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.33",
-  "description": "SmartMail Ops — runtime-only mail operations with automatic mailbox sync, collision-safe review cards, unified icon system, and live execution motion.",
+  "version": "3.8.34",
+  "description": "SmartMail Ops — runtime-only mail operations with one-click workspace Dock, live execution motion, unified icon system, automatic mailbox sync, and refined execution preflight warnings.",
   "permissions": [
     "scripting",
     "tabs"

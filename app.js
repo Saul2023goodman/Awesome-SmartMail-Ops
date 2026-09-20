@@ -204,6 +204,7 @@
       ['#nmda-show-paste .nmda-source-action-icon','paste'],
       ['#nmda-import-drafts .nmda-source-action-icon','mail'],
       ['.nmda-context-cue-icon','roster'],
+      ['.nmda-mail-handoff-mark','app'],
       ['.nmda-attachment-manager-drop-icon','attachment'],
       ['.nmda-classify-search > span','search'],
       ['.nmda-review-search > span','search'],
@@ -690,7 +691,7 @@
               <input id="nmda-bulk-tag-value" type="hidden"><button id="nmda-bulk-add-tag" type="button" hidden></button><button id="nmda-bulk-remove-tag" type="button" hidden></button><button id="nmda-bulk-disable" type="button" hidden></button>
               <div class="nmda-table-wrap nmda-batch-table-wrap"><div class="nmda-planning-board" id="nmda-preview-body"></div></div>
               <div class="nmda-mail-handoff-bar" id="nmda-mail-handoff-bar">
-                <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备转到网易邮箱执行</strong><small id="nmda-create-preflight">确认本次范围与排期后，真实创建过程将在网易邮箱页面显示。</small></div></div>
+                <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备转到网易邮箱执行</strong><div class="nmda-create-preflight" id="nmda-create-preflight">确认本次范围与排期后，真实创建过程将在网易邮箱页面显示。</div></div></div>
                 <label class="nmda-execution-mode" title="每封邮件填写完成后暂停，人工检查后再保存"><input id="nmda-pause-every-time" type="checkbox"><span>每封填写后暂停</span></label>
                 <button class="nmda-btn nmda-btn-primary nmda-mail-handoff-action" id="nmda-batch-start" type="button">前往网易邮箱并创建所选草稿</button>
                 <button id="nmda-batch-stop" type="button" hidden disabled>当前封后停止</button>
@@ -5533,9 +5534,36 @@
     if(preflight){
       const selected=(tasks||[]).filter(task=>task.enabled&&task.status==='ready');
       const fileCount=selected.reduce((sum,task)=>sum+(task.files?.length||0),0);
+      const attachmentlessCount=selected.filter(task=>!(task.files?.length||0)).length;
+      const unscheduledCount=Math.max(0,snapshot.selectedReady-snapshot.selectedScheduled);
       const excluded=typeof excludedImportCount==='function'?excludedImportCount():0;
-      const facts=[`本次 ${snapshot.selectedReady} 封`,snapshot.selectedScheduled?`定时 ${snapshot.selectedScheduled} 封`:'普通草稿',fileCount?`附件 ${fileCount} 份`:'无附件',excluded?`已排除 ${excluded} 封`:''].filter(Boolean);
-      preflight.innerHTML=`<span>${facts.map(item=>`<em>${escapeHtml(item)}</em>`).join('')}</span><b>执行时自动切到网易邮箱</b>`;
+      const facts=[`本次 ${snapshot.selectedReady} 封`,snapshot.selectedScheduled?`定时 ${snapshot.selectedScheduled} 封`:'',fileCount?`附件 ${fileCount} 份`:'',excluded?`已排除 ${excluded} 封`:''].filter(Boolean);
+      const alerts=[];
+      if(unscheduledCount){
+        alerts.push(`<div class="nmda-execution-alert" data-risk="schedule"><span class="nmda-execution-alert-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.25"/><path d="M10 6.4v4l2.9 1.8"/></svg></span><div><strong>${unscheduledCount} 封未定时</strong><small>将保存为普通草稿，不会按计划自动发送</small></div><b>${unscheduledCount===snapshot.selectedReady?'全部':'检查'}</b></div>`);
+      }
+      if(attachmentlessCount){
+        alerts.push(`<div class="nmda-execution-alert" data-risk="attachment"><span class="nmda-execution-alert-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M7.2 9.8 11 6a2.25 2.25 0 1 1 3.2 3.2l-5 5a3.25 3.25 0 0 1-4.6-4.6l5.25-5.25"/></svg></span><div><strong>${attachmentlessCount} 封无附件</strong><small>${attachmentlessCount===snapshot.selectedReady?'当前所选邮件均不带附件，请确认这是预期':'这些邮件未携带附件，执行前请确认'}</small></div><b>${attachmentlessCount===snapshot.selectedReady?'全部':'检查'}</b></div>`);
+      }
+      const safeCopy=alerts.length?'':'<span class="nmda-execution-safe"><i></i>执行检查通过</span>';
+      preflight.innerHTML=`<div class="nmda-preflight-facts"><span>${facts.map(item=>`<em>${escapeHtml(item)}</em>`).join('')}</span><strong>执行时自动切到网易邮箱</strong>${safeCopy}</div>${alerts.length?`<div class="nmda-execution-alerts">${alerts.join('')}</div>`:''}`;
+      const handoff=$('nmda-mail-handoff-bar');
+      if(handoff)handoff.dataset.attention=alerts.length?'true':'false';
+      const riskSignature=`${unscheduledCount}:${attachmentlessCount}:${snapshot.selectedReady}`;
+      if(alerts.length&&preflight.dataset.riskSignature!==riskSignature){
+        preflight.dataset.riskSignature=riskSignature;
+        if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+          requestAnimationFrame(()=>preflight.querySelectorAll('.nmda-execution-alert').forEach((el,index)=>{
+            el.animate([
+              {opacity:0,transform:'translateY(7px) scale(.985)',backgroundPosition:'100% 0'},
+              {opacity:1,transform:'translateY(-1px) scale(1.002)',backgroundPosition:'38% 0',offset:.72},
+              {opacity:1,transform:'translateY(0) scale(1)',backgroundPosition:'0% 0'}
+            ],{duration:420,delay:index*65,easing:'cubic-bezier(.2,.78,.2,1)'});
+          }));
+        }
+      }else if(!alerts.length){
+        preflight.dataset.riskSignature=riskSignature;
+      }
     }
     return snapshot;
   }

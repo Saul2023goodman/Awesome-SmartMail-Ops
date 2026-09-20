@@ -307,3 +307,172 @@
   #nmda-root .nmda-plan-motion-toast { animation:none; opacity:1; }
   #nmda-root .nmda-dispatch-page .nmda-plan-matrix-task { will-change:auto; }
 }
+
+/* v3.8.34 — execution preflight: beautiful, unmistakable warnings for unscheduled / attachmentless mail */
+#nmda-root .nmda-dispatch-page .nmda-mail-handoff-bar[data-attention="true"] {
+  border-color:#e5d4b7 !important;
+  background:linear-gradient(180deg,#fffdf8 0%,#f8fbff 100%) !important;
+}
+#nmda-root .nmda-dispatch-page .nmda-create-preflight {
+  display:grid !important;
+  gap:7px !important;
+  margin-top:6px !important;
+  color:#66758a;
+}
+#nmda-root .nmda-dispatch-page .nmda-preflight-facts {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+  min-width:0;
+}
+#nmda-root .nmda-dispatch-page .nmda-preflight-facts > span {
+  display:flex;
+  align-items:center;
+  gap:4px;
+  flex-wrap:wrap;
+}
+#nmda-root .nmda-dispatch-page .nmda-preflight-facts em {
+  min-height:20px;
+  display:inline-flex;
+  align-items:center;
+  padding:0 7px;
+  border:1px solid #dbe5f0;
+  border-radius:999px;
+  background:#fff;
+  color:#5b6d82;
+  font-size:9.5px;
+  line-height:1;
+  font-style:normal;
+  font-weight:720;
+}
+#nmda-root .nmda-dispatch-page .nmda-preflight-facts > strong {
+  color:#2767b0;
+  font-size:9.5px !important;
+  line-height:1.2;
+  font-weight:760;
+  white-space:nowrap;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-safe {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  color:#368057;
+  font-size:9.5px;
+  font-weight:760;
+  white-space:nowrap;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-safe i {
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#42a36b;
+  box-shadow:0 0 0 3px rgba(66,163,107,.10);
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-alerts {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:6px;
+  width:100%;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-alert {
+  position:relative;
+  overflow:hidden;
+  min-width:0;
+  min-height:48px;
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr) auto;
+  align-items:center;
+  gap:9px;
+  padding:7px 9px;
+  border:1px solid #efc982;
+  border-radius:10px;
+  background:linear-gradient(110deg,#fff8e9 0%,#fff8e9 38%,#fffdf7 49%,#fff8e9 60%,#fff4dc 100%);
+  background-size:220% 100%;
+  background-position:0% 0;
+  box-shadow:0 2px 8px rgba(137,89,22,.055), inset 3px 0 0 #d78a1c;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-alert[data-risk="attachment"] {
+  border-color:#e8cf9e;
+  background:linear-gradient(110deg,#fffbf2 0%,#fffbf2 38%,#fffefd 49%,#fffbf2 60%,#fff6e3 100%);
+  background-size:220% 100%;
+  box-shadow:0 2px 8px rgba(120,86,34,.05), inset 3px 0 0 #c79a48;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-alert-icon {
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:8px;
+  background:rgba(215,138,28,.11);
+  color:#b46a09;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-alert[data-risk="attachment"] .nmda-execution-alert-icon {
+  background:rgba(166,122,50,.10);
+  color:#9a6a21;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-alert-icon svg {
+  width:16px;
+  height:16px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.7;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-alert > div {
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-alert strong {
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  color:#6d4510 !important;
+  font-size:10.5px !important;
+  line-height:1.2 !important;
+  font-weight:820 !important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-alert small {
+  color:#8a6a3d !important;
+  font-size:9.5px !important;
+  line-height:1.3 !important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#nmda-root .nmda-dispatch-page .nmda-execution-alert > b {
+  min-height:20px;
+  display:inline-flex;
+  align-items:center;
+  padding:0 7px;
+  border:1px solid rgba(179,113,17,.18);
+  border-radius:999px;
+  background:rgba(255,255,255,.64);
+  color:#9d5f0a;
+  font-size:8.5px;
+  font-weight:820;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+#nmda-root .nmda-dispatch-page .nmda-mail-handoff-mark svg {
+  width:18px;
+  height:18px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+@media (max-width:760px) {
+  #nmda-root .nmda-dispatch-page .nmda-execution-alerts { grid-template-columns:1fr; }
+  #nmda-root .nmda-dispatch-page .nmda-execution-alert small { white-space:normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #nmda-root .nmda-dispatch-page .nmda-execution-alert { background-position:0 0 !important; }
+}
