@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.22",
-  "description": "SmartMail Ops — runtime-only batch mail operations with card-based Review and continuous Preview.",
+  "version": "3.8.23",
+  "description": "SmartMail Ops — runtime-only batch mail operations with card-based Review and Preview-style sidebar navigation.",
   "permissions": [
     "scripting",
     "tabs"

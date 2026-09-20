@@ -2732,7 +2732,7 @@
   }
 }
 
-/* v3.8.22 · Card board + continuous Preview layer
+/* v3.8.23 · Card board + Preview sidebar + continuous reader
    Review keeps the dense card grid as its default surface. Opening a card enters
    a continuous Preview reader containing the whole current Review set. Key facts
    are highlighted in-place inside the full message; no detached opening/closing
@@ -2749,7 +2749,7 @@
 /* Preview replaces the board chrome, not the underlying Review data/model. */
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] {
   display:grid !important;
-  grid-template-columns:minmax(0,1fr) !important;
+  grid-template-columns:clamp(188px,16vw,236px) minmax(0,1fr) !important;
   grid-template-rows:auto minmax(0,1fr) !important;
   gap:0 !important;
   overflow:hidden !important;
@@ -2763,7 +2763,7 @@
   display:none !important;
 }
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar {
-  grid-column:1 !important;
+  grid-column:1 / -1 !important;
   grid-row:1 !important;
   min-width:0;
   min-height:50px;
@@ -2802,8 +2802,104 @@
 }
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-key .nmda-semantic-legend-item strong { font-size:8px; }
 
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] #nmda-review-queue.nmda-review-continuous-preview {
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail {
   grid-column:1 !important;
+  grid-row:2 !important;
+  min-width:0;
+  min-height:0;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+  overflow:hidden;
+  border-right:1px solid #d9e0e8;
+  background:linear-gradient(180deg,#f7f8fa 0%,#f2f4f7 100%);
+  box-shadow:8px 0 24px rgba(35,46,60,.035);
+  z-index:3;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail[hidden] { display:none !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-head {
+  min-height:43px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:8px 10px 7px 12px;
+  border-bottom:1px solid #e0e5eb;
+  background:rgba(248,249,251,.9);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-head > div { min-width:0;display:flex;align-items:baseline;gap:6px; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-head strong { color:#26313c;font-size:10px;font-weight:820; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-head small {
+  min-width:19px;height:18px;padding:0 5px;display:grid;place-items:center;border:1px solid #d7dde5;border-radius:999px;background:#fff;color:#73808e;font:750 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-head > span { color:#9aa4af;font:750 8px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.04em; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-list {
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:8px 7px 14px;
+  scrollbar-width:thin;
+  scrollbar-color:#cfd6df transparent;
+  overscroll-behavior:contain;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card {
+  position:relative;
+  width:100%;
+  min-width:0;
+  display:grid;
+  grid-template-columns:25px minmax(0,1fr);
+  align-items:start;
+  gap:7px;
+  margin:0 0 6px;
+  padding:8px 8px 8px 7px;
+  border:1px solid transparent;
+  border-radius:10px;
+  background:transparent;
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+  outline:none;
+  transition:transform .22s cubic-bezier(.2,.8,.2,1),background .18s ease,border-color .18s ease,box-shadow .22s ease;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card::before {
+  content:"";
+  position:absolute;
+  left:0;top:9px;bottom:9px;
+  width:2px;
+  border-radius:999px;
+  background:transparent;
+  transition:background .18s ease,transform .22s cubic-bezier(.2,.8,.2,1);
+  transform:scaleY(.4);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card:hover { background:rgba(255,255,255,.72);border-color:#e2e7ed;transform:translateX(2px); }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-active {
+  background:#fff;
+  border-color:#cbd8e7;
+  box-shadow:0 5px 15px rgba(33,46,63,.07),0 1px 2px rgba(33,46,63,.04);
+  transform:translateX(3px);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-active::before { background:#2b7de9;transform:scaleY(1); }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card[data-state="action"]::before { background:#d79a2b;transform:scaleY(.72); }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card[data-state="action"].is-active::before { background:#d28c16;transform:scaleY(1); }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-index {
+  width:24px;height:24px;display:grid;place-items:center;border:1px solid #dfe4ea;border-radius:7px;background:#fafbfd;color:#8f9aa6;font:800 7.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-active .nmda-review-preview-rail-index { border-color:#c6d9f0;background:#eef6ff;color:#1769c2; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy { min-width:0;display:grid;gap:3px; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy > span { min-width:0;display:flex;align-items:center;justify-content:space-between;gap:5px; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy em { color:#7a8794;font:750 7.5px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-style:normal; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy i { min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#7d8995;font:700 7px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-style:normal; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card[data-state="action"] .nmda-review-preview-rail-copy i { color:#9a6413; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy strong,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy small { min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy strong { color:#2c3743;font-size:9px;font-weight:790; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy small { color:#7e8996;font-size:7.7px;line-height:1.3; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-more,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-empty { padding:12px 8px;color:#8994a0;font-size:8px;text-align:center; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-more { display:grid;gap:2px; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-more small { color:#a2abb5;font-size:7px; }
+
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] #nmda-review-queue.nmda-review-continuous-preview {
+  grid-column:2 !important;
   grid-row:2 !important;
   width:100% !important;
   height:100% !important;
@@ -2811,7 +2907,7 @@
   min-height:0 !important;
   max-height:none !important;
   display:block !important;
-  padding:18px clamp(18px,5vw,68px) 34px !important;
+  padding:18px clamp(14px,3vw,44px) 34px !important;
   overflow-y:auto !important;
   overflow-x:hidden !important;
   scroll-behavior:smooth;
@@ -2917,6 +3013,31 @@
   margin:0 auto 6px;
 }
 
+@keyframes nmdaPreviewRailEnter {
+  from { opacity:0;transform:translateX(-12px); }
+  to { opacity:1;transform:translateX(0); }
+}
+@keyframes nmdaPreviewPageEnter {
+  from { opacity:0;transform:translateY(8px) scale(.997); }
+  to { opacity:1;transform:translateY(0) scale(1); }
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"][data-preview-animate="1"] .nmda-review-preview-rail {
+  animation:nmdaPreviewRailEnter .30s cubic-bezier(.2,.8,.2,1) both;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"][data-preview-animate="1"] .nmda-review-preview-rail-card {
+  animation:nmdaPreviewRailEnter .28s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay:var(--rail-delay,0ms);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"][data-preview-animate="1"] .nmda-review-preview-page {
+  animation:nmdaPreviewPageEnter .30s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay:var(--page-delay,0ms);
+}
+@media (prefers-reduced-motion:reduce){
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail,
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card,
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page { animation:none !important;transition:none !important;scroll-behavior:auto !important; }
+}
+
 /* Explicit correction remains a focused inspector above Preview. */
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > #nmda-import-editor-overlay:not([hidden]) {
   position:absolute !important;
@@ -2942,11 +3063,17 @@
   min-height:0 !important;
 }
 @media(max-width:980px){
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] { grid-template-columns:170px minmax(0,1fr) !important; }
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar { grid-template-columns:auto minmax(0,1fr); }
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-key { grid-column:1 / -1;justify-content:flex-start; }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card { grid-template-columns:22px minmax(0,1fr);padding:7px 6px;gap:5px; }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-index { width:21px;height:21px; }
 }
 @media(max-width:820px){
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] { grid-template-columns:146px minmax(0,1fr) !important; }
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] #nmda-review-queue.nmda-review-continuous-preview { padding:12px 10px 24px !important; }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-head { padding-inline:8px; }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-copy > span i { display:none; }
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-head { grid-template-columns:auto minmax(0,1fr) auto; }
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-state { grid-column:2; }
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-edit { grid-column:3;grid-row:2; }

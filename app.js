@@ -474,6 +474,10 @@
                     <span class="nmda-semantic-legend-item" data-semantic="degree"><i></i><strong>学位 / 时间</strong></span>
                   </div>
                 </div>
+                <aside class="nmda-review-preview-rail" id="nmda-review-preview-rail" hidden aria-label="Preview 邮件导航">
+                  <div class="nmda-review-preview-rail-head"><div><strong>邮件</strong><small id="nmda-review-preview-rail-count">0</small></div><span>Preview</span></div>
+                  <div class="nmda-review-preview-rail-list" id="nmda-review-preview-rail-list"></div>
+                </aside>
                 <div id="nmda-review-queue" class="nmda-review-queue nmda-review-mail-grid"></div>
 
                 <div class="nmda-review-workbench" id="nmda-import-editor-overlay" hidden aria-hidden="true">
@@ -1423,7 +1427,7 @@
   const pasteSourceEl = $('nmda-paste-source');
   const subjectAssistEl = $('nmda-subject-assist'), subjectAssistTitleEl = $('nmda-subject-assist-title'), subjectAssistCopyEl = $('nmda-subject-assist-copy');
   const importEditorOverlayEl = $('nmda-import-editor-overlay'), importEditRecipientsEl = $('nmda-import-edit-recipients'), importEditSubjectEl = $('nmda-import-edit-subject'), importEditBodyEl = $('nmda-import-edit-body'), importEditAttachmentsEl = $('nmda-import-edit-attachments'), importEditScheduleEl = $('nmda-import-edit-schedule'), importEditTagsEl = $('nmda-import-edit-tags'), importEditorEvidenceEl = $('nmda-import-editor-evidence');
-  const reviewQueueEl = $('nmda-review-queue'), reviewSourceContextEl = $('nmda-review-source-context'), reviewSourceMetaEl = $('nmda-review-source-meta'), reviewCandidatesEl = $('nmda-review-email-candidates'), reviewProgressEl = $('nmda-review-progress'), reviewProblemSummaryEl = $('nmda-review-problem-summary'), reviewFeedbackEl = $('nmda-review-feedback');
+  const reviewQueueEl = $('nmda-review-queue'), reviewPreviewRailEl=$('nmda-review-preview-rail'), reviewPreviewRailListEl=$('nmda-review-preview-rail-list'), reviewPreviewRailCountEl=$('nmda-review-preview-rail-count'), reviewSourceContextEl = $('nmda-review-source-context'), reviewSourceMetaEl = $('nmda-review-source-meta'), reviewCandidatesEl = $('nmda-review-email-candidates'), reviewProgressEl = $('nmda-review-progress'), reviewProblemSummaryEl = $('nmda-review-problem-summary'), reviewFeedbackEl = $('nmda-review-feedback');
   const reviewNavCountEl=$('nmda-review-nav-count'), reviewInlineEl=$('nmda-inline-review'), reviewPageEmptyEl=$('nmda-review-page-empty');
   const reviewWorkspaceTitleEl=$('nmda-review-workspace-title'), reviewWorkspaceDescEl=$('nmda-review-workspace-desc'), reviewActionsEl=$('nmda-review-actions'), reviewMoreMenuEl=$('nmda-review-more-menu');
   const reviewFilterEl=$('nmda-review-filter'), reviewSearchEl=$('nmda-review-search'), reviewMailTitleEl=$('nmda-review-mail-title'), reviewPositionEl=$('nmda-review-position'), reviewPrevEl=$('nmda-review-prev'), reviewNextEl=$('nmda-review-next');
@@ -1509,6 +1513,13 @@
     stashCurrentReviewDraft();hideSubjectAssist();
     const task=reviewTaskByKey(editAction.dataset.reviewEditKey);if(task)openImportTaskEditor(task);
   });
+  reviewPreviewRailEl?.addEventListener('click',event=>{
+    const target=event.target.closest?.('[data-review-rail-key]');
+    if(!target)return;
+    const key=String(target.dataset.reviewRailKey||'');
+    if(key)focusReviewTask(key,{behavior:'smooth',block:'start'});
+  });
+
   reviewQueueEl?.addEventListener('change',event=>{
     const input=event.target.closest?.('[data-review-select]');if(!input)return;
     const key=input.dataset.reviewSelect;if(!key)return;
@@ -1525,6 +1536,7 @@
     reviewScrollFrame=requestAnimationFrame(()=>{
       reviewScrollFrame=0;
       if(!reviewQueueEl || reviewQueueEl.clientHeight<=0)return;
+      if(batch.reviewSurface==='preview')syncReviewPreviewActiveFromScroll();
       const remaining=reviewQueueEl.scrollHeight-reviewQueueEl.scrollTop-reviewQueueEl.clientHeight;
       if(remaining>Math.max(420,reviewQueueEl.clientHeight*.55))return;
       const total=reviewQueueItems(reviewVisibleTasks()).length;
@@ -2789,14 +2801,20 @@
   function setReviewSurface(mode='board') {
     if(!reviewInlineEl)return;
     const next=mode==='preview'?'preview':'board';
+    const previous=batch.reviewSurface==='preview'?'preview':'board';
     batch.reviewSurface=next;
     reviewInlineEl.dataset.reviewView=next;
+    if(next==='preview'&&previous!=='preview'){
+      reviewInlineEl.dataset.previewAnimate='1';
+      window.setTimeout(()=>{if(reviewInlineEl?.dataset.reviewView==='preview')delete reviewInlineEl.dataset.previewAnimate;},420);
+    }else if(next==='board')delete reviewInlineEl.dataset.previewAnimate;
     if(reviewQueueEl){
       reviewQueueEl.classList.toggle('nmda-review-mail-grid',next==='board');
       reviewQueueEl.classList.toggle('nmda-review-continuous-preview',next==='preview');
     }
     const toolbar=$('nmda-review-preview-toolbar');
     if(toolbar)toolbar.hidden=next!=='preview';
+    if(reviewPreviewRailEl)reviewPreviewRailEl.hidden=next!=='preview';
   }
 
   function otherMissingSubjectTasks(currentKey='') {
@@ -3349,6 +3367,7 @@
     requestAnimationFrame(()=>{
       const row=reviewQueueEl.querySelector(`[data-review-row="${CSS.escape(key)}"]`);
       row?.scrollIntoView?.({block:options.block||'center',behavior:options.behavior||'smooth'});
+      if(batch.reviewSurface==='preview')setReviewPreviewActiveKey(key,{revealRail:true,railBehavior:options.behavior||'smooth'});
       if(row){row.classList.add('is-jump-focus');window.setTimeout(()=>row.classList.remove('is-jump-focus'),1100);}
     });
     return true;
@@ -3457,13 +3476,76 @@
     else if(activeKey)requestAnimationFrame(()=>reviewQueueEl.querySelector(`[data-review-row="${CSS.escape(activeKey)}"]`)?.scrollIntoView?.({block:'nearest'}));
   }
 
+  function reviewRailTitle(task,index=0) {
+    const recipient=String(task?.recipients||'').trim();
+    const angle=recipient.match(/^\s*([^<>;,]+?)\s*<[^>]+>/);
+    if(angle?.[1] && !/@/.test(angle[1]))return angle[1].trim();
+    const first=recipient.split(/[;,]/)[0]?.trim()||'';
+    if(first)return first.length>34?`${first.slice(0,31)}…`:first;
+    return String(task?.id||task?.collectionName||`邮件 ${index+1}`);
+  }
+
+  function renderReviewPreviewRail(tasks=[],activeKey='',totalCount=tasks.length) {
+    if(!reviewPreviewRailEl||!reviewPreviewRailListEl)return;
+    if(reviewPreviewRailCountEl)reviewPreviewRailCountEl.textContent=String(totalCount||0);
+    reviewPreviewRailListEl.innerHTML=(tasks||[]).map((task,index)=>{
+      const visual=reviewVisualState(task);
+      const title=reviewRailTitle(task,index);
+      const subject=String(task?.subject||'').trim()||'未识别主题';
+      const kind=isFollowUpReviewTask(task)?`FU ${Math.max(1,Number(task.sequence||1))}`:'Initial';
+      const active=task.editKey===activeKey;
+      return `<button type="button" class="nmda-review-preview-rail-card ${active?'is-active':''}" data-review-rail-key="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}" aria-current="${active?'true':'false'}" title="${escapeHtml(subject)}" style="--rail-delay:${Math.min(index,10)*18}ms">
+        <span class="nmda-review-preview-rail-index">${String(index+1).padStart(2,'0')}</span>
+        <span class="nmda-review-preview-rail-copy"><span><em>${escapeHtml(kind)}</em><i>${escapeHtml(visual.label)}</i></span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(subject)}</small></span>
+      </button>`;
+    }).join('') || '<div class="nmda-review-preview-rail-empty">当前没有邮件</div>';
+    if(totalCount>tasks.length)reviewPreviewRailListEl.insertAdjacentHTML('beforeend',`<div class="nmda-review-preview-rail-more">${tasks.length} / ${totalCount}<small>继续下滚加载</small></div>`);
+  }
+
+  function setReviewPreviewActiveKey(editKey='',options={}) {
+    if(batch.reviewSurface!=='preview')return;
+    const key=String(editKey||'');if(!key)return;
+    batch.reviewPreviewKey=key;
+    reviewQueueEl?.querySelectorAll?.('.nmda-review-preview-page[data-review-row]').forEach(page=>page.classList.toggle('is-active',page.dataset.reviewRow===key));
+    reviewPreviewRailListEl?.querySelectorAll?.('[data-review-rail-key]').forEach(card=>{
+      const active=card.dataset.reviewRailKey===key;
+      card.classList.toggle('is-active',active);
+      card.setAttribute('aria-current',active?'true':'false');
+    });
+    const visible=reviewVisibleTasks();
+    const index=visible.findIndex(task=>task.editKey===key);
+    const previewMeta=$('nmda-review-preview-meta');
+    if(previewMeta&&index>=0)previewMeta.textContent=`已定位 ${index+1} / ${visible.length} · 上下滚动快速扫读全部邮件`;
+    const activeCard=reviewPreviewRailListEl?.querySelector?.(`[data-review-rail-key="${CSS.escape(key)}"]`);
+    if(activeCard&&options.revealRail!==false)activeCard.scrollIntoView?.({block:'nearest',behavior:options.railBehavior||'auto'});
+  }
+
+  function syncReviewPreviewActiveFromScroll() {
+    if(batch.reviewSurface!=='preview'||!reviewQueueEl)return;
+    const pages=[...reviewQueueEl.querySelectorAll('.nmda-review-preview-page[data-review-row]')];
+    if(!pages.length)return;
+    const box=reviewQueueEl.getBoundingClientRect();
+    const focusY=box.top+Math.min(190,Math.max(92,box.height*.23));
+    let best=pages[0],bestDistance=Number.POSITIVE_INFINITY;
+    for(const page of pages){
+      const rect=page.getBoundingClientRect();
+      if(rect.top<=focusY&&rect.bottom>=focusY){best=page;bestDistance=0;break;}
+      const distance=Math.min(Math.abs(rect.top-focusY),Math.abs(rect.bottom-focusY));
+      if(distance<bestDistance){bestDistance=distance;best=page;}
+    }
+    const key=best?.dataset?.reviewRow||'';
+    if(key&&key!==batch.reviewPreviewKey)setReviewPreviewActiveKey(key,{revealRail:true,railBehavior:'smooth'});
+  }
+
   function renderReviewContinuousPreview(activeKey='',options={}) {
     const preserveScroll=!!options?.preserveScroll;
     const previousScrollTop=preserveScroll?reviewQueueEl.scrollTop:0;
+    const previousRailScrollTop=preserveScroll?(reviewPreviewRailListEl?.scrollTop||0):0;
     const visibleTasks=reviewVisibleTasks();
     const allItems=reviewQueueItems(visibleTasks);
     const renderLimit=Math.max(REVIEW_RENDER_CHUNK,viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK);
     const list=allItems.slice(0,renderLimit);
+    renderReviewPreviewRail(list.map(item=>item.task),activeKey,visibleTasks.length);
     const pendingCount=reviewTasks().length;
     const pendingUnits=reviewQueueItems(reviewTasks()).length;
     if(reviewProgressEl)reviewProgressEl.textContent=pendingUnits?`${pendingUnits} 项待处理`:'没有待处理邮件';
@@ -3485,7 +3567,7 @@
         ? `<div class="nmda-preview-issues">${issueChips}</div>`
         : `<span class="nmda-preview-pass-note">✓ ${visual.key==='confirmed'?'人工确认':'自动通过'}</span>`;
       const editLabel=visual.direct?.length?'补齐':'修正';
-      return `<article class="nmda-review-preview-page ${task.editKey===activeKey?'is-active':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}" data-review-kind="${isFollowUpReviewTask(task)?'follow_up':'initial'}">
+      return `<article class="nmda-review-preview-page ${task.editKey===activeKey?'is-active':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}" data-review-kind="${isFollowUpReviewTask(task)?'follow_up':'initial'}" style="--page-delay:${Math.min(index,10)*16}ms">
         <header class="nmda-review-preview-head">
           <div class="nmda-review-preview-index"><span>${String(index+1).padStart(2,'0')}</span>${sourceBadge}</div>
           <div class="nmda-review-preview-meta"><strong>${semanticHighlightHtml(recipient,task)}</strong><small>${semanticHighlightHtml(subject,task)}</small></div>
@@ -3500,8 +3582,15 @@
       </article>`;
     }).join(''):`<div class="nmda-review-empty">${batch.reviewFilter==='pending'?'当前没有需要人工处理的邮件。':'当前没有可查看的邮件。'}</div>`;
     if(allItems.length>list.length)reviewQueueEl.insertAdjacentHTML('beforeend',`<button type="button" class="nmda-review-load-more" data-review-load-more><span>已显示 ${list.length} / ${allItems.length}</span><small>继续向下滚动自动加载</small></button>`);
-    if(preserveScroll)requestAnimationFrame(()=>{reviewQueueEl.scrollTop=Math.min(previousScrollTop,Math.max(0,reviewQueueEl.scrollHeight-reviewQueueEl.clientHeight));});
-    else if(activeKey)requestAnimationFrame(()=>reviewQueueEl.querySelector(`[data-review-row="${CSS.escape(activeKey)}"]`)?.scrollIntoView?.({block:'center'}));
+    if(preserveScroll)requestAnimationFrame(()=>{
+      reviewQueueEl.scrollTop=Math.min(previousScrollTop,Math.max(0,reviewQueueEl.scrollHeight-reviewQueueEl.clientHeight));
+      if(reviewPreviewRailListEl)reviewPreviewRailListEl.scrollTop=Math.min(previousRailScrollTop,Math.max(0,reviewPreviewRailListEl.scrollHeight-reviewPreviewRailListEl.clientHeight));
+      setReviewPreviewActiveKey(activeKey||batch.reviewPreviewKey,{revealRail:false});
+    });
+    else if(activeKey)requestAnimationFrame(()=>{
+      reviewQueueEl.querySelector(`[data-review-row="${CSS.escape(activeKey)}"]`)?.scrollIntoView?.({block:'center'});
+      setReviewPreviewActiveKey(activeKey,{revealRail:true,railBehavior:'smooth'});
+    });
   }
 
   function renderReviewQueue(activeKey='',options={}) {

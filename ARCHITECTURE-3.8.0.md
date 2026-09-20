@@ -111,3 +111,10 @@ Review is a continuous batch-reading surface rather than a per-message navigatio
 ## v3.8.22 Review interaction refinement
 
 Review now has two reading surfaces over the same runtime task set. The default `board` surface is the high-density card grid used to scan status and exceptions. Opening a card switches to `preview`, a vertically continuous reader over the current filtered set and scrolls to the selected mail. Preview keeps semantic key-information highlighting inline in the full message and does not create detached opening/closing excerpts. Editing remains an explicit correction action layered over Preview; it is not the default way to read a mail.
+
+
+## v3.8.23 Preview sidebar navigation
+
+The card grid remains Review's default high-density surface. Opening a card enters the continuous Preview reader with a persistent left navigation rail inspired by document-preview applications. The rail reuses the compact Review-card language (index, Initial/Follow-up kind, recipient identity, subject and state) rather than introducing a separate information model.
+
+The Preview reader and rail are bidirectionally synchronized: selecting a rail card scrolls the full-mail reader to that message, while scrolling the reader updates the active rail card and keeps it visible. Motion is intentionally restrained: the rail and first visible pages ease into place on entry, active cards use small positional/elevation transitions, and `prefers-reduced-motion` disables the motion layer. Semantic key-information markers remain inline in the full body; opening/closing excerpts are not rendered separately.
