@@ -869,3 +869,34 @@
     grid-column:auto;
   }
 }
+
+/* v3.8.60 — Preview sequential rewrite motion. Visual only; never persisted into mail HTML. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-sheet{position:relative;overflow:hidden}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-running,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-rewriting{
+  border-color:#b8a2d5!important;
+  box-shadow:0 0 0 3px rgba(117,82,165,.08),0 10px 30px rgba(42,34,55,.10)!important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-running .nmda-review-preview-sheet::after,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-rewriting .nmda-review-preview-sheet::after{
+  content:"";position:absolute;z-index:5;pointer-events:none;top:-12%;bottom:-12%;left:-34%;width:30%;
+  background:linear-gradient(90deg,transparent,rgba(137,103,185,.035) 20%,rgba(130,96,179,.15) 48%,rgba(121,151,203,.08) 72%,transparent);
+  filter:blur(1px);transform:skewX(-8deg);animation:nmdaFormatRewriteSweep .48s cubic-bezier(.2,.72,.25,1) both
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-rewriting .nmda-review-preview-sheet::after{animation-duration:.34s;background:linear-gradient(90deg,transparent,rgba(119,86,165,.04),rgba(119,86,165,.18),rgba(76,130,168,.07),transparent)}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-done{border-color:#cbdccf!important;box-shadow:0 0 0 2px rgba(74,128,92,.055),0 6px 18px rgba(29,37,48,.06)!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-done::after{content:"";position:absolute;z-index:8;right:12px;top:12px;width:7px;height:7px;border-radius:50%;background:#5c896b;box-shadow:0 0 0 4px rgba(80,137,99,.09);animation:nmdaFormatSettle .32s ease-out both}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-body::highlight(nmda-governance-target){background:rgba(155,123,200,.19);color:inherit;text-decoration:underline;text-decoration-color:rgba(112,77,168,.62);text-decoration-thickness:1.5px;text-underline-offset:3px}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-body::highlight(nmda-governance-applied){background:rgba(88,147,108,.13);color:inherit;text-decoration:underline;text-decoration-color:rgba(73,129,92,.40);text-decoration-thickness:1px;text-underline-offset:3px}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-running{border-color:#baa4d5!important;background:linear-gradient(90deg,rgba(119,86,165,.09),rgba(255,255,255,.86))!important;transform:translateX(3px)!important;box-shadow:0 4px 14px rgba(70,52,93,.08)!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-running::before{background:#8060aa!important;transform:scaleY(1)!important;box-shadow:0 0 9px rgba(128,96,170,.38)}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-done::before{background:#5c896b!important;transform:scaleY(.72)!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-format-governance-running="1"] .nmda-review-preview-edit{pointer-events:none;opacity:.52}
+@keyframes nmdaFormatRewriteSweep{0%{left:-34%;opacity:0}16%{opacity:1}100%{left:112%;opacity:0}}
+@keyframes nmdaFormatSettle{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.22);opacity:1}100%{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-running .nmda-review-preview-sheet::after,
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-rewriting .nmda-review-preview-sheet::after,
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-done::after{animation:none!important;display:none!important}
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-running{transform:none!important}
+}

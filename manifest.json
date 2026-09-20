@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.59",
-  "description": "SmartMail Ops — moves deterministic batch format governance into Preview for batch-wide visual QA, drift detection, exact-match repair, and format-preserving NetEase execution.",
+  "version": "3.8.60",
+  "description": "SmartMail Ops — adds sequential Preview batch-format execution with visible per-mail rewrite choreography, exact-target highlighting, progress evidence, and format-safe deterministic mutation.",
   "permissions": [
     "scripting",
     "tabs",

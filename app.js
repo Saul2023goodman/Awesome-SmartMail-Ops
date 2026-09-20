@@ -807,6 +807,17 @@
                   </div>
                   <div class="nmda-format-governance-suggestions" id="nmda-format-governance-suggestions" hidden></div>
                   <div class="nmda-format-governance-result" id="nmda-format-governance-result">输入固定文本后，会先检查所有未排除草稿，再决定是否应用。</div>
+                  <div class="nmda-format-governance-run" id="nmda-format-governance-run" hidden aria-live="polite">
+                    <div class="nmda-format-governance-run-head">
+                      <span class="nmda-format-governance-sigil" aria-hidden="true"><i></i><b></b></span>
+                      <span class="nmda-format-governance-run-copy"><strong id="nmda-format-governance-run-title">准备逐封校正</strong><small id="nmda-format-governance-run-meta"></small></span>
+                      <strong class="nmda-format-governance-run-count" id="nmda-format-governance-run-count">0 / 0</strong>
+                    </div>
+                    <div class="nmda-format-governance-run-track" aria-hidden="true"><i id="nmda-format-governance-run-bar"></i><b id="nmda-format-governance-run-orb"></b></div>
+                    <div class="nmda-format-governance-rewrite" id="nmda-format-governance-rewrite">
+                      <span class="is-before" id="nmda-format-governance-run-before"></span><i aria-hidden="true">→</i><span class="is-after" id="nmda-format-governance-run-after"></span>
+                    </div>
+                  </div>
                   <div class="nmda-format-governance-list" id="nmda-format-governance-list" hidden></div>
                   <footer class="nmda-format-governance-actions">
                     <div id="nmda-format-governance-history" class="nmda-format-governance-history"></div>
@@ -2100,6 +2111,7 @@
   const reviewBatchbarEl=$('nmda-review-batchbar'), reviewSelectedCountEl=$('nmda-review-selected-count'), reviewEvidenceDetailsEl=$('nmda-review-evidence-details');
   const reviewFillSubjectsEl=$('nmda-review-fill-subjects'), reviewSubjectPromptEl=$('nmda-review-subject-prompt'), reviewSubjectPromptTitleEl=$('nmda-review-subject-prompt-title'), reviewSubjectPromptCopyEl=$('nmda-review-subject-prompt-copy'), reviewBulkSubjectInputEl=$('nmda-review-bulk-subject-input'), reviewBulkSubjectApplyEl=$('nmda-review-bulk-subject-apply');
   const formatGovernanceEntryEl=$('nmda-review-format-governance'), formatGovernanceEntryCountEl=$('nmda-preview-format-drift-count'), formatGovernanceEl=$('nmda-format-governance'), formatGovernancePhraseEl=$('nmda-format-governance-phrase'), formatGovernanceCaseEl=$('nmda-format-governance-case'), formatGovernanceResultEl=$('nmda-format-governance-result'), formatGovernanceListEl=$('nmda-format-governance-list'), formatGovernanceApplyEl=$('nmda-format-governance-apply'), formatGovernanceSuggestionsEl=$('nmda-format-governance-suggestions'), formatGovernanceHistoryEl=$('nmda-format-governance-history');
+  const formatGovernanceRunEl=$('nmda-format-governance-run'), formatGovernanceRunTitleEl=$('nmda-format-governance-run-title'), formatGovernanceRunMetaEl=$('nmda-format-governance-run-meta'), formatGovernanceRunCountEl=$('nmda-format-governance-run-count'), formatGovernanceRunBarEl=$('nmda-format-governance-run-bar'), formatGovernanceRunBeforeEl=$('nmda-format-governance-run-before'), formatGovernanceRunAfterEl=$('nmda-format-governance-run-after');
   const reviewFollowUpTemplateCardEl=$('nmda-review-followup-template-card'), reviewFollowUpTemplateToggleEl=$('nmda-review-followup-template-toggle'), reviewFollowUpTemplateEl=$('nmda-review-followup-template'), reviewFollowUpTemplateMetaEl=$('nmda-review-followup-template-meta'), reviewFollowUpTemplateSaveEl=$('nmda-review-followup-template-save');
   const duplicateDecisionEl=$('nmda-duplicate-decision'), duplicateDecisionTitleEl=$('nmda-duplicate-decision-title'), duplicateDecisionCopyEl=$('nmda-duplicate-decision-copy'), duplicateDecisionKindEl=$('nmda-duplicate-decision-kind'), duplicateCandidatesEl=$('nmda-duplicate-candidates'), duplicateDecisionHintEl=$('nmda-duplicate-decision-hint'), duplicateKeepSelectedEl=$('nmda-duplicate-keep-selected'), duplicateKeepAllEl=$('nmda-duplicate-keep-all');
   const draftHistoryFilterEl=$('nmda-draft-history-filter'), draftHistoryCountEl=$('nmda-draft-history-count'), draftHistoryListEl=$('nmda-draft-history-list'), draftHistoryHintEl=$('nmda-draft-history-hint'), draftHistoryExcludeEl=$('nmda-draft-history-exclude'), draftHistoryKeepEl=$('nmda-draft-history-keep');
@@ -2463,6 +2475,7 @@
   });
 
   reviewQueueEl?.addEventListener('click',event=>{
+    if(formatGovernanceRunState?.running)return;
     if(event.target.closest?.('[data-review-load-more]')){viewPerf.reviewRenderLimit=(viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK)+REVIEW_RENDER_CHUNK;renderReviewQueue(batch.reviewSurface==='preview'?batch.reviewPreviewKey:(importEditorOverlayEl?.dataset.editKey||''),{preserveScroll:true});return;}
     const previewAction=event.target.closest?.('[data-review-preview-key]');
     if(previewAction){openReviewPreview(previewAction.dataset.reviewPreviewKey);return;}
@@ -2472,6 +2485,7 @@
     const task=reviewTaskByKey(editAction.dataset.reviewEditKey);if(task)openImportTaskEditor(task);
   });
   reviewPreviewRailEl?.addEventListener('click',event=>{
+    if(formatGovernanceRunState?.running)return;
     const target=event.target.closest?.('[data-review-rail-key]');
     if(!target)return;
     const key=String(target.dataset.reviewRailKey||'');
@@ -2495,6 +2509,7 @@
       reviewScrollFrame=0;
       if(!reviewQueueEl || reviewQueueEl.clientHeight<=0)return;
       if(batch.reviewSurface==='preview')syncReviewPreviewActiveFromScroll();
+      if(reviewInlineEl?.dataset.formatGovernanceRunning==='1')return;
       const remaining=reviewQueueEl.scrollHeight-reviewQueueEl.scrollTop-reviewQueueEl.clientHeight;
       if(remaining>Math.max(420,reviewQueueEl.clientHeight*.55))return;
       const total=reviewQueueItems(reviewVisibleTasks()).length;
@@ -3922,9 +3937,9 @@
     }
     if(formatGovernanceListEl){
       const rows=analysis.records.filter(row=>row.needed>0||row.skipped>0).slice(0,24);formatGovernanceListEl.hidden=!rows.length;
-      formatGovernanceListEl.innerHTML=rows.map(row=>`<div class="nmda-format-governance-row" data-state="${row.needed?'repair':'skip'}"><span><strong>${escapeHtml(row.task.subject||'（无主题）')}</strong><small>${escapeHtml(row.task.recipients||'')}</small></span><p>${escapeHtml(row.context||rule.phrase)}</p><b>${row.needed?`${row.needed} 处待修复`:'结构复杂 · 跳过'}</b></div>`).join('')+(analysis.records.length>rows.length?`<div class="nmda-format-governance-more">另有 ${analysis.records.length-rows.length} 封命中邮件未展开</div>`:'');
+      formatGovernanceListEl.innerHTML=rows.map(row=>`<div class="nmda-format-governance-row" data-state="${row.needed?'repair':'skip'}" data-governance-row-key="${escapeHtml(row.task.editKey)}"><span><strong>${escapeHtml(row.task.subject||'（无主题）')}</strong><small>${escapeHtml(row.task.recipients||'')}</small></span><p>${escapeHtml(row.context||rule.phrase)}</p><b>${row.needed?`${row.needed} 处待修复`:'结构复杂 · 跳过'}</b></div>`).join('')+(analysis.records.length>rows.length?`<div class="nmda-format-governance-more">另有 ${analysis.records.length-rows.length} 封命中邮件未展开</div>`:'');
     }
-    if(formatGovernanceApplyEl){formatGovernanceApplyEl.disabled=!analysis.changeTasks;formatGovernanceApplyEl.textContent=analysis.changeTasks?`应用到 ${analysis.changeTasks} 封`:'无需应用';}
+    if(formatGovernanceApplyEl){formatGovernanceApplyEl.disabled=!analysis.changeTasks;formatGovernanceApplyEl.textContent=analysis.changeTasks?`逐封应用到 ${analysis.changeTasks} 封`:'无需应用';}
   }
 
   function scheduleFormatGovernancePreview(){
@@ -3940,30 +3955,170 @@
   }
 
   function closeFormatGovernance(){
+    if(formatGovernanceRunState?.running)return;
     if(formatGovernanceEl)formatGovernanceEl.hidden=true;
     if(reviewInlineEl)delete reviewInlineEl.dataset.formatGovernanceOpen;
     if(formatGovernanceEntryEl){formatGovernanceEntryEl.setAttribute('aria-expanded','false');formatGovernanceEntryEl.classList.remove('is-open');}
     formatGovernanceAnalysis=null;
   }
 
-  async function applyFormatGovernance(){
-    const analysis=formatGovernanceAnalysis||analyzeGovernanceRule(currentGovernanceRule());if(!analysis?.changeTasks)return;
-    const previewContext=batch.reviewSurface==='preview'?{activeKey:String(batch.reviewPreviewKey||''),scrollTop:reviewQueueEl?.scrollTop||0,railScrollTop:reviewPreviewRailListEl?.scrollTop||0}:null;
-    let changedTasks=0,changedOccurrences=0;const changedKeys=[];
-    for(const row of analysis.records){if(!row.needed)continue;const task=row.task,result=inspectGovernanceRuleHtml(taskRichBodyHtml(task),analysis.rule,{apply:true});if(!result.changed)continue;
-      setTaskEdit(task,{bodyHtml:result.html,bodyIsHtml:true,reviewConfirmed:!!task.reviewConfirmed,reviewDraftPending:!!task.reviewDraftPending});changedTasks++;changedOccurrences+=result.changed;changedKeys.push(task.editKey);
-    }
-    if(!changedTasks)return;
-    batch.handoffComplete=false;
-    batch.formatGovernanceRules=[{id:crypto.randomUUID(),phrase:analysis.rule.phrase,formats:[...analysis.rule.formats],caseSensitive:analysis.rule.caseSensitive,appliedAt:new Date().toISOString(),changedTasks,changedOccurrences,taskKeys:changedKeys},...(batch.formatGovernanceRules||[])].slice(0,30);
-    rebuildTasks();scheduleWorkspacePersist();renderReviewPageOverview();renderImportTaskPreview();renderFormatDriftSuggestions();renderFormatGovernanceAnalysis();
-    if(previewContext)requestAnimationFrame(()=>{
-      if(reviewQueueEl)reviewQueueEl.scrollTop=Math.min(previewContext.scrollTop,Math.max(0,reviewQueueEl.scrollHeight-reviewQueueEl.clientHeight));
-      if(reviewPreviewRailListEl)reviewPreviewRailListEl.scrollTop=Math.min(previewContext.railScrollTop,Math.max(0,reviewPreviewRailListEl.scrollHeight-reviewPreviewRailListEl.clientHeight));
-      if(previewContext.activeKey)setReviewPreviewActiveKey(previewContext.activeKey,{revealRail:false});
-    });
-    const labels=analysis.rule.formats.map(key=>MAIL_GOVERNANCE_FORMATS[key]?.label||key).join(' + ');setImportStatus(`已统一“${analysis.rule.phrase}”的${labels}格式：修改 ${changedTasks} 封、${changedOccurrences} 处；Preview 已刷新，正文措辞未改变。`,'ok');
+  let formatGovernanceRunState=null;
+
+  function governanceFormattedPhraseHtml(phrase,formats=[]){
+    let html=escapeHtml(String(phrase||''));
+    for(const key of formats){const tag=MAIL_GOVERNANCE_FORMATS[key]?.tag;if(tag)html=`<${tag}>${html}</${tag}>`;}
+    return html;
   }
+
+  function governanceMotionSlot(total=1){
+    if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return 18;
+    return Math.max(90,Math.min(620,Math.round(7200/Math.max(1,total))));
+  }
+
+  function clearGovernancePreviewHighlight(){
+    try{window.CSS?.highlights?.delete?.('nmda-governance-target');window.CSS?.highlights?.delete?.('nmda-governance-applied');}catch(_){}
+  }
+
+  function setGovernancePreviewHighlight(bodyEl,phrase,caseSensitive=true,name='nmda-governance-target'){
+    clearGovernancePreviewHighlight();
+    if(!bodyEl||!window.CSS?.highlights||typeof window.Highlight!=='function')return 0;
+    try{
+      const index=governanceTextIndex(bodyEl),positions=governanceFindPositions(index.text,String(phrase||''),caseSensitive),ranges=[];
+      for(const position of positions){
+        const refs=governanceOccurrenceRefs(index,position,bodyEl);if(!refs||refs.skipped)continue;
+        const range=document.createRange();range.setStart(refs.first.node,refs.startOffset);range.setEnd(refs.last.node,refs.endOffset);ranges.push(range);
+      }
+      if(ranges.length)window.CSS.highlights.set(name,new window.Highlight(...ranges));
+      return ranges.length;
+    }catch(_){return 0;}
+  }
+
+  function governanceRunElementsForKey(key){
+    const escaped=CSS.escape(String(key||''));
+    return{
+      page:reviewQueueEl?.querySelector?.(`[data-review-row="${escaped}"]`)||null,
+      rail:reviewPreviewRailListEl?.querySelector?.(`[data-review-rail-key="${escaped}"]`)||null,
+      row:formatGovernanceListEl?.querySelector?.(`[data-governance-row-key="${escaped}"]`)||null
+    };
+  }
+
+  function restoreGovernanceDoneMarks(){
+    const done=formatGovernanceRunState?.doneKeys;if(!(done instanceof Set)||!done.size)return;
+    for(const key of done){const parts=governanceRunElementsForKey(key);parts.page?.classList.add('is-format-done');parts.rail?.classList.add('is-format-done');parts.row?.classList.add('is-format-done');}
+  }
+
+  function ensureGovernancePreviewPage(task){
+    let parts=governanceRunElementsForKey(task?.editKey);if(parts.page)return parts;
+    const visible=reviewVisibleTasks(),index=visible.findIndex(item=>item.editKey===task?.editKey);
+    if(index<0)return parts;
+    const current=Math.max(REVIEW_RENDER_CHUNK,viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK);
+    if(index>=current){viewPerf.reviewRenderLimit=Math.min(visible.length,index+REVIEW_RENDER_CHUNK);renderReviewQueue(task.editKey,{preserveScroll:true});restoreGovernanceDoneMarks();parts=governanceRunElementsForKey(task.editKey);}
+    return parts;
+  }
+
+  function clearGovernanceRunMarks({all=false}={}){
+    reviewQueueEl?.querySelectorAll?.(all?'.is-format-running,.is-format-rewriting,.is-format-done':'.is-format-running,.is-format-rewriting').forEach(el=>el.classList.remove('is-format-running','is-format-rewriting',...(all?['is-format-done']:[])));
+    reviewPreviewRailListEl?.querySelectorAll?.(all?'.is-format-running,.is-format-done':'.is-format-running').forEach(el=>el.classList.remove('is-format-running',...(all?['is-format-done']:[])));
+    formatGovernanceListEl?.querySelectorAll?.(all?'.is-format-running,.is-format-done':'.is-format-running').forEach(el=>el.classList.remove('is-format-running',...(all?['is-format-done']:[])));
+  }
+
+  function setFormatGovernanceRunning(running,{keepRunPanel=false}={}){
+    if(reviewInlineEl){if(running)reviewInlineEl.dataset.formatGovernanceRunning='1';else delete reviewInlineEl.dataset.formatGovernanceRunning;}
+    if(formatGovernanceEl){
+      formatGovernanceEl.classList.toggle('is-running',!!running);
+      formatGovernanceEl.querySelectorAll('input,button').forEach(control=>{
+        if(control===formatGovernanceApplyEl){control.disabled=!!running||!formatGovernanceAnalysis?.changeTasks;return;}
+        control.disabled=!!running;
+      });
+    }
+    if(formatGovernanceRunEl&&!keepRunPanel)formatGovernanceRunEl.hidden=!running;
+  }
+
+  function updateGovernanceRunPanel({phase='locate',index=0,total=0,row=null,analysis=null,changed=0}={}){
+    if(!formatGovernanceRunEl)return;
+    formatGovernanceRunEl.hidden=false;formatGovernanceRunEl.dataset.phase=phase;
+    const task=row?.task||null,subject=String(task?.subject||'').trim()||'（无主题）';
+    if(formatGovernanceRunTitleEl)formatGovernanceRunTitleEl.textContent=phase==='complete'?'批量格式校正完成':phase==='error'?'批量格式校正中断':subject;
+    if(formatGovernanceRunMetaEl){
+      if(phase==='complete')formatGovernanceRunMetaEl.textContent=`已逐封处理 ${changed} 封；正文措辞未改变`;
+      else if(phase==='error')formatGovernanceRunMetaEl.textContent='已保留此前成功写入的格式修改';
+      else formatGovernanceRunMetaEl.textContent=[String(task?.recipients||'').trim(),row?.needed?`${row.needed} 处待统一`:'' ].filter(Boolean).join(' · ');
+    }
+    if(formatGovernanceRunCountEl)formatGovernanceRunCountEl.textContent=phase==='complete'?`${total} / ${total}`:`${Math.min(index+1,total)} / ${total}`;
+    if(formatGovernanceRunBarEl){const step=phase==='settle'?.96:phase==='rewrite'?.68:.18;const fraction=phase==='complete'?1:Math.max(0,Math.min(1,(index+step)/Math.max(1,total)));formatGovernanceRunBarEl.style.setProperty('--run-progress',String(fraction));formatGovernanceRunEl.style.setProperty('--run-progress',String(fraction));}
+    if(formatGovernanceRunBeforeEl)formatGovernanceRunBeforeEl.textContent=analysis?.rule?.phrase||'';
+    if(formatGovernanceRunAfterEl)formatGovernanceRunAfterEl.innerHTML=governanceFormattedPhraseHtml(analysis?.rule?.phrase||'',analysis?.rule?.formats||[]);
+    if(formatGovernanceApplyEl&&formatGovernanceRunState?.running&&phase!=='complete')formatGovernanceApplyEl.textContent=`正在逐封校正 ${Math.min(index+1,total)} / ${total}`;
+  }
+
+  async function animateGovernanceTask(row,index,total,analysis,slot){
+    const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const parts=ensureGovernancePreviewPage(row.task);
+    clearGovernanceRunMarks();
+    parts.page?.classList.add('is-format-running');parts.rail?.classList.add('is-format-running');parts.row?.classList.add('is-format-running');
+    if(row.task?.editKey)setReviewPreviewActiveKey(row.task.editKey,{revealRail:true,railBehavior:reduced?'auto':'smooth'});
+    if(parts.page)parts.page.scrollIntoView?.({block:'center',behavior:reduced?'auto':(total>24?'auto':'smooth')});
+    const body=parts.page?.querySelector?.('.nmda-review-preview-body');setGovernancePreviewHighlight(body,analysis.rule.phrase,analysis.rule.caseSensitive,'nmda-governance-target');
+    updateGovernanceRunPanel({phase:'locate',index,total,row,analysis});
+    await sleep(Math.max(0,Math.round(slot*.30)));
+
+    const result=inspectGovernanceRuleHtml(taskRichBodyHtml(row.task),analysis.rule,{apply:true});
+    if(result.changed){
+      setTaskEdit(row.task,{bodyHtml:result.html,bodyIsHtml:true,reviewConfirmed:!!row.task.reviewConfirmed,reviewDraftPending:!!row.task.reviewDraftPending});
+      scheduleWorkspacePersist();
+      if(body){body.innerHTML=decorateReviewRichHtml(row.task);setGovernancePreviewHighlight(body,analysis.rule.phrase,analysis.rule.caseSensitive,'nmda-governance-applied');}
+      parts.page?.classList.remove('is-format-running');parts.page?.classList.add('is-format-rewriting');
+      parts.row?.querySelector?.('b')?.replaceChildren(document.createTextNode(`${result.changed} 处已修复`));
+      updateGovernanceRunPanel({phase:'rewrite',index,total,row,analysis});
+    }
+    await sleep(Math.max(0,Math.round(slot*.43)));
+    parts.page?.classList.remove('is-format-rewriting','is-format-running');parts.page?.classList.add('is-format-done');
+    parts.rail?.classList.remove('is-format-running');parts.rail?.classList.add('is-format-done');
+    parts.row?.classList.remove('is-format-running');parts.row?.classList.add('is-format-done');
+    formatGovernanceRunState?.doneKeys?.add?.(row.task.editKey);
+    updateGovernanceRunPanel({phase:'settle',index,total,row,analysis});
+    await sleep(Math.max(0,Math.round(slot*.27)));
+    clearGovernancePreviewHighlight();
+    return result.changed||0;
+  }
+
+  async function applyFormatGovernance(){
+    if(formatGovernanceRunState?.running)return;
+    const analysis=formatGovernanceAnalysis||analyzeGovernanceRule(currentGovernanceRule());if(!analysis?.changeTasks)return;
+    const runRows=analysis.records.filter(row=>row.needed>0);if(!runRows.length)return;
+    const previewContext=batch.reviewSurface==='preview'?{activeKey:String(batch.reviewPreviewKey||''),scrollTop:reviewQueueEl?.scrollTop||0,railScrollTop:reviewPreviewRailListEl?.scrollTop||0}:null;
+    const slot=governanceMotionSlot(runRows.length);formatGovernanceRunState={running:true,id:crypto.randomUUID(),doneKeys:new Set()};const runId=formatGovernanceRunState.id;setFormatGovernanceRunning(true);clearGovernanceRunMarks({all:true});
+    let changedTasks=0,changedOccurrences=0;const changedKeys=[];
+    try{
+      for(let index=0;index<runRows.length;index++){
+        const row=runRows[index],changed=await animateGovernanceTask(row,index,runRows.length,analysis,slot);if(!changed)continue;
+        changedTasks++;changedOccurrences+=changed;changedKeys.push(row.task.editKey);
+      }
+      if(!changedTasks){if(formatGovernanceRunEl)formatGovernanceRunEl.hidden=true;return;}
+      batch.handoffComplete=false;
+      batch.formatGovernanceRules=[{id:crypto.randomUUID(),phrase:analysis.rule.phrase,formats:[...analysis.rule.formats],caseSensitive:analysis.rule.caseSensitive,appliedAt:new Date().toISOString(),changedTasks,changedOccurrences,taskKeys:changedKeys},...(batch.formatGovernanceRules||[])].slice(0,30);
+      rebuildTasks();scheduleWorkspacePersist();renderReviewPageOverview();renderImportTaskPreview();renderFormatDriftSuggestions();renderFormatGovernanceAnalysis();
+      if(previewContext)requestAnimationFrame(()=>{
+        if(reviewQueueEl)reviewQueueEl.scrollTop=Math.min(previewContext.scrollTop,Math.max(0,reviewQueueEl.scrollHeight-reviewQueueEl.clientHeight));
+        if(reviewPreviewRailListEl)reviewPreviewRailListEl.scrollTop=Math.min(previewContext.railScrollTop,Math.max(0,reviewPreviewRailListEl.scrollHeight-reviewPreviewRailListEl.clientHeight));
+        if(previewContext.activeKey)setReviewPreviewActiveKey(previewContext.activeKey,{revealRail:false});
+      });
+      updateGovernanceRunPanel({phase:'complete',index:runRows.length-1,total:runRows.length,analysis,changed:changedTasks});
+      const labels=analysis.rule.formats.map(key=>MAIL_GOVERNANCE_FORMATS[key]?.label||key).join(' + ');setImportStatus(`已逐封统一“${analysis.rule.phrase}”的${labels}格式：修改 ${changedTasks} 封、${changedOccurrences} 处；Preview 已恢复到原浏览位置。`,'ok');
+      const completedRunId=runId;if(formatGovernanceRunState?.id===runId)formatGovernanceRunState.running=false;
+      setFormatGovernanceRunning(false,{keepRunPanel:true});
+      await sleep(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches?120:1400);
+      if(formatGovernanceRunEl&&formatGovernanceRunState?.id===completedRunId&&!formatGovernanceRunState.running)formatGovernanceRunEl.hidden=true;
+    }catch(error){
+      console.error('[NMDA] batch format animation failed',error);updateGovernanceRunPanel({phase:'error',index:0,total:runRows.length,analysis,changed:changedTasks});setImportStatus(`批量格式校正执行中断：${error?.message||error}`,'error');
+    }finally{
+      if(formatGovernanceRunState?.id===runId){
+        clearGovernancePreviewHighlight();clearGovernanceRunMarks({all:true});formatGovernanceRunState.running=false;
+        setFormatGovernanceRunning(false,{keepRunPanel:formatGovernanceRunEl&&!formatGovernanceRunEl.hidden});
+      }
+    }
+  }
+
 
   function renderReviewBatchActions() {
     pruneReviewSelection();
@@ -4867,6 +5022,7 @@
   }
 
   function closeReviewPreview() {
+    if(formatGovernanceRunState?.running)return;
     const key=String(batch.reviewPreviewKey||'');
     batch.reviewPreviewKey='';
     setReviewSurface('board');
