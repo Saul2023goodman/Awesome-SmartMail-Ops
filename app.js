@@ -1255,8 +1255,13 @@
           }
           let evidence='';
           const ambiguous=(group.replies||[]).filter(obs=>obs.kind==='ambiguous').slice(-1)[0];
+          const heuristicAutomatic=(group.replies||[]).filter(obs=>obs.kind==='automatic'&&obs.evidence?.heuristic===true).slice(-1)[0];
           if(ambiguous){
             evidence=`<div class="nmda-monitor-reply-evidence"><span>模糊回复：${escapeHtml(ambiguous.sender||'')} · ${escapeHtml(ambiguous.subject||'(无主题)')}</span><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="human">视为真人回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="automatic">视为自动回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="unrelated">与本邮件无关</button></div>`;
+          }else if(heuristicAutomatic){
+            const seconds=Math.max(0,Number(heuristicAutomatic.evidence?.replyDelaySeconds||0));
+            const timing=seconds?`${seconds} 秒内返回`:'3 分钟内快速返回';
+            evidence=`<div class="nmda-monitor-reply-evidence"><span>已按自动回复忽略：${escapeHtml(timing)} · ${escapeHtml(heuristicAutomatic.subject||'(无主题)')}</span><button type="button" data-reply-id="${escapeHtml(heuristicAutomatic.id)}" data-reply-disposition="human">其实是真人回复</button></div>`;
           }
           const selectable=monitorCreatable(group);
           const selectionCell=selectable?`<label class="nmda-monitor-row-select" title="选择生成 Follow-up"><input type="checkbox" data-monitor-select="${escapeHtml(group.rootTaskId)}" ${selected.has(group.rootTaskId)?'checked':''}><span class="sr-only">选择此邮件</span></label>`:`<span class="nmda-monitor-row-select-placeholder" aria-hidden="true"></span>`;

@@ -70,3 +70,12 @@ Follow-up 不再默认逐封 Pass。模板生成后，系统使用与 Initial �
 `模板生成 -> deterministic Review classifier -> 自动通过/进入排期 OR 需处理/人工确认`
 
 自动通过仍然记录 exact content version；operator 后续编辑会使该自动通过立即失效并退回“需处理”。
+
+
+## v3.8.54 自动回复识别
+
+Follow-up 的“已回复”现在专指**有效真人回复**。自动回复在事实层仍被记录，但逻辑上等同于没有真人回复，不暂停 Follow-up。
+
+确定性识别信号包括：网易自动回复/休假/OOO flags、Automatic Reply / Auto Response / Out of Office 等主题、自动应答型发件人、可用的列表正文摘要中的 OOO/leave 文案，以及直接关联到刚发邮件且 3 分钟内返回的快速回复。
+
+3 分钟规则属于启发式：默认按 automatic 非阻断处理，但邮件监测会显示“已按自动回复忽略”，并提供“其实是真人回复”人工纠正。人工判定优先于后续自动 reconciliation。

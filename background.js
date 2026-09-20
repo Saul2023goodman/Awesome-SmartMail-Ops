@@ -124,6 +124,8 @@ function readMailbox(tabId, fid, requested) {
         const savedRaw = item?.modifiedDate ?? item?.date ?? item?.receivedDate ?? (scheduledDraft ? '' : item?.sentDate) ?? '';
         const savedTimestamp = normalizeMailboxDate(savedRaw);
         const sender = parseSender(item);
+        const previewRaw = item?.summary ?? item?.preview ?? item?.abstract ?? item?.snippet ?? item?.textPreview ?? '';
+        const preview = String(previewRaw || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 4000);
         return {
           id: String(item?.id || item?.mid || ''),
           subject: String(item?.subject || ''),
@@ -139,6 +141,7 @@ function readMailbox(tabId, fid, requested) {
           threadId: String(item?.threadId || item?.conversationId || item?.cid || item?.tid || ''),
           inReplyTo: String(item?.inReplyTo || item?.inreplyto || ''),
           references: Array.isArray(item?.references) ? item.references.join(' ') : String(item?.references || ''),
+          preview,
           flags: { ...flags },
           scheduledDraft,
           sndStatus: typeof sndStatus === 'number' ? sndStatus : null,

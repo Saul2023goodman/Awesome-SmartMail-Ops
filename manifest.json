@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.53",
-  "description": "SmartMail Ops — time planning is the primary scheduling workflow. Optional within-school R1/R2 priority is nested inside time planning and only constrains contact order when explicitly set.",
+  "version": "3.8.54",
+  "description": "SmartMail Ops — Follow-up monitoring treats clear and near-immediate autoresponses as non-blocking while preserving manual correction.",
   "permissions": [
     "scripting",
     "tabs",
