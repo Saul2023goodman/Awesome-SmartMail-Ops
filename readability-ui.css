@@ -550,3 +550,50 @@
 @media (max-width:720px) {
   #nmda-root.nmda-standalone .nmda-review-followup-template { grid-template-columns:1fr; }
 }
+
+
+/* v3.8.58 — deterministic batch format governance */
+.nmda-review-format-entry{white-space:nowrap}
+.nmda-format-governance{
+  margin:10px 14px 12px;padding:14px 16px 12px;border:1px solid rgba(113,92,160,.18);
+  border-radius:18px;background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(248,246,252,.90));
+  box-shadow:0 10px 32px rgba(35,28,50,.06);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)
+}
+.nmda-format-governance[hidden]{display:none!important}
+.nmda-format-governance-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}
+.nmda-format-governance-head>div{display:grid;gap:3px}
+.nmda-format-governance-head strong{font-size:14px;letter-spacing:.01em;color:#27222e}
+.nmda-format-governance-head small{font-size:11px;line-height:1.45;color:#7a7383}
+.nmda-format-governance-head .nmda-icon-btn{width:28px;height:28px;min-width:28px;border-radius:9px}
+.nmda-format-governance-builder{display:grid;grid-template-columns:minmax(280px,1.25fr) auto auto;align-items:end;gap:12px}
+.nmda-format-governance-phrase{display:grid;gap:6px;min-width:0}
+.nmda-format-governance-phrase>span,.nmda-format-governance-formats>span{font-size:10px;font-weight:750;letter-spacing:.04em;color:#716a79;text-transform:uppercase}
+.nmda-format-governance-phrase input{width:100%;min-width:0;height:38px;padding:0 11px;border:1px solid rgba(47,39,57,.15);border-radius:10px;background:#fff;color:#26212c;font:inherit;outline:none;box-sizing:border-box}
+.nmda-format-governance-phrase input:focus{border-color:rgba(112,77,168,.48);box-shadow:0 0 0 3px rgba(112,77,168,.08)}
+.nmda-format-governance-phrase small{font-size:10px;color:#928b99;line-height:1.35}
+.nmda-format-governance-formats{display:flex;align-items:center;gap:5px;min-height:38px}
+.nmda-format-governance-formats>span{margin-right:3px}
+.nmda-format-governance-formats button{height:34px;min-width:44px;padding:0 7px;border:1px solid rgba(47,39,57,.12);border-radius:9px;background:rgba(255,255,255,.75);color:#61596a;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
+.nmda-format-governance-formats button small{font-size:9px;color:inherit}
+.nmda-format-governance-formats button.is-active{border-color:rgba(104,72,157,.34);background:rgba(110,77,166,.10);color:#5f408e;box-shadow:inset 0 0 0 1px rgba(104,72,157,.06)}
+.nmda-format-governance-case{height:34px;display:flex;align-items:center;gap:6px;padding:0 8px;border-radius:9px;background:rgba(46,40,54,.035);font-size:10px;color:#716a79;white-space:nowrap}
+.nmda-format-governance-case input{accent-color:#6b4b96}
+.nmda-format-governance-suggestions{margin-top:12px;padding:10px;border-radius:12px;background:rgba(111,79,163,.055);border:1px solid rgba(111,79,163,.09)}
+.nmda-format-governance-suggestion-head{display:flex;align-items:baseline;gap:9px;margin-bottom:8px}
+.nmda-format-governance-suggestion-head strong{font-size:11px;color:#51465c}.nmda-format-governance-suggestion-head small{font-size:10px;color:#8c8295}
+.nmda-format-governance-suggestion-list{display:flex;flex-wrap:wrap;gap:6px}
+.nmda-format-governance-suggestion-list button{max-width:100%;display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid rgba(98,70,145,.13);border-radius:9px;background:rgba(255,255,255,.78);cursor:pointer;color:#504659;text-align:left}
+.nmda-format-governance-suggestion-list button:hover{background:#fff;border-color:rgba(98,70,145,.30)}
+.nmda-format-governance-suggestion-list b{font-size:9px;padding:2px 4px;border-radius:5px;background:rgba(105,76,152,.09);color:#65488e;white-space:nowrap}
+.nmda-format-governance-suggestion-list span{font-size:10px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nmda-format-governance-suggestion-list small{font-size:9px;color:#908795;white-space:nowrap}
+.nmda-format-governance-result{margin-top:10px;min-height:34px;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(38,32,45,.035);font-size:10px;color:#746d7c}
+.nmda-format-governance-result strong{color:#453c4e;white-space:nowrap}.nmda-format-governance-result span{line-height:1.4}
+.nmda-format-governance-list{margin-top:8px;max-height:220px;overflow:auto;border:1px solid rgba(45,38,52,.08);border-radius:10px;background:rgba(255,255,255,.72)}
+.nmda-format-governance-row{display:grid;grid-template-columns:minmax(170px,.8fr) minmax(260px,1.5fr) auto;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid rgba(45,38,52,.055)}
+.nmda-format-governance-row:last-child{border-bottom:0}.nmda-format-governance-row>span{display:grid;min-width:0}.nmda-format-governance-row>span strong{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#403847}.nmda-format-governance-row>span small{font-size:9px;color:#99919f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nmda-format-governance-row p{margin:0;font-size:10px;line-height:1.35;color:#6f6775;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nmda-format-governance-row>b{font-size:9px;font-weight:750;color:#6a478e;white-space:nowrap}.nmda-format-governance-row[data-state="skip"]>b{color:#a06e38}
+.nmda-format-governance-more{padding:7px 10px;font-size:9px;color:#928a98;text-align:center}
+.nmda-format-governance-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;min-height:30px}
+.nmda-format-governance-history{display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden}.nmda-format-governance-history>span{font-size:9px;color:#9a929f;white-space:nowrap}.nmda-format-governance-history button{display:flex;align-items:center;gap:4px;max-width:180px;padding:4px 6px;border:0;border-radius:7px;background:rgba(45,38,52,.04);cursor:pointer;color:#726979}.nmda-format-governance-history button:hover{background:rgba(91,65,130,.08)}.nmda-format-governance-history button b{font-size:8px;color:#63468c}.nmda-format-governance-history button i{font-style:normal;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nmda-format-governance-history button small{font-size:8px;color:#9c94a1;white-space:nowrap}
+@media (max-width:920px){.nmda-format-governance-builder{grid-template-columns:1fr}.nmda-format-governance-formats{flex-wrap:wrap}.nmda-format-governance-case{width:max-content}.nmda-format-governance-row{grid-template-columns:1fr auto}.nmda-format-governance-row p{grid-column:1/-1}.nmda-format-governance-history{display:none}}
