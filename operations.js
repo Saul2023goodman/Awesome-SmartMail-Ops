@@ -5,7 +5,7 @@
   const REPLY_KINDS = ['human', 'automatic', 'ambiguous', 'bounce', 'system'];
   const GUARD_MODES = ['normal', 'paused', 'do-not-contact'];
   const COMPOSE_MODES = ['forward', 'reply', 'new'];
-  const DEFAULT_FOLLOWUP_POLICY = Object.freeze({ enabled: true, delayDays: 7, maxAttempts: 2, composeMode: 'forward', templateBody: '', templateVersion: 0 });
+  const DEFAULT_FOLLOWUP_POLICY = Object.freeze({ enabled: true, delayDays: 7, maxAttempts: 2, composeMode: 'forward', templateBody: '', templateVersion: 0, refreshEnabled: false, refreshAfterDays: 180 });
 
   function normalizeEmail(value) {
     return String(value || '').trim().toLowerCase();
@@ -282,7 +282,9 @@
     const composeMode = COMPOSE_MODES.includes(value.composeMode) ? value.composeMode : DEFAULT_FOLLOWUP_POLICY.composeMode;
     const templateBody = String(value.templateBody ?? DEFAULT_FOLLOWUP_POLICY.templateBody).replace(/\r\n?/g, '\n').trim();
     const templateVersion = Math.max(0, Math.floor(Number(value.templateVersion ?? DEFAULT_FOLLOWUP_POLICY.templateVersion) || 0));
-    return { enabled: value.enabled !== false, delayDays, maxAttempts, composeMode, templateBody, templateVersion };
+    const refreshEnabled = value.refreshEnabled === true;
+    const refreshAfterDays = Math.max(1, Math.floor(Number(value.refreshAfterDays ?? DEFAULT_FOLLOWUP_POLICY.refreshAfterDays) || DEFAULT_FOLLOWUP_POLICY.refreshAfterDays));
+    return { enabled: value.enabled !== false, delayDays, maxAttempts, composeMode, templateBody, templateVersion, refreshEnabled, refreshAfterDays };
   }
 
   function normalizeStore(raw, account = '') {
@@ -1116,9 +1118,14 @@
     const lastOutbound = conversation.lastOutbound || outbound[outbound.length - 1];
     const completedFollowUps = Math.max(0, Number(conversation.completedFollowUps || 0));
     const sequence = completedFollowUps + 1;
+    const now = timeMs(options.now || Date.now());
+    const refreshDueAtMs = timeMs(lastOutbound.sentAt) + Math.max(1, Number(policy.refreshAfterDays || 180)) * 86400000;
+    const refreshDueAt = refreshDueAtMs ? new Date(refreshDueAtMs).toISOString() : '';
+    const refreshDue = policy.refreshEnabled === true && !!refreshDueAtMs && now >= refreshDueAtMs;
+    const maxReached = completedFollowUps >= policy.maxAttempts;
     const human = conversation.human;
-    if (human) return { eligible: false, hardBlocked: true, reason: 'human-managed-conversation', policy, lastOutbound, sequence, completedFollowUps, blockingObservation: human, conversationRootIds: conversation.rootIds };
-    if (completedFollowUps >= policy.maxAttempts) return { eligible: false, hardBlocked: true, reason: 'max-attempts-reached', policy, lastOutbound, sequence, completedFollowUps, conversationRootIds: conversation.rootIds };
+    if (human) return { eligible: false, hardBlocked: true, reason: 'human-managed-conversation', policy, lastOutbound, sequence, completedFollowUps, blockingObservation: human, conversationRootIds: conversation.rootIds, refreshDueAt };
+    if (maxReached && !refreshDue) return { eligible: false, hardBlocked: true, reason: 'max-attempts-reached', policy, lastOutbound, sequence, completedFollowUps, conversationRootIds: conversation.rootIds, refreshDueAt };
     const guard = guardForRecipients(store, (lastOutbound.recipients || []).map(item => item.email).join(';'));
     if (guard.blocked) return { eligible: false, hardBlocked: true, reason: 'recipient-guard', policy, lastOutbound, sequence, completedFollowUps, guard, conversationRootIds: conversation.rootIds };
     const threshold = timeMs(lastOutbound.sentAt);
@@ -1127,13 +1134,14 @@
     if (ambiguous) return { eligible: false, hardBlocked: true, reason: 'ambiguous-reply', policy, lastOutbound, sequence, completedFollowUps, blockingObservation: ambiguous, conversationRootIds: conversation.rootIds };
     const existing = existingFollowUp(store, rootTaskId, sequence);
     if (existing) return { eligible: false, hardBlocked: true, reason: 'follow-up-already-exists', policy, lastOutbound, sequence, completedFollowUps, existing, conversationRootIds: conversation.rootIds };
-    const dueAtMs = timeMs(lastOutbound.sentAt) + policy.delayDays * 86400000;
+    const regularDueAtMs = timeMs(lastOutbound.sentAt) + policy.delayDays * 86400000;
+    const dueAtMs = maxReached && refreshDue ? refreshDueAtMs : regularDueAtMs;
     const dueAt = dueAtMs ? new Date(dueAtMs).toISOString() : '';
-    const now = timeMs(options.now || Date.now());
     const due = !!dueAtMs && now >= dueAtMs;
     const automaticReplies = replies.filter(item => item.kind === 'automatic');
-    if (!due && options.ignoreTiming !== true) return { eligible: false, hardBlocked: false, reason: 'waiting', policy, lastOutbound, sequence, completedFollowUps, dueAt, automaticReplies, conversationRootIds: conversation.rootIds };
-    return { eligible: true, hardBlocked: false, reason: due ? 'due' : 'manual-early', policy, lastOutbound, sequence, completedFollowUps, dueAt, automaticReplies, conversationRootIds: conversation.rootIds };
+    if (!due && options.ignoreTiming !== true) return { eligible: false, hardBlocked: false, reason: 'waiting', policy, lastOutbound, sequence, completedFollowUps, dueAt, refreshDueAt, automaticReplies, conversationRootIds: conversation.rootIds };
+    const reason = maxReached && refreshDue ? 'refresh-due' : (due ? 'due' : 'manual-early');
+    return { eligible: true, hardBlocked: false, reason, policy, lastOutbound, sequence, completedFollowUps, dueAt, refreshDueAt, automaticReplies, conversationRootIds: conversation.rootIds };
   }
 
   function followUpReviewIssues(task) {

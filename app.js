@@ -1016,6 +1016,8 @@
                 <label><span>最多</span><input id="nmda-monitor-max" type="number" min="0" max="20" step="1"><span>次</span></label>
                 <span class="nmda-monitor-rule-sep">·</span>
                 <label><span>方式</span><select id="nmda-monitor-compose-mode"><option value="forward">Forward</option><option value="reply">Reply</option><option value="new">New message</option></select></label>
+                <span class="nmda-monitor-rule-sep">·</span>
+                <label class="nmda-monitor-refresh-option" title="达到常规跟进上限后，如距最近一次发送已满半年，可再次生成一封 Follow-up"><input id="nmda-monitor-refresh-enabled" type="checkbox"><span>半年无往来后可再次跟进</span></label>
                 <button class="nmda-btn nmda-btn-small" id="nmda-monitor-save-policy" type="button">保存规则</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-open-template" type="button">批量处理 →</button>
               </div>
               <small class="nmda-monitor-rule-note"></small>
@@ -1186,7 +1188,9 @@
         maxAttempts: Math.max(0, Math.floor(Number(raw.maxAttempts ?? Operations?.DEFAULT_FOLLOWUP_POLICY?.maxAttempts ?? 2) || 0)),
         composeMode: ['forward','reply','new'].includes(raw.composeMode) ? raw.composeMode : (Operations?.DEFAULT_FOLLOWUP_POLICY?.composeMode || 'forward'),
         templateBody: String(raw.templateBody || '').replace(/\r\n?/g, '\n').trim(),
-        templateVersion: Math.max(0, Math.floor(Number(raw.templateVersion || 0) || 0))
+        templateVersion: Math.max(0, Math.floor(Number(raw.templateVersion || 0) || 0)),
+        refreshEnabled: raw.refreshEnabled === true,
+        refreshAfterDays: 180
       };
     } catch (_) { return { ...(Operations?.DEFAULT_FOLLOWUP_POLICY || {}) }; }
   }
@@ -1204,7 +1208,8 @@
     try {
       localStorage.setItem(FOLLOWUP_PREFS_KEY, JSON.stringify({
         enabled: policy.enabled !== false, delayDays:Number(policy.delayDays||0), maxAttempts:Number(policy.maxAttempts||0),
-        composeMode:String(policy.composeMode||'forward'), templateBody:String(policy.templateBody||''), templateVersion:Number(policy.templateVersion||0)
+        composeMode:String(policy.composeMode||'forward'), templateBody:String(policy.templateBody||''), templateVersion:Number(policy.templateVersion||0),
+        refreshEnabled:policy.refreshEnabled===true, refreshAfterDays:180
       }));
     } catch (_) {}
   }
@@ -1335,7 +1340,7 @@
   function monitorEls() {
     return {
       stats:$('nmda-monitor-stats'), list:$('nmda-monitor-list'),
-      notice:$('nmda-monitor-notice'), syncCopy:$('nmda-monitor-sync-copy'), delay:$('nmda-monitor-delay'), max:$('nmda-monitor-max'), compose:$('nmda-monitor-compose-mode'),
+      notice:$('nmda-monitor-notice'), syncCopy:$('nmda-monitor-sync-copy'), delay:$('nmda-monitor-delay'), max:$('nmda-monitor-max'), compose:$('nmda-monitor-compose-mode'), refresh:$('nmda-monitor-refresh-enabled'),
       bulkbar:$('nmda-monitor-bulkbar'), selectVisible:$('nmda-monitor-select-visible'), selectionCopy:$('nmda-monitor-selection-copy'), batchCreate:$('nmda-monitor-batch-create')
     };
   }
@@ -1366,11 +1371,17 @@
       const detail=activeTask.draftPreparedAt?'草稿已创建':activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:(autoReviewed?'模板检查完整，已进入选择与排期':'已进入选择与排期')):(reviewed?'等待进入选择与排期':'模板生成后检测到异常，请到邮件审阅处理');
       return {key:'due',tone:'due',label,detail,activeTask};
     }
-    if(group.eligibility?.eligible)return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:'可以创建跟进任务'};
+    if(group.eligibility?.eligible){
+      if(group.eligibility.reason==='refresh-due')return {key:'due',tone:'due',label:'可再次跟进',detail:'距最近一次发送已满半年，可重新联系'};
+      return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:'可以创建跟进任务'};
+    }
     if(group.eligibility?.reason==='waiting')return {key:'waiting',tone:'',label:'等待中',detail:`到期 ${Operations.formatDisplayTime(group.eligibility.dueAt)}`};
     if(group.eligibility?.reason==='human-managed-conversation')return {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成 Follow-up',observation:group.eligibility.blockingObservation||null,humanManaged:true};
     if(group.eligibility?.reason==='follow-up-disabled')return {key:'blocked',tone:'',label:'Follow-up 已暂停',detail:'仍检测回复，只暂停生成新的 Follow-up'};
-    if(group.eligibility?.reason==='max-attempts-reached')return {key:'waiting',tone:'',label:'已达跟进上限',detail:`最多 ${group.policy.maxAttempts} 次 Follow-up`};
+    if(group.eligibility?.reason==='max-attempts-reached'){
+      const refreshCopy=group.policy?.refreshEnabled && group.eligibility?.refreshDueAt ? ` · ${Operations.formatDisplayTime(group.eligibility.refreshDueAt)} 后可再次跟进` : '';
+      return {key:'waiting',tone:'',label:'已达跟进上限',detail:`最多 ${group.policy.maxAttempts} 次 Follow-up${refreshCopy}`};
+    }
     if(group.eligibility?.reason==='recipient-guard')return {key:'blocked',tone:'blocked',label:'联系规则阻断',detail:(group.eligibility.guard?.reasons||[]).join('；')||'已暂停联系'};
     return {key:'waiting',tone:'',label:'监测中',detail:group.eligibility?.reason||'等待邮箱事实'};
   }
@@ -1408,6 +1419,7 @@
     if(els.delay && document.activeElement!==els.delay)els.delay.value=String(policy.delayDays ?? 7);
     if(els.max && document.activeElement!==els.max)els.max.value=String(policy.maxAttempts ?? 2);
     if(els.compose && document.activeElement!==els.compose)els.compose.value=policy.composeMode || 'forward';
+    if(els.refresh && document.activeElement!==els.refresh)els.refresh.checked=policy.refreshEnabled===true;
     const sync=operationState.store.mailboxSync||{};
     if(els.syncCopy){
       const last=sync.lastQuickAt||sync.lastFullAt;
@@ -1439,7 +1451,7 @@
       }else{
         els.list.innerHTML=visible.map(group=>{
           const last=group.lastOutbound, st=group.viewState, active=st.activeTask;
-          const dueAt=group.eligibility?.dueAt || active?.dueAt || '';
+          const dueAt=group.eligibility?.dueAt || group.eligibility?.refreshDueAt || active?.dueAt || '';
           const enabled=group.policy?.enabled!==false;
           const actions=[];
           if(st.key==='replied' && st.observation){
@@ -1591,9 +1603,10 @@
       await commitRuntimeOperations();
       renderMonitoring();
       const autoPassed=created.task.reviewDecision==='auto' && created.task.dispatch?.queued===true;
+      const generatedLabel=created.eligibility?.reason==='refresh-due'?'重新跟进邮件':`Follow-up #${created.task.sequence}`;
       setMonitorNotice(autoPassed
-        ? `Follow-up #${created.task.sequence} 已按模板生成并自动通过审阅，已进入“选择与排期”。`
-        : `Follow-up #${created.task.sequence} 已按模板生成；检测到异常，请到“邮件审阅”处理。`,autoPassed?'ok':'warn');
+        ? `${generatedLabel}已按模板生成并自动通过审阅，已进入“选择与排期”。`
+        : `${generatedLabel}已按模板生成；检测到异常，请到“邮件审阅”处理。`,autoPassed?'ok':'warn');
       renderReviewPageOverview();
     }catch(error){setMonitorNotice(error?.message||String(error),'error');}
   }
@@ -1642,7 +1655,7 @@
     $('nmda-monitor-full-sync')?.addEventListener('click',()=>{if(confirm('完整重读会重新读取全部已发送、草稿和收件箱，继续吗？'))void syncMonitoringMailbox('full');});
     $('nmda-monitor-save-policy')?.addEventListener('click',async()=>{
       await ensureOperationStore();
-      const result=Operations.setFollowUpPolicy(operationState.store,'',{delayDays:Number($('nmda-monitor-delay').value||0),maxAttempts:Number($('nmda-monitor-max').value||0),composeMode:$('nmda-monitor-compose-mode').value||'forward'});
+      const result=Operations.setFollowUpPolicy(operationState.store,'',{delayDays:Number($('nmda-monitor-delay').value||0),maxAttempts:Number($('nmda-monitor-max').value||0),composeMode:$('nmda-monitor-compose-mode').value||'forward',refreshEnabled:$('nmda-monitor-refresh-enabled')?.checked===true,refreshAfterDays:180});
       operationState.store=result.store;writeFollowUpPrefs(result.policy);await commitRuntimeOperations();renderMonitoring();setMonitorNotice('Follow-up 规则已保存；模板正文在“邮件审阅”中维护。','ok');
     });
     $('nmda-monitor-open-template')?.addEventListener('click',()=>void openBatchProcessingToFollowUp());

@@ -576,3 +576,26 @@
 .nmda-format-governance-history{display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden}.nmda-format-governance-history>span{font-size:9px;color:#9a929f;white-space:nowrap}.nmda-format-governance-history button{display:flex;align-items:center;gap:4px;max-width:180px;padding:4px 6px;border:0;border-radius:7px;background:rgba(45,38,52,.04);cursor:pointer;color:#726979}.nmda-format-governance-history button:hover{background:rgba(91,65,130,.08)}.nmda-format-governance-history button b{font-size:8px;color:#63468c}.nmda-format-governance-history button i{font-style:normal;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nmda-format-governance-history button small{font-size:8px;color:#9c94a1;white-space:nowrap}
 @media (max-width:920px){.nmda-format-governance-builder{grid-template-columns:1fr}.nmda-format-governance-formats{flex-wrap:wrap}.nmda-format-governance-case{width:max-content}.nmda-format-governance-add{width:max-content}.nmda-format-governance-suggestion-head{align-items:flex-start;flex-direction:column}.nmda-format-governance-suggestion-head>span:first-child{align-items:flex-start;flex-direction:column;gap:2px}.nmda-format-governance-suggestion-head small{white-space:normal}.nmda-format-governance-row{grid-template-columns:1fr auto}.nmda-format-governance-row p{grid-column:1/-1}.nmda-format-governance-history{display:none}}
 
+
+/* Optional long-gap re-engagement stays compact inside the Follow-up rule bar. */
+#nmda-root .nmda-monitor-rulebar-controls .nmda-monitor-refresh-option {
+  gap:7px;
+  padding:0 8px;
+  height:30px;
+  border:1px solid #dfe5eb;
+  border-radius:7px;
+  background:#fbfcfd;
+  color:#596777;
+  cursor:pointer;
+}
+#nmda-root .nmda-monitor-rulebar-controls .nmda-monitor-refresh-option input[type="checkbox"] {
+  width:14px !important;
+  height:14px !important;
+  min-height:14px !important;
+  padding:0 !important;
+  margin:0 !important;
+  accent-color:#2f68e8;
+}
+#nmda-root.nmda-standalone .nmda-monitor-rulebar-controls .nmda-monitor-refresh-option {
+  height:28px;
+}
