@@ -880,6 +880,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tab = await resolveMailTab(sender, { create:true, focus:message.focus !== false });
       return { ok:!!tab?.id, tabId:tab?.id || null };
     }
+    if (message?.type === 'NMDA_OPEN_MAIL_MESSAGE') {
+      const id = String(message.messageId || '').trim();
+      if (!id) {
+        const tab = await resolveMailTab(sender, { create:true, focus:true });
+        return { ok:!!tab?.id, tabId:tab?.id || null, fallback:true };
+      }
+      const tab = await resolveMailTab(sender, { create:true, focus:true });
+      if (!tab?.id) return { ok:false, reason:'mailbox-tab-unavailable' };
+      await waitForExecutor(tab.id).catch(()=>null);
+      const fid = Number(message.fid || 1) || 1;
+      const opened = await runMain(tab.id, (idArg, fidArg) => {
+        try {
+          const payload = { area:'normal', isThread:false, viewType:'', id:String(idArg), fid:Number(fidArg || 1) || 1 };
+          location.hash = `module=read.ReadModule%7C${encodeURIComponent(JSON.stringify(payload))}`;
+          return { ok:true, id:String(idArg), fid:payload.fid };
+        } catch (error) { return { ok:false, reason:error?.message || String(error) }; }
+      }, [id, fid]);
+      return { ...(opened || {ok:false}), tabId:tab.id };
+    }
     if (message?.type === 'NMDA_OPEN_APP') { const tab=await openApp(message.target); return {ok:true,tabId:tab?.id||null}; }
     if (message?.type === 'NMDA_BATCH_MONITOR') {
       const tab=await resolveMailTab(sender,{create:false,focus:false});

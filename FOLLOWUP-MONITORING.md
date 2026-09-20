@@ -47,15 +47,15 @@ Review 的目的不是逐封审批。确定性检查完整的 Follow-up 自动�
 - Draft success ≠ Sent；Sent 由邮箱事实确认。
 
 
-## v3.8.18 真人回复后的人工沟通
+## v3.8.18 有效回复后的人工沟通
 
-真人回复现在是 conversation 级别的自动化终止条件。conversation 使用确定性键：标准化后的完整收件人集合 + 去除 Re/Fw 等前缀后的主题。
+有效回复现在是 conversation 级别的自动化终止条件。conversation 使用确定性键：标准化后的完整收件人集合 + 去除 Re/Fw 等前缀后的主题。
 
 - 同一 conversation 一旦出现 `human` reply，之后 operator 手工发送的 Sent 继续被读取并记录，但不会创建新的自动 Follow-up root，也不会重启 delay 计时。
 - 邮件监测会把同一已回复 conversation 下历史上被误拆成多个 mailbox root 的记录折叠为一行，最近人工 Sent 显示为“人工沟通”。
 - 已经生成但尚未执行的 Follow-up 会被阻断；若已进入 Dispatch，会自动退池。
 - `automatic` reply 不终止 Follow-up；`ambiguous` 仍保持可人工改判的阻断。
-- 新的规范化主题仍视为新的 outreach，不继承旧 conversation 的真人回复终止状态。
+- 新的规范化主题仍视为新的 outreach，不继承旧 conversation 的有效回复终止状态。
 
 
 ## v3.8.19 运行时工作集
@@ -74,8 +74,15 @@ Follow-up 不再默认逐封 Pass。模板生成后，系统使用与 Initial �
 
 ## v3.8.54 自动回复识别
 
-Follow-up 的“已回复”现在专指**有效真人回复**。自动回复在事实层仍被记录，但逻辑上等同于没有真人回复，不暂停 Follow-up。
+Follow-up 的“已回复”指**有效回复**。自动回复在事实层仍被记录，但逻辑上等同于未回复，不暂停 Follow-up。
 
 确定性识别信号包括：网易自动回复/休假/OOO flags、Automatic Reply / Auto Response / Out of Office 等主题、自动应答型发件人、可用的列表正文摘要中的 OOO/leave 文案，以及直接关联到刚发邮件且 3 分钟内返回的快速回复。
 
-3 分钟规则属于启发式：默认按 automatic 非阻断处理，但邮件监测会显示“已按自动回复忽略”，并提供“其实是真人回复”人工纠正。人工判定优先于后续自动 reconciliation。
+3 分钟规则属于启发式：默认作为 auto-reply feature 非阻断处理；人工可以将误判直接改为“计为已回复”。人工判定优先于后续自动 reconciliation。
+
+
+## v3.8.55 已回复即转交人工
+
+Auto-reply 不再作为与“已回复”并列的用户状态，而只是判断入站邮件是否构成有效回复的一项 feature。邮件监测的主语义只有“未回复 / 已回复”：自动回复 feature 仍按未回复处理；有效回复则进入“已回复”。
+
+一旦进入“已回复”，SmartMail 的批量自动化职责结束：停止该 conversation 的后续 Follow-up，提示“有效回复，需要人工回复”，并只提供“前往邮箱”。该按钮直接打开对应的网易入站邮件，后续高度定制的交流由操作者在邮箱中完成。SmartMail 不提供已回复后的批量 Reply 流程。

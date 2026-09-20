@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.54",
-  "description": "SmartMail Ops — Follow-up monitoring treats clear and near-immediate autoresponses as non-blocking while preserving manual correction.",
+  "version": "3.8.55",
+  "description": "SmartMail Ops — effective replies stop Follow-up and hand off to manual mailbox handling; auto-reply is only a non-blocking detection feature.",
   "permissions": [
     "scripting",
     "tabs",

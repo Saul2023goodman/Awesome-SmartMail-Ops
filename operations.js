@@ -165,7 +165,7 @@
     const automaticBodyStrong = /(this is (?:an )?(?:automatic|automated) (?:reply|response)|i am (?:currently )?(?:out of|away from) (?:the )?office|i am (?:currently )?on (?:annual )?leave|i will (?:be back|return) on|limited access to (?:my )?email|no access to (?:my )?email|vacation responder|此邮件为自动回复|这是一封自动回复|当前不在办公室|目前不在办公室|正在休假|休假期间|外出期间|无法及时回复邮件)/i.test(preview);
     if (automaticFlag || automaticSubject || automaticSender || automaticBodyStrong) {
       const rule = automaticFlag ? 'mailbox-auto-flag' : automaticSubject ? 'subject-auto-pattern' : automaticSender ? 'sender-auto-pattern' : 'body-auto-pattern';
-      return { kind: 'automatic', evidence: { rule, confidence: 'high' } };
+      return { kind: 'automatic', evidence: { rule, confidence: 'high', autoReplyFeature: true } };
     }
 
     if (/(?:no[-_.]?reply|noreply|do[-_.]?not[-_.]?reply)@/i.test(sender)) {
@@ -191,6 +191,7 @@
           rule: weakAutomaticBody ? 'near-immediate+generic-auto-text' : 'near-immediate-reply<=3m',
           confidence: weakAutomaticBody ? 'medium' : 'heuristic',
           heuristic: true,
+          autoReplyFeature: true,
           replyDelayMs,
           replyDelaySeconds: Math.round(replyDelayMs / 1000),
           thresholdMs: AUTO_REPLY_FAST_WINDOW_MS
@@ -199,6 +200,14 @@
     }
 
     return { kind: 'human', evidence: { rule: 'ordinary-inbound', confidence: 'default' } };
+  }
+
+  function isEffectiveReplyObservation(observation) {
+    return !!observation && observation.kind === 'human';
+  }
+
+  function hasAutoReplyFeature(observation) {
+    return !!observation && (observation.evidence?.autoReplyFeature === true || observation.kind === 'automatic');
   }
 
   function nowIso() { return new Date().toISOString(); }
@@ -525,7 +534,7 @@
     } else {
       observation.kind = disposition;
     }
-    observation.evidence = { ...(observation.evidence || {}), manual: true, manualDisposition: disposition, changedAt: nowIso() };
+    observation.evidence = { ...(observation.evidence || {}), manual: true, manualDisposition: disposition, autoReplyFeature: disposition === 'automatic' ? true : (disposition === 'human' ? false : observation.evidence?.autoReplyFeature), changedAt: nowIso() };
     observation.observedAt = nowIso();
     const refreshed = refreshDerivedTaskBlocks(next);
     refreshed.store.updatedAt = nowIso();
@@ -1293,6 +1302,8 @@
     conversationKeyForOutbound,
     conversationContextForRoot,
     classifyInboundMessage,
+    isEffectiveReplyObservation,
+    hasAutoReplyFeature,
     createStore,
     normalizeStore,
     ingestMailboxSnapshot,

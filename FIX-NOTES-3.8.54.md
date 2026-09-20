@@ -13,7 +13,7 @@ Automatic reply detection now uses deterministic multi-signal rules:
 - **Near-immediate response heuristic:** a reply directly associated with the outbound thread and received within **3 minutes** is treated as `automatic`.
 
 ## Safety / correction
-The 3-minute rule is marked as heuristic evidence. It is non-blocking by default, but Mail Monitoring exposes the observation as “已按自动回复忽略” with a one-click **“其实是真人回复”** correction. A manual correction is persisted in the current runtime store and reconciliation will not overwrite it.
+The 3-minute rule is marked as heuristic evidence. It is non-blocking by default, but Mail Monitoring exposes the observation as “已按自动回复忽略” with a one-click **“计为已回复”** correction. A manual correction is persisted in the current runtime store and reconciliation will not overwrite it.
 
 ## Follow-up behavior
 - `automatic`, `system`, and bounce observations do not stop Follow-up.

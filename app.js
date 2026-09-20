@@ -1150,28 +1150,27 @@
 
   function monitorGroupState(group) {
     const activeTask=[...(group.tasks||[])].reverse().find(task=>!['sent','cancelled'].includes(task.state)) || null;
-    const human=[...(group.replies||[])].reverse().find(item=>item.kind==='human') || group.humanReply || null;
+    const effectiveReply=[...(group.replies||[])].reverse().find(item=>Operations?.isEffectiveReplyObservation?.(item) || item.kind==='human') || group.humanReply || null;
     const ambiguous=[...(group.replies||[])].reverse().find(item=>item.kind==='ambiguous') || null;
-    const automatic=[...(group.replies||[])].reverse().find(item=>item.kind==='automatic') || null;
-    if(human){
-      const operatorContinued=group.operatorContinued===true;
-      return {key:'replied',tone:'replied',label:operatorContinued?'已真人回复 · 人工沟通':'已真人回复',detail:operatorContinued?'后续 Sent 仅作为人工沟通记录，不再派生 Follow-up':(human.subject||'已停止后续 Follow-up'),observation:human,activeTask,humanManaged:group.humanManaged===true};
+    const automatic=[...(group.replies||[])].reverse().find(item=>Operations?.hasAutoReplyFeature?.(item) || item.kind==='automatic') || null;
+    if(effectiveReply){
+      return {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成 Follow-up',observation:effectiveReply,activeTask,humanManaged:group.humanManaged===true};
     }
     if(ambiguous)return {key:'blocked',tone:'blocked',label:'回复待判断',detail:ambiguous.subject||'需要人工确认',observation:ambiguous,activeTask};
-    if(activeTask?.state==='blocked')return {key:'blocked',tone:'blocked',label:'跟进已阻断',detail:activeTask.blocker?.kind==='human'?'收到真人回复':'需要处理阻断原因',activeTask};
+    if(activeTask?.state==='blocked')return {key:'blocked',tone:'blocked',label:'跟进已阻断',detail:activeTask.blocker?.kind==='human'?'已收到有效回复，需要人工回复':'需要处理阻断原因',activeTask};
     if(activeTask){
       const reviewed=!!activeTask.reviewedAt && Number(activeTask.confirmedVersion)===Number(activeTask.contentVersion);
       const autoReviewed=reviewed && activeTask.reviewDecision==='auto';
       const reviewLabel=autoReviewed?'自动通过':reviewed?'已确认':'需处理';
       const label=`Follow-up #${activeTask.sequence} · ${reviewLabel}`;
-      const detail=activeTask.draftPreparedAt?'草稿已创建':activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:(autoReviewed?'模板检查完整，已进入选择与排期':'已进入选择与排期')):(reviewed?'等待进入选择与排期':(automatic?'收到自动回复，不阻断；当前 Follow-up 仍需处理':'模板生成后检测到异常，请到邮件审阅处理'));
+      const detail=activeTask.draftPreparedAt?'草稿已创建':activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:(autoReviewed?'模板检查完整，已进入选择与排期':'已进入选择与排期')):(reviewed?'等待进入选择与排期':(automatic?'检测到自动回复特征，仍按未回复处理':'模板生成后检测到异常，请到邮件审阅处理'));
       return {key:'due',tone:'due',label,detail,activeTask,automatic};
     }
-    if(group.eligibility?.eligible)return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:automatic?'收到自动回复，不阻断':'可以创建跟进任务',automatic};
+    if(group.eligibility?.eligible)return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:automatic?'检测到自动回复特征，仍按未回复处理':'可以创建跟进任务',automatic};
     if(group.eligibility?.reason==='waiting')return {key:'waiting',tone:'',label:'等待中',detail:`到期 ${Operations.formatDisplayTime(group.eligibility.dueAt)}`,automatic};
-    if(group.eligibility?.reason==='human-managed-conversation')return {key:'replied',tone:'replied',label:group.operatorContinued?'已真人回复 · 人工沟通':'已真人回复',detail:group.operatorContinued?'后续 Sent 仅作为人工沟通记录，不再派生 Follow-up':'真人回复已永久关闭此 conversation 的自动 Follow-up',observation:group.eligibility.blockingObservation||null,humanManaged:true};
+    if(group.eligibility?.reason==='human-managed-conversation')return {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成 Follow-up',observation:group.eligibility.blockingObservation||null,humanManaged:true};
     if(group.eligibility?.reason==='follow-up-disabled')return {key:'blocked',tone:'',label:'Follow-up 已暂停',detail:'仍检测回复，只暂停生成新的 Follow-up'};
-    if(group.eligibility?.reason==='max-attempts-reached')return {key:'replied',tone:'',label:'已达跟进上限',detail:`最多 ${group.policy.maxAttempts} 次 Follow-up`};
+    if(group.eligibility?.reason==='max-attempts-reached')return {key:'waiting',tone:'',label:'已达跟进上限',detail:`最多 ${group.policy.maxAttempts} 次 Follow-up`};
     if(group.eligibility?.reason==='recipient-guard')return {key:'blocked',tone:'blocked',label:'联系规则阻断',detail:(group.eligibility.guard?.reasons||[]).join('；')||'已暂停联系'};
     return {key:'waiting',tone:'',label:'监测中',detail:group.eligibility?.reason||'等待邮箱事实'};
   }
@@ -1197,13 +1196,13 @@
     const groups=Operations.monitoringRoots(operationState.store);
     const enriched=groups.map(group=>({...group,viewState:monitorGroupState(group)}));
     const due=enriched.filter(item=>item.viewState.key==='due').length;
-    const replied=enriched.filter(item=>item.viewState.key==='replied' && item.viewState.observation?.kind==='human').length;
+    const replied=enriched.filter(item=>item.viewState.key==='replied' && (Operations?.isEffectiveReplyObservation?.(item.viewState.observation) || item.viewState.observation?.kind==='human')).length;
     const blocked=enriched.filter(item=>item.viewState.key==='blocked').length;
     const waiting=enriched.filter(item=>item.viewState.key==='waiting').length;
     if(els.stats)els.stats.innerHTML=`
       <div class="nmda-monitor-stat"><strong>${groups.length}</strong><span>已发送线程</span></div>
       <div class="nmda-monitor-stat" data-tone="due"><strong>${due}</strong><span>待跟进</span></div>
-      <div class="nmda-monitor-stat" data-tone="reply"><strong>${replied}</strong><span>真人回复</span></div>
+      <div class="nmda-monitor-stat" data-tone="reply"><strong>${replied}</strong><span>已回复</span></div>
       <div class="nmda-monitor-stat" data-tone="block"><strong>${blocked}</strong><span>需处理</span></div>`;
     const policy=operationState.store.followUpPolicies?.default || Operations.DEFAULT_FOLLOWUP_POLICY;
     if(els.delay && document.activeElement!==els.delay)els.delay.value=String(policy.delayDays ?? 7);
@@ -1243,6 +1242,10 @@
           const dueAt=group.eligibility?.dueAt || active?.dueAt || '';
           const enabled=group.policy?.enabled!==false;
           const actions=[];
+          if(st.key==='replied' && st.observation){
+            const messageId=String(st.observation?.providerMessageId||'').trim();
+            actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-open-mail="${escapeHtml(messageId)}">前往邮箱</button>`);
+          }
           if(!group.humanManaged && active){
             if(active.dispatch?.queued)actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-dispatch="${escapeHtml(active.id)}">查看排期</button>`);
             else actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-review="${escapeHtml(active.id)}">去审阅</button>`);
@@ -1255,19 +1258,19 @@
           }
           let evidence='';
           const ambiguous=(group.replies||[]).filter(obs=>obs.kind==='ambiguous').slice(-1)[0];
-          const heuristicAutomatic=(group.replies||[]).filter(obs=>obs.kind==='automatic'&&obs.evidence?.heuristic===true).slice(-1)[0];
+          const autoReplyObservation=(group.replies||[]).filter(obs=>Operations?.hasAutoReplyFeature?.(obs) || obs.kind==='automatic').slice(-1)[0];
           if(ambiguous){
-            evidence=`<div class="nmda-monitor-reply-evidence"><span>模糊回复：${escapeHtml(ambiguous.sender||'')} · ${escapeHtml(ambiguous.subject||'(无主题)')}</span><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="human">视为真人回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="automatic">视为自动回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="unrelated">与本邮件无关</button></div>`;
-          }else if(heuristicAutomatic){
-            const seconds=Math.max(0,Number(heuristicAutomatic.evidence?.replyDelaySeconds||0));
-            const timing=seconds?`${seconds} 秒内返回`:'3 分钟内快速返回';
-            evidence=`<div class="nmda-monitor-reply-evidence"><span>已按自动回复忽略：${escapeHtml(timing)} · ${escapeHtml(heuristicAutomatic.subject||'(无主题)')}</span><button type="button" data-reply-id="${escapeHtml(heuristicAutomatic.id)}" data-reply-disposition="human">其实是真人回复</button></div>`;
+            evidence=`<div class="nmda-monitor-reply-evidence"><span>回复待判断：${escapeHtml(ambiguous.sender||'')} · ${escapeHtml(ambiguous.subject||'(无主题)')}</span><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="human">计为已回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="automatic">自动回复 · 忽略</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="unrelated">与本邮件无关</button></div>`;
+          }else if(autoReplyObservation){
+            const seconds=Math.max(0,Number(autoReplyObservation.evidence?.replyDelaySeconds||0));
+            const feature=autoReplyObservation.evidence?.heuristic===true?(seconds?`${seconds} 秒内快速返回`:'3 分钟内快速返回'):(autoReplyObservation.subject||'自动回复特征');
+            evidence=`<div class="nmda-monitor-reply-evidence"><span>自动回复特征：${escapeHtml(feature)}；不计为已回复，Follow-up 保持原逻辑</span><button type="button" data-reply-id="${escapeHtml(autoReplyObservation.id)}" data-reply-disposition="human">计为已回复</button></div>`;
           }
           const selectable=monitorCreatable(group);
           const selectionCell=selectable?`<label class="nmda-monitor-row-select" title="选择生成 Follow-up"><input type="checkbox" data-monitor-select="${escapeHtml(group.rootTaskId)}" ${selected.has(group.rootTaskId)?'checked':''}><span class="sr-only">选择此邮件</span></label>`:`<span class="nmda-monitor-row-select-placeholder" aria-hidden="true"></span>`;
           return `<article class="nmda-monitor-row${selectable?' is-selectable':''}" data-tone="${escapeHtml(st.tone||'')}">
             ${selectionCell}
-            <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(group.humanManaged&&group.operatorContinued?'人工沟通':(last.kind==='follow_up'?`最近发送 Follow-up #${last.sequence}`:'初始 outreach'))}</small><div class="nmda-monitor-subject" title="${escapeHtml(last.subject||'')}">${escapeHtml(last.subject||'(无主题)')}</div></div>
+            <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(st.key==='replied'?'有效回复 · 待人工回复':(last.kind==='follow_up'?`最近发送 Follow-up #${last.sequence}`:'初始 outreach'))}</small><div class="nmda-monitor-subject" title="${escapeHtml(last.subject||'')}">${escapeHtml(last.subject||'(无主题)')}</div></div>
             <div class="nmda-monitor-row-state"><span class="nmda-monitor-badge" data-tone="${escapeHtml(st.tone||'')}">${escapeHtml(st.label)}</span><small>${escapeHtml(st.detail||'')}</small></div>
             <div class="nmda-monitor-row-time"><div><span>最近发送</span><strong>${escapeHtml(Operations.formatDisplayTime(last.sentAt))}</strong></div><div><span>下一节点</span><strong>${dueAt?escapeHtml(Operations.formatDisplayTime(dueAt)):'—'}</strong></div></div>
             <div class="nmda-monitor-row-actions">${actions.join('')}</div>${evidence}</article>`;
@@ -1471,12 +1474,13 @@
       renderMonitoring();
     });
     $('nmda-monitor-list')?.addEventListener('click',event=>{
+      const openMail=event.target.closest('[data-monitor-open-mail]');if(openMail){void (async()=>{const messageId=String(openMail.dataset.monitorOpenMail||'').trim();const result=messageId?await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL_MESSAGE',messageId,fid:1}):await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL',focus:true});if(!result?.ok)setMonitorNotice(result?.reason||'无法打开网易邮箱中的回复，请先确认邮箱已登录。','error');})();return;}
       const create=event.target.closest('[data-monitor-create]');if(create){void createMonitorFollowUp(create.dataset.monitorCreate,create.dataset.manual==='1');return;}
       const dispatch=event.target.closest('[data-monitor-dispatch]');if(dispatch){setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});return;}
       const review=event.target.closest('[data-monitor-review]');if(review){void openReviewWorkspace({pendingOnly:false,taskKey:`fu-review:${review.dataset.monitorReview}`});return;}
       const cancelFollowUp=event.target.closest('[data-monitor-cancel-followup]');if(cancelFollowUp){void cancelMonitorFollowUp(cancelFollowUp.dataset.monitorCancelFollowup);return;}
       const toggle=event.target.closest('[data-monitor-toggle]');if(toggle){void (async()=>{await ensureOperationStore();const enabled=toggle.dataset.enabled!=='1';const result=Operations.setFollowUpPolicy(operationState.store,toggle.dataset.monitorToggle,{enabled});operationState.store=result.store;await commitRuntimeOperations();renderMonitoring();setMonitorNotice(enabled?'已恢复 Follow-up；邮件检测始终保持在读取范围内。':'已暂停新的 Follow-up；邮件检测仍会继续记录回复事实。','ok');})();return;}
-      const disposition=event.target.closest('[data-reply-disposition]');if(disposition){void (async()=>{await ensureOperationStore();const result=Operations.setReplyObservationDisposition(operationState.store,disposition.dataset.replyId,disposition.dataset.replyDisposition);operationState.store=result.store;await commitRuntimeOperations();renderMonitoring();renderReviewPageOverview();setMonitorNotice('回复判断已更新，并重新计算 Follow-up 阻断状态。','ok');})();}
+      const disposition=event.target.closest('[data-reply-disposition]');if(disposition){void (async()=>{await ensureOperationStore();const result=Operations.setReplyObservationDisposition(operationState.store,disposition.dataset.replyId,disposition.dataset.replyDisposition);operationState.store=result.store;await commitRuntimeOperations();renderMonitoring();renderReviewPageOverview();setMonitorNotice('回复状态已更新，并重新计算 Follow-up。','ok');})();}
     });
   }
 
