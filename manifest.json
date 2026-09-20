@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.56",
-  "description": "SmartMail Ops — preserves semantic rich-mail formatting from import through highlighted review, editing and NetEase draft creation.",
+  "version": "3.8.57",
+  "description": "SmartMail Ops — preserves authored mail formatting and surfaces italic/quotation attention signals during review without altering outbound content.",
   "permissions": [
     "scripting",
     "tabs",

@@ -171,6 +171,37 @@
     const value=String(text||'').replace(/\r\n?/g,'\n');
     return value.split(/\n{2,}/).map(part=>`<div>${escapeHtml(part).replace(/\n/g,'<br>')}</div>`).join('');
   }
+  // Italic and quotation marks are different authoring devices, but both are
+  // high-value review attention signals: the writer deliberately delimited a
+  // phrase that deserves a faster second look. Keep the original representation
+  // intact and add review-only attention markup; never rewrite quotes as italics.
+  function mailQuotedAttentionRanges(text){
+    const source=String(text||''),ranges=[];
+    const patterns=[
+      /“[^”\n]{2,220}”/gu,
+      /‘[^’\n]{2,220}’/gu,
+      /「[^」\n]{2,220}」/gu,
+      /『[^』\n]{2,220}』/gu,
+      /«[^»\n]{2,220}»/gu,
+      /‹[^›\n]{2,220}›/gu,
+      /"[^"\n]{2,220}"/g
+    ];
+    for(const re of patterns){let m;while((m=re.exec(source))){
+      const value=m[0],inner=value.slice(1,-1).trim();
+      // Ignore quote-like technical fragments; this layer is for authored prose.
+      if(!inner||/^(?:https?:\/\/|mailto:)/i.test(inner))continue;
+      ranges.push({start:m.index,end:m.index+value.length,label:'引号强调'});
+      if(!value.length)re.lastIndex++;
+    }}
+    ranges.sort((a,b)=>a.start-b.start||(b.end-b.start)-(a.end-a.start));
+    const chosen=[];let cursor=-1;
+    for(const range of ranges){if(range.start<cursor)continue;chosen.push(range);cursor=range.end;}
+    return chosen;
+  }
+  function mailRichPlainText(html){
+    const doc=new DOMParser().parseFromString(`<div>${String(html||'')}</div>`,'text/html');
+    return String(doc.body?.firstElementChild?.textContent||'');
+  }
   function mailRichFormatFeatures(html){
     const value=String(html||'');
     return{
@@ -180,15 +211,25 @@
       strike:(value.match(/<s\b/gi)||[]).length,
       link:(value.match(/<a\b/gi)||[]).length,
       list:(value.match(/<(?:ul|ol|li)\b/gi)||[]).length,
-      quote:(value.match(/<blockquote\b/gi)||[]).length
+      quote:mailQuotedAttentionRanges(mailRichPlainText(value)).length,
+      quoteBlock:(value.match(/<blockquote\b/gi)||[]).length
     };
   }
   function mailRichHasMeaningfulFormatting(html){
-    const f=mailRichFormatFeatures(html);return Object.values(f).some(Number);
+    const f=mailRichFormatFeatures(html);
+    // Quotation punctuation is an attention signal, not rich-text state by itself.
+    return ['italic','bold','underline','strike','link','list','quoteBlock'].some(key=>Number(f[key]||0)>0);
+  }
+  function mailRichAttentionLabel(html){
+    const f=mailRichFormatFeatures(html),labels=[];
+    if(f.italic)labels.push(`斜体 ${f.italic}`);
+    if(f.quote)labels.push(`引号 ${f.quote}`);
+    if(f.quoteBlock)labels.push(`引用块 ${f.quoteBlock}`);
+    return labels.join(' · ');
   }
   function mailRichFeatureLabel(html){
     const f=mailRichFormatFeatures(html),labels=[];
-    if(f.italic)labels.push(`斜体 ${f.italic}`);if(f.bold)labels.push(`加粗 ${f.bold}`);if(f.underline)labels.push(`下划线 ${f.underline}`);if(f.link)labels.push(`链接 ${f.link}`);if(f.strike)labels.push(`删除线 ${f.strike}`);if(f.list)labels.push('列表');if(f.quote)labels.push('引用');
+    if(f.bold)labels.push(`加粗 ${f.bold}`);if(f.underline)labels.push(`下划线 ${f.underline}`);if(f.link)labels.push(`链接 ${f.link}`);if(f.strike)labels.push(`删除线 ${f.strike}`);if(f.list)labels.push('列表');
     return labels.join(' · ');
   }
   function mailRichHtmlToText(html){
@@ -211,8 +252,26 @@
   function decorateReviewRichHtml(task){
     const safe=taskRichBodyHtml(task);if(!safe)return escapeHtml(task?.body||'（正文为空）');
     const doc=new DOMParser().parseFromString(`<div id="nmda-rich-root">${safe}</div>`,'text/html'),root=doc.getElementById('nmda-rich-root');if(!root)return safe;
-    const formatMap=[['em,i','italic','斜体'],['strong,b','bold','加粗'],['u','underline','下划线'],['s','strike','删除线'],['a','link','链接']];
+    const formatMap=[['em,i','italic','斜体强调'],['strong,b','bold','加粗'],['u','underline','下划线'],['s','strike','删除线'],['a','link','链接'],['blockquote','quote-block','引用块']];
     for(const [selector,type,label] of formatMap)root.querySelectorAll(selector).forEach(el=>{el.classList.add('nmda-format-mark');el.dataset.format=type;el.title=label;});
+
+    // Quotation punctuation is plain text, so add a review-only wrapper around the
+    // exact authored span. The punctuation itself remains untouched and the wrapper
+    // is never written back to task.bodyHtml / NetEase compose.
+    const quoteWalker=doc.createTreeWalker(root,4),quoteNodes=[];let quoteNode;
+    while((quoteNode=quoteWalker.nextNode()))if(String(quoteNode.nodeValue||'').trim())quoteNodes.push(quoteNode);
+    for(const textNode of quoteNodes){
+      if(textNode.parentElement?.closest?.('[data-format="quote"]'))continue;
+      const source=String(textNode.nodeValue||''),ranges=mailQuotedAttentionRanges(source);if(!ranges.length)continue;
+      const frag=doc.createDocumentFragment();let cursor=0;
+      for(const range of ranges){
+        if(range.start>cursor)frag.appendChild(doc.createTextNode(source.slice(cursor,range.start)));
+        const mark=doc.createElement('span');mark.className='nmda-format-mark nmda-attention-mark';mark.dataset.format='quote';mark.title='引号强调';mark.textContent=source.slice(range.start,range.end);frag.appendChild(mark);cursor=range.end;
+      }
+      if(cursor<source.length)frag.appendChild(doc.createTextNode(source.slice(cursor)));
+      textNode.replaceWith(frag);
+    }
+
     const walker=doc.createTreeWalker(root,4),nodes=[];let node;
     while((node=walker.nextNode()))if(String(node.nodeValue||'').trim())nodes.push(node);
     for(const textNode of nodes){
@@ -671,7 +730,8 @@
                     <span class="nmda-semantic-legend-item" data-semantic="institution"><i></i><strong>学校 / 机构</strong></span>
                     <span class="nmda-semantic-legend-item" data-semantic="anchor"><i></i><strong>称呼 / 身份 / 意图 / 落款</strong></span>
                     <span class="nmda-semantic-legend-item" data-semantic="degree"><i></i><strong>学位 / 时间</strong></span>
-                    <span class="nmda-semantic-legend-item" data-semantic="format"><i></i><strong>原始格式</strong><small>斜体 / 加粗 / 下划线 / 链接</small></span>
+                    <span class="nmda-semantic-legend-item" data-semantic="attention"><i></i><strong>重点表达</strong><small>斜体 / 引号 / 引用</small></span>
+                    <span class="nmda-semantic-legend-item" data-semantic="format"><i></i><strong>其他格式</strong><small>加粗 / 下划线 / 链接</small></span>
                   </div>
                 </div>
                 <aside class="nmda-review-preview-rail" id="nmda-review-preview-rail" hidden aria-label="Preview 邮件导航">
@@ -4668,15 +4728,28 @@
 
   function semanticHighlightHtml(text,task) {
     const source=String(text??'');
-    const {ranges}=reviewSemanticRanges(source,task);
-    if(!ranges.length)return escapeHtml(source);
-    let out='',cursor=0;
-    for(const range of ranges){
-      out+=escapeHtml(source.slice(cursor,range.start));
-      out+=`<mark class="nmda-semantic-mark" data-semantic="${range.type}" title="${escapeHtml(range.label)}">${escapeHtml(source.slice(range.start,range.end))}</mark>`;
-      cursor=range.end;
+    const doc=new DOMParser().parseFromString('<div id="nmda-review-plain-root"></div>','text/html'),root=doc.getElementById('nmda-review-plain-root');
+    if(!root)return escapeHtml(source);root.textContent=source;
+    const quoteRanges=mailQuotedAttentionRanges(source);
+    if(quoteRanges.length){
+      const frag=doc.createDocumentFragment();let cursor=0;
+      for(const range of quoteRanges){
+        if(range.start>cursor)frag.appendChild(doc.createTextNode(source.slice(cursor,range.start)));
+        const span=doc.createElement('span');span.className='nmda-format-mark nmda-attention-mark';span.dataset.format='quote';span.title='引号强调';span.textContent=source.slice(range.start,range.end);frag.appendChild(span);cursor=range.end;
+      }
+      if(cursor<source.length)frag.appendChild(doc.createTextNode(source.slice(cursor)));root.replaceChildren(frag);
     }
-    out+=escapeHtml(source.slice(cursor));return out;
+    const walker=doc.createTreeWalker(root,4),nodes=[];let node;while((node=walker.nextNode()))if(String(node.nodeValue||'').trim())nodes.push(node);
+    for(const textNode of nodes){
+      const value=String(textNode.nodeValue||''),ranges=reviewSemanticRanges(value,task).ranges;if(!ranges.length)continue;
+      const frag=doc.createDocumentFragment();let cursor=0;
+      for(const range of ranges){
+        if(range.start>cursor)frag.appendChild(doc.createTextNode(value.slice(cursor,range.start)));
+        const mark=doc.createElement('mark');mark.className='nmda-semantic-mark';mark.dataset.semantic=range.type;mark.title=range.label;mark.textContent=value.slice(range.start,range.end);frag.appendChild(mark);cursor=range.end;
+      }
+      if(cursor<value.length)frag.appendChild(doc.createTextNode(value.slice(cursor)));textNode.replaceWith(frag);
+    }
+    return root.innerHTML;
   }
 
   function renderReviewSemanticLegend(task) {
@@ -4687,8 +4760,11 @@
     if(model.institutions[0])items.push({type:'institution',label:'学校 / 机构',value:model.institutions[0]});
     items.push({type:'anchor',label:'语义锚点',value:'称呼 · 身份 · 意图 · 落款'});
     if(/\b(?:Ph\.?D\.?|MSc|Master(?:'s)?|Bachelor(?:'s)?|Fall\s+20\d{2}|Spring\s+20\d{2})\b/i.test(String(task?.body||'')+' '+String(task?.subject||'')))items.push({type:'degree',label:'学位 / 时间',value:'自动定位'});
-    const formatLabel=mailRichFeatureLabel(taskRichBodyHtml(task));
-    if(formatLabel)items.push({type:'format',label:'原始格式',value:formatLabel});
+    const rich=taskRichBodyHtml(task);
+    const attentionLabel=mailRichAttentionLabel(rich);
+    const formatLabel=mailRichFeatureLabel(rich);
+    if(attentionLabel)items.push({type:'attention',label:'重点表达',value:attentionLabel});
+    if(formatLabel)items.push({type:'format',label:'其他格式',value:formatLabel});
     el.innerHTML=items.map(item=>`<span class="nmda-semantic-legend-item" data-semantic="${item.type}"><i></i><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.value)}</small></span>`).join('');
   }
 

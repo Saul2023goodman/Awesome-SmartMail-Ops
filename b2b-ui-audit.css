@@ -758,6 +758,9 @@
 }
 
 /* v3.8.56 · imported rich-format attention marker. */
-#nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="format"],
-#nmda-root.nmda-standalone .nmda-format-mark { --semantic:#8b5aa7; --semantic-bg:#f3eaf7; }
+#nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="attention"],
+#nmda-root.nmda-standalone .nmda-format-mark[data-format="italic"],
+#nmda-root.nmda-standalone .nmda-format-mark[data-format="quote"],
+#nmda-root.nmda-standalone .nmda-format-mark[data-format="quote-block"] { --semantic:#8b5aa7; --semantic-bg:#f3eaf7; }
+#nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="format"] { --semantic:#72759a; --semantic-bg:#f0f1f7; }
 #nmda-root.nmda-standalone .nmda-format-mark { --format-accent:#8b5aa7; }

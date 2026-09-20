@@ -89,6 +89,15 @@
     };
     return Array.from(root.childNodes||[]).map(render).join('');
   }
+  function inlineQuoteAttentionCount(text){
+    const source=String(text||''),patterns=[/“[^”\n]{2,220}”/gu,/‘[^’\n]{2,220}’/gu,/「[^」\n]{2,220}」/gu,/『[^』\n]{2,220}』/gu,/«[^»\n]{2,220}»/gu,/‹[^›\n]{2,220}›/gu,/"[^"\n]{2,220}"/g];
+    const ranges=[];
+    for(const re of patterns){let m;while((m=re.exec(source))){const inner=m[0].slice(1,-1).trim();if(!inner||/^(?:https?:\/\/|mailto:)/i.test(inner))continue;ranges.push([m.index,m.index+m[0].length]);if(!m[0].length)re.lastIndex++;}}
+    ranges.sort((a,b)=>a[0]-b[0]||(b[1]-b[0])-(a[1]-a[0]));let count=0,cursor=-1;for(const [start,end] of ranges){if(start<cursor)continue;count++;cursor=end;}return count;
+  }
+  function richHtmlText(html){
+    try{const doc=new DOMParser().parseFromString(`<div>${String(html||'')}</div>`,'text/html');return String(doc.body?.firstElementChild?.textContent||'');}catch(_){return String(html||'').replace(/<[^>]+>/g,' ');}
+  }
   function richFormatFeatures(html){
     const value=String(html||'');
     return{
@@ -96,7 +105,8 @@
       bold:(value.match(/<(?:strong|b)\b/gi)||[]).length,
       underline:(value.match(/<u\b/gi)||[]).length,
       strike:(value.match(/<s\b/gi)||[]).length,
-      link:(value.match(/<a\b/gi)||[]).length
+      link:(value.match(/<a\b/gi)||[]).length,
+      quote:inlineQuoteAttentionCount(richHtmlText(value))
     };
   }
 
