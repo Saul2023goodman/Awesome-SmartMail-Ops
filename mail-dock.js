@@ -6,63 +6,119 @@
   host.id = 'nmda-mail-dock-host';
   host.dataset.open = 'false';
   host.dataset.execution = 'idle';
+  host.dataset.phase = 'idle';
   host.innerHTML = `
-    <section id="nmda-mail-dock-panel" class="nmda-dock-panel" aria-label="SmartMail" aria-hidden="true">
-      <button id="nmda-dock-open-app" class="nmda-dock-primary" type="button" aria-label="打开 SmartMail">
-        <span class="nmda-dock-brand" aria-hidden="true">SM</span>
-        <span class="nmda-dock-primary-copy">
-          <strong>SmartMail Ops</strong>
-          <small><i id="nmda-dock-connection-dot"></i><span id="nmda-dock-account">检查连接中…</span></small>
-        </span>
-        <span class="nmda-dock-open-arrow" aria-hidden="true">↗</span>
-      </button>
-
-      <section id="nmda-dock-execution" class="nmda-dock-execution" hidden aria-label="执行状态">
-        <div class="nmda-dock-exec-head">
-          <div><span id="nmda-dock-exec-label">执行中</span><strong id="nmda-dock-exec-count">0 / 0</strong></div>
+    <section id="nmda-mail-dock-panel" class="nmda-dock-panel" aria-label="SmartMail 执行详情" aria-hidden="true">
+      <header class="nmda-dock-panel-head">
+        <div class="nmda-dock-panel-title">
+          <span class="nmda-dock-panel-kicker">LIVE EXECUTION</span>
+          <strong id="nmda-dock-exec-label">执行状态</strong>
+        </div>
+        <div class="nmda-dock-panel-meta">
+          <span class="nmda-dock-account"><i id="nmda-dock-connection-dot"></i><span id="nmda-dock-account">检查连接中…</span></span>
           <span class="nmda-dock-exec-state" id="nmda-dock-exec-state">运行</span>
         </div>
-        <div class="nmda-dock-exec-progress"><i id="nmda-dock-exec-progress-bar"></i></div>
+      </header>
+
+      <section id="nmda-dock-execution" class="nmda-dock-execution" hidden aria-label="执行状态">
+        <div class="nmda-dock-exec-overview">
+          <strong id="nmda-dock-exec-count">0 / 0</strong>
+          <span id="nmda-dock-exec-summary">准备执行</span>
+        </div>
+
+        <div class="nmda-dock-phase-track" id="nmda-dock-phase-track" aria-label="执行步骤">
+          <span data-stage="open" title="打开写信页"><i></i></span>
+          <span data-stage="content" title="写入内容"><i></i></span>
+          <span data-stage="attachments" title="处理附件"><i></i></span>
+          <span data-stage="schedule" title="设置排期"><i></i></span>
+          <span data-stage="save" title="保存并收尾"><i></i></span>
+        </div>
+
         <div class="nmda-dock-exec-current">
-          <strong id="nmda-dock-exec-recipient">准备执行…</strong>
+          <div class="nmda-dock-current-line">
+            <span class="nmda-dock-current-pulse" aria-hidden="true"></span>
+            <strong id="nmda-dock-exec-recipient">准备执行…</strong>
+          </div>
           <small id="nmda-dock-exec-subject"></small>
           <p id="nmda-dock-exec-message">正在准备执行队列。</p>
         </div>
+
         <div class="nmda-dock-exec-actions">
           <button id="nmda-dock-resume" class="is-primary" type="button" hidden>继续保存</button>
-          <button id="nmda-dock-stop" type="button">当前封后停止</button>
-          <button id="nmda-dock-open-dispatch" type="button">打开选择与排期</button>
+          <button id="nmda-dock-stop" class="is-danger-quiet" type="button">当前封后停止</button>
+          <button id="nmda-dock-open-dispatch" type="button">查看调度</button>
         </div>
       </section>
     </section>
 
-    <button id="nmda-dock-launcher" class="nmda-dock-launcher" type="button" aria-label="SmartMail" aria-expanded="false" title="SmartMail Ops · Alt+M">
-      <span class="nmda-dock-launcher-mark">SM</span>
-      <span class="nmda-dock-launcher-dot" id="nmda-dock-launcher-dot"></span>
-      <span class="nmda-dock-exec-badge" id="nmda-dock-exec-badge" hidden></span>
-    </button>`;
+    <div class="nmda-dock-rail" id="nmda-dock-rail">
+      <button id="nmda-dock-launcher" class="nmda-dock-launcher" type="button" aria-label="打开 SmartMail 主界面" title="打开 SmartMail · Alt+M">
+        <span class="nmda-dock-glyph" aria-hidden="true">
+          <svg viewBox="0 0 28 28" focusable="false">
+            <path class="nmda-glyph-route" d="M7 8.25h7.15c2.9 0 5.25 2.35 5.25 5.25s-2.35 5.25-5.25 5.25H9.9"/>
+            <circle class="nmda-glyph-node nmda-glyph-node-a" cx="7" cy="8.25" r="2"/>
+            <circle class="nmda-glyph-node nmda-glyph-node-b" cx="20.25" cy="13.5" r="2"/>
+            <circle class="nmda-glyph-node nmda-glyph-node-c" cx="9.75" cy="18.75" r="2"/>
+          </svg>
+          <i class="nmda-dock-glyph-runner"></i>
+        </span>
+        <span class="nmda-dock-live-copy" aria-hidden="true">
+          <strong id="nmda-dock-live-count">0 / 0</strong>
+          <small id="nmda-dock-live-state">正在执行</small>
+        </span>
+        <span class="nmda-dock-launcher-dot" id="nmda-dock-launcher-dot"></span>
+      </button>
+
+      <button id="nmda-dock-detail-toggle" class="nmda-dock-detail-toggle" type="button" aria-label="查看执行详情" aria-expanded="false" hidden>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.75 7.75 10 12l4.25-4.25"/></svg>
+      </button>
+
+      <div class="nmda-dock-live-progress" aria-hidden="true">
+        <i id="nmda-dock-live-progress-bar"></i><b id="nmda-dock-live-progress-head"></b>
+      </div>
+    </div>`;
 
   document.documentElement.appendChild(host);
 
   const panel = host.querySelector('#nmda-mail-dock-panel');
   const launcher = host.querySelector('#nmda-dock-launcher');
+  const detailToggle = host.querySelector('#nmda-dock-detail-toggle');
   const launcherDot = host.querySelector('#nmda-dock-launcher-dot');
-  const execBadge = host.querySelector('#nmda-dock-exec-badge');
+  const liveCount = host.querySelector('#nmda-dock-live-count');
+  const liveState = host.querySelector('#nmda-dock-live-state');
+  const liveProgressBar = host.querySelector('#nmda-dock-live-progress-bar');
+  const liveProgressHead = host.querySelector('#nmda-dock-live-progress-head');
   const accountEl = host.querySelector('#nmda-dock-account');
   const connectionDot = host.querySelector('#nmda-dock-connection-dot');
   const executionEl = host.querySelector('#nmda-dock-execution');
   const execLabel = host.querySelector('#nmda-dock-exec-label');
   const execCount = host.querySelector('#nmda-dock-exec-count');
+  const execSummary = host.querySelector('#nmda-dock-exec-summary');
   const execState = host.querySelector('#nmda-dock-exec-state');
-  const execProgressBar = host.querySelector('#nmda-dock-exec-progress-bar');
   const execRecipient = host.querySelector('#nmda-dock-exec-recipient');
   const execSubject = host.querySelector('#nmda-dock-exec-subject');
   const execMessage = host.querySelector('#nmda-dock-exec-message');
+  const phaseTrack = host.querySelector('#nmda-dock-phase-track');
   const stopButton = host.querySelector('#nmda-dock-stop');
   const resumeButton = host.querySelector('#nmda-dock-resume');
 
+  const PHASE_ORDER = ['open', 'content', 'attachments', 'schedule', 'save'];
+  const PHASE_LABELS = {
+    open: '打开写信页',
+    content: '写入邮件内容',
+    attachments: '处理附件',
+    schedule: '设置排期',
+    paused: '等待人工检查',
+    resume: '继续执行',
+    save: '保存草稿',
+    cleanup: '确认并收尾',
+    'cleanup-error': '收尾异常',
+    done: '本封已完成'
+  };
+
   let lastStatus = { connected: false, account: '' };
   let executionResetTimer = null;
+  let motionTimer = null;
   const execution = {
     total: 0,
     current: 0,
@@ -71,14 +127,16 @@
     remaining: 0,
     status: 'idle',
     executionId: '',
+    phase: 'idle',
     task: null,
     message: ''
   };
 
   function setOpen(open) {
-    host.dataset.open = open ? 'true' : 'false';
-    panel.setAttribute('aria-hidden', open ? 'false' : 'true');
-    launcher.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const next = !!open && execution.status !== 'idle';
+    host.dataset.open = next ? 'true' : 'false';
+    panel.setAttribute('aria-hidden', next ? 'false' : 'true');
+    detailToggle?.setAttribute('aria-expanded', next ? 'true' : 'false');
   }
 
   async function openWorkspace(target = 'batch') {
@@ -101,23 +159,55 @@
     return execution.status !== 'idle';
   }
 
+  function effectiveStageIndex() {
+    const phase = String(execution.phase || '');
+    if (phase === 'cleanup' || phase === 'cleanup-error' || phase === 'done' || phase === 'resume') return 4;
+    const index = PHASE_ORDER.indexOf(phase);
+    return index >= 0 ? index : -1;
+  }
+
+  function triggerMotion(kind) {
+    const className = kind === 'commit' ? 'is-commit' : 'is-step';
+    host.classList.remove(className);
+    void host.offsetWidth;
+    host.classList.add(className);
+    if (motionTimer) clearTimeout(motionTimer);
+    motionTimer = setTimeout(() => host.classList.remove(className), kind === 'commit' ? 700 : 460);
+  }
+
+  function renderPhaseTrack() {
+    const activeIndex = effectiveStageIndex();
+    const taskFinished = execution.phase === 'done';
+    phaseTrack?.querySelectorAll('[data-stage]').forEach((node, index) => {
+      node.classList.toggle('is-active', !taskFinished && index === activeIndex);
+      node.classList.toggle('is-complete', taskFinished || index < activeIndex);
+    });
+  }
+
   function renderExecution() {
     const visible = hasExecutionContext();
     executionEl.hidden = !visible;
     host.dataset.execution = execution.status || 'idle';
-    if (!visible) return;
+    host.dataset.phase = execution.phase || 'idle';
+    detailToggle.hidden = !visible;
+    if (!visible) {
+      setOpen(false);
+      return;
+    }
 
     const done = Math.max(0, Number(execution.succeeded || 0) + Number(execution.failed || 0));
     const current = Math.min(Math.max(Number(execution.current || done || 0), 0), Math.max(Number(execution.total || 0), 0));
     const finished = ['done', 'error', 'stopped'].includes(execution.status);
     const paused = execution.status === 'paused';
-    const stateLabel = execution.status === 'done' ? '完成' : execution.status === 'error' ? '异常' : execution.status === 'stopped' ? '已停止' : paused ? '待确认' : '运行';
+    const stateLabel = execution.status === 'done' ? '完成' : execution.status === 'error' ? '异常' : execution.status === 'stopped' ? '已停止' : paused ? '待确认' : '运行中';
+    const phaseLabel = PHASE_LABELS[execution.phase] || (finished ? '执行结束' : '正在处理');
+    const displayCount = finished ? done : current;
 
-    execLabel.textContent = paused ? '等待人工检查' : execution.status === 'running' ? '正在执行' : '执行结果';
-    execCount.textContent = `${finished ? done : current} / ${Number(execution.total || 0)}`;
+    execLabel.textContent = paused ? '等待人工检查' : execution.status === 'running' ? '执行队列' : '执行结果';
+    execCount.textContent = `${displayCount} / ${Number(execution.total || 0)}`;
+    execSummary.textContent = phaseLabel;
     execState.textContent = stateLabel;
     execState.dataset.state = execution.status;
-    execProgressBar.style.width = `${executionPct()}%`;
     execRecipient.textContent = execution.task?.recipient || (finished ? '本次执行已结束' : '准备下一封邮件…');
     execSubject.textContent = execution.task?.subject || '';
     execMessage.textContent = execution.message || (finished ? `成功 ${Number(execution.succeeded || 0)} · 失败 ${Number(execution.failed || 0)}` : '正在处理…');
@@ -127,20 +217,28 @@
     stopButton.hidden = finished;
     stopButton.disabled = false;
     stopButton.textContent = '当前封后停止';
+    renderPhaseTrack();
   }
 
   function syncExecutionChrome() {
     renderExecution();
     const active = hasExecutionContext();
     const done = Math.max(0, Number(execution.succeeded || 0) + Number(execution.failed || 0));
-    const text = ['running','paused'].includes(execution.status)
-      ? `${Math.min(Number(execution.current || done || 0), Number(execution.total || 0))}/${Number(execution.total || 0)}`
-      : execution.status === 'done' ? '✓' : ['error', 'stopped'].includes(execution.status) ? '!' : '';
-    execBadge.hidden = !active;
-    execBadge.textContent = text;
-    launcher.title = execution.status === 'paused' ? 'SmartMail 等待人工检查' : execution.status === 'running'
-      ? `SmartMail 正在执行 · ${done}/${Number(execution.total || 0)}`
-      : 'SmartMail Ops · Alt+M';
+    const current = Math.min(Number(execution.current || done || 0), Number(execution.total || 0));
+    const pct = executionPct();
+
+    liveCount.textContent = execution.status === 'done' ? `${Number(execution.total || done)} / ${Number(execution.total || done)}` : `${current} / ${Number(execution.total || 0)}`;
+    liveState.textContent = execution.status === 'paused' ? '等待确认' : execution.status === 'done' ? '执行完成' : execution.status === 'error' ? '执行异常' : execution.status === 'stopped' ? '已停止' : (PHASE_LABELS[execution.phase] || '正在执行');
+    liveProgressBar.style.width = `${pct}%`;
+    liveProgressHead.style.left = `${pct}%`;
+    launcher.title = execution.status === 'paused' ? 'SmartMail 等待人工检查 · 点击打开主界面' : execution.status === 'running'
+      ? `SmartMail 正在执行 · ${current}/${Number(execution.total || 0)} · 点击打开主界面`
+      : '打开 SmartMail · Alt+M';
+
+    if (!active) {
+      liveProgressBar.style.width = '0%';
+      liveProgressHead.style.left = '0%';
+    }
   }
 
   function updateExecution(payload = {}) {
@@ -149,51 +247,61 @@
       if (executionResetTimer) { clearTimeout(executionResetTimer); executionResetTimer = null; }
       Object.assign(execution, {
         total: Number(payload.total || 0), current: 0, succeeded: 0, failed: 0,
-        remaining: Number(payload.remaining ?? payload.total ?? 0), status: 'running', executionId:'',
+        remaining: Number(payload.remaining ?? payload.total ?? 0), status: 'running', executionId: '', phase: 'open',
         task: null, message: '正在准备第一封邮件。'
       });
-      setOpen(true);
+      setOpen(false);
+      triggerMotion('step');
     } else if (action === 'task-start') {
       Object.assign(execution, {
         current: Number(payload.current || 0), total: Number(payload.total || execution.total),
         succeeded: Number(payload.succeeded || 0), failed: Number(payload.failed || 0),
-        remaining: Number(payload.remaining ?? execution.remaining), status: 'running', executionId:'',
+        remaining: Number(payload.remaining ?? execution.remaining), status: 'running', executionId: '', phase: 'open',
         task: payload.task || null, message: '正在打开写信页…'
       });
+      triggerMotion('step');
     } else if (action === 'task-progress') {
       const phase = String(payload.phase || '');
+      const previousPhase = execution.phase;
       Object.assign(execution, {
         current: Number(payload.current || execution.current), total: Number(payload.total || execution.total),
         succeeded: Number(payload.succeeded ?? execution.succeeded), failed: Number(payload.failed ?? execution.failed),
         remaining: Number(payload.remaining ?? execution.remaining), task: payload.task || execution.task,
         executionId: String(payload.executionId || execution.executionId || ''),
-        status: phase === 'paused' ? 'paused' : 'running',
+        status: phase === 'paused' ? 'paused' : 'running', phase: phase || execution.phase,
         message: String(payload.message || '正在处理…')
       });
+      if (phase && phase !== previousPhase && phase !== 'done') triggerMotion('step');
       if (phase === 'paused') setOpen(true);
     } else if (action === 'task-done') {
       Object.assign(execution, {
         current: Number(payload.current || execution.current), succeeded: Number(payload.succeeded || execution.succeeded),
         failed: Number(payload.failed || execution.failed), remaining: Number(payload.remaining ?? execution.remaining),
-        task: payload.task || execution.task, executionId:'', message: String(payload.message || '草稿已保存'), status:'running'
+        task: payload.task || execution.task, executionId: '', phase: 'done', message: String(payload.message || '草稿已保存'), status: 'running'
       });
+      triggerMotion('commit');
     } else if (action === 'task-error') {
       Object.assign(execution, {
         current: Number(payload.current || execution.current), succeeded: Number(payload.succeeded || execution.succeeded),
         failed: Number(payload.failed || execution.failed), remaining: Number(payload.remaining ?? execution.remaining),
-        task: payload.task || execution.task, executionId:'', message: String(payload.message || '执行失败'), status: 'error'
+        task: payload.task || execution.task, executionId: '', phase: 'cleanup-error', message: String(payload.message || '执行失败'), status: 'error'
       });
       setOpen(true);
+      triggerMotion('commit');
     } else if (action === 'finish') {
       Object.assign(execution, {
         total: Number(payload.total || execution.total), succeeded: Number(payload.succeeded || 0),
         failed: Number(payload.failed || 0), remaining: Number(payload.remaining || 0),
-        status: String(payload.status || 'done'), executionId:'', message: String(payload.message || '执行结束')
+        status: String(payload.status || 'done'), executionId: '', phase: String(payload.status || 'done') === 'done' ? 'done' : execution.phase,
+        message: String(payload.message || '执行结束')
       });
-      setOpen(true);
+      if (execution.status === 'error' || execution.status === 'stopped') setOpen(true);
+      else setOpen(false);
+      triggerMotion('commit');
       if (executionResetTimer) clearTimeout(executionResetTimer);
       executionResetTimer = setTimeout(() => {
         execution.status = 'idle';
+        execution.phase = 'idle';
         execution.task = null;
         execution.message = '';
         executionResetTimer = null;
@@ -217,17 +325,22 @@
     accountEl.textContent = lastStatus.account || (online ? '网易邮箱已连接' : '网易邮箱未连接');
   }
 
+  // Primary interaction: one click on the Dock always opens SmartMail's main workspace.
   launcher.addEventListener('click', event => {
     event.stopPropagation();
-    if (host.dataset.open === 'true') setOpen(false);
-    else {
-      setOpen(true);
+    openWorkspace('batch');
+  });
+
+  detailToggle?.addEventListener('click', event => {
+    event.stopPropagation();
+    if (!hasExecutionContext()) return;
+    setOpen(host.dataset.open !== 'true');
+    if (host.dataset.open === 'true') {
       refreshStatus();
       renderExecution();
     }
   });
 
-  host.querySelector('#nmda-dock-open-app')?.addEventListener('click', () => openWorkspace('batch'));
   host.querySelector('#nmda-dock-open-dispatch')?.addEventListener('click', () => openWorkspace('dispatch'));
 
   resumeButton?.addEventListener('click', async event => {
@@ -260,12 +373,7 @@
   document.addEventListener('keydown', event => {
     if (event.altKey && !event.ctrlKey && !event.metaKey && String(event.key).toLowerCase() === 'm') {
       event.preventDefault();
-      if (host.dataset.open === 'true') setOpen(false);
-      else {
-        setOpen(true);
-        refreshStatus();
-        renderExecution();
-      }
+      openWorkspace('batch');
     }
     if (event.key === 'Escape' && host.dataset.open === 'true') setOpen(false);
   }, true);

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.28",
-  "description": "SmartMail Ops — runtime-only batch mail operations with read-only existing-schedule constraints and exact Compose lifecycle cleanup.",
+  "version": "3.8.29",
+  "description": "SmartMail Ops — runtime-only mail operations with one-click workspace Dock, live execution motion, schedule constraints, and exact Compose lifecycle cleanup.",
   "permissions": [
     "scripting",
     "tabs"
