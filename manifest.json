@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.31",
-  "description": "SmartMail Ops — automatic mailbox synchronization, unified icon system, live execution motion, schedule constraints, and exact Compose lifecycle cleanup.",
+  "version": "3.8.32",
+  "description": "SmartMail Ops — runtime-only mail operations with automatic mailbox facts, ready-state dispatch handoff, unified sync motion, and controlled execution.",
   "permissions": [
     "scripting",
     "tabs"

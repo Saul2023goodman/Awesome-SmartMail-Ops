@@ -244,10 +244,17 @@
             </div>
           </div>
           <div class="nmda-head-actions">
-            <div class="nmda-mail-connection" id="nmda-mail-connection" data-state="checking"><span class="nmda-mail-connection-dot"></span><span class="nmda-mail-connection-copy"><strong id="nmda-mail-connection-title">正在检查网易邮箱</strong><small id="nmda-mail-connection-detail">连接状态</small></span><button class="nmda-btn nmda-btn-small nmda-mail-open-button" id="nmda-open-mail" type="button">连接邮箱</button></div>
-            <div class="nmda-mail-auto-sync" id="nmda-mail-auto-sync" data-state="idle" aria-live="polite" title="SmartMail 会按需自动读取邮箱事实">
-              <span class="nmda-mail-auto-sync-track" aria-hidden="true"><i></i><i></i><i></i><b></b></span>
-              <span class="nmda-mail-auto-sync-copy"><strong id="nmda-mail-auto-sync-title">自动同步</strong><small id="nmda-mail-auto-sync-detail">按需读取邮箱事实</small></span>
+            <div class="nmda-mail-connection" id="nmda-mail-connection" data-state="checking">
+              <span class="nmda-mail-connection-dot"></span>
+              <span class="nmda-mail-connection-copy">
+                <strong id="nmda-mail-connection-title">正在检查网易邮箱</strong>
+                <small id="nmda-mail-connection-detail" class="nmda-mail-connection-detail">连接状态</small>
+                <span class="nmda-mail-auto-sync" id="nmda-mail-auto-sync" data-state="idle" aria-live="polite" title="SmartMail 会自动读取邮箱事实">
+                  <span class="nmda-mail-auto-sync-track" aria-hidden="true"><i></i><i></i><i></i><b></b></span>
+                  <span class="nmda-mail-auto-sync-copy"><strong id="nmda-mail-auto-sync-title">自动同步</strong><small id="nmda-mail-auto-sync-detail">后台保持最新</small></span>
+                </span>
+              </span>
+              <button class="nmda-btn nmda-btn-small nmda-mail-open-button" id="nmda-open-mail" type="button">连接邮箱</button>
             </div>
             <button class="nmda-icon-btn" id="nmda-expand" type="button" title="全屏 / 还原">⛶</button>
             <button class="nmda-icon-btn nmda-close" id="nmda-close" type="button" title="关闭">×</button>
@@ -851,7 +858,7 @@
     mailboxAutoSyncEl.dataset.state=state;
     const titles={idle:'自动同步',syncing:'正在读取邮箱',success:'邮箱已同步',error:'同步异常',waiting:'等待邮箱连接'};
     if(mailboxAutoSyncTitleEl)mailboxAutoSyncTitleEl.textContent=titles[state]||titles.idle;
-    if(mailboxAutoSyncDetailEl)mailboxAutoSyncDetailEl.textContent=detail||({idle:'按需读取邮箱事实',syncing:'已发送 · 草稿 · 收件',success:'最新邮箱事实已更新',error:'稍后会自动重试',waiting:'登录后自动开始'}[state]||'');
+    if(mailboxAutoSyncDetailEl)mailboxAutoSyncDetailEl.textContent=detail||({idle:'后台保持最新',syncing:'已发送 · 草稿 · 收件',success:'邮箱事实已更新',error:'稍后自动重试',waiting:'登录后自动开始'}[state]||'');
   }
   function mailboxSyncKindPriority(kind='quick'){
     return ({quick:1,history:2,full:3})[kind]||1;
@@ -2465,6 +2472,7 @@
     else if(mailPending)setImportStatus('导入准备已完成。邮件审阅可用。','ok');
     else setImportStatus('导入准备已完成。后续阶段可查看；执行资格按当前状态判断。','ok');
     renderImportHandoff();
+    scheduleReadyBatchAutoHandoff('导入准备已完成');
   }
 
   function renderRosterContextCue() {
@@ -3406,8 +3414,9 @@
       const pendingMails=reviewTasks();
       nextPendingBtn.hidden=!tasks.length;
       nextPendingBtn.dataset.mode=pendingMails.length?'next':'dispatch';
-      nextPendingBtn.textContent=pendingMails.length?'下一个需处理':'进入选择与排期 →';
-      nextPendingBtn.classList.toggle('nmda-btn-primary',!pendingMails.length);
+      nextPendingBtn.textContent=pendingMails.length?'下一个需处理':(batch.handoffComplete?'查看选择与排期 →':'正在同步到选择与排期…');
+      nextPendingBtn.disabled=!pendingMails.length&&!batch.handoffComplete;
+      nextPendingBtn.classList.toggle('nmda-btn-primary',!pendingMails.length&&batch.handoffComplete);
     }
     if(reviewFilterEl)reviewFilterEl.hidden=false;
     ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter===batch.reviewFilter));
@@ -3422,6 +3431,7 @@
     if(!tasks.length){if(importEditorOverlayEl)importEditorOverlayEl.hidden=true;setReviewSurface('board');renderReviewBatchActions();return;}
     renderReviewBatchActions();
     if(reviewInlineEl && !reviewInlineEl.hidden)renderReviewQueue(importEditorOverlayEl?.dataset.editKey||batch.reviewPreviewKey||'');
+    scheduleReadyBatchAutoHandoff('邮件审阅已就绪');
   }
 
   function openReviewWorkspace(options = {}) {
@@ -3478,6 +3488,37 @@
     setReviewSurface('board');
   }
 
+  let readyBatchAutoHandoffQueued=false;
+  let readyBatchAutoHandoffRetryAt=0;
+  function scheduleReadyBatchAutoHandoff(reason='邮件已准备好') {
+    if(readyBatchAutoHandoffQueued||batch.running||batch.autoAdvancing||batch.handoffComplete)return;
+    if(!batch.dataset||!(batch.tasks||[]).length||!initialReviewGateReady())return;
+    if(reviewTasks().length)return;
+    if((batch.tasks||[]).some(taskHasPrePlanningBlocker))return;
+    readyBatchAutoHandoffQueued=true;
+    queueMicrotask(()=>{
+      readyBatchAutoHandoffQueued=false;
+      void (async()=>{
+        if(batch.running||batch.autoAdvancing||batch.handoffComplete||!batch.dataset||!(batch.tasks||[]).length)return;
+        if(!initialReviewGateReady()||reviewTasks().length||(batch.tasks||[]).some(taskHasPrePlanningBlocker))return;
+        if(!mailboxDedupeSnapshotAvailable()){
+          const now=Date.now();
+          if(now<readyBatchAutoHandoffRetryAt)return;
+          readyBatchAutoHandoffRetryAt=now+8000;
+          try{await requestAutoMailboxSync('history',{source:'ready-handoff'});}catch(_){return;}
+          readyBatchAutoHandoffRetryAt=0;
+          if(!mailboxDedupeSnapshotAvailable())return;
+        }
+        if(batch.handoffComplete||batch.running||batch.autoAdvancing||reviewTasks().length||(batch.tasks||[]).some(taskHasPrePlanningBlocker))return;
+        const ready=await enterSelectionAndSchedule(reason);
+        if(!ready)return;
+        scheduleMailboxAutoSync('quick',{source:'ready-handoff'});
+        renderReviewPageOverview();
+        setImportStatus(`${reason}。已自动同步到“选择与排期”，可继续留在当前页面审阅，也可随时查看排期。`,'ok');
+      })();
+    });
+  }
+
   async function enterSelectionAndSchedule(reason='检查完成') {
     if(batch.running || batch.autoAdvancing)return false;
     await ensureOperationStore();
@@ -3506,7 +3547,7 @@
       return false;
     }
     setBatchStatus(`${reason}。选择与排期已就绪。`,'ok');
-    setImportStatus(`${reason}。可通过顶部导航进入“选择与排期”。`,'ok');
+    setImportStatus(`${reason}。已同步到“选择与排期”。`,'ok');
     scheduleBatchRender({aux:true,force:true});
     renderProcessGuide();
     return true;
@@ -3530,7 +3571,7 @@
     if(!ready)return false;
     closeImportTaskEditor();
     renderReviewPageOverview();
-    setBatchStatus(`${reason}。可进入“选择与排期”。`,'ok');
+    setBatchStatus(`${reason}。已同步到“选择与排期”。`,'ok');
     return true;
   }
 
@@ -5053,6 +5094,7 @@
     applyRosterCrossCheck(tasks);
     batch.tasks = tasks;
     scheduleBatchRender({aux:true});
+    scheduleReadyBatchAutoHandoff('邮件已准备好');
   }
 
   function statusLabel(task) {
@@ -5783,6 +5825,7 @@
       if(batch.supplementPreflightDone)renderImportHandoff();
       if(!dataset?.meta?.mailboxDraftImport) scheduleMailboxAutoSync('history',{source:'import',force:true});
       else scheduleMailboxAutoSync('quick',{source:'mailbox-draft-import'});
+      scheduleReadyBatchAutoHandoff('导入与核验已完成');
     }
     return true;
   }
@@ -6322,7 +6365,7 @@
         setMailboxAutoSyncCue('waiting',connection?.connected?'完成登录后自动读取':'连接网易邮箱后自动读取');
         return null;
       }
-      const sourceLabel=source==='import'?'导入后核验历史':source?.startsWith?.('tab:')?'页面切换刷新':source==='connection'?'邮箱连接完成':'自动刷新';
+      const sourceLabel=source==='import'?'导入后核验历史':source==='ready-handoff'?'任务就绪自动同步':source?.startsWith?.('tab:')?'页面切换刷新':source==='connection'?'邮箱连接完成':'自动刷新';
       const detail=normalizedKind==='history'?`${sourceLabel} · 已发送 + 草稿`:normalizedKind==='full'?`${sourceLabel} · 完整邮箱`:`${sourceLabel} · 已发送 + 草稿 + 收件`;
       setMailboxAutoSyncCue('syncing',detail);
       try{

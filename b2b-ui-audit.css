@@ -471,3 +471,139 @@
 @media (max-width:900px) {
   #nmda-root.nmda-standalone .nmda-monitor-stats { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
 }
+
+/* v3.8.32 · One mailbox capsule: connection + automatic sync share one layout. */
+#nmda-root.nmda-standalone .nmda-head-actions {
+  flex:0 1 auto !important;
+  min-width:0 !important;
+  max-width:min(430px,48vw) !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection {
+  width:clamp(250px,34vw,390px) !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  min-height:40px !important;
+  grid-template-columns:10px minmax(0,1fr) auto !important;
+  gap:7px !important;
+  padding:5px 6px 5px 10px !important;
+  overflow:hidden !important;
+  transition:border-color .2s ease, background .2s ease, box-shadow .2s ease !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection-copy {
+  min-width:0 !important;
+  display:grid !important;
+  grid-template-rows:auto auto !important;
+  gap:2px !important;
+  overflow:hidden !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection-copy > strong {
+  min-width:0 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+  line-height:1.05 !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection-detail { display:none !important; }
+#nmda-root.nmda-standalone .nmda-mail-open-button {
+  flex:0 0 auto !important;
+  min-height:28px !important;
+  height:28px !important;
+  padding:0 9px !important;
+  align-self:center !important;
+}
+
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync {
+  --nmda-sync-tone:#64748b;
+  width:auto !important;
+  min-width:0 !important;
+  height:13px !important;
+  min-height:13px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:5px !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  color:#64748b !important;
+  overflow:hidden !important;
+  transition:color .18s ease !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync[data-state="syncing"] { --nmda-sync-tone:#2563eb; color:#2563eb !important; }
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync[data-state="success"] { --nmda-sync-tone:#15803d; color:#15803d !important; }
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync[data-state="error"] { --nmda-sync-tone:#b45309; color:#b45309 !important; }
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync[data-state="waiting"] { --nmda-sync-tone:#94a3b8; color:#7c8795 !important; }
+#nmda-root.nmda-standalone .nmda-mail-connection:has(.nmda-mail-auto-sync[data-state="syncing"]) {
+  border-color:#b9d1f7 !important;
+  box-shadow:0 0 0 2px rgba(37,99,235,.045) !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection:has(.nmda-mail-auto-sync[data-state="success"]) { border-color:#b9dfc3 !important; }
+
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-track {
+  width:28px !important;
+  height:10px !important;
+  flex:0 0 28px !important;
+  transform:translateY(-.5px);
+}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-track::before {
+  left:3px !important;
+  right:3px !important;
+  top:4.5px !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-track > i {
+  top:3px !important;
+  width:4px !important;
+  height:4px !important;
+  border-width:1.2px !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-track > i:nth-child(1){left:1px !important;}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-track > i:nth-child(2){left:12px !important;}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-track > i:nth-child(3){left:23px !important;}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-track > b {
+  left:1px !important;
+  top:2px !important;
+  width:6px !important;
+  height:6px !important;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--nmda-sync-tone) 12%,transparent) !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-copy {
+  min-width:0 !important;
+  display:flex !important;
+  align-items:baseline !important;
+  gap:4px !important;
+  overflow:hidden !important;
+  line-height:1 !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-copy strong {
+  flex:0 0 auto !important;
+  font-size:8.5px !important;
+  font-weight:720 !important;
+  line-height:1 !important;
+  color:currentColor !important;
+  white-space:nowrap !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-copy small {
+  min-width:0 !important;
+  max-width:none !important;
+  display:block !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+  font-size:8px !important;
+  line-height:1 !important;
+  color:#8a95a3 !important;
+}
+#nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-copy small::before { content:"· "; }
+
+@media (max-width:900px) {
+  #nmda-root.nmda-standalone .nmda-head-actions { max-width:min(330px,52vw) !important; }
+  #nmda-root.nmda-standalone .nmda-mail-connection { width:clamp(210px,46vw,320px) !important; }
+  #nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-copy small { display:none !important; }
+}
+@media (max-width:680px) {
+  #nmda-root.nmda-standalone .nmda-head-actions { max-width:240px !important; }
+  #nmda-root.nmda-standalone .nmda-mail-connection { width:220px !important; }
+  #nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-copy strong { max-width:78px; overflow:hidden; text-overflow:ellipsis; }
+}
