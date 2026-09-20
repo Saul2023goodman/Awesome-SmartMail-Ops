@@ -607,3 +607,66 @@
   #nmda-root.nmda-standalone .nmda-mail-connection { width:220px !important; }
   #nmda-root.nmda-standalone .nmda-mail-connection .nmda-mail-auto-sync-copy strong { max-width:78px; overflow:hidden; text-overflow:ellipsis; }
 }
+
+/* v3.8.33 · Review card collision fix
+   Keep the dense five-column board, but never let card content escape a fixed row. */
+#nmda-root.nmda-standalone .nmda-review-main-page #nmda-review-queue.nmda-review-mail-grid {
+  grid-auto-rows:minmax(142px, auto) !important;
+  align-items:stretch !important;
+  gap:9px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-review-card {
+  display:grid !important;
+  grid-template-rows:auto minmax(0,1fr) !important;
+  height:auto !important;
+  min-height:142px !important;
+  align-self:stretch !important;
+  overflow:hidden !important;
+  contain:layout paint !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-status {
+  min-height:34px !important;
+  height:auto !important;
+  padding:5px 8px 4px 9px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-main {
+  height:auto !important;
+  min-height:0 !important;
+  align-self:stretch !important;
+  grid-template-columns:26px minmax(0,1fr) auto !important;
+  align-items:start !important;
+  padding:7px 8px 8px 9px !important;
+  overflow:hidden !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-copy {
+  min-height:0 !important;
+  overflow:hidden !important;
+  align-content:start !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-issues {
+  min-height:0 !important;
+  max-height:22px !important;
+  flex-wrap:nowrap !important;
+  padding-top:3px !important;
+  overflow:hidden !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-issues span {
+  flex:0 1 auto !important;
+  max-width:112px !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-open {
+  align-self:end !important;
+  margin-top:auto !important;
+  margin-bottom:0 !important;
+  position:static !important;
+  transform:none !important;
+  max-width:74px !important;
+  overflow:hidden !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-review-card:hover {
+  transform:none !important;
+  z-index:auto !important;
+}
