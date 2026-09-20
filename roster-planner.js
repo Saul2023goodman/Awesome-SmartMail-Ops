@@ -11,12 +11,22 @@
     return `person:${name}|${school}`;
   }
   function createState(saved={}){
-    const intents=saved?.intents&&typeof saved.intents==='object'?saved.intents:{};
+    const rawIntents=saved?.intents&&typeof saved.intents==='object'?saved.intents:{},intents={};
+    // Keep only user-authored batch intents. Older versions could persist batches
+    // inferred from ambiguous Excel text; those must not survive this migration.
+    for(const [key,raw] of Object.entries(rawIntents)){
+      const item={...raw};
+      if(item.batch&&!(String(item.batchSource||'').startsWith('manual')||['feature-selection','box-selection','batch-review'].includes(String(item.batchSource||'')))){
+        delete item.batch;delete item.roundIndex;delete item.batchSource;delete item.batchSuppressed;
+      }
+      intents[key]=item;
+    }
     const batches=[];
-    for(const raw of (Array.isArray(saved?.batches)?saved.batches:[])){const label=clean(typeof raw==='string'?raw:raw?.label);if(label&&!batches.includes(label))batches.push(label);}
-    // Migrate batches created by older planner versions without inventing any new rounds.
-    for(const intent of Object.values(intents)){const label=clean(intent?.batch);if(label&&intent?.batchSource&&intent.batchSource!=='excel'&&!batches.includes(label))batches.push(label);}
-    return {version:3,sourceKey:clean(saved?.sourceKey),intents:{...intents},batches,activeBatch:clean(saved?.activeBatch),lastSelection:saved?.lastSelection||null,lastUpdatedAt:clean(saved?.lastUpdatedAt),showIrrelevantColumns:!!saved?.showIrrelevantColumns};
+    const addBatch=raw=>{const label=clean(typeof raw==='string'?raw:raw?.label);if(parseRound(label)!=null&&!batches.includes(label))batches.push(label);};
+    for(const raw of (Array.isArray(saved?.batches)?saved.batches:[]))addBatch(raw);
+    for(const intent of Object.values(intents))if(intent?.batch)addBatch(intent.batch);
+    const active=clean(saved?.activeBatch);
+    return {version:4,sourceKey:clean(saved?.sourceKey),intents,batches,activeBatch:batches.includes(active)?active:'',lastSelection:saved?.lastSelection||null,lastUpdatedAt:clean(saved?.lastUpdatedAt),showIrrelevantColumns:!!saved?.showIrrelevantColumns};
   }
   function excelVisual(set){return set?.meta?.excelVisual||null;}
   function styleLookup(set){
@@ -96,51 +106,76 @@
     }
     return {top,covered};
   }
-  function dominantRowFill(set,row,cache=null){
-    const data=cache||styleLookup(set),values=set?.rows?.[row]||[];const counts=new Map();let styled=0;
-    for(let col=0;col<values.length;col++){
-      if(clean(values[col])==='')continue;const fill=styleAt(set,row,col,data)?.fill?.fg||'';if(!fill)continue;styled++;counts.set(fill,(counts.get(fill)||0)+1);
-    }
-    if(!counts.size)return'';return [...counts.entries()].sort((a,b)=>b[1]-a[1])[0][0];
+  function columnWeight(set,col){
+    const visual=excelVisual(set)||{};let width=10;
+    for(const spec of visual.colWidths||[]){const [a,b,w]=spec||[];if(col>=Number(a)&&col<=Number(b)&&Number(w)>0){width=Number(w);break;}}
+    return Math.max(3,Math.min(40,width));
   }
+  function mergedAnchorFor(set,row,col){
+    for(const merge of excelVisual(set)?.merges||[]){
+      if(!Array.isArray(merge)||merge.length<4)continue;let [r1,c1,r2,c2]=merge.map(Number);if(r2<r1)[r1,r2]=[r2,r1];if(c2<c1)[c1,c2]=[c2,c1];
+      if(row>=r1&&row<=r2&&col>=c1&&col<=c2)return [r1,c1];
+    }
+    return null;
+  }
+  function styleHasSignal(style={}){
+    const fill=clean(style.fill?.fg||style.fill?.bg),font=style.font||{},border=style.border||{};
+    return !!(fill||font.color||font.bold||font.italic||font.underline||Object.values(border).some(x=>x?.style));
+  }
+  function visualStyleAt(set,row,col,cache=null){
+    const direct=styleAt(set,row,col,cache);if(styleHasSignal(direct))return direct;
+    const anchor=mergedAnchorFor(set,row,col);return anchor?styleAt(set,anchor[0],anchor[1],cache):direct;
+  }
+  function normalizedFill(value){
+    let v=clean(value).toUpperCase();if(!v)return'';if(!v.startsWith('#')&&/^[0-9A-F]{6,8}$/.test(v))v=`#${v}`;
+    if(/^#?(?:FFFFFF|FFFFFFFF|00000000|FFFFFF00)$/i.test(v))return'';return v;
+  }
+  function featureColumns(set){
+    const plan=columnPlan(set),all=[];
+    if(plan?.relevant?.size>=2)for(const c of plan.relevant)if(!plan.originalHidden?.has(c))all.push(c);
+    else for(let c=0;c<(plan?.maxCols||0);c++)if(!plan.originalHidden?.has(c)&&!plan.emptyHidden?.has(c))all.push(c);
+    return all;
+  }
+  function topWeighted(map){return [...map.entries()].sort((a,b)=>b[1]-a[1])[0]||null;}
+  function dominantRowFeature(set,row,cache=null){
+    const data=cache||styleLookup(set),cols=featureColumns(set);if(!cols.length)return null;
+    const fills=new Map(),fontColors=new Map(),borders=new Map();let bold=0,italic=0,textWeight=0;
+    for(const col of cols){
+      const weight=columnWeight(set,col),style=visualStyleAt(set,row,col,data)||{},fill=normalizedFill(style.fill?.fg||style.fill?.bg||'');
+      if(fill)fills.set(fill,(fills.get(fill)||0)+weight);
+      const value=clean(set?.rows?.[row]?.[col]);if(value)textWeight+=weight;
+      const fc=clean(style.font?.color);if(fc&&!/^#?(?:000000|FF000000|111111|222222|333333)$/i.test(fc))fontColors.set(fc,(fontColors.get(fc)||0)+weight);
+      if(style.font?.bold)bold+=weight;if(style.font?.italic)italic+=weight;
+      for(const side of ['top','right','bottom','left']){const b=style.border?.[side];if(b?.style&&/^(?:medium|thick|double)$/i.test(String(b.style))){const k=String(b.style).toLowerCase();borders.set(k,(borders.get(k)||0)+weight);break;}}
+    }
+    const chooseDominant=(map,kind,label)=>{const ordered=[...map.entries()].sort((a,b)=>b[1]-a[1]);if(!ordered.length)return null;const [value,weight]=ordered[0],runner=ordered[1]?.[1]||0;if(runner&&weight<runner*1.2)return null;return {kind,value,label,weight};};
+    // Fill is the strongest row-level signal. Because merged cells resolve to their
+    // anchor style and column widths are weighted, a narrow yellow cell can no
+    // longer override a broad peach/blue row block.
+    const fill=chooseDominant(fills,'fill','颜色');if(fill)return fill;
+    const fontColor=chooseDominant(fontColors,'font-color','字体色');if(fontColor)return fontColor;
+    const border=chooseDominant(borders,'border','粗边框');if(border)return border;
+    const denom=Math.max(1,textWeight||cols.reduce((n,c)=>n+columnWeight(set,c),0));
+    if(bold/denom>=0.6)return {kind:'bold',value:'bold',label:'加粗',weight:bold};
+    if(italic/denom>=0.6)return {kind:'italic',value:'italic',label:'斜体',weight:italic};
+    return null;
+  }
+  function dominantRowFill(set,row,cache=null){const f=dominantRowFeature(set,row,cache);return f?.kind==='fill'?f.value:'';}
   function visualGroups(set,{startRow=1}={}){
     const cache=styleLookup(set),byFill=new Map();
-    for(let row=Math.max(0,startRow);row<(set?.rows?.length||0);row++){
-      const fill=dominantRowFill(set,row,cache);if(!fill)continue;if(!byFill.has(fill))byFill.set(fill,[]);byFill.get(fill).push(row);
-    }
-    const groups=[];
-    for(const [fill,rows] of byFill){
-      const spans=[];let a=null,b=null;
-      for(const row of rows){if(a==null){a=b=row;continue;}if(row===b+1){b=row;continue;}spans.push([a,b]);a=b=row;}if(a!=null)spans.push([a,b]);
-      groups.push({fill,rows,spans,count:rows.length});
-    }
+    for(let row=Math.max(0,startRow);row<(set?.rows?.length||0);row++){const feature=dominantRowFeature(set,row,cache);if(feature?.kind!=='fill')continue;const fill=feature.value;if(!byFill.has(fill))byFill.set(fill,[]);byFill.get(fill).push(row);}
+    const groups=[];for(const [fill,rows] of byFill){const spans=[];let a=null,b=null;for(const row of rows){if(a==null){a=b=row;continue;}if(row===b+1){b=row;continue;}spans.push([a,b]);a=b=row;}if(a!=null)spans.push([a,b]);groups.push({fill,rows,spans,count:rows.length});}
     return groups.sort((a,b)=>b.count-a.count||a.fill.localeCompare(b.fill));
   }
-
   function featureGroups(set,{rows:rowFilter=null,startRow=1}={}){
     const allowed=rowFilter?new Set(rowFilter):null,cache=styleLookup(set),groups=new Map();
-    const add=(key,data,row)=>{if(!key)return;if(!groups.has(key))groups.set(key,{key,rows:[],...data});const g=groups.get(key);if(!g.rows.includes(row))g.rows.push(row);};
     for(let row=Math.max(0,startRow);row<(set?.rows?.length||0);row++){
-      if(allowed&&!allowed.has(row))continue;
-      const values=set?.rows?.[row]||[];
-      const fill=dominantRowFill(set,row,cache);if(fill)add(`fill:${fill}`,{kind:'fill',value:fill,label:'颜色'},row);
-      let bold=false,italic=false;const fontColors=new Map(),strongBorders=new Map();
-      for(let col=0;col<values.length;col++){
-        if(clean(values[col])==='')continue;const style=styleAt(set,row,col,cache)||{};
-        if(style.font?.bold)bold=true;if(style.font?.italic)italic=true;
-        const fontColor=clean(style.font?.color);if(fontColor&&!/^#?(?:000000|111111|222222|333333)$/i.test(fontColor))fontColors.set(fontColor,(fontColors.get(fontColor)||0)+1);
-        for(const side of ['top','right','bottom','left']){const b=style.border?.[side];if(b?.style&&/^(?:medium|thick|double)$/i.test(String(b.style)))strongBorders.set(String(b.style).toLowerCase(),(strongBorders.get(String(b.style).toLowerCase())||0)+1);}
-      }
-      if(bold)add('font:bold',{kind:'bold',value:'bold',label:'加粗'},row);
-      if(italic)add('font:italic',{kind:'italic',value:'italic',label:'斜体'},row);
-      if(fontColors.size){const [color]=[...fontColors.entries()].sort((a,b)=>b[1]-a[1])[0];add(`font-color:${color}`,{kind:'font-color',value:color,label:'字体色'},row);}
-      if(strongBorders.size){const [style]=[...strongBorders.entries()].sort((a,b)=>b[1]-a[1])[0];add(`border:${style}`,{kind:'border',value:style,label:'粗边框'},row);}
+      if(allowed&&!allowed.has(row))continue;const feature=dominantRowFeature(set,row,cache);if(!feature)continue;
+      const key=`${feature.kind}:${feature.value}`;if(!groups.has(key))groups.set(key,{key,rows:[],kind:feature.kind,value:feature.value,label:feature.label});groups.get(key).rows.push(row);
     }
-    return [...groups.values()].map(g=>({...g,count:g.rows.length})).filter(g=>g.kind==='fill'||g.count>=2).sort((a,b)=>{
-      const weight={fill:0,bold:1,'font-color':2,border:3,italic:4};return (weight[a.kind]??9)-(weight[b.kind]??9)||b.count-a.count||a.key.localeCompare(b.key);
-    });
+    return [...groups.values()].map(g=>({...g,count:g.rows.length})).filter(g=>g.kind==='fill'||g.count>=2).sort((a,b)=>{const weight={fill:0,'font-color':1,bold:2,border:3,italic:4};return (weight[a.kind]??9)-(weight[b.kind]??9)||b.count-a.count||a.key.localeCompare(b.key);});
   }
-  function explicitBatch(entry={}){const label=clean(entry?.batch);return parseRound(label)!=null?label:'';}
+  function explicitBatch(entry={}){if(entry?.batchExplicit!==true)return'';const round=parseRound(entry?.batch);return round!=null?`R${round+1}`:'';}
   function knownBatches(state,entries=[]){
     const labels=[];const push=raw=>{const label=clean(raw);if(label&&!labels.includes(label))labels.push(label);};
     for(const label of state?.batches||[])push(label);
@@ -169,7 +204,7 @@
     if(chars==='十')return 10;if(chars.includes('十')){const [a,b]=chars.split('十');return (a?digit[a]||0:1)*10+(b?digit[b]||0:0);}return digit[chars]||null;
   }
   function parseRound(value){
-    const raw=clean(value);if(!raw)return null;let m=raw.match(/(?:^|\b)R\s*(\d+)\b/i)||raw.match(/(?:第\s*)?(\d+)\s*(?:批|轮)/);if(!m&&/^\d+$/.test(raw))m=[raw,raw];
+    const raw=clean(value);if(!raw)return null;let m=raw.match(/^(?:R|ROUND|BATCH|WAVE)\s*[-:#]?\s*(\d+)$/i)||raw.match(/^(?:第\s*)?(\d+)\s*(?:批|轮)$/);
     const n=m?Number(m[1]):chineseRoundNumber(raw);return Number.isInteger(n)&&n>0?n-1:null;
   }
   function applyInterpretation(state,entries,set,range,{semantic,value}={}){
@@ -210,5 +245,5 @@
     return {priority,batch,fixed,label,total:new Set(entries.filter(e=>intentForEntry(state,e)).map(entryKey)).size};
   }
 
-  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,visualGroups,featureGroups,entriesForRange,intentForEntry,parseRound,explicitBatch,knownBatches,nextBatchLabel,createBatch,setActiveBatch,applyInterpretation,applyBatchToEntries,summary};
+  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,dominantRowFeature,visualGroups,featureGroups,entriesForRange,intentForEntry,parseRound,explicitBatch,knownBatches,nextBatchLabel,createBatch,setActiveBatch,applyInterpretation,applyBatchToEntries,summary};
 })();

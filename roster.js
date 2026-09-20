@@ -112,9 +112,23 @@
     const sx=schoolSignature(a),sy=schoolSignature(b);return !!sx&&sx.length>=3&&sx===sy;
   }
 
+  function headerLike(value){
+    const raw=clean(value);if(!raw||raw.length>42)return false;
+    if(/[\r\n]/.test(raw)||/(?:https?:\/\/|www\.)/i.test(raw))return false;
+    // A real column header is normally a compact noun phrase, not a sentence or
+    // application note. This prevents body text such as "round:R1/3 ..." from
+    // being promoted to the Batch column.
+    if(/[。！？!?]/.test(raw)&&raw.length>18)return false;
+    return true;
+  }
   function headerScore(header, aliases){
+    if(!headerLike(header))return 0;
     const h=norm(header); if(!h)return 0; let best=0;
-    for(const raw of aliases){const a=norm(raw);if(!a)continue;if(h===a)best=Math.max(best,100);else if(h.includes(a)||a.includes(h))best=Math.max(best,72+Math.min(20,a.length));}
+    for(const raw of aliases){
+      const a=norm(raw);if(!a)continue;
+      if(h===a)best=Math.max(best,100);
+      else if((h.includes(a)||a.includes(h))&&Math.min(h.length,a.length)>=4&&Math.max(h.length,a.length)<=24)best=Math.max(best,84+Math.min(10,a.length));
+    }
     return best;
   }
   function detectColumns(rows){
@@ -150,18 +164,50 @@
     return '';
   }
 
+  function mergedAnchorMap(set){
+    const map=new Map(),rows=set?.rows||[];
+    for(const merge of set?.meta?.excelVisual?.merges||[]){
+      if(!Array.isArray(merge)||merge.length<4)continue;
+      let [r1,c1,r2,c2]=merge.map(Number);if(![r1,c1,r2,c2].every(Number.isFinite))continue;
+      if(r2<r1)[r1,r2]=[r2,r1];if(c2<c1)[c1,c2]=[c2,c1];
+      const anchor=rows[r1]?.[c1];if(anchor==null||clean(anchor)==='')continue;
+      for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)if(r!==r1||c!==c1)map.set(`${r}:${c}`,anchor);
+    }
+    return map;
+  }
+  function semanticCell(set,row,col,mergeMap=null){
+    const direct=set?.rows?.[row]?.[col];if(direct!=null&&clean(direct)!=='')return direct;
+    return (mergeMap||mergedAnchorMap(set)).get(`${row}:${col}`)??direct??'';
+  }
+  function strictRoundToken(value,{allowBareNumber=false}={}){
+    const raw=clean(value);if(!raw)return null;let m=null;
+    m=raw.match(/^(?:R|ROUND|BATCH|WAVE)\s*[-:#]?\s*(\d+)$/i);
+    if(!m)m=raw.match(/^(?:第\s*)?(\d+)\s*(?:批|轮)$/);
+    if(!m){
+      const cm=raw.match(/^(?:第\s*)?([一二三四五六七八九十]{1,3})\s*(?:批|轮)$/);
+      if(cm){const digit={一:1,二:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9},chars=cm[1];let n=null;if(chars==='十')n=10;else if(chars.includes('十')){const [a,b]=chars.split('十');n=(a?digit[a]||0:1)*10+(b?digit[b]||0:0);}else n=digit[chars]||null;return Number.isInteger(n)&&n>0?n:null;}
+    }
+    if(!m&&allowBareNumber&&/^\d+$/.test(raw))m=[raw,raw];
+    const n=m?Number(m[1]):null;return Number.isInteger(n)&&n>0?n:null;
+  }
+  function strictMappedField(d,rows,field){
+    const spec=d?.map?.[field];if(!spec||Number(spec.score)<96)return null;
+    const header=rows?.[d.row]?.[spec.index];return headerLike(header)?spec:null;
+  }
+
   function parseDataset(dataset){
     const entries=[],warnings=[],invalidEmailRows=[];
     for(const set of (dataset?.sheets||dataset?.recordSets||[])){
       const rows=set?.rows||[]; if(!rows.length)continue;
-      const d=detectColumns(rows);
+      const d=detectColumns(rows),mergeMap=mergedAnchorMap(set);
+      const strictBatchSpec=strictMappedField(d,rows,'batch'),strictScheduleSpec=strictMappedField(d,rows,'schedule');
       const hasIdentityHeader=!!(d.map.email||d.map.name||d.map.school);
       const start=hasIdentityHeader?Math.min(rows.length,d.row+1):0;
       let inheritedSchool='';
       for(let r=start;r<rows.length;r++){
         const row=rows[r]||[];
         if(!row.some(v=>clean(v))){inheritedSchool='';continue;}
-        const get=f=>d.map[f]?row[d.map[f].index]:'';
+        const get=f=>d.map[f]?semanticCell(set,r,d.map[f].index,mergeMap):'';
         const used=new Set(Object.values(d.map).map(x=>x.index));
         const emailCell=clean(get('email'));
         let email=emailOf(emailCell);
@@ -176,10 +222,16 @@
         let school=explicitSchool||(d.map.school?inheritedSchool:likelySchool(row,used));
         if(!d.map.school&&school)inheritedSchool=school;
         if(!hasIdentityHeader && !email && !(name&&school)) continue;
-        const country=clean(get('country')),batch=clean(get('batch')),status=clean(get('status')),priority=clean(get('priority')),priorityOrder=parsePriorityOrder(priority),scheduleRaw=clean(get('schedule')),scheduleDate=globalThis.NMDAImporter?.parseDateValue?.(scheduleRaw)||null,scheduleAt=scheduleDate?globalThis.NMDAImporter?.formatLocalDateTime?.(scheduleDate)||scheduleRaw:'',tags=splitTags(get('tags')),notes=clean(get('notes'));
+        const country=clean(get('country')),status=clean(get('status')),priority=clean(get('priority')),priorityOrder=parsePriorityOrder(priority),tags=splitTags(get('tags')),notes=clean(get('notes'));
+        const batchRaw=strictBatchSpec?clean(semanticCell(set,r,strictBatchSpec.index,mergeMap)):'';
+        const batchNumber=strictBatchSpec?strictRoundToken(batchRaw,{allowBareNumber:true}):null;
+        const batchExplicit=Number.isInteger(batchNumber)&&batchNumber>0,batch=batchExplicit?`R${batchNumber}`:'';
+        const scheduleRaw=strictScheduleSpec?clean(semanticCell(set,r,strictScheduleSpec.index,mergeMap)):'';
+        const scheduleDate=scheduleRaw?globalThis.NMDAImporter?.parseDateValue?.(scheduleRaw)||null:null,scheduleAt=scheduleDate?globalThis.NMDAImporter?.formatLocalDateTime?.(scheduleDate)||scheduleRaw:'';
+        const scheduleExplicit=!!scheduleAt;
         if(!email&&!name&&!school)continue;
         entries.push({
-          key:`r${entries.length+1}`,email,name,school,country,batch,status,priority,priorityOrder,scheduleRaw,scheduleAt,tags,notes,
+          key:`r${entries.length+1}`,email,name,school,country,batch,batchRaw,batchExplicit,batchSourceHeader:batchExplicit?clean(rows?.[d.row]?.[strictBatchSpec?.index]||''):'',status,priority,priorityOrder,scheduleRaw,scheduleAt,scheduleExplicit,tags,notes,
           source:set.source||set.name||'',collection:set.name||'',sourceRow:r+1,
           nameKey:normalizeName(name),nameKeys:nameKeys(name),schoolKey:schoolKey(school),schoolInherited:!explicitSchool&&!!school
         });

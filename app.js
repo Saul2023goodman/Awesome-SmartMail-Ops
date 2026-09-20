@@ -2009,7 +2009,7 @@
   }
   function ensureRosterBatchReadiness({openPlanner=false}={}){
     const gaps=rosterBatchGapTasks();if(!gaps.length)return true;
-    setBatchStatus(`${gaps.length} 封名单邮件尚未明确批次。请新建批次后按颜色 / 特征选择或框选加入；系统不会替你猜轮次。`,'warn');
+    setBatchStatus(`${gaps.length} 封名单邮件尚未明确批次。请新建批次后按行主导颜色 / 格式选择或框选加入；系统不会替你猜轮次。`,'warn');
     if(openPlanner&&!batch.rosterPlannerOpen)openRosterPlannerView();
     requestAnimationFrame(highlightRosterUnassigned);
     return false;
@@ -2039,7 +2039,7 @@
     if(rosterSelectionDetailEl){
       rosterSelectionDetailEl.textContent=entries.length
         ? (active?`已选联系人；加入 ${active} 后会直接在名单中标记。`:'已选联系人；先新建一个批次，再加入。')
-        : (selectedRows?.size||range?'当前选择没有命中可识别联系人。':'新建批次后，可按颜色 / 格式特征快速选人，也可直接框选。');
+        : (selectedRows?.size||range?'当前选择没有命中可识别联系人。':'新建批次后，可按每行主导颜色 / 格式快速选人，也可直接框选。');
     }
     if(rosterActiveBatchEl)rosterActiveBatchEl.dataset.state=active?'ready':'empty';
     if(rosterActiveBatchLabelEl)rosterActiveBatchLabelEl.textContent=active||'未创建';
@@ -2081,7 +2081,7 @@
       const fixed=batchCounts.fixed?`<button type="button" class="nmda-roster-batch-segment is-fixed${isFixed?' is-active':''}" data-roster-batch-focus="__fixed__" style="--weight:${Math.max(1,batchCounts.fixed)}" title="Excel 中已有明确发送时间，无需分批"><span>固定时间</span><b>${batchCounts.fixed}</b></button>`:'';
       const unassigned=batchCounts.unassigned?`<button type="button" class="nmda-roster-batch-segment is-unassigned${isUnassigned?' is-active':''}" data-roster-batch-focus="__unassigned__" style="--weight:${Math.max(1,batchCounts.unassigned)}" title="尚未明确轮次，需要由你加入批次"><span>待分</span><b>${batchCounts.unassigned}</b></button>`:'';
       const empty=!segments?'<div class="nmda-roster-batch-empty-state"><strong>尚未创建批次</strong><span>点击“新建批次”，再选人加入。</span></div>':'';
-      rosterIntentSummaryEl.innerHTML=`<div class="nmda-roster-batch-overview-title"><strong>批次</strong><span>${assigned} 已分 · ${batchCounts.unassigned} 待分</span></div><div class="nmda-roster-batch-track">${segments}${fixed}${unassigned}${empty}</div><small>不明确的格式只用于选人，不会自动变成轮次</small>`;
+      rosterIntentSummaryEl.innerHTML=`<div class="nmda-roster-batch-overview-title"><strong>批次</strong><span>${assigned} 已分 · ${batchCounts.unassigned} 待分</span></div><div class="nmda-roster-batch-track">${segments}${fixed}${unassigned}${empty}</div><small>颜色和格式按每行的主导特征用于选人；不会自动变成轮次</small>`;
     }
     paintRosterPlannerSelection();
   }
@@ -2107,11 +2107,11 @@
     const current=rosterPlannerCurrentSource();if(!current||!RosterPlanner)return;
     const entries=rosterPlannerEntriesForSet(current.set),created=RosterPlanner.createBatch?.(batch.rosterPlanner,entries)||null;if(!created)return;
     batch.rosterPlanner=created.state;batch.handoffComplete=false;batch.schedulePlan=null;scheduleWorkspacePersist();renderRosterPlanner();
-    setBatchStatus(`已新建 ${created.label}。现在按颜色 / 特征选择，或框选联系人后加入该批次。`,'ok');
+    setBatchStatus(`已新建 ${created.label}。现在按行主导颜色 / 格式选择，或框选联系人后加入该批次。`,'ok');
   }
   function applyRosterPlannerBatch(label,{clear=false}={}){
     const current=rosterPlannerCurrentSource();if(!current||!RosterPlanner)return;
-    const targets=rosterPlannerSelectionEntries();if(!targets.length){setBatchStatus('请先按颜色 / 特征选择，或在名单上框选联系人。','warn');return;}
+    const targets=rosterPlannerSelectionEntries();if(!targets.length){setBatchStatus('请先按行主导颜色 / 格式选择，或在名单上框选联系人。','warn');return;}
     const targetLabel=clear?'':String(label||rosterPlannerActiveBatch()||'').trim();if(!clear&&!targetLabel){setBatchStatus('请先新建一个批次。','warn');return;}
     const source=rosterPlannerSelectionKind==='feature'?'feature-selection':rosterPlannerSelectionKind==='batch'||rosterPlannerSelectionKind==='unassigned'?'batch-review':'box-selection';
     const result=RosterPlanner.applyBatchToEntries(batch.rosterPlanner,targets,current.set,{batch:targetLabel,clear,evidenceSource:source});
@@ -5235,7 +5235,16 @@
       const tags=[...new Set([...(base?.tags||[]),...(next?.tags||[])].map(cleanText).filter(Boolean))];
       const merged={...base,...next,
         email:pick(base?.email,next?.email).toLowerCase(),
-        name:pick(base?.name,next?.name),school:pick(base?.school,next?.school),country:pick(base?.country,next?.country),batch:pick(base?.batch,next?.batch),status:pick(base?.status,next?.status),priority:pick(base?.priority,next?.priority),scheduleRaw:pick(base?.scheduleRaw,next?.scheduleRaw),scheduleAt:pick(base?.scheduleAt,next?.scheduleAt),notes:pick(base?.notes,next?.notes),tags,
+        name:pick(base?.name,next?.name),school:pick(base?.school,next?.school),country:pick(base?.country,next?.country),
+        batch:base?.batchExplicit===true?cleanText(base?.batch):(next?.batchExplicit===true?cleanText(next?.batch):''),
+        batchRaw:base?.batchExplicit===true?pick(base?.batchRaw,base?.batch):(next?.batchExplicit===true?pick(next?.batchRaw,next?.batch):''),
+        batchExplicit:base?.batchExplicit===true||next?.batchExplicit===true,
+        batchSourceHeader:base?.batchExplicit===true?cleanText(base?.batchSourceHeader):cleanText(next?.batchSourceHeader),
+        status:pick(base?.status,next?.status),priority:pick(base?.priority,next?.priority),
+        scheduleRaw:base?.scheduleExplicit===true?cleanText(base?.scheduleRaw):(next?.scheduleExplicit===true?cleanText(next?.scheduleRaw):''),
+        scheduleAt:base?.scheduleExplicit===true?cleanText(base?.scheduleAt):(next?.scheduleExplicit===true?cleanText(next?.scheduleAt):''),
+        scheduleExplicit:base?.scheduleExplicit===true||next?.scheduleExplicit===true,
+        notes:pick(base?.notes,next?.notes),tags,
         priorityOrder:base?.priorityOrder!=null?base.priorityOrder:next?.priorityOrder,
         source:[...new Set([...(String(base?.source||'').split(' · ')),...(String(next?.source||'').split(' · '))].map(cleanText).filter(Boolean))].join(' · '),
         sourceRow:base?.sourceRow||next?.sourceRow||0
