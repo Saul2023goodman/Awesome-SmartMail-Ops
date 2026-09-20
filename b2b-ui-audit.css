@@ -1,4 +1,4 @@
-/* SmartMail Ops v3.8.24 — B2B UI audit
+/* SmartMail Ops v3.8.25 — B2B UI audit
    Dense operational UI: one typographic scale, one semantic palette, less explanatory chrome. */
 #nmda-root.nmda-standalone {
   --nmda-bg:#f4f6f8;
@@ -233,3 +233,241 @@
 #nmda-root.nmda-standalone .nmda-next-step-copy > small:empty { display:none !important; }
 #nmda-root.nmda-standalone .nmda-next-step-card { min-height:58px !important; padding:9px 11px !important; }
 #nmda-root.nmda-standalone .nmda-next-step-copy > strong { font-size:12px !important; }
+
+
+/* --------------------------------------------------------------------------
+   v3.8.25 · Content-driven workspace density
+   Hidden utilities must collapse completely. No page reserves layout rows for
+   controls that are not currently visible.
+   -------------------------------------------------------------------------- */
+
+/* One compact page inset across first-class workspaces. */
+#nmda-root.nmda-standalone .nmda-page {
+  padding:8px 10px 10px !important;
+}
+
+/* Review board is a vertical operational stack, not a fixed six-row grid.
+   This removes the stale template slot that left the board halfway down-page. */
+#nmda-root.nmda-standalone .nmda-review-main-page {
+  padding:6px 8px 8px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] {
+  display:flex !important;
+  flex-direction:column !important;
+  grid-template-columns:none !important;
+  grid-template-rows:none !important;
+  gap:0 !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > * {
+  grid-row:auto !important;
+  grid-column:auto !important;
+  flex:0 0 auto;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > .nmda-review-page-empty {
+  flex:1 1 auto !important;
+  width:100% !important;
+  height:auto !important;
+  min-height:0 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review-top {
+  min-height:40px !important;
+  padding:5px 8px 5px 10px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-boardbar.nmda-review-boardbar-unified {
+  min-height:38px !important;
+  padding:4px 7px !important;
+  gap:8px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-status-tabs,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-search,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-search input {
+  min-height:28px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-status-tabs button {
+  min-height:26px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page #nmda-review-queue.nmda-review-mail-grid {
+  flex:1 1 auto !important;
+  height:auto !important;
+  min-height:0 !important;
+  grid-auto-rows:128px !important;
+  gap:7px !important;
+  padding:7px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-review-card {
+  height:128px !important;
+  min-height:128px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-status {
+  min-height:31px !important;
+  padding:5px 8px 3px 9px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-mail-card-main {
+  height:97px !important;
+  min-height:97px !important;
+  padding:6px 8px 7px 9px !important;
+}
+
+/* Optional Review utilities behave like drawers: visible = natural height,
+   hidden = zero footprint. */
+#nmda-root.nmda-standalone .nmda-review-followup-template,
+#nmda-root.nmda-standalone .nmda-review-subject-prompt,
+#nmda-root.nmda-standalone .nmda-review-batchbar {
+  margin:0 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-followup-template[hidden],
+#nmda-root.nmda-standalone .nmda-review-subject-prompt[hidden],
+#nmda-root.nmda-standalone .nmda-review-batchbar[hidden] {
+  display:none !important;
+  height:0 !important;
+  min-height:0 !important;
+  padding:0 !important;
+  border:0 !important;
+}
+
+/* Preview remains a two-pane document viewer; only board mode is flex. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] {
+  display:grid !important;
+  grid-template-columns:clamp(210px,17vw,260px) minmax(0,1fr) !important;
+  grid-template-rows:auto minmax(0,1fr) !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar {
+  min-height:40px !important;
+  padding:5px 8px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-head {
+  min-height:34px !important;
+  padding:6px 8px !important;
+}
+
+/* Monitoring: compress dashboard chrome into a scan-first operating surface. */
+#nmda-root.nmda-standalone .nmda-monitor-page {
+  width:100% !important;
+  max-width:none !important;
+  margin:0 !important;
+  gap:7px !important;
+  padding:8px 10px 10px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-toolbar {
+  min-height:40px !important;
+  padding:5px 8px !important;
+  border-radius:9px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-stats {
+  display:grid !important;
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  gap:6px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-stat {
+  min-width:0 !important;
+  min-height:38px !important;
+  padding:6px 9px !important;
+  border-radius:8px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-stat strong {
+  font-size:16px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-stat span {
+  font-size:10px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-rulebar {
+  min-height:42px !important;
+  padding:5px 8px !important;
+  gap:7px 10px !important;
+  border-radius:9px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-rulebar-controls input,
+#nmda-root.nmda-standalone .nmda-monitor-rulebar-controls select {
+  height:28px !important;
+  min-height:28px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-filterbar {
+  padding:2px 0 !important;
+  gap:7px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-filters button {
+  min-height:28px !important;
+  padding:0 8px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-search {
+  min-height:30px !important;
+  width:min(300px,32vw) !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-list { gap:6px !important; }
+#nmda-root.nmda-standalone .nmda-monitor-row {
+  min-height:76px !important;
+  padding:9px 11px !important;
+  gap:8px 11px !important;
+  border-radius:9px !important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-row-main strong { font-size:12px !important; }
+#nmda-root.nmda-standalone .nmda-monitor-subject { margin-top:3px !important; font-size:11px !important; }
+
+/* Dispatch: status and execution controls first; remove presentation spacing. */
+#nmda-root.nmda-standalone .nmda-dispatch-page {
+  gap:7px !important;
+  padding:8px 10px 10px !important;
+}
+#nmda-root.nmda-standalone .nmda-dispatch-intro {
+  min-height:40px !important;
+  padding:5px 8px !important;
+  border-radius:9px !important;
+}
+#nmda-root.nmda-standalone .nmda-dispatch-source-summary span {
+  min-height:26px !important;
+  padding:0 8px !important;
+  font-size:10px !important;
+}
+#nmda-root.nmda-standalone .nmda-dispatch-page > #nmda-preview-card:not([hidden]) {
+  gap:6px !important;
+  padding:8px !important;
+  border-radius:10px !important;
+}
+#nmda-root.nmda-standalone .nmda-dispatch-page #nmda-preview-card > .nmda-planning-head {
+  min-height:38px !important;
+  gap:8px !important;
+}
+#nmda-root.nmda-standalone .nmda-dispatch-page .nmda-planning-head-actions { gap:6px !important; }
+#nmda-root.nmda-standalone .nmda-dispatch-page .nmda-planning-head-actions .nmda-btn {
+  min-height:30px !important;
+  font-size:10px !important;
+}
+#nmda-root.nmda-standalone .nmda-dispatch-page .nmda-plan-commandbar {
+  min-height:36px !important;
+  padding:5px 8px !important;
+  border-radius:8px !important;
+}
+#nmda-root.nmda-standalone .nmda-dispatch-page #nmda-scope-tools > summary {
+  min-height:32px !important;
+  padding:5px 8px !important;
+}
+#nmda-root.nmda-standalone .nmda-dispatch-page .nmda-task-toolbar {
+  gap:6px !important;
+  padding:6px !important;
+}
+#nmda-root.nmda-standalone .nmda-dispatch-page .nmda-search-field input,
+#nmda-root.nmda-standalone .nmda-dispatch-page .nmda-task-toolbar .nmda-btn {
+  min-height:30px !important;
+}
+
+/* Import / classify: keep decision-making space, trim framing chrome. */
+#nmda-root.nmda-standalone .nmda-ingest-workspace-v2 { gap:7px !important; }
+#nmda-root.nmda-standalone .nmda-ingest-workspace-v2 > .nmda-card { padding:9px !important; }
+#nmda-root.nmda-standalone .nmda-classify-foot-summary small { display:none !important; }
+#nmda-root.nmda-standalone .nmda-classify-head,
+#nmda-root.nmda-standalone .nmda-classify-foot { padding-top:8px !important; padding-bottom:8px !important; }
+
+/* Shared surface rhythm. */
+#nmda-root.nmda-standalone .nmda-card,
+#nmda-root.nmda-standalone .nmda-monitor-toolbar,
+#nmda-root.nmda-standalone .nmda-monitor-rulebar,
+#nmda-root.nmda-standalone .nmda-dispatch-intro {
+  border-radius:9px !important;
+}
+
+@media (max-width:900px) {
+  #nmda-root.nmda-standalone .nmda-monitor-stats { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+}

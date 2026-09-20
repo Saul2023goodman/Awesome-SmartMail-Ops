@@ -118,3 +118,7 @@ Review now has two reading surfaces over the same runtime task set. The default 
 The card grid remains Review's default high-density surface. Opening a card enters the continuous Preview reader with a persistent left navigation rail inspired by document-preview applications. The rail reuses the compact Review-card language (index, Initial/Follow-up kind, recipient identity, subject and state) rather than introducing a separate information model.
 
 The Preview reader and rail are bidirectionally synchronized: selecting a rail card scrolls the full-mail reader to that message, while scrolling the reader updates the active rail card and keeps it visible. Motion is intentionally restrained: the rail and first visible pages ease into place on entry, active cards use small positional/elevation transitions, and `prefers-reduced-motion` disables the motion layer. Semantic key-information markers remain inline in the full body; opening/closing excerpts are not rendered separately.
+
+## UI layout contract (v3.8.25)
+
+First-class workspaces use content-driven layout. Hidden optional controls must consume zero space. Review board stacks active controls naturally and assigns the remaining viewport to the task grid; Preview remains a two-pane navigation + continuous-document reader. Monitoring and Dispatch use the same compact B2B density and semantic palette.
