@@ -366,69 +366,164 @@
     return [...map.values()];
   }
 
-  function attachmentEvidenceText(root) {
-    const parts = [];
-    const nodes = root.querySelectorAll('a,span,div,li,p,[title],[aria-label]');
-    for (const el of nodes) {
-      if (el.matches?.('input[type="file"], [id$="_attachBrowser"]')) continue;
-      const value = compactText(`${textOf(el)} ${el.getAttribute?.('title') || ''} ${el.getAttribute?.('aria-label') || ''}`).toLowerCase();
-      if (value) parts.push(value);
-    }
-    return parts.join('\n');
+  function attachmentFileSignature(file) {
+    return {
+      name: String(file?.name || ''),
+      size: Number(file?.size || 0),
+      lastModified: Number(file?.lastModified || 0)
+    };
   }
 
-  function attachmentNameVisible(root, fileName, evidenceText = '') {
-    const wanted = compactText(fileName).toLowerCase();
-    if (!wanted) return false;
-    const evidence = evidenceText || attachmentEvidenceText(root);
-    return evidence.includes(wanted);
+  function normalizedAttachmentName(value) {
+    return String(value || '').trim().toLowerCase();
   }
 
-  async function waitAttachmentEvidence(root, files, timeout = 9000) {
-    const start = Date.now();
-    let missing = [...files];
-    while (Date.now() - start < timeout) {
-      const evidence = attachmentEvidenceText(root);
-      missing = files.filter(file => !attachmentNameVisible(root, file.name, evidence));
-      if (!missing.length) return { verified: true, missing: [] };
-      await sleep(250);
-    }
-    return { verified: false, missing };
+  function attachmentModelMatchesFile(item, file) {
+    if (!item || !file) return false;
+    const expected = attachmentFileSignature(file);
+    const names = [item.name, item.blobName].map(normalizedAttachmentName).filter(Boolean);
+    if (!names.includes(normalizedAttachmentName(expected.name))) return false;
+    const modelSize = Number(item.blobSize || item.size || 0);
+    if (expected.size > 0 && modelSize > 0 && modelSize !== expected.size) return false;
+    if (expected.lastModified > 0 && Number(item.blobLastModified || 0) > 0 && Number(item.blobLastModified) !== expected.lastModified) return false;
+    return true;
   }
 
-  async function injectFilesIntoInput(input, files) {
+  function attachmentStateLabel(state) {
+    return ({
+      select:'已加入队列', hash:'正在校验', wait:'等待上传', upload:'正在上传', fast:'快速上传',
+      pause:'已暂停', success:'上传完成', link:'上传完成', error:'上传失败'
+    })[String(state || '')] || String(state || '未知状态');
+  }
+
+  async function readComposeAttachmentState(identity) {
+    const result = await chrome.runtime.sendMessage({ type:'NMDA_COMPOSE_ATTACHMENT_STATE', identity: identity || {} });
+    if (!result?.ok) throw new Error(`无法读取网易附件状态：${result?.reason || 'unknown'}`);
+    return result;
+  }
+
+  function findAttachmentModelItem(state, file) {
+    const items = Array.isArray(state?.items) ? state.items : [];
+    // Only local-upload object types can satisfy an expected SmartMail file. Existing
+    // forwarded/storage attachments with the same filename must never suppress a new upload.
+    const localTypes = new Set(['native','form','plugin']);
+    const candidates = items.filter(item => localTypes.has(String(item.type || '')) && attachmentModelMatchesFile(item, file));
+    if (!candidates.length) return null;
+    return candidates.find(item => !item.context) || candidates[0];
+  }
+
+  async function injectFileIntoInput(input, file) {
     const dt = new DataTransfer();
-    files.forEach(file => dt.items.add(file));
+    dt.items.add(file);
     try { input.files = dt.files; }
     catch (error) { throw new Error(`无法把附件交给网易上传控件：${error.message}`); }
+    const assigned = [...(input.files || [])];
+    if (assigned.length !== 1 || assigned[0]?.name !== file.name || Number(assigned[0]?.size || 0) !== Number(file.size || 0)) {
+      throw new Error(`网易附件控件没有完整接收文件：${file.name}`);
+    }
     fire(input, 'input');
     fire(input, 'change');
   }
 
-  async function addAttachments(root, files, onProgress = () => {}) {
+  async function waitForAttachmentRegistration(identity, file, timeout = 6500) {
+    const started = Date.now();
+    let lastState = null;
+    while (Date.now() - started < timeout) {
+      lastState = await readComposeAttachmentState(identity);
+      const item = findAttachmentModelItem(lastState, file);
+      if (item) return { state:lastState, item };
+      await sleep(120);
+    }
+    throw new Error(`网易没有把附件加入上传队列：${file.name}`);
+  }
+
+  async function waitForAttachmentsCommitted(identity, files, onProgress = () => {}) {
+    const expected = uniqueFiles(files);
+    if (!expected.length) return { verified:true, missing:[], mode:'none', states:[] };
+    const started = Date.now();
+    const absoluteLimit = 15 * 60 * 1000;
+    const idleLimit = 30000;
+    let lastActivityAt = Date.now();
+    let lastFingerprint = '';
+    let lastState = null;
+
+    while (Date.now() - started < absoluteLimit) {
+      const state = await readComposeAttachmentState(identity);
+      lastState = state;
+      const matched = expected.map(file => ({ file, item:findAttachmentModelItem(state, file) }));
+      const missing = matched.filter(entry => !entry.item).map(entry => entry.file);
+      if (missing.length) throw new Error(`网易附件队列缺少：${missing.map(file => file.name).join('、')}`);
+
+      const errors = matched.filter(entry => entry.item?.state === 'error');
+      if (errors.length) {
+        throw new Error(`附件上传失败：${errors.map(entry => `${entry.file.name}${entry.item.err ? `（${entry.item.err}）` : ''}`).join('、')}`);
+      }
+
+      const committed = matched.filter(entry => ['success','link'].includes(String(entry.item?.state || '')));
+      const deferredPost = matched.filter(entry => String(entry.item?.type || '') === 'form' && String(entry.item?.state || '') === 'wait');
+      if (committed.length + deferredPost.length === expected.length) {
+        return {
+          verified:true,
+          missing:[],
+          mode: deferredPost.length ? 'post-deferred' : 'native-committed',
+          states:matched.map(entry => ({ name:entry.file.name, state:entry.item?.state || '', type:entry.item?.type || '', sid:entry.item?.sid || '', fid:entry.item?.fid || '' }))
+        };
+      }
+
+      const fingerprint = matched.map(entry => [
+        entry.file.name,
+        entry.item?.state || '',
+        Number(entry.item?.bytesLoaded || 0),
+        Number(entry.item?.percent ?? -1)
+      ].join(':')).join('|');
+      if (fingerprint !== lastFingerprint) {
+        lastFingerprint = fingerprint;
+        lastActivityAt = Date.now();
+      } else if (Date.now() - lastActivityAt > idleLimit) {
+        const pendingText = matched.filter(entry => !['success','link'].includes(String(entry.item?.state || '')))
+          .map(entry => `${entry.file.name}：${attachmentStateLabel(entry.item?.state)}`).join('；');
+        throw new Error(`附件上传长时间无进展：${pendingText || '未知状态'}`);
+      }
+
+      const active = matched.find(entry => !['success','link'].includes(String(entry.item?.state || '')));
+      onProgress(committed.length, expected.length, active?.file?.name || '', {
+        registered: expected.length,
+        committed: committed.length,
+        state: active?.item?.state || '',
+        bytesLoaded:Number(active?.item?.bytesLoaded || 0),
+        size:Number(active?.item?.size || active?.file?.size || 0)
+      });
+      await sleep(180);
+    }
+
+    const pending = expected.map(file => ({ file, item:findAttachmentModelItem(lastState, file) }))
+      .filter(entry => !['success','link'].includes(String(entry.item?.state || '')))
+      .map(entry => `${entry.file.name}：${attachmentStateLabel(entry.item?.state)}`);
+    throw new Error(`附件上传未完成：${pending.join('；') || '超过安全上限'}`);
+  }
+
+  async function addAttachments(root, files, composeIdentity, onProgress = () => {}) {
     const selected = uniqueFiles(files);
-    if (!selected.length) return { verified: true, missing: [], mode: 'none' };
-    let input = await waitFor(() => findAttachmentInput(root), 8000, 120, '未找到网易邮箱附件控件。');
+    if (!selected.length) return { verified:true, missing:[], mode:'none', states:[] };
 
-    // 优先模拟用户在文件选择器中一次多选：速度更快，也更贴近真实上传。
-    if (input.multiple || selected.length === 1) {
-      await injectFilesIntoInput(input, selected);
-      onProgress(selected.length, selected.length, selected.map(file => file.name).join('、'));
-      await sleep(450);
-      const evidence = await waitAttachmentEvidence(root, selected);
-      return { ...evidence, mode: 'multi' };
-    }
-
-    // 如果网易当前实例的 input 没有 multiple，则逐个交给控件；每次重新寻找 input，
-    // 因为网易可能在一次上传后替换该 DOM 节点。
+    // Do not inject a whole FileList and infer success from visible filenames.
+    // NetEase maintains its own upload queue, so register each file explicitly and
+    // wait for an acknowledgement from the Compose attachment model before adding the next.
     for (let i = 0; i < selected.length; i++) {
-      input = await waitFor(() => findAttachmentInput(root), 8000, 120, '附件上传过程中网易附件控件消失。');
-      await injectFilesIntoInput(input, [selected[i]]);
-      onProgress(i + 1, selected.length, selected[i].name);
-      await sleep(550);
+      const file = selected[i];
+      const before = await readComposeAttachmentState(composeIdentity);
+      if (!findAttachmentModelItem(before, file)) {
+        const input = await waitFor(() => findAttachmentInput(root), 8000, 120, '附件上传过程中网易附件控件消失。');
+        await injectFileIntoInput(input, file);
+        const registered = await waitForAttachmentRegistration(composeIdentity, file);
+        if (registered.item?.state === 'error') {
+          throw new Error(`附件加入队列后立即失败：${file.name}${registered.item.err ? `（${registered.item.err}）` : ''}`);
+        }
+      }
+      onProgress(0, selected.length, file.name, { registered:i + 1, committed:0, state:'registered' });
     }
-    const evidence = await waitAttachmentEvidence(root, selected);
-    return { ...evidence, mode: 'sequential' };
+
+    return waitForAttachmentsCommitted(composeIdentity, selected, onProgress);
   }
 
   function findMoreSendOptions(root) {
@@ -650,12 +745,20 @@
     if (!meta?.ok) throw new Error(`无法读取附件 ${ref?.name || id}：${meta?.reason || '运行时文件不存在'}`);
     const chunkSize = 256 * 1024;
     const parts = [];
+    let received = 0;
     for (let offset = 0; offset < meta.size; offset += chunkSize) {
-      const chunk = await chrome.runtime.sendMessage({ type: 'NMDA_RUNTIME_FILE_CHUNK', id, offset, length: Math.min(chunkSize, meta.size - offset) });
+      const requested = Math.min(chunkSize, meta.size - offset);
+      const chunk = await chrome.runtime.sendMessage({ type: 'NMDA_RUNTIME_FILE_CHUNK', id, offset, length: requested });
       if (!chunk?.ok) throw new Error(`读取附件 ${meta.name} 失败：${chunk?.reason || 'chunk-error'}`);
-      parts.push(bytesFromBase64(chunk.base64));
+      const bytes = bytesFromBase64(chunk.base64);
+      if (bytes.length !== requested) throw new Error(`附件传输块长度不一致：${meta.name} · ${offset} · 期望 ${requested}，实际 ${bytes.length}`);
+      parts.push(bytes);
+      received += bytes.length;
     }
-    return new File(parts, meta.name, { type: meta.type || 'application/octet-stream', lastModified: meta.lastModified || Date.now() });
+    if (received !== Number(meta.size || 0)) throw new Error(`附件运行时传输不完整：${meta.name} · 期望 ${meta.size} bytes，实际 ${received} bytes`);
+    const file = new File(parts, meta.name, { type: meta.type || 'application/octet-stream', lastModified: meta.lastModified || Date.now() });
+    if (file.size !== Number(meta.size || 0)) throw new Error(`附件重建后大小不一致：${meta.name} · 期望 ${meta.size} bytes，实际 ${file.size} bytes`);
+    return file;
   }
 
   function reportProgress(executionId, phase, message, detail = {}) {
@@ -729,9 +832,18 @@
         files.push(await readRuntimeFile(refs[i]));
         reportProgress(executionId, 'attachments', `正在读取附件 ${i + 1}/${refs.length} · ${refs[i]?.name || ''}`);
       }
-      attachmentResult = await addAttachments(root, files, (done, total, name) => {
-        reportProgress(executionId, 'attachments', `正在上传附件 ${done}/${total} · ${name}`, { done, total, name });
+      attachmentResult = await addAttachments(root, files, composeIdentity, (done, total, name, detail = {}) => {
+        const registered = Number(detail.registered || 0);
+        const committed = Number(detail.committed ?? done ?? 0);
+        const state = String(detail.state || '');
+        const message = state === 'registered'
+          ? `附件已加入网易队列 ${registered}/${total} · ${name}`
+          : `正在确认附件上传 ${committed}/${total}${name ? ` · ${name}` : ''}${state ? ` · ${attachmentStateLabel(state)}` : ''}`;
+        reportProgress(executionId, 'attachments', message, { done:committed, total, name, ...detail });
       });
+      if (attachmentResult.verified !== true) {
+        throw new Error(`附件未全部确认上传：${(attachmentResult.missing || []).map(file => file?.name || '').filter(Boolean).join('、') || '状态未知'}`);
+      }
     } else {
       reportProgress(executionId, 'attachments', contextual ? '保留网易原生转发 / 回复上下文中的附件状态。' : '没有附件，跳过附件步骤。');
     }

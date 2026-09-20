@@ -937,6 +937,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         } catch (error) { return {ok:false,reason:error?.message||String(error)}; }
       });
     }
+    if (message?.type === 'NMDA_COMPOSE_ATTACHMENT_STATE') {
+      return runMain(tabId, identityArg => {
+        try {
+          const identity = identityArg || {};
+          const targetName = String(identity.name || '');
+          if (!targetName) return {ok:false,reason:'compose-identity-name-missing'};
+          const group = window.$?.JS?.modules?.['compose.ComposeModule'] || {};
+          const modules = Object.values(group).filter(Boolean);
+          const target = modules.find(mod => String(mod?.name || '') === targetName) || null;
+          if (!target) return {ok:false,reason:'compose-module-not-found'};
+          const attach = target.attach || null;
+          if (!attach || typeof attach.fileGet !== 'function') return {ok:false,reason:'compose-attach-model-unavailable'};
+          const files = attach.fileGet() || [];
+          const items = files.map(file => {
+            const blob = file?.blob || null;
+            return {
+              cid:String(file?.cid || ''),
+              name:String(file?.name || blob?.name || ''),
+              type:String(file?.type || ''),
+              state:String(file?.state || ''),
+              size:Number(file?.size || blob?.size || 0),
+              bytesLoaded:Number(file?.bytesLoaded || 0),
+              percent:Number.isFinite(Number(file?.percent)) ? Number(file.percent) : null,
+              sid:String(file?.sid || ''),
+              fid:String(file?.fid || ''),
+              err:String(file?.err || ''),
+              cloud:!!file?.cloud,
+              context:!!file?.context,
+              inlined:!!file?.inlined,
+              blobName:String(blob?.name || ''),
+              blobSize:Number(blob?.size || 0),
+              blobLastModified:Number(blob?.lastModified || 0)
+            };
+          });
+          let pending = false, hasError = false;
+          try { pending = !!attach.fileIsUpload?.(); } catch (_) { pending = items.some(item => ['select','hash','wait','upload','fast','pause'].includes(item.state)); }
+          try { hasError = !!attach.fileIsError?.(); } catch (_) { hasError = items.some(item => item.state === 'error'); }
+          return {ok:true,identity:{name:targetName},pending,hasError,items};
+        } catch (error) { return {ok:false,reason:error?.message||String(error)}; }
+      }, [message.identity || {}]);
+    }
     if (message?.type === 'NMDA_CLOSE_COMPOSE') {
       return runMain(tabId, identityArg => new Promise(resolve => {
         try {

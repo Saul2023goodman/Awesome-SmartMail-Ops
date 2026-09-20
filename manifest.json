@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.38",
-  "description": "SmartMail Ops — cumulative outreach workspace with robust roster-to-imported-mail identity reconciliation, automatic mailbox sync, unified icons, and live execution motion.",
+  "version": "3.8.39",
+  "description": "SmartMail Ops — attachment transaction barrier with NetEase Compose-state verification, cumulative outreach workspace, roster reconciliation, automatic mailbox sync, unified icons, and live execution motion.",
   "permissions": [
     "scripting",
     "tabs",
