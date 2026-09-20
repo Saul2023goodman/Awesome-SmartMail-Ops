@@ -85,7 +85,7 @@
   }
 
 
-  async function executeDraftRemotely(task, { fresh = true, onProgress = () => {} } = {}) {
+  async function executeDraftRemotely(task, { fresh = true, pauseEveryTime = false, onProgress = () => {} } = {}) {
     const executionId = crypto.randomUUID();
     const refs = await prepareRuntimeFileRefs(task.files || []);
     executionProgressHandlers.set(executionId, onProgress);
@@ -94,7 +94,7 @@
       if (!connection?.connected) throw new Error('没有检测到已打开的网易邮箱。请先点击右上角“打开网易邮箱”并完成登录。');
       if (!connection?.authenticated) throw new Error('网易邮箱页面已打开，但尚未检测到登录账号。请先完成登录。');
       const result = await chrome.runtime.sendMessage({
-        type: 'NMDA_EXECUTE_DRAFT', executionId, fresh,
+        type: 'NMDA_EXECUTE_DRAFT', executionId, fresh, pauseEveryTime: !!pauseEveryTime,
         task: {
           recipients: task.recipients || '', cc: task.cc || '', bcc: task.bcc || '',
           subject: task.subject || '', body: task.body || '',
@@ -588,6 +588,7 @@
               <div class="nmda-table-wrap nmda-batch-table-wrap"><div class="nmda-planning-board" id="nmda-preview-body"></div></div>
               <div class="nmda-mail-handoff-bar" id="nmda-mail-handoff-bar">
                 <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备转到网易邮箱执行</strong><small id="nmda-create-preflight">确认本次范围与排期后，真实创建过程将在网易邮箱页面显示。</small></div></div>
+                <label class="nmda-execution-mode" title="每封邮件填写完成后暂停，人工检查后再保存"><input id="nmda-pause-every-time" type="checkbox"><span>每封填写后暂停</span></label>
                 <button class="nmda-btn nmda-btn-primary nmda-mail-handoff-action" id="nmda-batch-start" type="button">前往网易邮箱并创建所选草稿</button>
                 <button id="nmda-batch-stop" type="button" hidden disabled>当前封后停止</button>
               </div>
@@ -1415,7 +1416,7 @@
   const batch = {
     dataset: null, collectionIndex: 0, collectionConfigs: new Map(), detection: null, mapping: {}, tasks: [],
     directoryFiles: [], taskFiles: [], routedAttachmentFiles: [], fileIndex: Importer?.buildFileIndex?.([]),
-    attachmentOverrides: new Map(), attachmentPolicies: new Map(), attachmentTargetEditing:'', attachmentTargetSearch:'', taskEdits: new Map(), running: false, stopRequested: false,
+    attachmentOverrides: new Map(), attachmentPolicies: new Map(), attachmentTargetEditing:'', attachmentTargetSearch:'', taskEdits: new Map(), running: false, stopRequested: false, pauseEveryTime: false,
     importMeta: null,
     sessionId: 0, importBusy: false, schedulePlan: null,
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
@@ -1440,7 +1441,7 @@
   const draftImportEl = $('nmda-import-drafts'), preSendMatchFilesEl = $('nmda-pre-send-match-files'), preSendSharedFilesEl = $('nmda-pre-send-shared-files');
   const previewBodyEl = $('nmda-preview-body'), batchSummaryEl = $('nmda-batch-summary'), batchStatusEl = $('nmda-batch-status'), importStatusEl = $('nmda-import-status');
   const planningOverviewEl = $('nmda-planning-overview');
-  const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop');
+  const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time');
   const scheduleStartEl = $('nmda-rule-start-at'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), scheduleIntervalDaysEl = $('nmda-rule-interval-days'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
   const scheduleApplyEl = $('nmda-apply-schedule'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
   const batchSearchEl = $('nmda-batch-search');
@@ -6042,6 +6043,11 @@
     });
   }
 
+  batchPauseEveryTimeEl?.addEventListener('change', () => {
+    if (batch.running) { batchPauseEveryTimeEl.checked = !!batch.pauseEveryTime; return; }
+    batch.pauseEveryTime = !!batchPauseEveryTimeEl.checked;
+  });
+
   batchStartEl.addEventListener('click', async () => {
     if (batch.running) return;
     await ensureOperationStore();
@@ -6065,11 +6071,13 @@
       setBatchStatus('网易邮箱已打开，但尚未检测到已登录账号。请在网易邮箱完成登录后返回工作台再次开始。','error');
       return;
     }
-    batch.running = true; batch.stopRequested = false; batchStartEl.disabled = true; batchStopEl.disabled = false;
+    batch.running = true; batch.stopRequested = false; batch.pauseEveryTime = !!batchPauseEveryTimeEl?.checked; batchStartEl.disabled = true; batchStopEl.disabled = false;
+    if (batchPauseEveryTimeEl) batchPauseEveryTimeEl.disabled = true;
     await updateMailboxBatchMonitor({action:'start',total:executable.length,succeeded:0,failed:0,remaining:executable.length,items:executable.map((task,index)=>({key:task.editKey,id:task.id,index:index+1,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||'',status:'queued'}))});
     importFileEl.disabled = true; if (importDirEl) importDirEl.disabled = true; if (rosterFileEl) rosterFileEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=true;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=true;if(draftImportEl)draftImportEl.disabled=true; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=true; });
     setBatchPlanningLocked(true);
     let succeeded = 0, failed = 0;
+    let cleanupStopReason = '';
     try {
       for (const frozenTask of executable) {
         if (!executableKeys.has(frozenTask.editKey)) continue;
@@ -6085,9 +6093,10 @@
         try {
           const outcome = await executeDraftRemotely(task, {
             fresh: true,
+            pauseEveryTime: batch.pauseEveryTime,
             onProgress: progress => {
               setBatchStatus(`${kindLabel}：${progress.message || '正在创建草稿…'}`);
-              void updateMailboxBatchMonitor({action:'task-progress',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-runIndex),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},phase:progress.phase||'',message:progress.message||'正在创建草稿…'});
+              void updateMailboxBatchMonitor({action:'task-progress',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-runIndex),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},executionId:String(progress.executionId||''),phase:progress.phase||'',message:progress.message||'正在创建草稿…'});
             }
           });
           const notes=[];
@@ -6098,6 +6107,7 @@
             if (Number(outcome.actualMinute) !== requestedMinute) notes.push(`分钟由 ${requestedMinute} 调整为 ${outcome.actualMinute}`);
           }
           notes.push(`草稿已确认保存（${outcome.saveOutcome?.kind || 'remote'}）`);
+          if (outcome.cleanup?.ok === false) notes.push(`写信标签清理失败：${outcome.cleanup.reason || '未知原因'}`);
           let draftRecord=null;
           if (Operations) {
             const recorded = Operations.recordPreparedDraft(operationState.store, task, outcome);
@@ -6123,8 +6133,15 @@
           setDispatchRuntime(task,{status:'done',runtimeError:'',note:notes.join('；')});
           if(task.dispatchKind==='follow_up') clearDispatchRuntime(task);
           succeeded++;
-          await updateMailboxBatchMonitor({action:'task-done',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-succeeded-failed),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},message:'草稿已确认保存'});
+          const cleanupFailed = outcome.cleanup?.ok === false;
+          await updateMailboxBatchMonitor({action:'task-done',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-succeeded-failed),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},message:cleanupFailed?'草稿已保存，但写信标签未关闭':'草稿已确认保存'});
           scheduleBatchRender({aux:false,force:true});
+          if (cleanupFailed) {
+            cleanupStopReason = `当前草稿已保存，但网易写信标签未能安全关闭：${outcome.cleanup.reason || '未知原因'}。为避免继续累积或误操作标签，批处理已停止。`;
+            batch.stopRequested = true;
+            setBatchStatus(cleanupStopReason, 'warn');
+            break;
+          }
           await sleep(300);
         } catch (error) {
           console.error(`[${APP}] dispatch ${task.editKey}`, error);
@@ -6148,12 +6165,14 @@
         }
       }
       const remaining = Math.max(0,executable.length-succeeded-failed);
-      if (batch.stopRequested) setBatchStatus(`已停止。成功 ${succeeded}，失败 ${failed}，剩余 ${remaining}。`, 'warn');
+      if (cleanupStopReason) setBatchStatus(cleanupStopReason, 'warn');
+      else if (batch.stopRequested) setBatchStatus(`已停止。成功 ${succeeded}，失败 ${failed}，剩余 ${remaining}。`, 'warn');
       else if (failed) setBatchStatus(`执行结束：成功 ${succeeded}，失败 ${failed}，剩余 ${remaining}。请处理失败任务后再重试。`, 'warn');
       else setBatchStatus(`执行完成：成功创建并保存 ${succeeded} 封草稿。`, 'ok');
-      await updateMailboxBatchMonitor({action:'finish',total:executable.length,succeeded,failed,remaining,status:batch.stopRequested?'stopped':failed?'error':'done',message:batch.stopRequested?`已停止 · 成功 ${succeeded} · 剩余 ${remaining}`:failed?`执行结束 · 成功 ${succeeded} · 失败 ${failed}`:`全部完成 · ${succeeded} 封草稿已保存`});
+      await updateMailboxBatchMonitor({action:'finish',total:executable.length,succeeded,failed,remaining,status:batch.stopRequested?'stopped':failed?'error':'done',message:cleanupStopReason|| (batch.stopRequested?`已停止 · 成功 ${succeeded} · 剩余 ${remaining}`:failed?`执行结束 · 成功 ${succeeded} · 失败 ${failed}`:`全部完成 · ${succeeded} 封草稿已保存`)});
     } finally {
       batch.running = false; batchStopEl.disabled = true;
+      if (batchPauseEveryTimeEl) batchPauseEveryTimeEl.disabled = false;
       importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (rosterFileEl) rosterFileEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=false;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=false;if(draftImportEl)draftImportEl.disabled=false; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=false; });
       setBatchPlanningLocked(false);
       scheduleBatchRender({aux:false,force:true});

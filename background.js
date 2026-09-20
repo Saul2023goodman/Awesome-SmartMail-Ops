@@ -872,6 +872,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.runtime.sendMessage({ ...message, type:'NMDA_EXECUTION_PROGRESS_BROADCAST', tabId:sender.tab?.id || null }).catch(()=>{});
       return {ok:true};
     }
+    if (message?.type === 'NMDA_EXECUTION_RESUME_REQUEST') {
+      const resumeTab = await resolveMailTab(sender);
+      if (!resumeTab?.id) return {ok:false,reason:'mailbox-not-connected'};
+      await waitForExecutor(resumeTab.id);
+      return chrome.tabs.sendMessage(resumeTab.id, { type:'NMDA_EXECUTION_RESUME', executionId:String(message.executionId || '') });
+    }
 
     const tab = await resolveMailTab(sender);
     const tabId = tab?.id;
@@ -880,6 +886,53 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_EXECUTE_DRAFT') {
       await waitForExecutor(tabId);
       return chrome.tabs.sendMessage(tabId, message);
+    }
+    if (message?.type === 'NMDA_COMPOSE_IDENTITY') {
+      return runMain(tabId, () => {
+        try {
+          const mod = window.$?.Context?.module || window.$?.Context?.getModule?.() || null;
+          if (!mod || String(mod.mtype || '') !== 'compose.ComposeModule') return {ok:false,reason:'active-module-is-not-compose'};
+          const info = mod.info || null;
+          const readInfo = key => {
+            try { return String(info?.get?.({ [key]: true }) || ''); } catch (_) { return ''; }
+          };
+          const identity = {
+            name: String(mod.name || ''),
+            mtype: String(mod.mtype || ''),
+            cid: readInfo('cid'),
+            did: readInfo('did'),
+            containerId: String(mod.container?.id || mod.container?.dom?.id || '')
+          };
+          if (!identity.name) return {ok:false,reason:'compose-module-name-unavailable'};
+          return {ok:true,identity};
+        } catch (error) { return {ok:false,reason:error?.message||String(error)}; }
+      });
+    }
+    if (message?.type === 'NMDA_CLOSE_COMPOSE') {
+      return runMain(tabId, identityArg => new Promise(resolve => {
+        try {
+          const identity = identityArg || {};
+          const targetName = String(identity.name || '');
+          if (!targetName) return resolve({ok:false,reason:'compose-identity-name-missing'});
+          const group = window.$?.JS?.modules?.['compose.ComposeModule'] || {};
+          const modules = Object.values(group).filter(Boolean);
+          const target = modules.find(mod => String(mod?.name || '') === targetName) || null;
+          if (!target) return resolve({ok:true,alreadyClosed:true,removed:false});
+          if (!window.$?.MultiTab?.remove) return resolve({ok:false,reason:'netease-multitab-remove-unavailable'});
+          window.$.MultiTab.remove(target);
+          const started = Date.now();
+          const check = () => {
+            try {
+              const currentGroup = window.$?.JS?.modules?.['compose.ComposeModule'] || {};
+              const stillExists = Object.values(currentGroup).some(mod => String(mod?.name || '') === targetName);
+              if (!stillExists) return resolve({ok:true,removed:true,alreadyClosed:false});
+              if (Date.now() - started >= 3500) return resolve({ok:false,reason:'compose-module-still-present-after-close'});
+              setTimeout(check, 80);
+            } catch (error) { resolve({ok:false,reason:error?.message||String(error)}); }
+          };
+          setTimeout(check, 60);
+        } catch (error) { resolve({ok:false,reason:error?.message||String(error)}); }
+      }), [message.identity || {}]);
     }
     if (message?.type === 'NMDA_OPEN_COMPOSE') {
       return runMain(tabId, () => {

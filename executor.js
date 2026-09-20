@@ -665,6 +665,38 @@
     }).catch(() => {});
   }
 
+  const executionPauseWaiters = new Map();
+
+  async function captureComposeIdentity() {
+    const result = await chrome.runtime.sendMessage({ type: 'NMDA_COMPOSE_IDENTITY' });
+    if (!result?.ok || !result.identity) {
+      throw new Error(`无法锁定当前网易写信标签：${result?.reason || 'compose-identity-unavailable'}。已停止，避免后续误关其他标签。`);
+    }
+    return result.identity;
+  }
+
+  function waitForExecutionResume(executionId) {
+    const id = String(executionId || '');
+    if (!id) return Promise.reject(new Error('暂停模式缺少 execution id。'));
+    if (executionPauseWaiters.has(id)) return Promise.reject(new Error('当前执行已经处于暂停状态。'));
+    return new Promise(resolve => {
+      executionPauseWaiters.set(id, () => {
+        executionPauseWaiters.delete(id);
+        resolve();
+      });
+    });
+  }
+
+  async function closeExactCompose(identity) {
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'NMDA_CLOSE_COMPOSE', identity });
+      if (result?.ok) return result;
+      return { ok:false, reason:result?.reason || 'compose-close-failed' };
+    } catch (error) {
+      return { ok:false, reason:error?.message || String(error) };
+    }
+  }
+
   async function executeDraft(message) {
     const executionId = String(message.executionId || '');
     const task = message.task || {};
@@ -675,6 +707,7 @@
     const root = contextual
       ? await openContextCompose(composeMode, task.parentMessageId, task.parentFid || 3)
       : (fresh ? await openFreshCompose() : await openCompose());
+    const composeIdentity = await captureComposeIdentity();
 
     reportProgress(executionId, 'content', contextual ? '正在保留网易原生邮件上下文并插入 Follow-up 正文…' : '正在填写收件人、主题和正文…');
     if (composeMode === 'forward' || composeMode === 'new') await setRecipients(root, task.recipients || '');
@@ -711,16 +744,30 @@
       reportProgress(executionId, 'schedule', '未设置定时，将保存普通草稿。');
     }
 
+    if (message.pauseEveryTime === true) {
+      reportProgress(executionId, 'paused', '信息已填写完成，等待人工检查后继续保存。', { paused:true });
+      await waitForExecutionResume(executionId);
+      reportProgress(executionId, 'resume', '已继续，正在提交当前草稿。');
+    }
+
     reportProgress(executionId, 'save', `正在点击“存草稿”并确认${task.scheduleAt ? '定时设置' : '草稿保存'}…`);
     const saveOutcome = await saveDraft(root, { scheduled: !!task.scheduleAt });
     const missingNames = (attachmentResult.missing || []).map(file => file?.name || '').filter(Boolean);
-    reportProgress(executionId, 'done', '草稿已确认保存。', { evidence: saveOutcome.evidence || '' });
+
+    reportProgress(executionId, 'cleanup', '草稿已保存，正在关闭本封网易写信标签…', { evidence: saveOutcome.evidence || '' });
+    const cleanup = await closeExactCompose(composeIdentity);
+    if (!cleanup.ok) {
+      reportProgress(executionId, 'cleanup-error', `草稿已保存，但写信标签未能安全关闭：${cleanup.reason || '未知原因'}`, { saved:true });
+    } else {
+      reportProgress(executionId, 'done', '草稿已确认保存，写信标签已关闭。', { evidence: saveOutcome.evidence || '' });
+    }
     return {
       ok: true,
       outcome: {
         saveOutcome,
         actualMinute,
         composeMode,
+        cleanup,
         parentMessageId: contextual ? String(task.parentMessageId || '') : '',
         attachment: { verified: !!attachmentResult.verified, mode: attachmentResult.mode || 'none', missingNames }
       }
@@ -732,6 +779,14 @@
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_PING') {
       sendResponse({ ok: true, role: 'netease-mail-executor', composeOpen: !!findComposeRoot() });
+      return;
+    }
+    if (message?.type === 'NMDA_EXECUTION_RESUME') {
+      const id = String(message.executionId || '');
+      const resume = executionPauseWaiters.get(id);
+      if (!resume) { sendResponse({ ok:false, reason:'execution-not-paused' }); return; }
+      resume();
+      sendResponse({ ok:true, resumed:true });
       return;
     }
     if (message?.type === 'NMDA_EXECUTE_DRAFT') {

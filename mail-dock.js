@@ -29,8 +29,9 @@
           <p id="nmda-dock-exec-message">正在准备执行队列。</p>
         </div>
         <div class="nmda-dock-exec-actions">
+          <button id="nmda-dock-resume" class="is-primary" type="button" hidden>继续保存</button>
           <button id="nmda-dock-stop" type="button">当前封后停止</button>
-          <button id="nmda-dock-open-dispatch" class="is-primary" type="button">打开选择与排期</button>
+          <button id="nmda-dock-open-dispatch" type="button">打开选择与排期</button>
         </div>
       </section>
     </section>
@@ -58,6 +59,7 @@
   const execSubject = host.querySelector('#nmda-dock-exec-subject');
   const execMessage = host.querySelector('#nmda-dock-exec-message');
   const stopButton = host.querySelector('#nmda-dock-stop');
+  const resumeButton = host.querySelector('#nmda-dock-resume');
 
   let lastStatus = { connected: false, account: '' };
   let executionResetTimer = null;
@@ -68,6 +70,7 @@
     failed: 0,
     remaining: 0,
     status: 'idle',
+    executionId: '',
     task: null,
     message: ''
   };
@@ -107,9 +110,10 @@
     const done = Math.max(0, Number(execution.succeeded || 0) + Number(execution.failed || 0));
     const current = Math.min(Math.max(Number(execution.current || done || 0), 0), Math.max(Number(execution.total || 0), 0));
     const finished = ['done', 'error', 'stopped'].includes(execution.status);
-    const stateLabel = execution.status === 'done' ? '完成' : execution.status === 'error' ? '异常' : execution.status === 'stopped' ? '已停止' : '运行';
+    const paused = execution.status === 'paused';
+    const stateLabel = execution.status === 'done' ? '完成' : execution.status === 'error' ? '异常' : execution.status === 'stopped' ? '已停止' : paused ? '待确认' : '运行';
 
-    execLabel.textContent = execution.status === 'running' ? '正在执行' : '执行结果';
+    execLabel.textContent = paused ? '等待人工检查' : execution.status === 'running' ? '正在执行' : '执行结果';
     execCount.textContent = `${finished ? done : current} / ${Number(execution.total || 0)}`;
     execState.textContent = stateLabel;
     execState.dataset.state = execution.status;
@@ -117,6 +121,9 @@
     execRecipient.textContent = execution.task?.recipient || (finished ? '本次执行已结束' : '准备下一封邮件…');
     execSubject.textContent = execution.task?.subject || '';
     execMessage.textContent = execution.message || (finished ? `成功 ${Number(execution.succeeded || 0)} · 失败 ${Number(execution.failed || 0)}` : '正在处理…');
+    resumeButton.hidden = !paused;
+    resumeButton.disabled = false;
+    resumeButton.textContent = '继续保存';
     stopButton.hidden = finished;
     stopButton.disabled = false;
     stopButton.textContent = '当前封后停止';
@@ -126,12 +133,12 @@
     renderExecution();
     const active = hasExecutionContext();
     const done = Math.max(0, Number(execution.succeeded || 0) + Number(execution.failed || 0));
-    const text = execution.status === 'running'
+    const text = ['running','paused'].includes(execution.status)
       ? `${Math.min(Number(execution.current || done || 0), Number(execution.total || 0))}/${Number(execution.total || 0)}`
       : execution.status === 'done' ? '✓' : ['error', 'stopped'].includes(execution.status) ? '!' : '';
     execBadge.hidden = !active;
     execBadge.textContent = text;
-    launcher.title = execution.status === 'running'
+    launcher.title = execution.status === 'paused' ? 'SmartMail 等待人工检查' : execution.status === 'running'
       ? `SmartMail 正在执行 · ${done}/${Number(execution.total || 0)}`
       : 'SmartMail Ops · Alt+M';
   }
@@ -142,7 +149,7 @@
       if (executionResetTimer) { clearTimeout(executionResetTimer); executionResetTimer = null; }
       Object.assign(execution, {
         total: Number(payload.total || 0), current: 0, succeeded: 0, failed: 0,
-        remaining: Number(payload.remaining ?? payload.total ?? 0), status: 'running',
+        remaining: Number(payload.remaining ?? payload.total ?? 0), status: 'running', executionId:'',
         task: null, message: '正在准备第一封邮件。'
       });
       setOpen(true);
@@ -150,34 +157,38 @@
       Object.assign(execution, {
         current: Number(payload.current || 0), total: Number(payload.total || execution.total),
         succeeded: Number(payload.succeeded || 0), failed: Number(payload.failed || 0),
-        remaining: Number(payload.remaining ?? execution.remaining), status: 'running',
+        remaining: Number(payload.remaining ?? execution.remaining), status: 'running', executionId:'',
         task: payload.task || null, message: '正在打开写信页…'
       });
     } else if (action === 'task-progress') {
+      const phase = String(payload.phase || '');
       Object.assign(execution, {
         current: Number(payload.current || execution.current), total: Number(payload.total || execution.total),
         succeeded: Number(payload.succeeded ?? execution.succeeded), failed: Number(payload.failed ?? execution.failed),
         remaining: Number(payload.remaining ?? execution.remaining), task: payload.task || execution.task,
+        executionId: String(payload.executionId || execution.executionId || ''),
+        status: phase === 'paused' ? 'paused' : 'running',
         message: String(payload.message || '正在处理…')
       });
+      if (phase === 'paused') setOpen(true);
     } else if (action === 'task-done') {
       Object.assign(execution, {
         current: Number(payload.current || execution.current), succeeded: Number(payload.succeeded || execution.succeeded),
         failed: Number(payload.failed || execution.failed), remaining: Number(payload.remaining ?? execution.remaining),
-        task: payload.task || execution.task, message: String(payload.message || '草稿已保存')
+        task: payload.task || execution.task, executionId:'', message: String(payload.message || '草稿已保存'), status:'running'
       });
     } else if (action === 'task-error') {
       Object.assign(execution, {
         current: Number(payload.current || execution.current), succeeded: Number(payload.succeeded || execution.succeeded),
         failed: Number(payload.failed || execution.failed), remaining: Number(payload.remaining ?? execution.remaining),
-        task: payload.task || execution.task, message: String(payload.message || '执行失败'), status: 'error'
+        task: payload.task || execution.task, executionId:'', message: String(payload.message || '执行失败'), status: 'error'
       });
       setOpen(true);
     } else if (action === 'finish') {
       Object.assign(execution, {
         total: Number(payload.total || execution.total), succeeded: Number(payload.succeeded || 0),
         failed: Number(payload.failed || 0), remaining: Number(payload.remaining || 0),
-        status: String(payload.status || 'done'), message: String(payload.message || '执行结束')
+        status: String(payload.status || 'done'), executionId:'', message: String(payload.message || '执行结束')
       });
       setOpen(true);
       if (executionResetTimer) clearTimeout(executionResetTimer);
@@ -219,10 +230,26 @@
   host.querySelector('#nmda-dock-open-app')?.addEventListener('click', () => openWorkspace('batch'));
   host.querySelector('#nmda-dock-open-dispatch')?.addEventListener('click', () => openWorkspace('dispatch'));
 
+  resumeButton?.addEventListener('click', async event => {
+    const executionId = String(execution.executionId || '');
+    if (!executionId) return;
+    event.currentTarget.disabled = true;
+    event.currentTarget.textContent = '继续中…';
+    const result = await chrome.runtime.sendMessage({ type:'NMDA_EXECUTION_RESUME_REQUEST', executionId }).catch(error => ({ok:false,reason:error?.message||String(error)}));
+    if (!result?.ok) {
+      event.currentTarget.disabled = false;
+      event.currentTarget.textContent = '继续保存';
+      execMessage.textContent = `无法继续：${result?.reason || '执行状态已变化'}`;
+    }
+  });
+
   stopButton?.addEventListener('click', async event => {
     event.currentTarget.disabled = true;
     event.currentTarget.textContent = '已请求停止';
     await chrome.runtime.sendMessage({ type: 'NMDA_BATCH_STOP_REQUEST' }).catch(() => {});
+    if (execution.status === 'paused' && execution.executionId) {
+      await chrome.runtime.sendMessage({ type:'NMDA_EXECUTION_RESUME_REQUEST', executionId:String(execution.executionId) }).catch(() => {});
+    }
   });
 
   document.addEventListener('pointerdown', event => {

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.26",
-  "description": "SmartMail Ops — runtime-only batch mail operations with a minimal mailbox launcher and execution-only secondary monitor.",
+  "version": "3.8.27",
+  "description": "SmartMail Ops — runtime-only batch mail operations with exact Compose lifecycle cleanup and an optional per-message inspection pause.",
   "permissions": [
     "scripting",
     "tabs"

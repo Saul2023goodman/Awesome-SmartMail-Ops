@@ -126,3 +126,9 @@ First-class workspaces use content-driven layout. Hidden optional controls must 
 ## v3.8.26 mailbox surface boundary
 
 The 163 mailbox overlay is intentionally not a second SmartMail navigation shell. In the idle state it exposes only connection/account status and a direct SmartMail entry. A secondary panel appears only for active/recent execution context and contains execution progress/actions. Import, Review, Dispatch and Monitoring navigation remain inside the SmartMail app.
+## v3.8.27 execution lifecycle
+
+Execution uses one native NetEase Compose module at a time. A task captures the exact `compose.ComposeModule.name`, fills the native UI, optionally pauses for operator inspection, waits for provider save confirmation, then closes that exact module through NetEase `$.MultiTab.remove` and verifies removal before starting the next task. Saved-task cleanup failure stops the batch without retrying the already-saved task.
+
+`Pause every time` is an optional runtime-only execution gate and is disabled by default. It pauses after fill/upload/schedule and before save; resume is performed from the mailbox execution dock.
+

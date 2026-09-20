@@ -214,3 +214,12 @@
   .nmda-dock-exec-progress > i,
   .nmda-dock-execution { transition:none !important; animation:none !important; }
 }
+
+/* v3.8.27 — per-message inspection pause */
+#nmda-mail-dock-host[data-execution="paused"] .nmda-dock-panel { width:min(320px,calc(100vw - 24px)); }
+#nmda-mail-dock-host[data-execution="paused"] .nmda-dock-exec-badge { background:#b7791f; }
+#nmda-mail-dock-host[data-execution="paused"] .nmda-dock-exec-state { background:#fff4d8; color:#94620b; }
+#nmda-mail-dock-host[data-execution="paused"] .nmda-dock-exec-progress > i { background:#d99b20; }
+#nmda-mail-dock-host[data-execution="paused"] .nmda-dock-exec-current { border-color:#ead9ad; background:#fffdf7; }
+#nmda-dock-resume.is-primary { color:#fff; border-color:#2563eb; background:#2563eb; }
+#nmda-dock-resume.is-primary:hover { background:#1f56cc; }
