@@ -235,3 +235,26 @@ html.nmda-planner-document body.nmda-planner-window-body {
   #nmda-root.nmda-planner-window-mode .nmda-roster-intent-summary { grid-column:1;grid-row:5; }
   #nmda-root.nmda-planner-window-mode .nmda-schedule-dialog .nmda-scheduler-grid { grid-template-columns:1fr !important; }
 }
+
+/* v3.8.47 — independent planner follows the same canvas-first architecture */
+#nmda-root.nmda-planner-window-mode .nmda-roster-planner-workspace {
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  grid-template-rows:auto auto minmax(0,1fr) !important;
+  gap:6px !important;
+  padding:0 8px 8px !important;
+  overflow:hidden !important;
+}
+#nmda-root.nmda-planner-window-mode .nmda-roster-planner-commandbar,
+#nmda-root.nmda-planner-window-mode .nmda-roster-intent-summary,
+#nmda-root.nmda-planner-window-mode .nmda-roster-planner-canvas {
+  min-width:0;
+}
+#nmda-root.nmda-planner-window-mode .nmda-roster-planner-canvas {
+  min-height:0 !important;
+  height:100% !important;
+}
+#nmda-root.nmda-planner-window-mode .nmda-roster-sheet-viewport {
+  min-height:0 !important;
+  height:100% !important;
+}

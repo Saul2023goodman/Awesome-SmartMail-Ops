@@ -706,7 +706,7 @@
               <header class="nmda-roster-planner-view-head">
                 <div class="nmda-roster-planner-view-leading">
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-planner-back" type="button">← 返回选择与排期</button>
-                  <div><span class="nmda-dialog-eyebrow">Batch planning</span><h2 id="nmda-roster-planner-title">名单分批</h2><p>按颜色选一组，或直接框选联系人，然后放入对应批次。</p></div>
+                  <div><span class="nmda-dialog-eyebrow">Batch planning</span><h2 id="nmda-roster-planner-title">名单分批</h2><p>选中联系人 → 设定批次。结果直接回显在名单中。</p></div>
                 </div>
                 <div class="nmda-roster-planner-view-actions">
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-planner-done" type="button">完成分批</button>
@@ -715,52 +715,53 @@
               </header>
 
               <div class="nmda-roster-planner-workspace">
-                <aside class="nmda-roster-planner-rail" aria-label="按颜色选择联系人">
-                  <div class="nmda-roster-planner-source">
-                    <span class="nmda-dialog-eyebrow">总名单</span>
-                    <select id="nmda-roster-planner-source" aria-label="选择名单工作表"></select>
+                <div class="nmda-roster-planner-commandbar">
+                  <div class="nmda-roster-source-cluster">
+                    <div class="nmda-roster-planner-source">
+                      <span>总名单</span>
+                      <select id="nmda-roster-planner-source" aria-label="选择名单工作表"></select>
+                    </div>
+                    <div class="nmda-roster-planner-summary" id="nmda-roster-planner-summary">等待读取总名单…</div>
                   </div>
-                  <div class="nmda-roster-planner-summary" id="nmda-roster-planner-summary">等待读取总名单…</div>
-                  <div class="nmda-roster-planner-rail-section">
-                    <div class="nmda-roster-planner-rail-title"><strong>按颜色选择</strong><small>点一种颜色，即选中所有同色联系人</small></div>
+
+                  <div class="nmda-roster-color-strip" aria-label="按颜色快速选择">
+                    <span class="nmda-roster-color-strip-label">按颜色</span>
                     <div class="nmda-roster-visual-groups" id="nmda-roster-visual-groups"></div>
                   </div>
-                  <div class="nmda-roster-planner-rail-note">
-                    <strong>也可以直接框选</strong>
-                    <span>颜色只是快捷选择方式。没有颜色、颜色不规则时，直接在名单上拖动框选即可。</span>
+
+                  <div class="nmda-roster-planner-canvas-tools">
+                    <span class="nmda-roster-column-focus" id="nmda-roster-column-focus">正在整理名单…</span>
+                    <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-roster-column-toggle" id="nmda-roster-column-toggle" type="button" hidden>显示全部列</button>
+                    <div class="nmda-roster-planner-selection-mini" id="nmda-roster-selection-mini">尚未选择</div>
                   </div>
-                </aside>
+                </div>
+
+                <div class="nmda-roster-intent-summary" id="nmda-roster-intent-summary"></div>
 
                 <main class="nmda-roster-planner-canvas">
                   <div class="nmda-roster-planner-canvas-head">
-                    <div><strong>总名单</strong><span>保留原表样式；只显示分批需要的主要列。</span></div>
-                    <div class="nmda-roster-planner-canvas-tools">
-                      <span class="nmda-roster-column-focus" id="nmda-roster-column-focus">正在整理名单…</span>
-                      <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-roster-column-toggle" id="nmda-roster-column-toggle" type="button" hidden>显示全部列</button>
-                      <div class="nmda-roster-planner-selection-mini" id="nmda-roster-selection-mini">尚未选择</div>
+                    <div class="nmda-roster-selection-context">
+                      <div class="nmda-roster-selection-copy">
+                        <strong id="nmda-roster-selection-label">尚未选择</strong>
+                        <small id="nmda-roster-selection-detail">在名单中框选，或点上方颜色 / 批次即可选择联系人。</small>
+                      </div>
+                      <div class="nmda-roster-batch-quick" id="nmda-roster-batch-quick" aria-label="设置批次">
+                        <button type="button" data-roster-batch="R1"><b>R1</b><span>第 1 批</span></button>
+                        <button type="button" data-roster-batch="R2"><b>R2</b><span>第 2 批</span></button>
+                        <button type="button" data-roster-batch="R3"><b>R3</b><span>第 3 批</span></button>
+                        <button type="button" data-roster-batch="R4"><b>R4</b><span>第 4 批</span></button>
+                      </div>
+                      <div class="nmda-roster-batch-more">
+                        <select id="nmda-roster-batch-select" aria-label="选择更多批次"></select>
+                        <button class="nmda-btn nmda-btn-small" id="nmda-roster-batch-apply" type="button" disabled>加入</button>
+                      </div>
+                      <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-roster-batch-clear" id="nmda-roster-batch-clear" type="button" disabled>移出批次</button>
                     </div>
                   </div>
                   <div class="nmda-roster-sheet-viewport" id="nmda-roster-sheet-viewport" tabindex="0" aria-label="总名单预览，可拖动框选联系人">
                     <table class="nmda-roster-sheet-table" id="nmda-roster-sheet-table"></table>
                   </div>
                 </main>
-
-                <aside class="nmda-roster-interpret-panel nmda-roster-batch-panel" aria-label="设置批次">
-                  <div class="nmda-roster-interpret-panel-head"><span class="nmda-dialog-eyebrow">Batch</span><strong>加入批次</strong></div>
-                  <div class="nmda-roster-selection-copy"><strong id="nmda-roster-selection-label">尚未选择</strong><small id="nmda-roster-selection-detail">先点左侧颜色，或在名单中框选联系人。</small></div>
-                  <div class="nmda-roster-batch-quick" id="nmda-roster-batch-quick" aria-label="常用批次">
-                    <button type="button" data-roster-batch="R1"><b>第 1 批</b><span>R1</span></button>
-                    <button type="button" data-roster-batch="R2"><b>第 2 批</b><span>R2</span></button>
-                    <button type="button" data-roster-batch="R3"><b>第 3 批</b><span>R3</span></button>
-                    <button type="button" data-roster-batch="R4"><b>第 4 批</b><span>R4</span></button>
-                  </div>
-                  <div class="nmda-roster-batch-more">
-                    <label><span>更多批次</span><select id="nmda-roster-batch-select" aria-label="选择更多批次"></select></label>
-                    <button class="nmda-btn nmda-btn-small" id="nmda-roster-batch-apply" type="button" disabled>加入</button>
-                  </div>
-                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-roster-batch-clear" id="nmda-roster-batch-clear" type="button" disabled>移出批次</button>
-                  <div class="nmda-roster-intent-summary" id="nmda-roster-intent-summary"></div>
-                </aside>
               </div>
             </section>
 
@@ -1882,7 +1883,7 @@
   }
   batch.scheduleRules = freshScheduleRules();
 
-  let rosterPlannerSelection=null, rosterPlannerColorRows=null, rosterPlannerColorFill='', rosterPlannerAnchor=null, rosterPlannerDragging=false;
+  let rosterPlannerSelection=null, rosterPlannerSelectedRows=null, rosterPlannerSelectionKind='', rosterPlannerSelectionMeta='', rosterPlannerColorFill='', rosterPlannerAnchor=null, rosterPlannerDragging=false;
   function rosterPlannerSources(){
     if(!RosterPlanner)return[];
     const out=[],seen=new Set(),pushSet=(set,origin)=>{
@@ -1923,12 +1924,17 @@
     const rows=set?.rows||[],visual=set?.meta?.excelVisual||{},maxRows=Math.min(rows.length,320),projection=rosterPlannerColumnProjection(set),plan=projection.plan,maxCols=Math.min(40,Math.max(Number(plan.maxCols||0),Number(visual.usedRange?.cols||0),...rows.slice(0,maxRows).map(row=>row?.length||0),1));
     const hiddenRows=new Set(visual.hiddenRows||[]),hiddenColSet=projection.hiddenCols,widths=rosterPlannerColumnWidths(set,maxCols),merge=rosterPlannerMergeMaps(set,hiddenColSet,hiddenRows),styleCache=RosterPlanner.styleLookup(set);
     const visibleCols=[];for(let c=0;c<maxCols;c++)if(!hiddenColSet.has(c))visibleCols.push(c);
-    let html='<colgroup><col style="width:38px">'+visibleCols.map(c=>`<col style="width:${Math.round(widths[c])}px">`).join('')+'</colgroup><thead><tr><th class="nmda-roster-corner"></th>';
+    const rowBatch=new Map();
+    for(const entry of rosterPlannerEntriesForSet(set)){
+      const row=Math.max(0,Number(entry?.sourceRow||0)-1),label=rosterPlannerEffectiveBatch(entry);if(label)rowBatch.set(row,label);
+    }
+    let html='<colgroup><col style="width:52px">'+visibleCols.map(c=>`<col style="width:${Math.round(widths[c])}px">`).join('')+'</colgroup><thead><tr><th class="nmda-roster-corner"></th>';
     for(const c of visibleCols)html+=`<th class="nmda-roster-colhead" data-col="${c}">${RosterPlanner.columnLabel(c)}</th>`;html+='</tr></thead><tbody>';
     for(let r=0;r<maxRows;r++){
       if(hiddenRows.has(r))continue;
       const rowHeight=Number(visual.rowHeights?.[r]||0),trStyle=rowHeight?`height:${Math.max(22,Math.min(110,rowHeight*1.333))}px;`:'';
-      html+=`<tr style="${trStyle}"><th class="nmda-roster-rowhead">${r+1}</th>`;
+      const batchLabel=rowBatch.get(r)||'';
+      html+=`<tr style="${trStyle}"${batchLabel?` data-roster-row-batch="${escapeHtml(batchLabel)}"`:''}><th class="nmda-roster-rowhead" data-row="${r}"><span>${r+1}</span>${batchLabel?`<b>${escapeHtml(batchLabel)}</b>`:''}</th>`;
       for(const c of visibleCols){
         if(merge.covered.has(`${r}:${c}`))continue;
         const span=merge.top.get(`${r}:${c}`)||{},sourceAnchor=span.anchor||[r,c],sr=Number(sourceAnchor[0]),sc=Number(sourceAnchor[1]),style=RosterPlanner.styleAt(set,sr,sc,styleCache),css=RosterPlanner.cssForStyle(style),value=String(rows[sr]?.[sc]??rows[r]?.[c]??'');
@@ -1939,20 +1945,20 @@
       html+='</tr>';
     }
     html+='</tbody>';rosterSheetTableEl.innerHTML=html;paintRosterPlannerSelection();
-    const autoHiddenCount=(plan.autoHidden?.size||0)+(plan.emptyHidden?.size||0),shown=visibleCols.length,total=Math.min(40,plan.maxCols||maxCols);
+    const autoHiddenCount=(plan.autoHidden?.size||0)+(plan.emptyHidden?.size||0);
     if(rosterColumnFocusEl){
       rosterColumnFocusEl.textContent=projection.showAll?'全部列':'主要列';
       rosterColumnFocusEl.title=projection.showAll?'当前显示全部可见列':'当前只显示姓名、邮箱、院校和排期相关主要列';
     }
     if(rosterColumnToggleEl){
-      rosterColumnToggleEl.hidden=!autoHiddenCount;rosterColumnToggleEl.textContent=projection.showAll?'只看主要列':`查看全部列`;
+      rosterColumnToggleEl.hidden=!autoHiddenCount;rosterColumnToggleEl.textContent=projection.showAll?'只看主要列':'查看全部列';
       rosterColumnToggleEl.setAttribute('aria-pressed',projection.showAll?'true':'false');
     }
   }
   function rosterPlannerSelectionEntries(){
     const current=rosterPlannerCurrentSource();if(!current)return[];
     const entries=rosterPlannerEntriesForSet(current.set);
-    if(rosterPlannerColorRows?.size){return entries.filter(entry=>rosterPlannerColorRows.has(Number(entry?.sourceRow||0)-1)).sort((a,b)=>Number(a.sourceRow||0)-Number(b.sourceRow||0));}
+    if(rosterPlannerSelectedRows?.size){return entries.filter(entry=>rosterPlannerSelectedRows.has(Number(entry?.sourceRow||0)-1)).sort((a,b)=>Number(a.sourceRow||0)-Number(b.sourceRow||0));}
     if(!rosterPlannerSelection)return[];
     return RosterPlanner.entriesForRange(entries,current.set,rosterPlannerSelection);
   }
@@ -1972,19 +1978,28 @@
     return {ordered,unassigned};
   }
   function paintRosterPlannerSelection(){
-    if(!rosterSheetTableEl)return;const range=RosterPlanner?.normalizeRange?.(rosterPlannerSelection),colorRows=rosterPlannerColorRows;
+    if(!rosterSheetTableEl)return;const range=RosterPlanner?.normalizeRange?.(rosterPlannerSelection),selectedRows=rosterPlannerSelectedRows;
     rosterSheetTableEl.querySelectorAll('[data-roster-cell]').forEach(cell=>{
-      const r=Number(cell.dataset.row),c=Number(cell.dataset.col),selected=colorRows?.size?colorRows.has(r):!!range&&r>=range.r1&&r<=range.r2&&c>=range.c1&&c<=range.c2;
+      const r=Number(cell.dataset.row),c=Number(cell.dataset.col),selected=selectedRows?.size?selectedRows.has(r):!!range&&r>=range.r1&&r<=range.r2&&c>=range.c1&&c<=range.c2;
       cell.classList.toggle('is-selected',selected);
     });
+    rosterSheetTableEl.querySelectorAll('.nmda-roster-rowhead').forEach(head=>{
+      const r=Number(head.dataset.row),selected=selectedRows?.size?selectedRows.has(r):!!range&&r>=range.r1&&r<=range.r2;
+      head.classList.toggle('is-selected',selected);
+    });
     const entries=rosterPlannerSelectionEntries();
-    const label=colorRows?.size?`同色联系人 · ${entries.length} 位`:range?`${RosterPlanner.rangeLabel(range)} · ${entries.length} 位联系人`:'尚未选择';
+    let label='尚未选择';
+    if(selectedRows?.size){
+      if(rosterPlannerSelectionKind==='batch')label=`${rosterPlannerSelectionMeta||'批次'} · ${entries.length} 位`;
+      else if(rosterPlannerSelectionKind==='unassigned')label=`未分批 · ${entries.length} 位`;
+      else label=`同色选择 · ${entries.length} 位`;
+    }else if(range)label=`${RosterPlanner.rangeLabel(range)} · ${entries.length} 位`;
     if(rosterSelectionMiniEl)rosterSelectionMiniEl.textContent=label;
     if(rosterSelectionLabelEl)rosterSelectionLabelEl.textContent=label;
     if(rosterSelectionDetailEl){
       rosterSelectionDetailEl.textContent=entries.length
-        ? (colorRows?.size?'已按颜色选中这些联系人。直接选择右侧批次即可。':'已框选这些联系人。直接选择右侧批次即可。')
-        : (colorRows?.size||range?'当前选择没有命中可识别联系人。':'先点左侧颜色，或在名单中框选联系人。');
+        ? '已选联系人，可直接切换到任意批次。'
+        : (selectedRows?.size||range?'当前选择没有命中可识别联系人。':'框选名单，或点击上方颜色 / 批次开始。');
     }
     const disabled=!entries.length,selectedBatches=[...new Set(entries.map(rosterPlannerEffectiveBatch).filter(Boolean))],currentBatch=selectedBatches.length===1?selectedBatches[0]:'';
     if(rosterBatchApplyEl)rosterBatchApplyEl.disabled=disabled;
@@ -2001,26 +2016,29 @@
     }
     if(rosterPlannerSourceEl){rosterPlannerSourceEl.innerHTML=sources.map(item=>`<option value="${escapeHtml(item.key)}">${escapeHtml(item.set.source||'Excel')} · ${escapeHtml(item.set.name||'Sheet')}</option>`).join('');rosterPlannerSourceEl.disabled=!sources.length;}
     if(!sources.length){
-      if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.textContent='当前没有可用于分批的 XLSX 总名单。请先在导入资料中添加总名单。';
+      if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.textContent='未找到可用于分批的 XLSX 总名单';
       if(rosterSheetTableEl)rosterSheetTableEl.innerHTML='<tbody><tr><td class="nmda-roster-empty-sheet">未找到总名单</td></tr></tbody>';
-      if(rosterVisualGroupsEl)rosterVisualGroupsEl.innerHTML='<span class="nmda-roster-visual-label">暂无可用颜色；仍可使用导入后的任务继续排期。</span>';
-      if(rosterIntentSummaryEl)rosterIntentSummaryEl.innerHTML='<small>没有总名单时仍可直接使用时间规则排期。</small>';
+      if(rosterVisualGroupsEl)rosterVisualGroupsEl.innerHTML='<span class="nmda-roster-visual-label">无颜色快捷选择</span>';
+      if(rosterIntentSummaryEl)rosterIntentSummaryEl.innerHTML='<div class="nmda-roster-batch-overview-empty">没有总名单时仍可直接使用时间规则排期。</div>';
       paintRosterPlannerSelection();return;
     }
     let current=rosterPlannerCurrentSource();if(!current)current=sources[0];batch.rosterPlanner.sourceKey=current.key;if(rosterPlannerSourceEl)rosterPlannerSourceEl.value=current.key;
-    const set=current.set,entries=rosterPlannerEntriesForSet(set),groups=rosterPlannerColorGroups(set,entries);
-    const batchCounts=rosterPlannerBatchCounts(entries);
-    if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.innerHTML=`<strong>${entries.length}</strong> 位联系人<br><span>${batchCounts.ordered.length?`已分 ${batchCounts.ordered.reduce((sum,item)=>sum+item[1],0)} 位 · `:''}${batchCounts.unassigned} 位待分批${groups.length?` · 可按 ${groups.length} 种颜色选择`:''}</span>`;
+    const set=current.set,entries=rosterPlannerEntriesForSet(set),groups=rosterPlannerColorGroups(set,entries),batchCounts=rosterPlannerBatchCounts(entries);
+    const assigned=batchCounts.ordered.reduce((sum,item)=>sum+item[1],0);
+    if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.innerHTML=`<strong>${entries.length}</strong><span>联系人</span><i></i><b>${assigned}</b><span>已分</span><i></i><b>${batchCounts.unassigned}</b><span>待分</span>`;
     if(rosterVisualGroupsEl){
-      rosterVisualGroupsEl.innerHTML=groups.length?groups.slice(0,12).map((group,index)=>{
-        const groupEntries=group.entries||[],labels=[...new Set(groupEntries.map(rosterPlannerEffectiveBatch).filter(Boolean))],status=!labels.length?'未分批':labels.length===1?labels[0]:'混合';
-        return `<button class="nmda-roster-visual-chip${rosterPlannerColorFill===group.fill?' is-active':''}" type="button" data-roster-color-index="${index}" title="选择所有同色联系人"><i style="background:${escapeHtml(group.fill)}"></i><span>颜色 ${index+1}</span><b>${groupEntries.length} 人 · ${escapeHtml(status)}</b></button>`;
-      }).join(''):'<span class="nmda-roster-visual-label">没有明显整行颜色。直接在中间名单上框选即可。</span>';
+      rosterVisualGroupsEl.innerHTML=groups.length?groups.slice(0,20).map((group,index)=>{
+        const groupEntries=group.entries||[],labels=[...new Set(groupEntries.map(rosterPlannerEffectiveBatch).filter(Boolean))],status=!labels.length?'待分':labels.length===1?labels[0]:'混合';
+        return `<button class="nmda-roster-visual-chip${rosterPlannerColorFill===group.fill?' is-active':''}" type="button" data-roster-color-index="${index}" title="同色 ${groupEntries.length} 位 · ${escapeHtml(status)}"><i style="background:${escapeHtml(group.fill)}"></i><span>${groupEntries.length}</span><b>${escapeHtml(status)}</b></button>`;
+      }).join(''):'<span class="nmda-roster-visual-label">没有明显整行颜色，直接框选即可</span>';
     }
     renderRosterPlannerTable(set);
     if(rosterIntentSummaryEl){
-      const chips=batchCounts.ordered.map(([label,count])=>`<span class="nmda-roster-batch-stat"><b>${escapeHtml(label)}</b>${count} 人</span>`).join('');
-      rosterIntentSummaryEl.innerHTML=`<span>当前分批</span><div class="nmda-roster-batch-stats">${chips||'<span class="nmda-roster-batch-stat is-empty">尚未分批</span>'}</div>${batchCounts.unassigned?`<small>${batchCounts.unassigned} 位联系人还没有批次</small>`:'<small>所有联系人都已分批</small>'}`;
+      const activeBatch=rosterPlannerSelectionKind==='batch'?rosterPlannerSelectionMeta:'';
+      const isUnassigned=rosterPlannerSelectionKind==='unassigned';
+      const segments=batchCounts.ordered.map(([label,count])=>`<button type="button" class="nmda-roster-batch-segment${activeBatch===label?' is-active':''}" data-roster-batch-focus="${escapeHtml(label)}" style="--weight:${Math.max(1,count)}" title="查看 ${escapeHtml(label)} 的 ${count} 位联系人"><span>${escapeHtml(label)}</span><b>${count}</b></button>`).join('');
+      const unassigned=batchCounts.unassigned?`<button type="button" class="nmda-roster-batch-segment is-unassigned${isUnassigned?' is-active':''}" data-roster-batch-focus="__unassigned__" style="--weight:${Math.max(1,batchCounts.unassigned)}" title="查看 ${batchCounts.unassigned} 位未分批联系人"><span>待分</span><b>${batchCounts.unassigned}</b></button>`:'';
+      rosterIntentSummaryEl.innerHTML=`<div class="nmda-roster-batch-overview-title"><strong>当前分批</strong><span>${assigned}/${entries.length}</span></div><div class="nmda-roster-batch-track">${segments||''}${unassigned||''}</div><small>点批次即可在表中核对成员</small>`;
     }
     paintRosterPlannerSelection();
   }
@@ -2040,14 +2058,16 @@
     if(restoreFocus)requestAnimationFrame(()=>$('nmda-open-roster-planner')?.focus?.({preventScroll:true}));
   }
   function clearRosterPlannerSelection(){
-    rosterPlannerSelection=null;rosterPlannerColorRows=null;rosterPlannerColorFill='';rosterPlannerAnchor=null;rosterPlannerDragging=false;paintRosterPlannerSelection();renderRosterPlanner();
+    rosterPlannerSelection=null;rosterPlannerSelectedRows=null;rosterPlannerSelectionKind='';rosterPlannerSelectionMeta='';rosterPlannerColorFill='';rosterPlannerAnchor=null;rosterPlannerDragging=false;paintRosterPlannerSelection();renderRosterPlanner();
   }
   function applyRosterPlannerBatch(label,{clear=false}={}){
     const current=rosterPlannerCurrentSource();if(!current||!RosterPlanner)return;
     const targets=rosterPlannerSelectionEntries();if(!targets.length){setBatchStatus('请先按颜色选择，或在名单上框选联系人。','warn');return;}
-    const result=RosterPlanner.applyBatchToEntries(batch.rosterPlanner,targets,current.set,{batch:clear?'':String(label||'R1'),clear,evidenceSource:rosterPlannerColorRows?.size?'color-selection':'box-selection'});
+    const result=RosterPlanner.applyBatchToEntries(batch.rosterPlanner,targets,current.set,{batch:clear?'':String(label||'R1'),clear,evidenceSource:rosterPlannerSelectionKind==='color'?'color-selection':rosterPlannerSelectionKind==='batch'||rosterPlannerSelectionKind==='unassigned'?'batch-review':'box-selection'});
     if(result.warning){setBatchStatus(result.warning,'warn');return;}
-    batch.rosterPlanner=result.state;batch.handoffComplete=false;scheduleWorkspacePersist();
+    batch.rosterPlanner=result.state;batch.handoffComplete=false;
+    if(rosterPlannerSelectionKind==='batch'||rosterPlannerSelectionKind==='unassigned'){rosterPlannerSelectionKind=clear?'unassigned':'batch';rosterPlannerSelectionMeta=clear?'':String(label||'R1');}
+    scheduleWorkspacePersist();
     if(batch.dataset)rebuildTasks();renderRosterPlanner();renderScheduleCenter();
     setBatchStatus(clear?`已将 ${result.targets.length} 位联系人移出人工批次。`:`已将 ${result.targets.length} 位联系人加入 ${String(label||'R1')}。`,'ok');
   }
@@ -6736,18 +6756,24 @@
   $('nmda-roster-planner-back')?.addEventListener('click',()=>closeRosterPlannerView());
   $('nmda-roster-planner-done')?.addEventListener('click',()=>closeRosterPlannerView());
   $('nmda-roster-planner-next')?.addEventListener('click',openScheduleModal);
-  rosterPlannerSourceEl?.addEventListener('change',()=>{batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;batch.rosterPlanner.sourceKey=String(rosterPlannerSourceEl.value||'');rosterPlannerSelection=null;rosterPlannerColorRows=null;rosterPlannerColorFill='';rosterPlannerAnchor=null;scheduleWorkspacePersist();renderRosterPlanner();});
-  rosterColumnToggleEl?.addEventListener('click',()=>{batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;batch.rosterPlanner.showIrrelevantColumns=!batch.rosterPlanner.showIrrelevantColumns;rosterPlannerSelection=null;rosterPlannerColorRows=null;rosterPlannerColorFill='';rosterPlannerAnchor=null;scheduleWorkspacePersist();renderRosterPlanner();});
+  rosterPlannerSourceEl?.addEventListener('change',()=>{batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;batch.rosterPlanner.sourceKey=String(rosterPlannerSourceEl.value||'');rosterPlannerSelection=null;rosterPlannerSelectedRows=null;rosterPlannerSelectionKind='';rosterPlannerSelectionMeta='';rosterPlannerColorFill='';rosterPlannerAnchor=null;scheduleWorkspacePersist();renderRosterPlanner();});
+  rosterColumnToggleEl?.addEventListener('click',()=>{batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;batch.rosterPlanner.showIrrelevantColumns=!batch.rosterPlanner.showIrrelevantColumns;rosterPlannerSelection=null;rosterPlannerSelectedRows=null;rosterPlannerSelectionKind='';rosterPlannerSelectionMeta='';rosterPlannerColorFill='';rosterPlannerAnchor=null;scheduleWorkspacePersist();renderRosterPlanner();});
   rosterVisualGroupsEl?.addEventListener('click',event=>{
     const button=event.target.closest?.('[data-roster-color-index]');if(!button)return;const current=rosterPlannerCurrentSource();if(!current)return;
     const entries=rosterPlannerEntriesForSet(current.set),groups=rosterPlannerColorGroups(current.set,entries),group=groups[Number(button.dataset.rosterColorIndex)];if(!group)return;
-    rosterPlannerSelection=null;rosterPlannerAnchor=null;rosterPlannerDragging=false;rosterPlannerColorRows=new Set(group.rows||[]);rosterPlannerColorFill=group.fill||'';renderRosterPlanner();
+    rosterPlannerSelection=null;rosterPlannerAnchor=null;rosterPlannerDragging=false;rosterPlannerSelectedRows=new Set(group.rows||[]);rosterPlannerSelectionKind='color';rosterPlannerSelectionMeta='';rosterPlannerColorFill=group.fill||'';renderRosterPlanner();
     const first=group.rows?.[0];if(Number.isFinite(first))rosterSheetTableEl?.querySelector?.(`[data-row="${first}"]`)?.scrollIntoView?.({block:'nearest',inline:'nearest'});
+  });
+  rosterIntentSummaryEl?.addEventListener('click',event=>{
+    const button=event.target.closest?.('[data-roster-batch-focus]');if(!button)return;const current=rosterPlannerCurrentSource();if(!current)return;
+    const value=String(button.dataset.rosterBatchFocus||''),entries=rosterPlannerEntriesForSet(current.set),targets=value==='__unassigned__'?entries.filter(entry=>!rosterPlannerEffectiveBatch(entry)):entries.filter(entry=>rosterPlannerEffectiveBatch(entry)===value);
+    rosterPlannerSelection=null;rosterPlannerAnchor=null;rosterPlannerDragging=false;rosterPlannerSelectedRows=new Set(targets.map(entry=>Math.max(0,Number(entry?.sourceRow||0)-1)));rosterPlannerSelectionKind=value==='__unassigned__'?'unassigned':'batch';rosterPlannerSelectionMeta=value==='__unassigned__'?'':value;rosterPlannerColorFill='';renderRosterPlanner();
+    const first=targets[0]&&Math.max(0,Number(targets[0]?.sourceRow||0)-1);if(Number.isFinite(first))rosterSheetTableEl?.querySelector?.(`[data-row="${first}"]`)?.scrollIntoView?.({block:'nearest',inline:'nearest'});
   });
   rosterBatchQuickEl?.addEventListener('click',event=>{const button=event.target.closest?.('[data-roster-batch]');if(!button||button.disabled)return;applyRosterPlannerBatch(button.dataset.rosterBatch);});
   rosterBatchApplyEl?.addEventListener('click',()=>applyRosterPlannerBatch(rosterBatchSelectEl?.value||'R5'));
   rosterBatchClearEl?.addEventListener('click',()=>applyRosterPlannerBatch('',{clear:true}));
-  rosterSheetTableEl?.addEventListener('pointerdown',event=>{const cell=event.target.closest?.('[data-roster-cell]');if(!cell||event.button!==0)return;event.preventDefault();rosterPlannerColorRows=null;rosterPlannerColorFill='';const point={r:Number(cell.dataset.row),c:Number(cell.dataset.col)};if(event.shiftKey&&rosterPlannerAnchor){rosterPlannerSelection={r1:rosterPlannerAnchor.r,c1:rosterPlannerAnchor.c,r2:point.r,c2:point.c};}else{rosterPlannerAnchor=point;rosterPlannerSelection={r1:point.r,c1:point.c,r2:point.r,c2:point.c};}rosterPlannerDragging=true;paintRosterPlannerSelection();});
+  rosterSheetTableEl?.addEventListener('pointerdown',event=>{const cell=event.target.closest?.('[data-roster-cell]');if(!cell||event.button!==0)return;event.preventDefault();rosterPlannerSelectedRows=null;rosterPlannerSelectionKind='box';rosterPlannerSelectionMeta='';rosterPlannerColorFill='';const point={r:Number(cell.dataset.row),c:Number(cell.dataset.col)};if(event.shiftKey&&rosterPlannerAnchor){rosterPlannerSelection={r1:rosterPlannerAnchor.r,c1:rosterPlannerAnchor.c,r2:point.r,c2:point.c};}else{rosterPlannerAnchor=point;rosterPlannerSelection={r1:point.r,c1:point.c,r2:point.r,c2:point.c};}rosterPlannerDragging=true;paintRosterPlannerSelection();});
   rosterSheetTableEl?.addEventListener('pointerover',event=>{if(!rosterPlannerDragging||!rosterPlannerAnchor)return;const cell=event.target.closest?.('[data-roster-cell]');if(!cell)return;rosterPlannerSelection={r1:rosterPlannerAnchor.r,c1:rosterPlannerAnchor.c,r2:Number(cell.dataset.row),c2:Number(cell.dataset.col)};paintRosterPlannerSelection();});
   rosterSheetViewportEl?.addEventListener('pointermove',event=>{if(!rosterPlannerDragging||!rosterPlannerAnchor)return;const hit=document.elementFromPoint?.(event.clientX,event.clientY)?.closest?.('[data-roster-cell]');if(!hit||!rosterSheetTableEl?.contains(hit))return;rosterPlannerSelection={r1:rosterPlannerAnchor.r,c1:rosterPlannerAnchor.c,r2:Number(hit.dataset.row),c2:Number(hit.dataset.col)};paintRosterPlannerSelection();});
   document.addEventListener('pointerup',()=>{rosterPlannerDragging=false;});
