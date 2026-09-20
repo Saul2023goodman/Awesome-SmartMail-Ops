@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.49",
-  "description": "SmartMail Ops — strict explicit-only roster batching: only dedicated batch columns with exact batch tokens are recognized; merged XLSX cells remain visually intact; row-level dominant formatting powers manual selection; users create ambiguous batches themselves.",
+  "version": "3.8.50",
+  "description": "SmartMail Ops — perceptual color-family roster selection: near-identical spreadsheet shades are clustered within and across rows while explicit-only batch recognition and intact merged-cell rendering remain enforced.",
   "permissions": [
     "scripting",
     "tabs",

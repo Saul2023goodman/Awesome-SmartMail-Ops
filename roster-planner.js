@@ -130,6 +130,38 @@
     let v=clean(value).toUpperCase();if(!v)return'';if(!v.startsWith('#')&&/^[0-9A-F]{6,8}$/.test(v))v=`#${v}`;
     if(/^#?(?:FFFFFF|FFFFFFFF|00000000|FFFFFF00)$/i.test(v))return'';return v;
   }
+  const COLOR_SIMILARITY_THRESHOLD=12;
+  function rgbForColor(value){
+    const v=normalizedFill(value);if(!/^#[0-9A-F]{6}$/i.test(v))return null;
+    return [1,3,5].map(i=>parseInt(v.slice(i,i+2),16));
+  }
+  function labForColor(value){
+    const rgb=rgbForColor(value);if(!rgb)return null;
+    const linear=rgb.map(channel=>{const c=channel/255;return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);});
+    const [r,g,b]=linear,x=(r*0.4124564+g*0.3575761+b*0.1804375)/0.95047,y=(r*0.2126729+g*0.7151522+b*0.0721750),z=(r*0.0193339+g*0.1191920+b*0.9503041)/1.08883;
+    const f=t=>t>0.008856?Math.cbrt(t):(7.787*t)+(16/116),fx=f(x),fy=f(y),fz=f(z);
+    return [(116*fy)-16,500*(fx-fy),200*(fy-fz)];
+  }
+  function colorDistance(a,b){
+    const x=labForColor(a),y=labForColor(b);if(!x||!y)return a===b?0:Infinity;
+    return Math.hypot(x[0]-y[0],x[1]-y[1],x[2]-y[2]);
+  }
+  function clusterWeightedColors(map,threshold=COLOR_SIMILARITY_THRESHOLD){
+    const items=[...map.entries()].map(([value,weight])=>({value,weight:Number(weight)||0})).filter(item=>item.value&&item.weight>0).sort((a,b)=>b.weight-a.weight||a.value.localeCompare(b.value)),clusters=[];
+    for(const item of items){
+      let best=null;
+      for(const cluster of clusters){const distance=colorDistance(item.value,cluster.value);if(distance<=threshold&&(!best||distance<best.distance))best={cluster,distance};}
+      if(best){best.cluster.weight+=item.weight;best.cluster.members.push(item);}
+      else clusters.push({value:item.value,weight:item.weight,members:[item]});
+    }
+    return clusters.sort((a,b)=>b.weight-a.weight||a.value.localeCompare(b.value));
+  }
+  function orderColorGroups(groups=[]){
+    const remaining=[...groups].sort((a,b)=>b.count-a.count||a.value.localeCompare(b.value));if(remaining.length<2)return remaining;
+    const ordered=[remaining.shift()];
+    while(remaining.length){const last=ordered[ordered.length-1];let bestIndex=0,bestDistance=Infinity;for(let i=0;i<remaining.length;i++){const distance=colorDistance(last.value,remaining[i].value);if(distance<bestDistance-1e-9||(Math.abs(distance-bestDistance)<1e-9&&remaining[i].count>remaining[bestIndex].count)){bestDistance=distance;bestIndex=i;}}ordered.push(remaining.splice(bestIndex,1)[0]);}
+    return ordered;
+  }
   function featureColumns(set){
     const plan=columnPlan(set),all=[];
     if(plan?.relevant?.size>=2)for(const c of plan.relevant)if(!plan.originalHidden?.has(c))all.push(c);
@@ -149,10 +181,11 @@
       for(const side of ['top','right','bottom','left']){const b=style.border?.[side];if(b?.style&&/^(?:medium|thick|double)$/i.test(String(b.style))){const k=String(b.style).toLowerCase();borders.set(k,(borders.get(k)||0)+weight);break;}}
     }
     const chooseDominant=(map,kind,label)=>{const ordered=[...map.entries()].sort((a,b)=>b[1]-a[1]);if(!ordered.length)return null;const [value,weight]=ordered[0],runner=ordered[1]?.[1]||0;if(runner&&weight<runner*1.2)return null;return {kind,value,label,weight};};
-    // Fill is the strongest row-level signal. Because merged cells resolve to their
-    // anchor style and column widths are weighted, a narrow yellow cell can no
-    // longer override a broad peach/blue row block.
-    const fill=chooseDominant(fills,'fill','颜色');if(fill)return fill;
+    const fillClusters=clusterWeightedColors(fills),clusteredFills=new Map(fillClusters.map(cluster=>[cluster.value,cluster.weight]));
+    // Fill is the strongest row-level signal. Similar shades are first collapsed into
+    // one perceptual color family, so accidental Excel shade drift does not split one
+    // row into competing colors. Column widths still decide how much each area weighs.
+    const fill=chooseDominant(clusteredFills,'fill','颜色');if(fill){const cluster=fillClusters.find(item=>item.value===fill.value);if(cluster?.members?.length>1)fill.variants=cluster.members.map(item=>item.value);return fill;}
     const fontColor=chooseDominant(fontColors,'font-color','字体色');if(fontColor)return fontColor;
     const border=chooseDominant(borders,'border','粗边框');if(border)return border;
     const denom=Math.max(1,textWeight||cols.reduce((n,c)=>n+columnWeight(set,c),0));
@@ -164,16 +197,21 @@
   function visualGroups(set,{startRow=1}={}){
     const cache=styleLookup(set),byFill=new Map();
     for(let row=Math.max(0,startRow);row<(set?.rows?.length||0);row++){const feature=dominantRowFeature(set,row,cache);if(feature?.kind!=='fill')continue;const fill=feature.value;if(!byFill.has(fill))byFill.set(fill,[]);byFill.get(fill).push(row);}
-    const groups=[];for(const [fill,rows] of byFill){const spans=[];let a=null,b=null;for(const row of rows){if(a==null){a=b=row;continue;}if(row===b+1){b=row;continue;}spans.push([a,b]);a=b=row;}if(a!=null)spans.push([a,b]);groups.push({fill,rows,spans,count:rows.length});}
-    return groups.sort((a,b)=>b.count-a.count||a.fill.localeCompare(b.fill));
+    const exact=[...byFill.entries()].map(([value,rows])=>({value,rows,count:rows.length})),clusters=[];
+    for(const item of exact.sort((a,b)=>b.count-a.count||a.value.localeCompare(b.value))){let best=null;for(const cluster of clusters){const distance=colorDistance(item.value,cluster.value);if(distance<=COLOR_SIMILARITY_THRESHOLD&&(!best||distance<best.distance))best={cluster,distance};}if(best){best.cluster.rows.push(...item.rows);best.cluster.count+=item.count;best.cluster.variants.push(item.value);}else clusters.push({value:item.value,fill:item.value,rows:[...item.rows],count:item.count,variants:[item.value]});}
+    return orderColorGroups(clusters).map(group=>{const rows=[...new Set(group.rows)].sort((a,b)=>a-b),spans=[];let a=null,b=null;for(const row of rows){if(a==null){a=b=row;continue;}if(row===b+1){b=row;continue;}spans.push([a,b]);a=b=row;}if(a!=null)spans.push([a,b]);return {...group,rows,spans,count:rows.length,key:`fill:${group.value}`,kind:'fill',label:'颜色'};});
   }
   function featureGroups(set,{rows:rowFilter=null,startRow=1}={}){
-    const allowed=rowFilter?new Set(rowFilter):null,cache=styleLookup(set),groups=new Map();
+    const allowed=rowFilter?new Set(rowFilter):null,cache=styleLookup(set),fillRows=new Map(),groups=new Map();
     for(let row=Math.max(0,startRow);row<(set?.rows?.length||0);row++){
       if(allowed&&!allowed.has(row))continue;const feature=dominantRowFeature(set,row,cache);if(!feature)continue;
+      if(feature.kind==='fill'){if(!fillRows.has(feature.value))fillRows.set(feature.value,[]);fillRows.get(feature.value).push(row);continue;}
       const key=`${feature.kind}:${feature.value}`;if(!groups.has(key))groups.set(key,{key,rows:[],kind:feature.kind,value:feature.value,label:feature.label});groups.get(key).rows.push(row);
     }
-    return [...groups.values()].map(g=>({...g,count:g.rows.length})).filter(g=>g.kind==='fill'||g.count>=2).sort((a,b)=>{const weight={fill:0,'font-color':1,bold:2,border:3,italic:4};return (weight[a.kind]??9)-(weight[b.kind]??9)||b.count-a.count||a.key.localeCompare(b.key);});
+    const fillClusters=[];for(const [value,rows] of [...fillRows.entries()].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0]))){let best=null;for(const cluster of fillClusters){const distance=colorDistance(value,cluster.value);if(distance<=COLOR_SIMILARITY_THRESHOLD&&(!best||distance<best.distance))best={cluster,distance};}if(best){best.cluster.rows.push(...rows);best.cluster.variants.push(value);}else fillClusters.push({key:`fill:${value}`,rows:[...rows],kind:'fill',value,label:'颜色',variants:[value]});}
+    const fills=orderColorGroups(fillClusters.map(g=>({...g,rows:[...new Set(g.rows)].sort((a,b)=>a-b),count:new Set(g.rows).size}))).map(g=>({...g,key:`fill:${g.value}`}));
+    const others=[...groups.values()].map(g=>({...g,count:g.rows.length})).filter(g=>g.count>=2).sort((a,b)=>{const weight={'font-color':1,bold:2,border:3,italic:4};return (weight[a.kind]??9)-(weight[b.kind]??9)||b.count-a.count||a.key.localeCompare(b.key);});
+    return [...fills,...others];
   }
   function explicitBatch(entry={}){if(entry?.batchExplicit!==true)return'';const round=parseRound(entry?.batch);return round!=null?`R${round+1}`:'';}
   function knownBatches(state,entries=[]){
@@ -245,5 +283,5 @@
     return {priority,batch,fixed,label,total:new Set(entries.filter(e=>intentForEntry(state,e)).map(entryKey)).size};
   }
 
-  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,dominantRowFeature,visualGroups,featureGroups,entriesForRange,intentForEntry,parseRound,explicitBatch,knownBatches,nextBatchLabel,createBatch,setActiveBatch,applyInterpretation,applyBatchToEntries,summary};
+  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,dominantRowFeature,visualGroups,featureGroups,colorDistance,entriesForRange,intentForEntry,parseRound,explicitBatch,knownBatches,nextBatchLabel,createBatch,setActiveBatch,applyInterpretation,applyBatchToEntries,summary};
 })();

@@ -2048,7 +2048,7 @@
   }
   function rosterFeatureChip(group,index){
     const count=group.entries?.length||0,key=escapeHtml(group.key||''),active=rosterPlannerFeatureKey===group.key?' is-active':'';
-    if(group.kind==='fill')return `<button class="nmda-roster-visual-chip${active}" type="button" data-roster-feature-index="${index}" title="选择这一底色的 ${count} 位联系人"><i style="background:${escapeHtml(group.value||group.fill||'#fff')}"></i><span>颜色</span><b>${count}</b></button>`;
+    if(group.kind==='fill'){const variants=Array.isArray(group.variants)?group.variants.length:1,hint=variants>1?`相近色已合并 ${variants} 种原始颜色 · `:'';return `<button class="nmda-roster-visual-chip${active}" type="button" data-roster-feature-index="${index}" title="${escapeHtml(hint)}选择这一颜色族的 ${count} 位联系人"><i style="background:${escapeHtml(group.value||group.fill||'#fff')}"></i><span>${variants>1?'近似色':'颜色'}</span><b>${count}</b></button>`;}
     if(group.kind==='font-color')return `<button class="nmda-roster-visual-chip${active}" type="button" data-roster-feature-index="${index}" title="选择这一字体颜色的 ${count} 位联系人"><i class="is-font-color" style="color:${escapeHtml(group.value||'#334155')}">A</i><span>字体色</span><b>${count}</b></button>`;
     if(group.kind==='bold')return `<button class="nmda-roster-visual-chip${active}" type="button" data-roster-feature-index="${index}" title="选择加粗的 ${count} 位联系人"><i class="is-format-mark"><strong>B</strong></i><span>加粗</span><b>${count}</b></button>`;
     if(group.kind==='italic')return `<button class="nmda-roster-visual-chip${active}" type="button" data-roster-feature-index="${index}" title="选择斜体的 ${count} 位联系人"><i class="is-format-mark"><em>I</em></i><span>斜体</span><b>${count}</b></button>`;
@@ -2081,7 +2081,7 @@
       const fixed=batchCounts.fixed?`<button type="button" class="nmda-roster-batch-segment is-fixed${isFixed?' is-active':''}" data-roster-batch-focus="__fixed__" style="--weight:${Math.max(1,batchCounts.fixed)}" title="Excel 中已有明确发送时间，无需分批"><span>固定时间</span><b>${batchCounts.fixed}</b></button>`:'';
       const unassigned=batchCounts.unassigned?`<button type="button" class="nmda-roster-batch-segment is-unassigned${isUnassigned?' is-active':''}" data-roster-batch-focus="__unassigned__" style="--weight:${Math.max(1,batchCounts.unassigned)}" title="尚未明确轮次，需要由你加入批次"><span>待分</span><b>${batchCounts.unassigned}</b></button>`:'';
       const empty=!segments?'<div class="nmda-roster-batch-empty-state"><strong>尚未创建批次</strong><span>点击“新建批次”，再选人加入。</span></div>':'';
-      rosterIntentSummaryEl.innerHTML=`<div class="nmda-roster-batch-overview-title"><strong>批次</strong><span>${assigned} 已分 · ${batchCounts.unassigned} 待分</span></div><div class="nmda-roster-batch-track">${segments}${fixed}${unassigned}${empty}</div><small>颜色和格式按每行的主导特征用于选人；不会自动变成轮次</small>`;
+      rosterIntentSummaryEl.innerHTML=`<div class="nmda-roster-batch-overview-title"><strong>批次</strong><span>${assigned} 已分 · ${batchCounts.unassigned} 待分</span></div><div class="nmda-roster-batch-track">${segments}${fixed}${unassigned}${empty}</div><small>相近颜色会自动归为同一颜色族，仅用于选人；不会自动变成轮次</small>`;
     }
     paintRosterPlannerSelection();
   }
