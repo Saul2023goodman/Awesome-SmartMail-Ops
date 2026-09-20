@@ -764,3 +764,108 @@
 #nmda-root.nmda-standalone .nmda-format-mark[data-format="quote-block"] { --semantic:#8b5aa7; --semantic-bg:#f3eaf7; }
 #nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="format"] { --semantic:#72759a; --semantic-bg:#f0f1f7; }
 #nmda-root.nmda-standalone .nmda-format-mark { --format-accent:#8b5aa7; }
+
+/* v3.8.59 — Batch format governance belongs to Preview, not the per-mail review board. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > .nmda-format-governance {
+  display:none !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] {
+  grid-template-rows:auto auto minmax(0,1fr) !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar {
+  grid-template-columns:auto minmax(90px,auto) auto minmax(0,1fr) !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry {
+  min-height:30px !important;
+  display:inline-flex !important;
+  align-items:center;
+  gap:6px;
+  white-space:nowrap;
+  border-color:#d7dee7 !important;
+  background:#fff !important;
+  color:#46515f !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry:hover,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry.is-open,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry[aria-expanded="true"] {
+  border-color:#b8c8dd !important;
+  background:#f2f7fd !important;
+  color:#245f9d !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry.has-drift:not(.is-open) {
+  border-color:#d8c7e8 !important;
+  background:#fbf8ff !important;
+  color:#684792 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry > strong {
+  min-width:17px;
+  height:17px;
+  padding:0 5px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:#7650a1;
+  color:#fff;
+  font:800 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry > strong[hidden] { display:none !important; }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance {
+  grid-column:1 / -1 !important;
+  grid-row:2 !important;
+  position:relative;
+  z-index:6;
+  width:auto !important;
+  max-height:min(34vh,310px);
+  margin:0 !important;
+  padding:11px 14px 10px !important;
+  overflow:auto;
+  border-width:0 0 1px !important;
+  border-color:#dbe2ea !important;
+  border-radius:0 !important;
+  background:linear-gradient(180deg,rgba(252,251,255,.99),rgba(248,249,252,.98)) !important;
+  box-shadow:0 10px 24px rgba(31,43,57,.055) !important;
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-head {
+  margin-bottom:9px;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-builder {
+  grid-template-columns:minmax(260px,1.35fr) auto auto;
+  gap:10px;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-review-preview-rail {
+  grid-row:3 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > #nmda-review-queue.nmda-review-continuous-preview {
+  grid-row:3 !important;
+}
+@media (max-width:980px) {
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar {
+    grid-template-columns:auto minmax(0,1fr) auto !important;
+  }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-key {
+    grid-column:1 / -1 !important;
+  }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-builder {
+    grid-template-columns:1fr auto !important;
+  }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-case {
+    grid-column:2;
+  }
+}
+@media (max-width:720px) {
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar {
+    grid-template-columns:auto minmax(0,1fr) auto !important;
+  }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance {
+    max-height:min(42vh,360px);
+    padding:10px !important;
+  }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-builder {
+    grid-template-columns:1fr !important;
+  }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-case {
+    grid-column:auto;
+  }
+}
