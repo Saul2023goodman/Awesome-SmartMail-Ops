@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.63",
-  "description": "SmartMail Ops — unifies missing-subject repair and body-format consistency into one Preview-native Batch Standards Lens with a single sequential correction plan, while preserving authoritative Follow-up history reconciliation.",
+  "version": "3.8.64",
+  "description": "SmartMail Ops — unifies Single Review and Preview into one continuous read/edit surface: Preview is authoritative, editing opens in place, legacy overlay review code is removed, while Batch Standards and Follow-up reconciliation remain intact.",
   "permissions": [
     "scripting",
     "tabs",

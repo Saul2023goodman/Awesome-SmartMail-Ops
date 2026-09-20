@@ -1187,6 +1187,8 @@
       recipients: (lastOutbound.recipients || []).map(item => ({ ...item })),
       subject: policy.composeMode === 'new' ? `Re: ${lastOutbound.subject || ''}`.trim() : String(lastOutbound.subject || ''),
       body: rendered.body,
+      bodyHtml: '',
+      bodyIsHtml: false,
       composeMode: policy.composeMode,
       contentVersion: 1,
       confirmedVersion: null,
@@ -1257,7 +1259,7 @@
     const current = next.derivedTasks[taskId];
     if (!current) throw new Error(`找不到 derived task：${taskId}`);
     if (current.state === 'sent' || current.state === 'cancelled') throw new Error('已发送或已取消的 Follow-up 不可修改。');
-    const changed = ['recipients', 'subject', 'body', 'composeMode'].some(key => patch[key] !== undefined && JSON.stringify(patch[key]) !== JSON.stringify(current[key]));
+    const changed = ['recipients', 'subject', 'body', 'bodyHtml', 'bodyIsHtml', 'composeMode'].some(key => patch[key] !== undefined && JSON.stringify(patch[key]) !== JSON.stringify(current[key]));
     const composeMode = patch.composeMode === undefined ? current.composeMode : (COMPOSE_MODES.includes(patch.composeMode) ? patch.composeMode : current.composeMode);
     const task = { ...current, ...patch, composeMode, updatedAt: nowIso() };
     if (changed) {
