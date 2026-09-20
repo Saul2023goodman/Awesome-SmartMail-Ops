@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.42",
-  "description": "SmartMail Ops — review trash and recoverable exclusion, explicit edit controls, top-left review layout, attachment transaction barrier with NetEase Compose-state verification, cumulative outreach workspace, automatic mailbox sync, unified icons, and live execution motion.",
+  "version": "3.8.43",
+  "description": "SmartMail Ops — style-aware roster planning with original XLSX formatting, human-in-the-loop free selection, roster priority/batch/fixed-time intents, review trash, attachment transaction barrier, cumulative workspace, and automatic mailbox sync.",
   "permissions": [
     "scripting",
     "tabs",

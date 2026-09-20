@@ -3080,3 +3080,59 @@
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-sheet { padding:14px 14px 18px; }
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-body { font-size:11.5px; }
 }
+
+/* v3.8.43 · style-aware roster planning inside schedule configuration */
+#nmda-root.nmda-standalone .nmda-schedule-dialog { width:min(1180px,calc(100vw - 28px)) !important; }
+.nmda-schedule-dialog-tabs {
+  display:flex; align-items:center; gap:4px; padding:8px 12px; border-bottom:1px solid #e7ecf2; background:#fbfcfe;
+}
+.nmda-schedule-dialog-tab {
+  min-height:32px; padding:0 12px; border:1px solid transparent; border-radius:8px; background:transparent; color:#667085; font-size:11px; font-weight:720; cursor:pointer;
+}
+.nmda-schedule-dialog-tab.is-active { border-color:#cfe0f7; background:#eef5ff; color:#1769e0; }
+.nmda-roster-planner-card {
+  min-height:0; display:grid; grid-template-rows:auto auto minmax(220px,1fr) auto auto; gap:8px; padding:10px 12px 12px; overflow:hidden; background:#fff;
+}
+.nmda-roster-planner-card[hidden] { display:none !important; }
+.nmda-roster-planner-toolbar { display:flex; align-items:end; justify-content:space-between; gap:12px; min-width:0; }
+.nmda-roster-planner-source { display:grid; gap:3px; min-width:min(420px,46%); }
+.nmda-roster-planner-source select { min-height:34px; border:1px solid #d6dde7; border-radius:8px; padding:0 9px; background:#fff; color:#243244; font-size:11px; }
+.nmda-roster-planner-summary { min-width:0; color:#667085; font-size:11px; text-align:right; }
+.nmda-roster-planner-summary strong { color:#1f2937; }
+.nmda-roster-visual-groups { min-height:30px; display:flex; align-items:center; gap:6px; overflow-x:auto; padding:2px 0 3px; scrollbar-width:thin; }
+.nmda-roster-visual-label { flex:0 0 auto; color:#7b8798; font-size:10px; font-weight:700; }
+.nmda-roster-visual-chip { flex:0 0 auto; display:inline-flex; align-items:center; gap:5px; min-height:24px; padding:0 7px; border:1px solid #e0e6ee; border-radius:999px; background:#fff; color:#596579; font:650 9.5px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; cursor:pointer; }
+.nmda-roster-visual-chip:hover { border-color:#aac7ee; background:#f4f8fe; color:#1769e0; }
+.nmda-roster-visual-chip:focus-visible { outline:2px solid #1769e0; outline-offset:2px; }
+.nmda-roster-visual-chip i { width:10px; height:10px; border:1px solid rgba(15,23,42,.15); border-radius:3px; }
+.nmda-roster-sheet-viewport { min-height:220px; overflow:auto; border:1px solid #d8e0ea; border-radius:10px; background:#f7f9fc; outline:none; }
+.nmda-roster-sheet-viewport:focus-visible { border-color:#7fb1f4; box-shadow:0 0 0 3px rgba(23,105,224,.10); }
+.nmda-roster-sheet-table { width:max-content; min-width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; background:#fff; user-select:none; }
+.nmda-roster-sheet-table th,.nmda-roster-sheet-table td { box-sizing:border-box; }
+.nmda-roster-sheet-table thead th { position:sticky; top:0; z-index:5; height:24px; border-right:1px solid #dce3eb; border-bottom:1px solid #cfd8e3; background:#eef2f6; color:#6b7788; font-size:9px; font-weight:720; text-align:center; }
+.nmda-roster-sheet-table .nmda-roster-corner { left:0; z-index:7; width:38px; min-width:38px; }
+.nmda-roster-sheet-table .nmda-roster-rowhead { position:sticky; left:0; z-index:4; width:38px; min-width:38px; border-right:1px solid #cfd8e3; border-bottom:1px solid #e5e9ef; background:#f1f4f7; color:#7c8795; font-size:9px; font-weight:650; text-align:center; }
+.nmda-roster-sheet-table td { min-height:26px; padding:4px 6px; border-right:1px solid #e4e9ef; border-bottom:1px solid #e4e9ef; background-clip:padding-box; color:#263244; font-size:10.5px; line-height:1.28; vertical-align:top; cursor:cell; overflow:hidden; }
+.nmda-roster-sheet-table td > span { display:block; max-height:64px; overflow:hidden; white-space:inherit; text-overflow:ellipsis; }
+.nmda-roster-sheet-table td.is-selected { position:relative; box-shadow:inset 0 0 0 2px #1769e0; background-image:linear-gradient(rgba(23,105,224,.10),rgba(23,105,224,.10)); }
+.nmda-roster-interpret-bar { display:grid; grid-template-columns:minmax(190px,1.35fr) 160px minmax(150px,.8fr) auto auto; gap:7px; align-items:end; padding:8px; border:1px solid #dce5ef; border-radius:10px; background:#f8fafc; }
+.nmda-roster-selection-copy { min-width:0; display:grid; gap:2px; align-self:center; }
+.nmda-roster-selection-copy strong { color:#243244; font-size:11px; }
+.nmda-roster-selection-copy small { color:#778397; font-size:9.5px; line-height:1.35; }
+.nmda-roster-interpret-bar label { min-width:0; display:grid; gap:3px; color:#667085; font-size:9px; font-weight:650; }
+.nmda-roster-interpret-bar select,.nmda-roster-interpret-bar input { width:100%; min-height:32px; border:1px solid #d5dde7; border-radius:7px; padding:0 7px; background:#fff; color:#263244; font-size:10.5px; }
+.nmda-roster-intent-summary { min-height:30px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; color:#667085; font-size:10px; }
+.nmda-roster-intent-summary > span { font-weight:700; color:#42526a; }
+.nmda-roster-intent-summary > strong { color:#1769e0; }
+.nmda-roster-intent-summary > small { margin-left:auto; color:#8a94a4; }
+@media (max-width:900px) {
+  #nmda-root.nmda-standalone .nmda-schedule-dialog { width:calc(100vw - 12px) !important; }
+  .nmda-roster-planner-card { grid-template-rows:auto auto minmax(200px,1fr) auto auto; padding:8px; }
+  .nmda-roster-planner-toolbar { align-items:stretch; flex-direction:column; gap:6px; }
+  .nmda-roster-planner-source { min-width:0; width:100%; }
+  .nmda-roster-planner-summary { text-align:left; }
+  .nmda-roster-interpret-bar { grid-template-columns:1fr 1fr; }
+  .nmda-roster-selection-copy { grid-column:1 / -1; }
+  .nmda-roster-intent-summary > small { width:100%; margin-left:0; }
+}
+#nmda-root.nmda-standalone .nmda-schedule-dialog { grid-template-rows:auto auto minmax(0,1fr) auto !important; }

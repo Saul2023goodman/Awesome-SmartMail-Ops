@@ -315,19 +315,119 @@
   function resolveTarget(base,target){if(String(target||'').startsWith('/'))return String(target).replace(/^\/+/, '');const p=base.split('/');p.pop();for(const part of String(target||'').split('/')){if(!part||part==='.')continue;if(part==='..')p.pop();else p.push(part);}return p.join('/');}
   function columnIndex(ref){const letters=String(ref||'').match(/^[A-Z]+/i)?.[0]?.toUpperCase()||'';let n=0;for(const ch of letters)n=n*26+ch.charCodeAt(0)-64;return Math.max(0,n-1);}
   function parseSharedStrings(doc){return doc?els(doc,'si').map(si=>els(si,'t').map(t=>t.textContent||'').join('')):[];}
-  function parseWorksheet(doc,shared){
-    const rows=[];
+
+  const EXCEL_INDEXED_COLORS=['000000','FFFFFF','FF0000','00FF00','0000FF','FFFF00','FF00FF','00FFFF','800000','008000','000080','808000','800080','008080','C0C0C0','808080'];
+  const EXCEL_BUILTIN_DATE_FORMATS=new Map([
+    [14,'m/d/yy'],[15,'d-mmm-yy'],[16,'d-mmm'],[17,'mmm-yy'],[18,'h:mm AM/PM'],[19,'h:mm:ss AM/PM'],[20,'h:mm'],[21,'h:mm:ss'],[22,'m/d/yy h:mm'],
+    [27,'yyyy/m/d'],[28,'yyyy/m/d'],[29,'yyyy/m/d'],[30,'m/d/yy'],[31,'yyyy年m月d日'],[32,'h时mm分'],[33,'h时mm分ss秒'],[34,'上午/下午h时mm分'],[35,'上午/下午h时mm分ss秒'],[36,'yyyy年m月'],
+    [45,'mm:ss'],[46,'[h]:mm:ss'],[47,'mmss.0'],[50,'yyyy/m/d'],[51,'yyyy/m/d'],[52,'yyyy/m/d'],[53,'yyyy/m/d'],[54,'yyyy/m/d'],[55,'yyyy/m/d'],[56,'yyyy/m/d'],[57,'yyyy/m/d'],[58,'yyyy/m/d']
+  ]);
+  function clampByte(v){return Math.max(0,Math.min(255,Math.round(Number(v)||0)));}
+  function normalizeHexColor(raw){
+    const value=String(raw||'').replace(/^#/,'').trim();
+    if(/^[0-9a-f]{8}$/i.test(value))return value.slice(2).toUpperCase();
+    if(/^[0-9a-f]{6}$/i.test(value))return value.toUpperCase();
+    return '';
+  }
+  function tintHexColor(hex,tintRaw){
+    const clean=normalizeHexColor(hex);if(!clean)return'';
+    const tint=Number(tintRaw);if(!Number.isFinite(tint)||Math.abs(tint)<1e-9)return clean;
+    const channels=[0,2,4].map(i=>parseInt(clean.slice(i,i+2),16));
+    const adjusted=channels.map(c=>tint<0?c*(1+tint):c*(1-tint)+255*tint);
+    return adjusted.map(c=>clampByte(c).toString(16).padStart(2,'0')).join('').toUpperCase();
+  }
+  function parseThemeColors(doc){
+    const scheme=first(doc,'clrScheme');if(!scheme)return[];
+    const out=[];
+    for(const child of Array.from(scheme.children||[])){
+      const color=first(child,'srgbClr')||first(child,'sysClr');
+      const raw=color?.getAttribute?.('val')||color?.getAttribute?.('lastClr')||'';
+      out.push(normalizeHexColor(raw));
+    }
+    return out;
+  }
+  function resolveExcelColor(colorEl,theme=[]){
+    if(!colorEl)return'';
+    let hex=normalizeHexColor(colorEl.getAttribute?.('rgb')||'');
+    if(!hex){
+      const themeIndex=Number(colorEl.getAttribute?.('theme'));
+      if(Number.isInteger(themeIndex)&&themeIndex>=0)hex=theme[themeIndex]||'';
+    }
+    if(!hex){
+      const indexed=Number(colorEl.getAttribute?.('indexed'));
+      if(Number.isInteger(indexed)&&indexed>=0)hex=EXCEL_INDEXED_COLORS[indexed]||'';
+    }
+    if(!hex&&String(colorEl.getAttribute?.('auto')||'')==='1')hex='';
+    return tintHexColor(hex,colorEl.getAttribute?.('tint'));
+  }
+  function directChildren(root,name){return Array.from(root?.children||[]).filter(el=>(el.localName||el.tagName||'').split(':').pop()===name);}
+  function parseBorderSide(side,theme){
+    if(!side)return null;const style=String(side.getAttribute?.('style')||'');const color=resolveExcelColor(first(side,'color'),theme);
+    return style||color?{style,color:color?`#${color}`:''}:null;
+  }
+  function parseXlsxStyles(stylesDoc,themeDoc){
+    const theme=parseThemeColors(themeDoc),customNumFmts=new Map();
+    for(const numFmt of els(first(stylesDoc,'numFmts'),'numFmt')){
+      const id=Number(numFmt.getAttribute('numFmtId')),code=String(numFmt.getAttribute('formatCode')||'');if(Number.isFinite(id))customNumFmts.set(id,code);
+    }
+    const fonts=directChildren(first(stylesDoc,'fonts'),'font').map(font=>{
+      const size=Number(first(font,'sz')?.getAttribute?.('val'))||null;
+      const name=String(first(font,'name')?.getAttribute?.('val')||'');
+      const color=resolveExcelColor(first(font,'color'),theme);
+      return {bold:!!first(font,'b'),italic:!!first(font,'i'),underline:!!first(font,'u'),strike:!!first(font,'strike'),size,name,color:color?`#${color}`:''};
+    });
+    const fills=directChildren(first(stylesDoc,'fills'),'fill').map(fill=>{
+      const pattern=first(fill,'patternFill'),patternType=String(pattern?.getAttribute?.('patternType')||'');
+      const fg=resolveExcelColor(first(pattern,'fgColor'),theme),bg=resolveExcelColor(first(pattern,'bgColor'),theme);
+      return {pattern:patternType,fg:fg?`#${fg}`:'',bg:bg?`#${bg}`:''};
+    });
+    const borders=directChildren(first(stylesDoc,'borders'),'border').map(border=>({
+      left:parseBorderSide(first(border,'left'),theme),right:parseBorderSide(first(border,'right'),theme),top:parseBorderSide(first(border,'top'),theme),bottom:parseBorderSide(first(border,'bottom'),theme)
+    }));
+    const xfs=directChildren(first(stylesDoc,'cellXfs'),'xf');
+    const styles=xfs.map((xf,index)=>{
+      const fontId=Number(xf.getAttribute('fontId'))||0,fillId=Number(xf.getAttribute('fillId'))||0,borderId=Number(xf.getAttribute('borderId'))||0,numFmtId=Number(xf.getAttribute('numFmtId'))||0;
+      const alignment=first(xf,'alignment');
+      const numberFormat=customNumFmts.get(numFmtId)||EXCEL_BUILTIN_DATE_FORMATS.get(numFmtId)||'';
+      return {id:index,font:fonts[fontId]||{},fill:fills[fillId]||{},border:borders[borderId]||{},numFmtId,numberFormat,alignment:{horizontal:String(alignment?.getAttribute?.('horizontal')||''),vertical:String(alignment?.getAttribute?.('vertical')||''),wrap:String(alignment?.getAttribute?.('wrapText')||'')==='1',textRotation:Number(alignment?.getAttribute?.('textRotation')||0)||0}};
+    });
+    return {styles:styles.length?styles:[{id:0,font:{},fill:{},border:{},numFmtId:0,numberFormat:'',alignment:{}}],theme};
+  }
+  function looksLikeExcelDateFormat(code){
+    const clean=String(code||'').replace(/"[^"]*"/g,'').replace(/\\./g,'').replace(/\[[^\]]*\]/g,'').toLowerCase();
+    if(!clean)return false;
+    return /(?:^|[^a-z])[ymdhis]+(?:[^a-z]|$)/.test(clean)||/(?:am\/pm|上午|下午|年|月|日|时|分|秒)/.test(clean);
+  }
+  function excelSerialToText(value,numberFormat=''){
+    const serial=Number(value);if(!Number.isFinite(serial)||!looksLikeExcelDateFormat(numberFormat))return value;
+    const ms=Math.round((serial-25569)*86400000),date=new Date(ms);if(Number.isNaN(date.getTime()))return value;
+    const pad=n=>String(n).padStart(2,'0'),y=date.getUTCFullYear(),m=pad(date.getUTCMonth()+1),d=pad(date.getUTCDate()),hh=pad(date.getUTCHours()),mm=pad(date.getUTCMinutes()),ss=pad(date.getUTCSeconds());
+    const hasTime=/(?:h|s|am\/pm|时|分|秒)/i.test(String(numberFormat||''));
+    return hasTime?`${y}-${m}-${d} ${hh}:${mm}${ss!=='00'?`:${ss}`:''}`:`${y}-${m}-${d}`;
+  }
+  function parseWorksheet(doc,shared,styleBook={styles:[{}]}){
+    const rows=[],cellStyles=[],rowStyles={},rowHeights={},hiddenRows=[],colWidths=[],colStyles=[],hiddenCols=[],merges=[];let maxCol=0;
     for(const rowEl of els(doc,'row')){
       const rn=Number(rowEl.getAttribute('r'))||rows.length+1,row=[];
-      for(const c of els(rowEl,'c')){
-        const col=columnIndex(c.getAttribute('r')),type=c.getAttribute('t')||'',v=first(c,'v')?.textContent??'';let value=v;
+      const rowStyleId=Math.max(0,Number(rowEl.getAttribute('s'))||0);if(rowStyleId)rowStyles[rn-1]=rowStyleId;
+      const ht=Number(rowEl.getAttribute('ht'));if(Number.isFinite(ht)&&ht>0)rowHeights[rn-1]=ht;
+      if(String(rowEl.getAttribute('hidden')||'')==='1')hiddenRows.push(rn-1);
+      for(const c of directChildren(rowEl,'c')){
+        const col=columnIndex(c.getAttribute('r')),type=c.getAttribute('t')||'',v=first(c,'v')?.textContent??'',styleId=Math.max(0,Number(c.getAttribute('s'))||0);let value=v;
         if(type==='s')value=shared[Number(v)]??'';
         else if(type==='inlineStr')value=els(c,'t').map(t=>t.textContent||'').join('');
         else if(type==='b')value=v==='1';
-        else if(type==='n'||!type){const n=Number(v);value=v!==''&&Number.isFinite(n)?n:v;}
-        row[col]=value;
+        else if(type==='str')value=String(v||'');
+        else if(type==='n'||!type){const n=Number(v);value=v!==''&&Number.isFinite(n)?excelSerialToText(n,styleBook.styles?.[styleId]?.numberFormat||''):v;}
+        row[col]=value;maxCol=Math.max(maxCol,col+1);if(styleId)cellStyles.push([rn-1,col,styleId]);
       }
       while(rows.length<rn-1)rows.push([]);rows[rn-1]=row;
+    }
+    for(const colEl of els(first(doc,'cols'),'col')){
+      const min=Math.max(1,Number(colEl.getAttribute('min'))||1),max=Math.max(min,Number(colEl.getAttribute('max'))||min),width=Number(colEl.getAttribute('width')),colStyleId=Math.max(0,Number(colEl.getAttribute('style'))||0);
+      if(Number.isFinite(width)&&width>0)colWidths.push([min-1,max-1,width]);
+      if(colStyleId)colStyles.push([min-1,max-1,colStyleId]);
+      if(String(colEl.getAttribute('hidden')||'')==='1')hiddenCols.push([min-1,max-1]);
     }
     // Excel stores a merged range's value only in its top-left cell. Vertical
     // merges are commonly used for one university spanning several supervisors;
@@ -336,15 +436,27 @@
     for(const merge of els(doc,'mergeCell')){
       const ref=String(merge.getAttribute('ref')||''),parts=ref.split(':');if(parts.length!==2)continue;
       const a=parts[0].match(/^([A-Z]+)(\d+)$/i),b=parts[1].match(/^([A-Z]+)(\d+)$/i);if(!a||!b)continue;
-      const c1=columnIndex(a[1]),c2=columnIndex(b[1]),r1=Number(a[2])-1,r2=Number(b[2])-1;
+      const c1=columnIndex(a[1]),c2=columnIndex(b[1]),r1=Number(a[2])-1,r2=Number(b[2])-1;merges.push([r1,c1,r2,c2]);maxCol=Math.max(maxCol,c2+1);
       if(c1!==c2||r2<=r1)continue;
       const value=rows[r1]?.[c1];if(value==null||String(value).trim()==='')continue;
       for(let rowIndex=r1+1;rowIndex<=r2;rowIndex++){if(!rows[rowIndex])rows[rowIndex]=[];if(rows[rowIndex][c1]==null||String(rows[rowIndex][c1]).trim()==='')rows[rowIndex][c1]=value;}
     }
-    return Core.normalizeRows(rows);
+    const normalized=Core.normalizeRows(rows);
+    return {rows:normalized,visual:{version:1,styleTable:styleBook.styles||[],cellStyles,rowStyles,colStyles,merges,rowHeights,colWidths,hiddenRows,hiddenCols,usedRange:{rows:normalized.length,cols:maxCol},hasFormatting:!!(cellStyles.length||Object.keys(rowStyles).length||colStyles.length||merges.length||Object.keys(rowHeights).length||colWidths.length)}};
   }
   function xmlEntry(entries,path,required=true){const bytes=entries.get(path.replace(/^\/+/,''));if(!bytes){if(!required)return null;throw new Error(`文件缺少：${path}`);}return xmlFromBytes(bytes,path);}
-  async function parseXlsx(buffer){const entries=await unzip(buffer), wb=xmlEntry(entries,'xl/workbook.xml'), rels=xmlEntry(entries,'xl/_rels/workbook.xml.rels'), shared=parseSharedStrings(xmlEntry(entries,'xl/sharedStrings.xml',false)), relMap=new Map();for(const rel of els(rels,'Relationship'))relMap.set(rel.getAttribute('Id'),rel.getAttribute('Target'));const sheets=[];for(const sh of els(wb,'sheet')){const name=sh.getAttribute('name')||`Sheet${sheets.length+1}`,rid=sh.getAttribute('r:id')||attrLocal(sh,'id'),target=relMap.get(rid);if(!target)continue;const path=resolveTarget('xl/workbook.xml',target);sheets.push({name,rows:parseWorksheet(xmlEntry(entries,path),shared)});}if(!sheets.length)throw new Error('XLSX 中没有可读取的工作表。');return {sheets,entries};}
+  async function parseXlsx(buffer){
+    const entries=await unzip(buffer),wb=xmlEntry(entries,'xl/workbook.xml'),rels=xmlEntry(entries,'xl/_rels/workbook.xml.rels'),shared=parseSharedStrings(xmlEntry(entries,'xl/sharedStrings.xml',false));
+    const stylesDoc=xmlEntry(entries,'xl/styles.xml',false),themeDoc=xmlEntry(entries,'xl/theme/theme1.xml',false),styleBook=parseXlsxStyles(stylesDoc,themeDoc),relMap=new Map();
+    for(const rel of els(rels,'Relationship'))relMap.set(rel.getAttribute('Id'),rel.getAttribute('Target'));
+    const sheets=[];
+    for(const sh of els(wb,'sheet')){
+      const name=sh.getAttribute('name')||`Sheet${sheets.length+1}`,rid=sh.getAttribute('r:id')||attrLocal(sh,'id'),target=relMap.get(rid);if(!target)continue;
+      const path=resolveTarget('xl/workbook.xml',target),parsed=parseWorksheet(xmlEntry(entries,path),shared,styleBook);
+      sheets.push({name,rows:parsed.rows,meta:{xlsx:true,excelVisual:parsed.visual}});
+    }
+    if(!sheets.length)throw new Error('XLSX 中没有可读取的工作表。');return {sheets,entries};
+  }
   async function parseOdsZip(buffer){const entries=await unzip(buffer), content=entries.get('content.xml');if(!content)throw new Error('ODS 缺少 content.xml。');return {sheets:parseOdsDocument(xmlFromBytes(content,'ODS content.xml')),entries};}
 
   function makeVirtualFile(name,bytes){const file=new File([bytes],name,{type:'application/octet-stream'});try{Object.defineProperty(file,'_nmdaPath',{value:name,configurable:true});}catch(_){}return file;}

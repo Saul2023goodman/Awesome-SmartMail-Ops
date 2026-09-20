@@ -10,6 +10,7 @@
   const Scheduler = globalThis.NMDAScheduler;
   const Dispatch = globalThis.NMDADispatch;
   const Roster = globalThis.NMDARoster;
+  const RosterPlanner = globalThis.NMDARosterPlanner;
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const executionProgressHandlers = new Map();
 
@@ -703,9 +704,32 @@
             <div class="nmda-workflow-modal-overlay" id="nmda-schedule-modal" hidden>
               <section class="nmda-workflow-dialog nmda-schedule-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-schedule-dialog-title">
                 <header class="nmda-workflow-dialog-head">
-                  <div><span class="nmda-dialog-eyebrow">本批次</span><h3 id="nmda-schedule-dialog-title">排期设置</h3><p>设置规则后应用到当前已选择邮件。</p></div>
+                  <div><span class="nmda-dialog-eyebrow">本批次</span><h3 id="nmda-schedule-dialog-title">排期规划</h3><p>保留总名单原貌，先解释名单意图，再编译为发送时间。</p></div>
                   <button class="nmda-dialog-close" id="nmda-close-schedule-modal" type="button" aria-label="关闭排期设置">×</button>
                 </header>
+                <div class="nmda-schedule-dialog-tabs" role="tablist" aria-label="排期配置视图">
+                  <button class="nmda-schedule-dialog-tab is-active" type="button" data-schedule-dialog-view="roster">名单规划</button>
+                  <button class="nmda-schedule-dialog-tab" type="button" data-schedule-dialog-view="rules">时间规则</button>
+                </div>
+                <section class="nmda-roster-planner-card" id="nmda-roster-planner-card">
+                  <div class="nmda-roster-planner-toolbar">
+                    <div class="nmda-roster-planner-source"><span class="nmda-dialog-eyebrow">原始名单</span><select id="nmda-roster-planner-source" aria-label="选择名单工作表"></select></div>
+                    <div class="nmda-roster-planner-summary" id="nmda-roster-planner-summary">等待读取总名单…</div>
+                  </div>
+                  <div class="nmda-roster-visual-groups" id="nmda-roster-visual-groups"></div>
+                  <div class="nmda-roster-sheet-viewport" id="nmda-roster-sheet-viewport" tabindex="0" aria-label="总名单原格式预览，可拖动框选单元格">
+                    <table class="nmda-roster-sheet-table" id="nmda-roster-sheet-table"></table>
+                  </div>
+                  <div class="nmda-roster-interpret-bar">
+                    <div class="nmda-roster-selection-copy"><strong id="nmda-roster-selection-label">尚未框选</strong><small id="nmda-roster-selection-detail">拖动框选任意区域；系统只读取选区涉及的联系人行，不替颜色自动赋义。</small></div>
+                    <label><span>解释为</span><select id="nmda-roster-intent-semantic"><option value="batch">批次 / 轮次</option><option value="priority-sequence">按行顺序设优先级</option><option value="fixed-time">固定发送时间</option><option value="label">业务标签</option><option value="clear">清除此选区解释</option></select></label>
+                    <label id="nmda-roster-intent-value-field"><span>值</span><input id="nmda-roster-intent-value" type="text" value="R1" placeholder="例如 R1"></label>
+                    <label id="nmda-roster-intent-time-field" hidden><span>固定时间</span><input id="nmda-roster-intent-time" type="datetime-local"></label>
+                    <button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-roster-intent-apply" type="button" disabled>应用到选区</button>
+                    <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-selection-clear" type="button">取消框选</button>
+                  </div>
+                  <div class="nmda-roster-intent-summary" id="nmda-roster-intent-summary"></div>
+                </section>
                 <section class="nmda-schedule-dialog-body" id="nmda-scheduler-card" hidden>
                   <div class="nmda-schedule-dialog-summary" id="nmda-schedule-summary"></div>
                   <div class="nmda-scheduler-grid">
@@ -1561,7 +1585,7 @@
     importMeta: null,
     sessionId: 0, importBusy: false, schedulePlan: null, existingScheduleAnchors: [], existingScheduleReadAt: '', existingScheduleStatus: 'idle', existingScheduleError: '',
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, includeMailboxScheduled:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
-    roster: emptyRosterState(), duplicateAudit:null,
+    roster: emptyRosterState(), rosterPlanner:RosterPlanner?.createState?.()||{version:1,sourceKey:'',intents:{}}, duplicateAudit:null,
     handoffComplete: false, autoAdvancing: false, reviewFilter: 'all', reviewSearch: '', reviewSelected: new Set(), reviewSurface:'board', reviewPreviewKey:'', duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, preflightView:'files', supportView:'roster', attachmentManagerOpen:false, uiStep:1, planningView:'mails', reviewReturnStep:2, sourceInspectName:'', preflightFolderPath:'', preflightSearch:'', preflightReviewOnly:false, preflightPurposeFilter:'', ignoredAttachmentIdentities:new Set(), bulkSubjectPromptAutoShown:false, bulkSubjectPromptDismissed:false
   };
 
@@ -1630,6 +1654,7 @@
       reviewFilter:String(batch.reviewFilter||'all'),
       reviewSearch:String(batch.reviewSearch||''),
       roster:storagePlainClone(batch.roster),
+      rosterPlanner:storagePlainClone(batch.rosterPlanner),
       supplementPreflightDone:!!batch.supplementPreflightDone,
       rosterPromptChoice:String(batch.rosterPromptChoice||'idle'),
       attachmentPrepChoice:String(batch.attachmentPrepChoice||'idle'),
@@ -1674,6 +1699,7 @@
       batch.reviewFilter = String(saved.reviewFilter||'all');
       batch.reviewSearch = String(saved.reviewSearch||'');
       batch.roster = saved.roster ? { ...emptyRosterState(), ...saved.roster } : emptyRosterState();
+      batch.rosterPlanner = RosterPlanner?.createState?.(saved.rosterPlanner)||{version:1,sourceKey:'',intents:{}};
       // Normalize persisted roster fragments before task rebuilding so historical multi-import
       // workspaces get the same stable identity keys and dedupe behavior as new imports.
       syncRosterParts();
@@ -1766,6 +1792,7 @@
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time');
   const scheduleStartEl = $('nmda-rule-start-at'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), scheduleIntervalDaysEl = $('nmda-rule-interval-days'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleMailboxExistingEl = $('nmda-rule-include-mailbox-scheduled'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
   const scheduleApplyEl = $('nmda-apply-schedule'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
+  const rosterPlannerCardEl=$('nmda-roster-planner-card'), rosterPlannerSourceEl=$('nmda-roster-planner-source'), rosterPlannerSummaryEl=$('nmda-roster-planner-summary'), rosterVisualGroupsEl=$('nmda-roster-visual-groups'), rosterSheetViewportEl=$('nmda-roster-sheet-viewport'), rosterSheetTableEl=$('nmda-roster-sheet-table'), rosterSelectionLabelEl=$('nmda-roster-selection-label'), rosterSelectionDetailEl=$('nmda-roster-selection-detail'), rosterIntentSemanticEl=$('nmda-roster-intent-semantic'), rosterIntentValueFieldEl=$('nmda-roster-intent-value-field'), rosterIntentValueEl=$('nmda-roster-intent-value'), rosterIntentTimeFieldEl=$('nmda-roster-intent-time-field'), rosterIntentTimeEl=$('nmda-roster-intent-time'), rosterIntentApplyEl=$('nmda-roster-intent-apply'), rosterSelectionClearEl=$('nmda-roster-selection-clear'), rosterIntentSummaryEl=$('nmda-roster-intent-summary');
   const batchSearchEl = $('nmda-batch-search');
   const batchTagIncludeEl = $('nmda-batch-tag-include');
   const importBusyBadgeEl = $('nmda-import-busy-badge'), resetImportEl = $('nmda-reset-import');
@@ -1811,6 +1838,112 @@
     batch.scheduleRules=rules; saveScheduleRulePrefs(rules); return rules;
   }
   batch.scheduleRules = freshScheduleRules();
+
+  let rosterPlannerSelection=null, rosterPlannerAnchor=null, rosterPlannerDragging=false;
+  function rosterPlannerSources(){
+    if(!RosterPlanner)return[];
+    const out=[],seen=new Set(),pushSet=(set,origin)=>{
+      if(!set?.rows?.length||!set?.meta?.excelVisual)return;
+      const key=RosterPlanner.sourceKey(set);if(seen.has(key))return;seen.add(key);out.push({key,set,origin});
+    };
+    const state=rosterState();
+    const datasets=Array.isArray(state.datasets)&&state.datasets.length?state.datasets:(state.dataset?[state.dataset]:[]);
+    for(const dataset of [...datasets].reverse())for(const set of (dataset?.recordSets||dataset?.sheets||[]))pushSet(set,'manual');
+    const sets=recordSets();
+    for(let i=0;i<sets.length;i++){const set=sets[i],config=ensureCollectionConfig(i);if(config?.purpose==='roster')pushSet(set,'routed');}
+    return out;
+  }
+  function rosterPlannerEntriesForSet(set){
+    if(!set||!Roster)return[];
+    try{return Roster.parseDataset({recordSets:[set],sheets:[set]}).entries||[];}catch(_){return[];}
+  }
+  function rosterPlannerCurrentSource(){
+    const sources=rosterPlannerSources();if(!sources.length)return null;
+    const wanted=String(batch.rosterPlanner?.sourceKey||'');return sources.find(item=>item.key===wanted)||sources[0];
+  }
+  function rosterPlannerMergeMaps(set){
+    const top=new Map(),covered=new Set();
+    for(const merge of set?.meta?.excelVisual?.merges||[]){if(!Array.isArray(merge)||merge.length<4)continue;const [r1,c1,r2,c2]=merge;top.set(`${r1}:${c1}`,{rowSpan:r2-r1+1,colSpan:c2-c1+1});for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)if(r!==r1||c!==c1)covered.add(`${r}:${c}`);}
+    return {top,covered};
+  }
+  function rosterPlannerColumnWidths(set,maxCols){
+    const widths=Array.from({length:maxCols},(_,c)=>Math.min(280,Math.max(88,Math.max(...(set.rows||[]).slice(0,60).map(row=>String(row?.[c]??'').length),6)*7+24)));
+    for(const spec of set?.meta?.excelVisual?.colWidths||[]){const [a,b,width]=spec||[];for(let c=Math.max(0,a||0);c<=Math.min(maxCols-1,b||0);c++)widths[c]=Math.min(360,Math.max(54,Number(width||10)*7+8));}
+    return widths;
+  }
+  function renderRosterPlannerTable(set){
+    if(!rosterSheetTableEl)return;
+    const rows=set?.rows||[],visual=set?.meta?.excelVisual||{},maxRows=Math.min(rows.length,320),maxCols=Math.min(40,Math.max(Number(visual.usedRange?.cols||0),...rows.slice(0,maxRows).map(row=>row?.length||0),1));
+    const widths=rosterPlannerColumnWidths(set,maxCols),merge=rosterPlannerMergeMaps(set),styleCache=RosterPlanner.styleLookup(set),hiddenRows=new Set(visual.hiddenRows||[]),hiddenCols=[];
+    for(const [a,b] of visual.hiddenCols||[])for(let c=a;c<=b;c++)hiddenCols.push(c);const hiddenColSet=new Set(hiddenCols);
+    let html='<colgroup>'+widths.map((width,c)=>`<col style="width:${Math.round(width)}px;${hiddenColSet.has(c)?'display:none;':''}">`).join('')+'</colgroup><thead><tr><th class="nmda-roster-corner"></th>';
+    for(let c=0;c<maxCols;c++)html+=`<th class="nmda-roster-colhead"${hiddenColSet.has(c)?' style="display:none"':''}>${RosterPlanner.columnLabel(c)}</th>`;html+='</tr></thead><tbody>';
+    for(let r=0;r<maxRows;r++){
+      const rowHeight=Number(visual.rowHeights?.[r]||0),trStyle=`${rowHeight?`height:${Math.max(22,Math.min(110,rowHeight*1.333))}px;`:''}${hiddenRows.has(r)?'display:none;':''}`;
+      html+=`<tr style="${trStyle}"><th class="nmda-roster-rowhead">${r+1}</th>`;
+      for(let c=0;c<maxCols;c++){
+        if(hiddenColSet.has(c)||merge.covered.has(`${r}:${c}`))continue;
+        const span=merge.top.get(`${r}:${c}`)||{},style=RosterPlanner.styleAt(set,r,c,styleCache),css=RosterPlanner.cssForStyle(style),value=String(rows[r]?.[c]??'');
+        const spanAttrs=`${span.rowSpan>1?` rowspan="${span.rowSpan}"`:''}${span.colSpan>1?` colspan="${span.colSpan}"`:''}`;
+        html+=`<td data-roster-cell data-row="${r}" data-col="${c}"${spanAttrs} style="${css}"><span>${escapeHtml(value)}</span></td>`;
+      }
+      html+='</tr>';
+    }
+    html+='</tbody>';rosterSheetTableEl.innerHTML=html;paintRosterPlannerSelection();
+  }
+  function rosterPlannerSelectionEntries(){const current=rosterPlannerCurrentSource();if(!current||!rosterPlannerSelection)return[];return RosterPlanner.entriesForRange(rosterPlannerEntriesForSet(current.set),current.set,rosterPlannerSelection);}
+  function paintRosterPlannerSelection(){
+    if(!rosterSheetTableEl)return;const range=RosterPlanner?.normalizeRange?.(rosterPlannerSelection);
+    rosterSheetTableEl.querySelectorAll('[data-roster-cell]').forEach(cell=>{const r=Number(cell.dataset.row),c=Number(cell.dataset.col),selected=!!range&&r>=range.r1&&r<=range.r2&&c>=range.c1&&c<=range.c2;cell.classList.toggle('is-selected',selected);});
+    const entries=rosterPlannerSelectionEntries();
+    if(rosterSelectionLabelEl)rosterSelectionLabelEl.textContent=range?`${RosterPlanner.rangeLabel(range)} · ${entries.length} 位联系人`:'尚未框选';
+    if(rosterSelectionDetailEl)rosterSelectionDetailEl.textContent=range?(entries.length?'该解释只写入命中的联系人行；原 Excel 样式保持不变。':'当前矩形没有命中可识别联系人行。'):'拖动框选任意区域；系统只读取选区涉及的联系人行，不替颜色自动赋义。';
+    if(rosterIntentApplyEl)rosterIntentApplyEl.disabled=!range||!entries.length;
+  }
+  function renderRosterPlanner(){
+    if(!rosterPlannerCardEl||!RosterPlanner)return;
+    batch.rosterPlanner=RosterPlanner.createState(batch.rosterPlanner);
+    const sources=rosterPlannerSources();
+    if(rosterPlannerSourceEl){rosterPlannerSourceEl.innerHTML=sources.map(item=>`<option value="${escapeHtml(item.key)}">${escapeHtml(item.set.source||'Excel')} · ${escapeHtml(item.set.name||'Sheet')}</option>`).join('');rosterPlannerSourceEl.disabled=!sources.length;}
+    if(!sources.length){
+      if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.textContent='当前没有保留原格式的 XLSX 总名单。上传 XLSX 后可在这里按原表样式框选解释。';
+      if(rosterSheetTableEl)rosterSheetTableEl.innerHTML='';if(rosterVisualGroupsEl)rosterVisualGroupsEl.innerHTML='';if(rosterIntentSummaryEl)rosterIntentSummaryEl.textContent='';if(rosterIntentApplyEl)rosterIntentApplyEl.disabled=true;return;
+    }
+    let current=rosterPlannerCurrentSource();if(!current)current=sources[0];batch.rosterPlanner.sourceKey=current.key;if(rosterPlannerSourceEl)rosterPlannerSourceEl.value=current.key;
+    const set=current.set,entries=rosterPlannerEntriesForSet(set),groups=RosterPlanner.visualGroups(set,{startRow:Math.max(1,Math.min(...entries.map(e=>Math.max(0,Number(e.sourceRow||1)-1)),1))});
+    const summary=RosterPlanner.summary(batch.rosterPlanner,entries),priorityExcel=entries.filter(e=>Number.isFinite(Number(e.priorityOrder))).length,batchExcel=entries.filter(e=>String(e.batch||'').trim()).length,fixedExcel=entries.filter(e=>String(e.scheduleAt||'').trim()).length;
+    if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.innerHTML=`<strong>${entries.length}</strong> 位联系人 · 原格式已保留${groups.length?` · ${groups.length} 种行填色`:''}${priorityExcel?` · Excel 优先级 ${priorityExcel}`:''}${batchExcel?` · Excel 批次 ${batchExcel}`:''}${fixedExcel?` · Excel 定时 ${fixedExcel}`:''}`;
+    if(rosterVisualGroupsEl)rosterVisualGroupsEl.innerHTML=groups.length?`<span class="nmda-roster-visual-label">视觉线索（未赋义）</span>${groups.slice(0,8).flatMap(group=>group.spans.slice(0,8).map(span=>`<button class="nmda-roster-visual-chip" type="button" data-roster-span-r1="${span[0]}" data-roster-span-r2="${span[1]}" title="仅选择，不自动解释"><i style="background:${escapeHtml(group.fill)}"></i>${escapeHtml(group.fill)} · 行 ${span[0]+1}${span[1]!==span[0]?`–${span[1]+1}`:''}</button>`)).join('')}`:'<span class="nmda-roster-visual-label">未检测到明显整行填色；仍可自由框选。</span>';
+    renderRosterPlannerTable(set);
+    if(rosterIntentSummaryEl)rosterIntentSummaryEl.innerHTML=`<span>人工解释</span><strong>${summary.total}</strong> 位${summary.priority?` · 优先级 ${summary.priority}`:''}${summary.batch?` · 批次 ${summary.batch}`:''}${summary.fixed?` · 固定时间 ${summary.fixed}`:''}${summary.label?` · 标签 ${summary.label}`:''}<small>颜色、边框、加粗等格式只作为证据显示，除非你明确框选并解释，否则不会改变排期。</small>`;
+  }
+  function setScheduleDialogView(view){
+    const next=view==='rules'?'rules':'roster';
+    ui.querySelectorAll('[data-schedule-dialog-view]').forEach(button=>{const active=button.dataset.scheduleDialogView===next;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',active?'true':'false');});
+    if(rosterPlannerCardEl)rosterPlannerCardEl.hidden=next!=='roster';if(schedulerCardEl)schedulerCardEl.hidden=next!=='rules';
+    if(scheduleClearEl)scheduleClearEl.hidden=next==='roster';
+    if(next==='roster'){renderRosterPlanner();if(scheduleApplyEl){scheduleApplyEl.disabled=false;scheduleApplyEl.textContent='继续：时间规则 →';}}else renderScheduleCenter();
+  }
+  function syncRosterIntentControl(){
+    const semantic=String(rosterIntentSemanticEl?.value||'batch');
+    if(rosterIntentTimeFieldEl)rosterIntentTimeFieldEl.hidden=semantic!=='fixed-time';
+    if(rosterIntentValueFieldEl)rosterIntentValueFieldEl.hidden=['fixed-time','clear'].includes(semantic);
+    if(rosterIntentValueEl){
+      if(semantic==='batch'){rosterIntentValueEl.type='text';if(!rosterIntentValueEl.value||/^\d+$/.test(rosterIntentValueEl.value))rosterIntentValueEl.value='R1';rosterIntentValueEl.placeholder='例如 R1 / 第一批';}
+      else if(semantic==='priority-sequence'){rosterIntentValueEl.type='number';rosterIntentValueEl.min='1';if(!Number(rosterIntentValueEl.value))rosterIntentValueEl.value='1';rosterIntentValueEl.placeholder='起始优先级';}
+      else if(semantic==='label'){rosterIntentValueEl.type='text';if(/^R\d+$/i.test(rosterIntentValueEl.value))rosterIntentValueEl.value='';rosterIntentValueEl.placeholder='例如：绿色重点组';}
+    }
+  }
+  function clearRosterPlannerSelection(){rosterPlannerSelection=null;rosterPlannerAnchor=null;rosterPlannerDragging=false;paintRosterPlannerSelection();}
+  function applyRosterPlannerInterpretation(){
+    const current=rosterPlannerCurrentSource();if(!current||!rosterPlannerSelection||!RosterPlanner)return;
+    const semantic=String(rosterIntentSemanticEl?.value||'batch'),value=semantic==='fixed-time'?String(rosterIntentTimeEl?.value||''):String(rosterIntentValueEl?.value||'');
+    const result=RosterPlanner.applyInterpretation(batch.rosterPlanner,rosterPlannerEntriesForSet(current.set),current.set,rosterPlannerSelection,{semantic,value});
+    if(result.warning){setBatchStatus(result.warning,'warn');return;}
+    batch.rosterPlanner=result.state;batch.handoffComplete=false;scheduleWorkspacePersist();
+    if(batch.dataset)rebuildTasks();renderRosterPlanner();renderScheduleCenter();
+    setBatchStatus(semantic==='clear'?`已清除 ${result.targets.length} 位联系人的人工排期解释。`:`已将 ${RosterPlanner.rangeLabel(rosterPlannerSelection)} 解释应用到 ${result.targets.length} 位联系人。`,'ok');
+  }
 
   function scheduleRecipientEmails(value){
     const text=Array.isArray(value)?value.map(item=>item?.email||item?.address||'').join('; '):String(value||'');
@@ -2535,12 +2668,12 @@
       setBatchStatus('执行池为空；请先从批量草稿或邮件监测加入任务。','warn');
       return;
     }
-    renderScheduleCenter();
     const overlay=$('nmda-schedule-modal');
     if(!overlay)return;
     overlay.hidden=false;
     syncModalState();
-    requestAnimationFrame(()=>scheduleStartEl?.focus?.({preventScroll:true}));
+    const initialView=rosterPlannerSources().length?'roster':'rules';setScheduleDialogView(initialView);
+    requestAnimationFrame(()=>{if(initialView==='roster')rosterSheetViewportEl?.focus?.({preventScroll:true});else scheduleStartEl?.focus?.({preventScroll:true});});
   }
 
   function closeScheduleModal({restoreFocus=true} = {}) {
@@ -2743,7 +2876,7 @@
       // mail import may keep a roster that was loaded before the mail files.
       const previousRoster=rosterState();
       const keepRoster = previousRoster.manualEntries?.length ? emptyRosterState({
-        dataset:previousRoster.dataset,manualEntries:[...previousRoster.manualEntries],entries:[...previousRoster.manualEntries],manualWarnings:[...(previousRoster.manualWarnings||[])],warnings:[...(previousRoster.manualWarnings||[])],manualSourceNames:[...(previousRoster.manualSourceNames||[])],sourceNames:[...(previousRoster.manualSourceNames||[])],enabled:previousRoster.enabled!==false,autoSchool:previousRoster.autoSchool!==false,strict:!!previousRoster.strict
+        dataset:previousRoster.dataset,datasets:[...(Array.isArray(previousRoster.datasets)&&previousRoster.datasets.length?previousRoster.datasets:(previousRoster.dataset?[previousRoster.dataset]:[]))],manualEntries:[...previousRoster.manualEntries],entries:[...previousRoster.manualEntries],manualWarnings:[...(previousRoster.manualWarnings||[])],warnings:[...(previousRoster.manualWarnings||[])],manualSourceNames:[...(previousRoster.manualSourceNames||[])],sourceNames:[...(previousRoster.manualSourceNames||[])],enabled:previousRoster.enabled!==false,autoSchool:previousRoster.autoSchool!==false,strict:!!previousRoster.strict
       }) : null;
       resetImportWorkspace({ keepStatus: true, invalidate: true });
       if (keepRoster) {
@@ -4895,12 +5028,13 @@
   }
 
   function emptyRosterState(overrides={}) {
-    return {dataset:null,entries:[],manualEntries:[],routedEntries:[],audit:null,warnings:[],manualWarnings:[],routedWarnings:[],enabled:true,autoSchool:true,strict:false,sourceNames:[],manualSourceNames:[],routedSourceNames:[],...overrides};
+    return {dataset:null,datasets:[],entries:[],manualEntries:[],routedEntries:[],audit:null,warnings:[],manualWarnings:[],routedWarnings:[],enabled:true,autoSchool:true,strict:false,sourceNames:[],manualSourceNames:[],routedSourceNames:[],...overrides};
   }
 
   function rosterState() {
     if (!batch.roster) batch.roster=emptyRosterState();
     const state=batch.roster;
+    if(!Array.isArray(state.datasets))state.datasets=state.dataset?[state.dataset]:[];
     if(!Array.isArray(state.manualEntries))state.manualEntries=state.routedEntries?.length?[]:[...(state.entries||[])];
     if(!Array.isArray(state.routedEntries))state.routedEntries=[];
     if(!Array.isArray(state.manualSourceNames))state.manualSourceNames=state.routedSourceNames?.length?[]:[...(state.sourceNames||[])];
@@ -4919,7 +5053,7 @@
       const tags=[...new Set([...(base?.tags||[]),...(next?.tags||[])].map(cleanText).filter(Boolean))];
       const merged={...base,...next,
         email:pick(base?.email,next?.email).toLowerCase(),
-        name:pick(base?.name,next?.name),school:pick(base?.school,next?.school),country:pick(base?.country,next?.country),batch:pick(base?.batch,next?.batch),status:pick(base?.status,next?.status),priority:pick(base?.priority,next?.priority),notes:pick(base?.notes,next?.notes),tags,
+        name:pick(base?.name,next?.name),school:pick(base?.school,next?.school),country:pick(base?.country,next?.country),batch:pick(base?.batch,next?.batch),status:pick(base?.status,next?.status),priority:pick(base?.priority,next?.priority),scheduleRaw:pick(base?.scheduleRaw,next?.scheduleRaw),scheduleAt:pick(base?.scheduleAt,next?.scheduleAt),notes:pick(base?.notes,next?.notes),tags,
         priorityOrder:base?.priorityOrder!=null?base.priorityOrder:next?.priorityOrder,
         source:[...new Set([...(String(base?.source||'').split(' · ')),...(String(next?.source||'').split(' · '))].map(cleanText).filter(Boolean))].join(' · '),
         sourceRow:base?.sourceRow||next?.sourceRow||0
@@ -5159,7 +5293,16 @@
         if(match.status==='off-roster' && state.strict)task.rosterIssues.push('当前导入邮件未在参考总名单中找到对应联系人');
       }
       if(match.entry){
-        task.rosterMeta={country:match.entry.country||'',batch:match.entry.batch||'',status:match.entry.status||'',priority:match.entry.priority||'',priorityOrder:match.entry.priorityOrder!=null&&String(match.entry.priorityOrder).trim()!==''&&Number.isFinite(Number(match.entry.priorityOrder))?Number(match.entry.priorityOrder):null,tags:[...(match.entry.tags||[])],notes:match.entry.notes||''};
+        const plannerIntent=RosterPlanner?.intentForEntry?.(batch.rosterPlanner,match.entry)||null;
+        const excelPriority=match.entry.priorityOrder!=null&&String(match.entry.priorityOrder).trim()!==''&&Number.isFinite(Number(match.entry.priorityOrder))?Number(match.entry.priorityOrder):null;
+        const plannerPriority=plannerIntent?.priorityOrder!=null&&Number.isFinite(Number(plannerIntent.priorityOrder))?Number(plannerIntent.priorityOrder):null;
+        const excelRound=RosterPlanner?.parseRound?.(match.entry.batch||'');
+        const plannerRound=plannerIntent?.roundIndex!=null&&Number.isFinite(Number(plannerIntent.roundIndex))?Number(plannerIntent.roundIndex):null;
+        const fixedAt=String(plannerIntent?.fixedAt||match.entry.scheduleAt||'').trim();
+        task.rosterMeta={country:match.entry.country||'',batch:plannerIntent?.batch||match.entry.batch||'',status:match.entry.status||'',priority:plannerPriority!=null?String(plannerPriority):(match.entry.priority||''),priorityOrder:plannerPriority!=null?plannerPriority:excelPriority,plannerRound:plannerRound!=null?plannerRound:(excelRound!=null?excelRound:null),fixedAt,fixedSource:plannerIntent?.fixedAt?'manual-selection':(match.entry.scheduleAt?'excel':''),label:plannerIntent?.label||'',tags:[...(match.entry.tags||[])],notes:match.entry.notes||''};
+        if(fixedAt && !['manual','mailbox','imported'].includes(String(task.scheduleSource||''))){
+          const parsedFixed=Importer?.parseDateValue?.(fixedAt);if(parsedFixed&&parsedFixed.getTime()>Date.now()+60*1000){task.scheduleAt=Importer.formatLocalDateTime(parsedFixed);task.scheduleSource='roster-fixed';task.scheduleReason=plannerIntent?.fixedAt?'名单规划 · 人工框选固定时间':'总名单 · Excel 固定时间';}
+        }
       }
     }
     for(const dup of audit.duplicateMatches||[]){
@@ -5305,6 +5448,7 @@
       batch.handoffComplete=false;
       const state=rosterState();
       state.dataset=dataset;
+      state.datasets=[...(state.datasets||[]),dataset].slice(-8);
       state.manualEntries=mergeUniqueRosterEntries([...(state.manualEntries||[]),...(parsed.entries||[])]);
       state.manualWarnings=[...new Set([...(state.manualWarnings||[]),...(parsed.warnings||[])])];
       state.manualSourceNames=[...new Set([...(state.manualSourceNames||[]),...list.map(f=>f.name)])];
@@ -5328,6 +5472,7 @@
     for(const [key,edit] of batch.taskEdits.entries()){if(edit?.rosterConfirmed){const next={...edit};delete next.rosterConfirmed;batch.taskEdits.set(key,next);}}
     for(const config of batch.collectionConfigs.values())if(config.purpose==='roster'){config.purpose='ignored';config.enabled=false;}
     batch.roster=emptyRosterState();
+    batch.rosterPlanner=RosterPlanner?.createState?.()||{version:1,sourceKey:'',intents:{}};
     batch.rosterPromptChoice=batch.dataset&&batch.tasks?.length?'pending':'idle';
     const status=$('nmda-roster-source-status');if(status)status.textContent='未添加参考总名单。';
     const remove=$('nmda-roster-remove');if(remove)remove.hidden=true;
@@ -5591,6 +5736,7 @@
     if(source==='manual'||source==='manual-clear')return '手工调整';
     if(source==='mailbox')return '草稿原排期';
     if(source==='imported')return '导入排期';
+    if(source==='roster-fixed')return '名单固定';
     return task?.scheduleAt?'已有排期':'未定时';
   }
 
@@ -5729,8 +5875,8 @@
   function renderScheduleCenter() {
     if (typeof renderProcessGuide === 'function') renderProcessGuide();
     const card=$('nmda-scheduler-card'); if(!card)return;
-    const tasks=dispatchTasks(), hasTasks=tasks.length>0;
-    card.hidden=!hasTasks; if(!hasTasks)return;
+    const tasks=dispatchTasks(), hasTasks=tasks.length>0, activeView=ui.querySelector('[data-schedule-dialog-view].is-active')?.dataset.scheduleDialogView||'rules';
+    card.hidden=!hasTasks||activeView!=='rules'; if(!hasTasks)return;
     if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent=card.open?'收起':'展开';
     if(!Scheduler){if(scheduleRulePreviewEl)scheduleRulePreviewEl.textContent='自动安排暂不可用。';if(scheduleApplyEl)scheduleApplyEl.disabled=true;return;}
     syncScheduleRuleControls();
@@ -6326,6 +6472,8 @@
     batch.existingScheduleAnchors=[];batch.existingScheduleReadAt='';batch.existingScheduleStatus='idle';batch.existingScheduleError='';
     batch.scheduleRules = freshScheduleRules();
     batch.roster = emptyRosterState();
+    batch.rosterPlanner=RosterPlanner?.createState?.()||{version:1,sourceKey:'',intents:{}};
+    clearRosterPlannerSelection();
     syncScheduleRuleControls();
 
     closeImportTaskEditor();
@@ -6474,6 +6622,22 @@
   ui.querySelectorAll('button[data-support-view]').forEach(button=>button.addEventListener('click',()=>setSupportView(button.dataset.supportView)));
   ui.querySelectorAll('[data-planning-view]').forEach(button=>button.addEventListener('click',()=>setPlanningView(button.dataset.planningView)));
   $('nmda-open-schedule-modal')?.addEventListener('click',openScheduleModal);
+  ui.querySelectorAll('[data-schedule-dialog-view]').forEach(button=>button.addEventListener('click',()=>setScheduleDialogView(button.dataset.scheduleDialogView)));
+  rosterPlannerSourceEl?.addEventListener('change',()=>{batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;batch.rosterPlanner.sourceKey=String(rosterPlannerSourceEl.value||'');clearRosterPlannerSelection();scheduleWorkspacePersist();renderRosterPlanner();});
+  rosterVisualGroupsEl?.addEventListener('click',event=>{
+    const button=event.target.closest?.('[data-roster-span-r1]');if(!button)return;const current=rosterPlannerCurrentSource();if(!current)return;
+    const r1=Number(button.dataset.rosterSpanR1),r2=Number(button.dataset.rosterSpanR2),usedCols=Math.max(1,Number(current.set?.meta?.excelVisual?.usedRange?.cols||0),...(current.set?.rows||[]).slice(0,320).map(row=>row?.length||0));
+    rosterPlannerAnchor={r:r1,c:0};rosterPlannerSelection={r1,c1:0,r2,c2:Math.min(39,usedCols-1)};paintRosterPlannerSelection();
+    rosterSheetTableEl?.querySelector?.(`[data-row="${r1}"]`)?.scrollIntoView?.({block:'nearest',inline:'nearest'});
+  });
+  rosterIntentSemanticEl?.addEventListener('change',syncRosterIntentControl);
+  syncRosterIntentControl();
+  rosterIntentApplyEl?.addEventListener('click',applyRosterPlannerInterpretation);
+  rosterSelectionClearEl?.addEventListener('click',clearRosterPlannerSelection);
+  rosterSheetTableEl?.addEventListener('pointerdown',event=>{const cell=event.target.closest?.('[data-roster-cell]');if(!cell||event.button!==0)return;event.preventDefault();const point={r:Number(cell.dataset.row),c:Number(cell.dataset.col)};if(event.shiftKey&&rosterPlannerAnchor){rosterPlannerSelection={r1:rosterPlannerAnchor.r,c1:rosterPlannerAnchor.c,r2:point.r,c2:point.c};}else{rosterPlannerAnchor=point;rosterPlannerSelection={r1:point.r,c1:point.c,r2:point.r,c2:point.c};}rosterPlannerDragging=true;paintRosterPlannerSelection();});
+  rosterSheetTableEl?.addEventListener('pointerover',event=>{if(!rosterPlannerDragging||!rosterPlannerAnchor)return;const cell=event.target.closest?.('[data-roster-cell]');if(!cell)return;rosterPlannerSelection={r1:rosterPlannerAnchor.r,c1:rosterPlannerAnchor.c,r2:Number(cell.dataset.row),c2:Number(cell.dataset.col)};paintRosterPlannerSelection();});
+  rosterSheetViewportEl?.addEventListener('pointermove',event=>{if(!rosterPlannerDragging||!rosterPlannerAnchor)return;const hit=document.elementFromPoint?.(event.clientX,event.clientY)?.closest?.('[data-roster-cell]');if(!hit||!rosterSheetTableEl?.contains(hit))return;rosterPlannerSelection={r1:rosterPlannerAnchor.r,c1:rosterPlannerAnchor.c,r2:Number(hit.dataset.row),c2:Number(hit.dataset.col)};paintRosterPlannerSelection();});
+  document.addEventListener('pointerup',()=>{rosterPlannerDragging=false;});
   $('nmda-close-schedule-modal')?.addEventListener('click',()=>closeScheduleModal());
   $('nmda-cancel-schedule-modal')?.addEventListener('click',()=>closeScheduleModal());
   $('nmda-schedule-modal')?.addEventListener('click',event=>{if(event.target===event.currentTarget)closeScheduleModal();});
@@ -6755,14 +6919,18 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
-  scheduleApplyEl?.addEventListener('click', () => { void (async()=>{
-    const motionState=captureSchedulePlanMotionState();
-    const ok=await applySmartSchedule();
-    if(!ok)return;
-    closeScheduleModal({restoreFocus:false});
-    renderAppliedScheduleWithMotion(motionState,batch.schedulePlan);
-    requestAnimationFrame(()=>$('nmda-open-schedule-modal')?.focus?.({preventScroll:true}));
-  })(); });
+  scheduleApplyEl?.addEventListener('click', () => {
+    const activeView=ui.querySelector('[data-schedule-dialog-view].is-active')?.dataset.scheduleDialogView||'rules';
+    if(activeView==='roster'){setScheduleDialogView('rules');requestAnimationFrame(()=>scheduleStartEl?.focus?.({preventScroll:true}));return;}
+    void (async()=>{
+      const motionState=captureSchedulePlanMotionState();
+      const ok=await applySmartSchedule();
+      if(!ok)return;
+      closeScheduleModal({restoreFocus:false});
+      renderAppliedScheduleWithMotion(motionState,batch.schedulePlan);
+      requestAnimationFrame(()=>$('nmda-open-schedule-modal')?.focus?.({preventScroll:true}));
+    })();
+  });
   scheduleClearEl?.addEventListener('click',()=>void clearAutoSchedule());
   [scheduleStartEl,scheduleMaxSchoolEl,scheduleIntervalDaysEl,schedulePreserveEl,scheduleMailboxExistingEl,scheduleHolidayEl].forEach(el=>el?.addEventListener('change',()=>{readScheduleRuleControls();batch.schedulePlan=null;renderScheduleCenter();}));
   syncScheduleRuleControls();

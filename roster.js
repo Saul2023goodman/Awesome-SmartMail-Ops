@@ -9,6 +9,7 @@
     batch:['批次','轮次','第几批','联系批次','发送批次','batch','round','wave'],
     status:['状态','联系状态','套磁状态','申请状态','status','contact status'],
     priority:['套磁顺序','联系顺序','发送顺序','优先级','优先度','排序','顺序','等级','priority','rank','tier','order','sequence','contact order','outreach order'],
+    schedule:['定时','定时时间','发送时间','计划时间','计划发送','预约发送','scheduled at','schedule','send time','send date','scheduled time'],
     tags:['分类','标签','分组','类别','方向','tag','tags','category','group'],
     notes:['备注','说明','comment','comments','note','notes','remark','remarks']
   };
@@ -175,10 +176,10 @@
         let school=explicitSchool||(d.map.school?inheritedSchool:likelySchool(row,used));
         if(!d.map.school&&school)inheritedSchool=school;
         if(!hasIdentityHeader && !email && !(name&&school)) continue;
-        const country=clean(get('country')),batch=clean(get('batch')),status=clean(get('status')),priority=clean(get('priority')),priorityOrder=parsePriorityOrder(priority),tags=splitTags(get('tags')),notes=clean(get('notes'));
+        const country=clean(get('country')),batch=clean(get('batch')),status=clean(get('status')),priority=clean(get('priority')),priorityOrder=parsePriorityOrder(priority),scheduleRaw=clean(get('schedule')),scheduleDate=globalThis.NMDAImporter?.parseDateValue?.(scheduleRaw)||null,scheduleAt=scheduleDate?globalThis.NMDAImporter?.formatLocalDateTime?.(scheduleDate)||scheduleRaw:'',tags=splitTags(get('tags')),notes=clean(get('notes'));
         if(!email&&!name&&!school)continue;
         entries.push({
-          key:`r${entries.length+1}`,email,name,school,country,batch,status,priority,priorityOrder,tags,notes,
+          key:`r${entries.length+1}`,email,name,school,country,batch,status,priority,priorityOrder,scheduleRaw,scheduleAt,tags,notes,
           source:set.source||set.name||'',collection:set.name||'',sourceRow:r+1,
           nameKey:normalizeName(name),nameKeys:nameKeys(name),schoolKey:schoolKey(school),schoolInherited:!explicitSchool&&!!school
         });
