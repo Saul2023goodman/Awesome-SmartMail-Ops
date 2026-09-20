@@ -1,4 +1,4 @@
-# SmartMail Ops — Current Architecture (v3.8.15)
+# SmartMail Ops — Current Architecture (v3.8.28)
 
 ## First-class workspaces
 
@@ -57,7 +57,7 @@ When root Initial body content is not cached, SmartMail reads NetEase MailReader
 
 - `operations.js`: runtime mailbox facts, Follow-up policy/state, content-version and Review state for the current open SmartMail session.
 - `dispatch.js`: adapter from passed domain records into one executor-facing queue.
-- `scheduler.js`: scheduling rules over that unified queue.
+- `scheduler.js`: scheduling rules over that unified queue plus read-only immutable anchors from existing NetEase scheduled drafts when enabled.
 - `executor.js`: NetEase UI execution only; no Follow-up eligibility or content decisions.
 - `app.js`: orchestration and first-class Import / Review / Dispatch / Monitoring UI.
 
@@ -132,3 +132,9 @@ Execution uses one native NetEase Compose module at a time. A task captures the 
 
 `Pause every time` is an optional runtime-only execution gate and is disabled by default. It pauses after fill/upload/schedule and before save; resume is performed from the mailbox execution dock.
 
+
+## v3.8.28 existing-schedule constraint model
+
+`纳入网易已有排期` is enabled by default but can be disabled by the operator. A fresh read-only Draft mailbox scan runs before every automatic schedule calculation. Future NetEase scheduled drafts are treated as immutable anchors: they consume their deterministic institution/round capacity and reserve their existing minute, while only current SmartMail tasks may move. Existing provider drafts are never edited, cancelled, rescheduled, or rewritten.
+
+The integration fails closed: an enabled but failed/incomplete Draft scan blocks planning instead of pretending there are no existing schedules. Execution performs another fresh read and audits the current batch against the latest anchors; changed mailbox facts that introduce a same-school or exact-time collision require re-planning before execution. Anchor data is runtime-only and is not persisted as operational history.

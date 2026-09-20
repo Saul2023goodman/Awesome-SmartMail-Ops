@@ -606,7 +606,8 @@
                     <label class="nmda-field"><span class="nmda-label">开始时间</span><input id="nmda-rule-start-at" type="datetime-local"></label>
                     <label class="nmda-field"><span class="nmda-label">每所院校每轮最多</span><input id="nmda-rule-max-school" type="number" min="1" max="20" step="1" value="1"></label>
                     <label class="nmda-field"><span class="nmda-label">同校间隔</span><div class="nmda-input-suffix"><input id="nmda-rule-interval-days" type="number" min="1" max="365" step="1" value="7"><span>天</span></div></label>
-                    <label class="nmda-check-card"><input id="nmda-rule-preserve-existing" type="checkbox" checked><span><strong>保留草稿 / 导入原排期</strong></span></label>
+                    <label class="nmda-check-card"><input id="nmda-rule-preserve-existing" type="checkbox" checked><span><strong>保留本批已有时间</strong></span></label>
+                    <label class="nmda-check-card"><input id="nmda-rule-include-mailbox-scheduled" type="checkbox" checked><span><strong>纳入网易已有排期</strong></span></label>
                     <label class="nmda-check-card nmda-schedule-wide-check"><input id="nmda-rule-skip-holidays" type="checkbox" checked><span><strong>避开节假日和周末</strong></span></label>
                   </div>
                   <div class="nmda-schedule-rule-preview" id="nmda-schedule-rule-preview">同校每 7 天最多 1 位。</div>
@@ -1418,8 +1419,8 @@
     directoryFiles: [], taskFiles: [], routedAttachmentFiles: [], fileIndex: Importer?.buildFileIndex?.([]),
     attachmentOverrides: new Map(), attachmentPolicies: new Map(), attachmentTargetEditing:'', attachmentTargetSearch:'', taskEdits: new Map(), running: false, stopRequested: false, pauseEveryTime: false,
     importMeta: null,
-    sessionId: 0, importBusy: false, schedulePlan: null,
-    scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
+    sessionId: 0, importBusy: false, schedulePlan: null, existingScheduleAnchors: [], existingScheduleReadAt: '', existingScheduleStatus: 'idle', existingScheduleError: '',
+    scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, intervalDays:7, preserveExisting:true, includeMailboxScheduled:true, intraRoundMinutes:10 }), startAt: Scheduler?.defaultStart?.() || '' },
     roster: emptyRosterState(), duplicateAudit:null,
     handoffComplete: false, autoAdvancing: false, reviewFilter: 'all', reviewSearch: '', reviewSelected: new Set(), reviewSurface:'board', reviewPreviewKey:'', duplicateSelections: new Map(), attachmentAttentionShown: false, rosterPromptChoice:'idle', attachmentPromptDeferred:false, attachmentPrepChoice:'idle', supplementPreflightDone:false, supplementPreflightOpen:false, preflightView:'files', supportView:'roster', attachmentManagerOpen:false, uiStep:1, planningView:'mails', reviewReturnStep:2, sourceInspectName:'', preflightFolderPath:'', preflightSearch:'', preflightReviewOnly:false, preflightPurposeFilter:'', ignoredAttachmentIdentities:new Set(), bulkSubjectPromptAutoShown:false, bulkSubjectPromptDismissed:false
   };
@@ -1442,7 +1443,7 @@
   const previewBodyEl = $('nmda-preview-body'), batchSummaryEl = $('nmda-batch-summary'), batchStatusEl = $('nmda-batch-status'), importStatusEl = $('nmda-import-status');
   const planningOverviewEl = $('nmda-planning-overview');
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time');
-  const scheduleStartEl = $('nmda-rule-start-at'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), scheduleIntervalDaysEl = $('nmda-rule-interval-days'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
+  const scheduleStartEl = $('nmda-rule-start-at'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), scheduleIntervalDaysEl = $('nmda-rule-interval-days'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleMailboxExistingEl = $('nmda-rule-include-mailbox-scheduled'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
   const scheduleApplyEl = $('nmda-apply-schedule'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
   const batchSearchEl = $('nmda-batch-search');
   const batchTagIncludeEl = $('nmda-batch-tag-include');
@@ -1459,13 +1460,13 @@
   function freshScheduleRules() {
     const prefs=loadScheduleRulePrefs();
     return {
-      ...(Scheduler?.DEFAULT_RULES || {maxPerGroupPerRound:1,intervalDays:7,preserveExisting:true,intraRoundMinutes:10,skipHolidays:true}),
+      ...(Scheduler?.DEFAULT_RULES || {maxPerGroupPerRound:1,intervalDays:7,preserveExisting:true,includeMailboxScheduled:true,intraRoundMinutes:10,skipHolidays:true}),
       ...prefs,
       startAt: Scheduler?.defaultStart?.() || ''
     };
   }
   function saveScheduleRulePrefs(rules) {
-    try { localStorage.setItem(SCHEDULE_PREFS_KEY, JSON.stringify({maxPerGroupPerRound:rules.maxPerGroupPerRound,intervalDays:rules.intervalDays,preserveExisting:rules.preserveExisting,intraRoundMinutes:rules.intraRoundMinutes||10,skipHolidays:rules.skipHolidays!==false})); } catch (_) {}
+    try { localStorage.setItem(SCHEDULE_PREFS_KEY, JSON.stringify({maxPerGroupPerRound:rules.maxPerGroupPerRound,intervalDays:rules.intervalDays,preserveExisting:rules.preserveExisting,includeMailboxScheduled:rules.includeMailboxScheduled!==false,intraRoundMinutes:rules.intraRoundMinutes||10,skipHolidays:rules.skipHolidays!==false})); } catch (_) {}
   }
   function syncScheduleRuleControls() {
     if(!batch.scheduleRules) batch.scheduleRules=freshScheduleRules();
@@ -1473,6 +1474,7 @@
     if(scheduleMaxSchoolEl && document.activeElement!==scheduleMaxSchoolEl) scheduleMaxSchoolEl.value=String(batch.scheduleRules.maxPerGroupPerRound||1);
     if(scheduleIntervalDaysEl && document.activeElement!==scheduleIntervalDaysEl) scheduleIntervalDaysEl.value=String(batch.scheduleRules.intervalDays||7);
     if(schedulePreserveEl) schedulePreserveEl.checked=batch.scheduleRules.preserveExisting!==false;
+    if(scheduleMailboxExistingEl) scheduleMailboxExistingEl.checked=batch.scheduleRules.includeMailboxScheduled!==false;
     if(scheduleHolidayEl) scheduleHolidayEl.checked=batch.scheduleRules.skipHolidays!==false;
   }
   function readScheduleRuleControls() {
@@ -1481,12 +1483,65 @@
       maxPerGroupPerRound:scheduleMaxSchoolEl?.value||1,
       intervalDays:scheduleIntervalDaysEl?.value||7,
       preserveExisting:schedulePreserveEl?.checked!==false,
+      includeMailboxScheduled:scheduleMailboxExistingEl?.checked!==false,
       intraRoundMinutes:batch.scheduleRules?.intraRoundMinutes||10,
       skipHolidays:scheduleHolidayEl?.checked!==false
-    }) || {startAt:scheduleStartEl?.value||'',maxPerGroupPerRound:Number(scheduleMaxSchoolEl?.value||1),intervalDays:Number(scheduleIntervalDaysEl?.value||7),preserveExisting:schedulePreserveEl?.checked!==false,skipHolidays:scheduleHolidayEl?.checked!==false};
+    }) || {startAt:scheduleStartEl?.value||'',maxPerGroupPerRound:Number(scheduleMaxSchoolEl?.value||1),intervalDays:Number(scheduleIntervalDaysEl?.value||7),preserveExisting:schedulePreserveEl?.checked!==false,includeMailboxScheduled:scheduleMailboxExistingEl?.checked!==false,skipHolidays:scheduleHolidayEl?.checked!==false};
     batch.scheduleRules=rules; saveScheduleRulePrefs(rules); return rules;
   }
   batch.scheduleRules = freshScheduleRules();
+
+  function scheduleRecipientEmails(value){
+    const text=Array.isArray(value)?value.map(item=>item?.email||item?.address||'').join('; '):String(value||'');
+    return [...new Set((text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig)||[]).map(email=>email.toLowerCase()))];
+  }
+
+  function enrichExistingScheduleAnchors(rawAnchors=[],tasks=dispatchTasks()){
+    const exactSchools=new Map(),domainSchools=new Map();
+    for(const task of tasks||[]){
+      const school=String(task?.school||'').trim();if(!school)continue;
+      for(const email of scheduleRecipientEmails(task?.recipients||'')){
+        if(!exactSchools.has(email))exactSchools.set(email,new Set());exactSchools.get(email).add(school);
+      }
+      const domain=Scheduler?.recipientDomain?.(task?.recipients||'')||'';
+      if(domain){if(!domainSchools.has(domain))domainSchools.set(domain,new Set());domainSchools.get(domain).add(school);}
+    }
+    return (rawAnchors||[]).map(anchor=>{
+      const recipients=Array.isArray(anchor?.recipients)&&anchor.recipients.length
+        ? anchor.recipients.map(item=>item?.name?`${item.name} <${item.email||''}>`:item?.email||'').filter(Boolean).join('; ')
+        : String(anchor?.toRaw||'');
+      const emails=scheduleRecipientEmails(recipients);
+      const exactCandidates=new Set();for(const email of emails)for(const school of exactSchools.get(email)||[])exactCandidates.add(school);
+      const domain=Scheduler?.recipientDomain?.(recipients)||'';
+      const domainCandidates=domainSchools.get(domain)||new Set();
+      const school=exactCandidates.size===1?[...exactCandidates][0]:(!exactCandidates.size&&domainCandidates.size===1?[...domainCandidates][0]:'');
+      return {
+        id:String(anchor?.id||''),recipients,subject:String(anchor?.subject||''),scheduleAt:String(anchor?.scheduleAt||''),
+        scheduleEvidence:String(anchor?.scheduleEvidence||''),savedAt:String(anchor?.savedAt||''),school,schoolSource:school?'recognized':'',
+        _immutableAnchor:true,_provider:'netease-draft'
+      };
+    }).filter(anchor=>anchor.id&&anchor.scheduleAt);
+  }
+
+  async function readExistingScheduleAnchors({required=true}={}){
+    batch.existingScheduleStatus='loading';batch.existingScheduleError='';renderScheduleCenter();
+    let result;
+    try{result=await chrome.runtime.sendMessage({type:'NMDA_READ_SCHEDULED_DRAFTS'});}
+    catch(error){result={ok:false,reason:error?.message||String(error)};}
+    if(!result?.ok){
+      batch.existingScheduleAnchors=[];batch.existingScheduleStatus='error';batch.existingScheduleError=String(result?.reason||'读取失败');renderScheduleCenter();
+      if(required)throw new Error(`无法读取网易已有排期：${batch.existingScheduleError}`);
+      return [];
+    }
+    if(!result.complete){
+      batch.existingScheduleAnchors=[];batch.existingScheduleStatus='error';batch.existingScheduleError=`草稿箱读取不完整（${result.read||0}/${result.total||'?'}）`;renderScheduleCenter();
+      if(required)throw new Error(`网易已有排期读取不完整（${result.read||0}/${result.total||'?'}），无法保证不冲突。`);
+      return [];
+    }
+    batch.existingScheduleAnchors=enrichExistingScheduleAnchors(result.scheduled||[],dispatchTasks());
+    batch.existingScheduleReadAt=new Date().toISOString();batch.existingScheduleStatus='ok';batch.existingScheduleError='';renderScheduleCenter();
+    return batch.existingScheduleAnchors;
+  }
 
   // One delegated handler replaces hundreds of row listeners that used to be
   // destroyed and rebound after every table refresh.
@@ -5050,7 +5105,7 @@
     }).sort((a,b)=>a.firstRound-b.firstRound || b.totalCount-a.totalCount || String(a.label).localeCompare(String(b.label),'zh-CN'));
     const repeatSchools=schoolRows.filter(entry=>entry.totalCount>1 || entry.roundRefs.length>1);
     const enabledReady=selected.filter(task=>task.status==='ready');
-    const audit=Scheduler?.audit?.(enabledReady,rules)||{conflicts:[],holidayConflicts:[]};
+    const audit=Scheduler?.audit?.(enabledReady,rules,{externalAnchors:rules.includeMailboxScheduled!==false?batch.existingScheduleAnchors:[]})||{conflicts:[],externalConflicts:[],timeConflicts:[],holidayConflicts:[]};
     return {rules, visible, selected, unscheduled, rounds, schoolRows, repeatSchools, audit};
   }
 
@@ -5060,8 +5115,10 @@
     const warnings=[];
     if(data.audit.conflicts?.length)warnings.push(`${data.audit.conflicts.length} 个同校冲突`);
     if(data.audit.holidayConflicts?.length)warnings.push(`${data.audit.holidayConflicts.length} 个休息日问题`);
+    const externalWarnings=(data.audit.externalConflicts?.length||0)+(data.audit.timeConflicts?.length||0);if(externalWarnings)warnings.push(`${externalWarnings} 个已有排期冲突`);
     const ruleSummary=`每校每轮 ${data.rules.maxPerGroupPerRound||1} 位 · 同校间隔 ${data.rules.intervalDays||7} 天 · ${data.rules.skipHolidays!==false?'避开节假日/周末':'允许节假日/周末'}`;
     const unscheduled=data.unscheduled.length;
+    const lockedCount=data.rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?batch.existingScheduleAnchors.length:null;
     const issueText=warnings.length?warnings.join(' · '):'规则正常';
     planningOverviewEl.innerHTML=`
       <section class="nmda-plan-commandbar">
@@ -5073,6 +5130,7 @@
           <span>学校 <strong>${data.schoolRows.length}</strong></span>
           <span>轮次 <strong>${data.rounds.length}</strong></span>
           <span>本次 <strong>${snapshot.selectedTotal}</strong></span>
+          ${data.rules.includeMailboxScheduled!==false?`<span>已有排期 <strong>${lockedCount==null?'—':lockedCount}</strong></span>`:''}
           <span>可创建 <strong>${snapshot.selectedReady}</strong></span>
           <span data-tone="${warnings.length?'warn':'ok'}">${escapeHtml(issueText)}</span>
         </div>
@@ -5100,15 +5158,17 @@
       else unscheduled++;
     }
     const rules=batch.scheduleRules||freshScheduleRules();
-    const audit=Scheduler.audit?.(selected,rules)||{conflicts:[],holidayConflicts:[]};
-    const conflictCount=audit.conflicts?.length||0, holidayConflictCount=audit.holidayConflicts?.length||0;
-    if(scheduleSummaryEl)scheduleSummaryEl.innerHTML=`<strong>${selected.length}</strong> 已选 · 自动 ${auto} · 已有 ${protectedCount} · 待排 ${unscheduled}${conflictCount?` · <span class="nmda-danger">同校冲突 ${conflictCount}</span>`:''}${holidayConflictCount?` · <span class="nmda-danger">休息日 ${holidayConflictCount}</span>`:''}`;
+    const externalAnchors=rules.includeMailboxScheduled!==false?batch.existingScheduleAnchors:[];
+    const audit=Scheduler.audit?.(selected,rules,{externalAnchors})||{conflicts:[],externalConflicts:[],timeConflicts:[],holidayConflicts:[]};
+    const conflictCount=audit.conflicts?.length||0, externalConflictCount=(audit.externalConflicts?.length||0)+(audit.timeConflicts?.length||0), holidayConflictCount=audit.holidayConflicts?.length||0;
+    const mailboxInfo=rules.includeMailboxScheduled===false?'网易已有排期关闭':batch.existingScheduleStatus==='loading'?'正在读取网易已有排期':batch.existingScheduleStatus==='ok'?`网易锁定 ${externalAnchors.length}`:batch.existingScheduleStatus==='error'?'网易已有排期读取失败':'网易已有排期：应用时读取';
+    if(scheduleSummaryEl)scheduleSummaryEl.innerHTML=`<strong>${selected.length}</strong> 已选 · 自动 ${auto} · 已有 ${protectedCount} · 待排 ${unscheduled}${rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?` · 锁定 ${externalAnchors.length}`:''}${externalConflictCount?` · <span class="nmda-danger">与已有排期冲突 ${externalConflictCount}</span>`:''}${conflictCount?` · <span class="nmda-danger">同校冲突 ${conflictCount}</span>`:''}${holidayConflictCount?` · <span class="nmda-danger">休息日 ${holidayConflictCount}</span>`:''}`;
     if(scheduleRulePreviewEl){
-      const conflictText=conflictCount?` · ${conflictCount} 个同校时间冲突`:'';const holidayText=holidayConflictCount?` · ${holidayConflictCount} 个已有时间落在休息日`:'';
-      scheduleRulePreviewEl.textContent=`当前规则：每所院校每轮最多 ${rules.maxPerGroupPerRound||1} 位 · 间隔 ${rules.intervalDays||7} 天${rules.skipHolidays!==false?' · 跳过节假日/周末':''}${conflictText}${holidayText}`;
+      const conflictText=conflictCount?` · ${conflictCount} 个同校时间冲突`:'';const externalText=externalConflictCount?` · ${externalConflictCount} 个与网易已有排期冲突`:'';const holidayText=holidayConflictCount?` · ${holidayConflictCount} 个已有时间落在休息日`:'';
+      scheduleRulePreviewEl.textContent=`每所院校每轮最多 ${rules.maxPerGroupPerRound||1} 位 · 间隔 ${rules.intervalDays||7} 天${rules.skipHolidays!==false?' · 跳过节假日/周末':''} · ${mailboxInfo}${conflictText}${externalText}${holidayText}`;
     }
     const ruleChip=$('nmda-planning-rule-chip');
-    if(ruleChip)ruleChip.textContent=`每校每轮 ${rules.maxPerGroupPerRound||1} 位 · 间隔 ${rules.intervalDays||7} 天${rules.skipHolidays!==false?' · 避开休息日':''}${conflictCount?` · ${conflictCount} 个冲突`:''}`;
+    if(ruleChip)ruleChip.textContent=`每校每轮 ${rules.maxPerGroupPerRound||1} 位 · 间隔 ${rules.intervalDays||7} 天${rules.skipHolidays!==false?' · 避开休息日':''}${rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?` · 锁定 ${externalAnchors.length}`:''}${conflictCount+externalConflictCount?` · ${conflictCount+externalConflictCount} 个冲突`:''}`;
     const scheduleContextCopy=$('nmda-schedule-context-copy');
     if(scheduleContextCopy){
       const rosterCount=referenceRosterCount();
@@ -5126,7 +5186,8 @@
     try{
       const rules=readScheduleRuleControls();
       const tasks=dispatchTasks();
-      const plan=Scheduler.buildPlan(tasks,rules,new Date());
+      const externalAnchors=rules.includeMailboxScheduled!==false?await readExistingScheduleAnchors({required:true}):[];
+      const plan=Scheduler.buildPlan(tasks,rules,new Date(),{externalAnchors});
       for(const assignment of plan.assignments){
         const task=tasks.find(item=>item.editKey===assignment.editKey);if(!task)continue;
         await updateDispatchTask(task,{scheduleAt:assignment.scheduleAt,scheduleSource:'auto',scheduleReason:assignment.reason});
@@ -5134,14 +5195,34 @@
       batch.schedulePlan=plan;
       if(window.matchMedia('(max-width: 900px)').matches)setPlanningView('mails');
       const refreshed=dispatchTasks();
-      const s=plan.summary, audit=Scheduler.audit?.(refreshed,rules)||{conflicts:[],holidayConflicts:[]};
+      const s=plan.summary, audit=Scheduler.audit?.(refreshed,rules,{externalAnchors:plan.externalAnchors||externalAnchors})||{conflicts:[],externalConflicts:[],timeConflicts:[],holidayConflicts:[]};
       const priority=s.priorityOrderedGroups?`；${s.priorityOrderedGroups} 所院校已按总名单顺序排列`:'';
       const holiday=s.holidayAdjusted?`；${s.holidayAdjusted} 封为避开节假日/周末自动顺延`:'';
-      const conflicts=(audit.conflicts?.length||0)+(audit.holidayConflicts?.length||0);
-      const conflict=audit.conflicts?.length?`；保留的已有时间仍有 ${audit.conflicts.length} 个同校规则冲突，请手工调整或关闭“保留已有时间”后重排`:'';
+      const externalConflictCount=(audit.externalConflicts?.length||0)+(audit.timeConflicts?.length||0);
+      const conflicts=(audit.conflicts?.length||0)+(audit.holidayConflicts?.length||0)+externalConflictCount;
+      const conflict=audit.conflicts?.length?`；保留的当前时间仍有 ${audit.conflicts.length} 个同校规则冲突，请手工调整或关闭“保留已有时间”后重排`:'';
+      const externalConflict=externalConflictCount?`；仍有 ${externalConflictCount} 个时间与网易已有排期冲突，请手工调整`:'';
       const holidayConflict=audit.holidayConflicts?.length?`；${audit.holidayConflicts.length} 个保留时间仍落在节假日/周末`:'';
-      setBatchStatus(`时间已安排：${s.selected} 封邮件，自动安排 ${s.auto} 封，保留已有 ${s.preserved} 封，共 ${s.rounds} 轮${priority}${holiday}${conflict}${holidayConflict}。`,conflicts?'warn':'ok');
-    }catch(error){setBatchStatus(`安排时间失败：${error.message}`,'error');}
+      const locked=s.externalAnchors?`；纳入网易已有定时草稿 ${s.externalAnchors} 封（只读）`:'';
+      const avoided=s.lockedTimeAdjusted?`；${s.lockedTimeAdjusted} 封已避开已有时间槽`:'';
+      setBatchStatus(`时间已安排：${s.selected} 封邮件，自动安排 ${s.auto} 封，保留当前已有 ${s.preserved} 封，共 ${s.rounds} 轮${locked}${avoided}${priority}${holiday}${conflict}${externalConflict}${holidayConflict}。`,conflicts?'warn':'ok');
+      return true;
+    }catch(error){setBatchStatus(`安排时间失败：${error.message}`,'error');return false;}
+  }
+
+  async function validateMailboxScheduleBeforeExecution(tasks){
+    const rules=readScheduleRuleControls();
+    if(rules.includeMailboxScheduled===false)return {ok:true,anchors:[]};
+    try{
+      const anchors=await readExistingScheduleAnchors({required:true});
+      const audit=Scheduler?.audit?.(tasks,rules,{externalAnchors:anchors})||{externalConflicts:[],timeConflicts:[]};
+      const groupConflicts=audit.externalConflicts?.length||0,timeConflicts=audit.timeConflicts?.length||0;
+      if(groupConflicts||timeConflicts){
+        const parts=[];if(groupConflicts)parts.push(`${groupConflicts} 个同校轮次冲突`);if(timeConflicts)parts.push(`${timeConflicts} 个时间槽冲突`);
+        return {ok:false,anchors,audit,reason:`网易已有排期发生变化：${parts.join('、')}。请重新应用排期后再执行。`};
+      }
+      return {ok:true,anchors,audit};
+    }catch(error){return {ok:false,anchors:[],reason:error?.message||String(error)};}
   }
 
   async function clearAutoSchedule() {
@@ -5291,8 +5372,8 @@
       <label class="nmda-plan-matrix-toggle"><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''} ${batch.running||task.policyBlocked||task.status==='running'||task.status==='done'?'disabled':''}></label>
       <div class="nmda-plan-matrix-taskbody">
         <div class="nmda-plan-matrix-taskline"><strong>${escapeHtml(task.recipients||'—')}</strong><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span></div>
-        <div class="nmda-plan-matrix-taskmeta">${dispatchKindBadge(task)}${task.files?.length?`<span class="nmda-plan-minibadge">附件 ${task.files.length}</span>`:''}</div>
-        <div class="nmda-plan-matrix-taskedit"><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}" ${batch.running?'disabled':''}></div>
+        <div class="nmda-plan-matrix-taskmeta">${dispatchKindBadge(task)}${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'<span class="nmda-plan-minibadge">已有排期 · 锁定</span>':''}${task.files?.length?`<span class="nmda-plan-minibadge">附件 ${task.files.length}</span>`:''}</div>
+        <div class="nmda-plan-matrix-taskedit"><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}" ${batch.running||(task.scheduleSource==='mailbox'&&task.mailboxDraftId)?'disabled':''} title="${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'网易已有排期为只读':''}"></div>
       </div>
     </article>`;
   }
@@ -5300,7 +5381,7 @@
   function renderPlanningLooseTask(task){
     const state=compactPlanningState(task);
     const school=Scheduler?.groupForTask?.(task)?.label||task.school||'未识别学校';
-    return `<article class="nmda-plan-loose-task" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${dispatchKindBadge(task)} ${escapeHtml(school)}</small></div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}"></article>`;
+    return `<article class="nmda-plan-loose-task" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${dispatchKindBadge(task)} ${escapeHtml(school)}</small></div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'disabled title="网易已有排期为只读"':''}></article>`;
   }
 
 
@@ -5527,6 +5608,7 @@
     batch.fileIndex = Importer.buildFileIndex([]);
     batch.stopRequested = false;
     batch.schedulePlan = null;
+    batch.existingScheduleAnchors=[];batch.existingScheduleReadAt='';batch.existingScheduleStatus='idle';batch.existingScheduleError='';
     batch.scheduleRules = freshScheduleRules();
     batch.roster = emptyRosterState();
     syncScheduleRuleControls();
@@ -5936,9 +6018,9 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
-  scheduleApplyEl?.addEventListener('click', () => { void (async()=>{await applySmartSchedule();closeScheduleModal();})(); });
+  scheduleApplyEl?.addEventListener('click', () => { void (async()=>{const ok=await applySmartSchedule();if(ok)closeScheduleModal();})(); });
   scheduleClearEl?.addEventListener('click',()=>void clearAutoSchedule());
-  [scheduleStartEl,scheduleMaxSchoolEl,scheduleIntervalDaysEl,schedulePreserveEl,scheduleHolidayEl].forEach(el=>el?.addEventListener('change',()=>{readScheduleRuleControls();batch.schedulePlan=null;renderScheduleCenter();}));
+  [scheduleStartEl,scheduleMaxSchoolEl,scheduleIntervalDaysEl,schedulePreserveEl,scheduleMailboxExistingEl,scheduleHolidayEl].forEach(el=>el?.addEventListener('change',()=>{readScheduleRuleControls();batch.schedulePlan=null;renderScheduleCenter();}));
   syncScheduleRuleControls();
 
   const renderBatchFilterDebounced=debounce(()=>scheduleBatchRender({aux:false}),100);
@@ -6038,7 +6120,7 @@
 
   function setBatchPlanningLocked(locked) {
     [batchSearchEl, batchTagIncludeEl].forEach(el => { if (el) el.disabled = !!locked; });
-    ['nmda-clear-tag-filter','nmda-bulk-add-tag','nmda-bulk-remove-tag','nmda-bulk-enable','nmda-bulk-disable','nmda-clear-selection','nmda-rule-start-at','nmda-rule-max-school','nmda-rule-interval-days','nmda-rule-preserve-existing','nmda-rule-skip-holidays','nmda-apply-schedule','nmda-clear-auto-schedule'].forEach(id => {
+    ['nmda-clear-tag-filter','nmda-bulk-add-tag','nmda-bulk-remove-tag','nmda-bulk-enable','nmda-bulk-disable','nmda-clear-selection','nmda-rule-start-at','nmda-rule-max-school','nmda-rule-interval-days','nmda-rule-preserve-existing','nmda-rule-include-mailbox-scheduled','nmda-rule-skip-holidays','nmda-apply-schedule','nmda-clear-auto-schedule'].forEach(id => {
       const el = $(id); if (el) el.disabled = !!locked;
     });
   }
@@ -6071,6 +6153,8 @@
       setBatchStatus('网易邮箱已打开，但尚未检测到已登录账号。请在网易邮箱完成登录后返回工作台再次开始。','error');
       return;
     }
+    const scheduleValidation=await validateMailboxScheduleBeforeExecution(executable);
+    if(!scheduleValidation.ok){setBatchStatus(scheduleValidation.reason||'无法核对网易已有排期。','error');return;}
     batch.running = true; batch.stopRequested = false; batch.pauseEveryTime = !!batchPauseEveryTimeEl?.checked; batchStartEl.disabled = true; batchStopEl.disabled = false;
     if (batchPauseEveryTimeEl) batchPauseEveryTimeEl.disabled = true;
     await updateMailboxBatchMonitor({action:'start',total:executable.length,succeeded:0,failed:0,remaining:executable.length,items:executable.map((task,index)=>({key:task.editKey,id:task.id,index:index+1,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||'',status:'queued'}))});

@@ -253,6 +253,35 @@ function readMailbox(tabId, fid, requested) {
   }), [fid, requestedLimit]);
 }
 
+
+async function readScheduledDraftAnchors(tabId) {
+  const drafts = await readMailbox(tabId, 2, -1);
+  if (!drafts?.ok) return { ok:false, reason:drafts?.reason || '读取草稿箱失败', drafts };
+  const now = Date.now() + 60 * 1000;
+  const scheduled = (drafts.messages || []).filter(item => {
+    if (!item?.scheduledDraft || !item?.scheduleAt) return false;
+    const date = new Date(item.scheduleAt);
+    return !Number.isNaN(date.getTime()) && date.getTime() > now;
+  }).map(item => ({
+    id:String(item.id || ''),
+    recipients:Array.isArray(item.recipients) ? item.recipients.map(recipient => ({email:String(recipient?.email||''),name:String(recipient?.name||'')})) : [],
+    toRaw:String(item.toRaw || ''),
+    subject:String(item.subject || ''),
+    scheduleAt:String(item.scheduleAt || ''),
+    scheduleEvidence:String(item.scheduleEvidence || ''),
+    savedAt:String(item.savedAt || ''),
+    flags:{...(item.flags || {})}
+  }));
+  return {
+    ok:true,
+    uid:String(drafts.uid || ''),
+    complete:!!drafts.complete,
+    total:Number(drafts.total || 0),
+    read:Number(drafts.messages?.length || 0),
+    scheduled
+  };
+}
+
 async function readDedupeHistory(tabId) {
   const sent = await readMailbox(tabId, 3, -1);
   if (!sent?.ok) return { ok:false, phase:'sent', reason:sent?.reason||'读取已发送失败', sent };
@@ -945,6 +974,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_ACCOUNT_INFO') return accountInfo(tabId);
     if (message?.type === 'NMDA_READ_MAILBOX_STATE') return readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick');
     if (message?.type === 'NMDA_READ_DEDUPE_HISTORY') return readDedupeHistory(tabId);
+    if (message?.type === 'NMDA_READ_SCHEDULED_DRAFTS') return readScheduledDraftAnchors(tabId);
     if (message?.type === 'NMDA_READ_SENT_DETAILS') return readSentDetails(tabId, message.messageIds || []);
     if (message?.type === 'NMDA_IMPORT_DRAFTS') return readDraftImport(tabId,message.limit ?? 300);
     return {ok:false,reason:'unknown-message'};
