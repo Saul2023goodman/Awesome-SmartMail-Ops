@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.68",
-  "description": "SmartMail Ops — Preview Batch Processing now supports multi-rule format drift selection and one-shot normalization across multiple phrases, alongside subject repair and Follow-up template governance.",
+  "version": "3.8.69",
+  "description": "SmartMail Ops — Local-first outreach workflow for import, mail review, batch normalization, scheduling, mailbox monitoring, and Follow-up operations.",
   "permissions": [
     "scripting",
     "tabs",

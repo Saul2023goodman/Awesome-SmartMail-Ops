@@ -779,13 +779,13 @@
                 </div>
                 <section class="nmda-format-governance nmda-batch-standards" id="nmda-format-governance" hidden aria-label="Preview 批量处理">
                   <header class="nmda-format-governance-head nmda-batch-standards-head">
-                    <div><strong>批量处理</strong><small>把可确定性批量执行的事项放进同一个计划：补齐主题、统一正文格式、维护 Follow-up 派生模板。</small></div>
+                    <div><strong>批量处理</strong><small id="nmda-batch-standards-desc">只显示当前真正需要处理的批量事项：补齐主题、统一正文格式。</small></div>
                     <button class="nmda-icon-btn" id="nmda-format-governance-close" type="button" aria-label="关闭批量处理">×</button>
                   </header>
                   <div class="nmda-batch-standards-overview" aria-label="批量处理检查结果">
                     <span data-standard-summary="subject"><i>T</i><b>主题补齐</b><strong id="nmda-batch-standard-subject-count">0</strong><small>缺失</small></span>
                     <span data-standard-summary="format"><i>✦</i><b>格式统一</b><strong id="nmda-batch-standard-format-count">0</strong><small>漂移</small></span>
-                    <span data-standard-summary="followup"><i>↗</i><b>Follow-up 模板</b><strong id="nmda-batch-followup-count">v0</strong><small id="nmda-batch-followup-summary">未设置</small></span>
+                    <span data-standard-summary="followup" hidden><i>↗</i><b>Follow-up 模板</b><strong id="nmda-batch-followup-count">未设置</strong><small id="nmda-batch-followup-summary">按需显示</small></span>
                   </div>
                   <section class="nmda-batch-standard-card is-subject" id="nmda-batch-standard-subject">
                     <header><div><strong>主题完整性</strong><small>仅补空白 Initial 主题，不覆盖任何已有主题；Follow-up 主题链保持原样。</small></div><b id="nmda-batch-standard-subject-badge">0 封</b></header>
@@ -813,7 +813,7 @@
                     <div class="nmda-format-governance-list" id="nmda-format-governance-list" hidden></div>
                     <div id="nmda-format-governance-history" class="nmda-format-governance-history"></div>
                   </section>
-                  <section class="nmda-batch-standard-card is-followup" id="nmda-batch-followup-template-card">
+                  <section class="nmda-batch-standard-card is-followup" id="nmda-batch-followup-template-card" hidden>
                     <header><div><strong>Follow-up 正文模板</strong><small>这是批量派生规则，不是单封邮件编辑。称呼与署名从 Initial 自动继承，这里只维护中间正文。</small></div><b id="nmda-batch-followup-badge">未设置</b></header>
                     <div class="nmda-batch-followup-structure" aria-label="Follow-up 模板结构"><span>继承称呼</span><i>+</i><strong>正文模板</strong><i>+</i><span>继承署名</span></div>
                     <label class="nmda-batch-followup-template-field"><textarea id="nmda-batch-followup-template" rows="4" placeholder="例如：I wanted to follow up on my previous email regarding ..."></textarea></label>
@@ -2044,6 +2044,7 @@
   const formatGovernanceEntryEl=$('nmda-review-format-governance'), formatGovernanceEntryCountEl=$('nmda-preview-format-drift-count'), formatGovernanceEl=$('nmda-format-governance'), formatGovernancePhraseEl=$('nmda-format-governance-phrase'), formatGovernanceCaseEl=$('nmda-format-governance-case'), formatGovernanceResultEl=$('nmda-format-governance-result'), formatGovernanceListEl=$('nmda-format-governance-list'), formatGovernanceApplyEl=$('nmda-format-governance-apply'), formatGovernanceSuggestionsEl=$('nmda-format-governance-suggestions'), formatGovernanceQueueEl=$('nmda-format-governance-queue'), formatGovernanceAddEl=$('nmda-format-governance-add'), formatGovernanceHistoryEl=$('nmda-format-governance-history');
   const batchStandardSubjectCountEl=$('nmda-batch-standard-subject-count'), batchStandardFormatCountEl=$('nmda-batch-standard-format-count'), batchStandardSubjectBadgeEl=$('nmda-batch-standard-subject-badge'), batchStandardSubjectInputEl=$('nmda-batch-standard-subject-input'), batchStandardSubjectSuggestionEl=$('nmda-batch-standard-subject-suggestion'), batchStandardSubjectResultEl=$('nmda-batch-standard-subject-result'), batchStandardPlanSummaryEl=$('nmda-batch-standard-plan-summary');
   const batchFollowUpCountEl=$('nmda-batch-followup-count'), batchFollowUpSummaryEl=$('nmda-batch-followup-summary'), batchFollowUpBadgeEl=$('nmda-batch-followup-badge'), batchFollowUpTemplateEl=$('nmda-batch-followup-template'), batchFollowUpSyncEl=$('nmda-batch-followup-sync'), batchFollowUpSyncCountEl=$('nmda-batch-followup-sync-count'), batchFollowUpResultEl=$('nmda-batch-followup-result');
+  const batchFollowUpCardEl=$('nmda-batch-followup-template-card'), batchFollowUpOverviewEl=ui.querySelector('[data-standard-summary="followup"]'), batchStandardsEl=$('nmda-format-governance'), batchStandardsDescEl=$('nmda-batch-standards-desc');
   const duplicateDecisionEl=$('nmda-duplicate-decision'), duplicateDecisionTitleEl=$('nmda-duplicate-decision-title'), duplicateDecisionCopyEl=$('nmda-duplicate-decision-copy'), duplicateDecisionKindEl=$('nmda-duplicate-decision-kind'), duplicateCandidatesEl=$('nmda-duplicate-candidates'), duplicateDecisionHintEl=$('nmda-duplicate-decision-hint'), duplicateKeepSelectedEl=$('nmda-duplicate-keep-selected'), duplicateKeepAllEl=$('nmda-duplicate-keep-all');
   const draftHistoryFilterEl=$('nmda-draft-history-filter'), draftHistoryCountEl=$('nmda-draft-history-count'), draftHistoryListEl=$('nmda-draft-history-list'), draftHistoryHintEl=$('nmda-draft-history-hint'), draftHistoryExcludeEl=$('nmda-draft-history-exclude'), draftHistoryKeepEl=$('nmda-draft-history-keep');
   const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files');
@@ -3451,7 +3452,7 @@
       composeMode:task.composeMode||'forward', sequence:Number(task.sequence||1), reviewConfirmed:reviewed,
       reviewDecision:String(task.reviewDecision||''), reviewDraftPending:false, importExcluded:false, importConfidence:100, importIssues:[], rosterIssues:[], errors:[],
       policyBlocked:task.state==='blocked'||!!task.blocker, attachmentRefs:[], scheduleAt:String(task.dispatch?.scheduleAt||''), tags:['Follow-up'],
-      sourceFile:`Follow-up template v${Number(task.generatedFromTemplateVersion||0)}`,
+      sourceFile:'Follow-up 模板生成',
       generatedFromTemplateVersion:Number(task.generatedFromTemplateVersion||0), personalization:task.personalization||{},
       _derivedState:task.state, _dispatchQueued:task.dispatch?.queued===true, _rawDerivedTask:task,
       _searchStatic:[recipients,task.subject,task.body,`Follow-up ${task.sequence||''}`].join(' ').toLocaleLowerCase('zh-CN')
@@ -3899,6 +3900,29 @@
     });
   }
 
+  function followUpBatchContext(){
+    if(batch.followUpTemplateRequested===true)return true;
+    if(!operationState.loaded||!operationState.store)return false;
+    const derived=Object.values(operationState.store.derivedTasks||{});
+    if(derived.some(task=>task?.kind==='follow_up'&&!['sent','cancelled'].includes(task.state)))return true;
+    try{
+      const groups=Operations?.monitoringRoots?.(operationState.store)||[];
+      if(groups.some(group=>group?.eligibility?.eligible===true))return true;
+    }catch(_){}
+    return false;
+  }
+
+  function syncFollowUpBatchVisibility(){
+    const visible=followUpBatchContext();
+    if(batchFollowUpOverviewEl)batchFollowUpOverviewEl.hidden=!visible;
+    if(batchFollowUpCardEl)batchFollowUpCardEl.hidden=!visible;
+    if(batchStandardsEl)batchStandardsEl.dataset.followupContext=visible?'1':'0';
+    if(batchStandardsDescEl)batchStandardsDescEl.textContent=visible
+      ? '只显示当前真正需要处理的批量事项：补齐主题、统一正文格式，并处理当前 Follow-up。'
+      : '只显示当前真正需要处理的批量事项：补齐主题、统一正文格式。';
+    return visible;
+  }
+
   function batchFollowUpTemplateState(){
     const policy=operationState.loaded?(operationState.store.followUpPolicies?.default||Operations.DEFAULT_FOLLOWUP_POLICY):Operations.DEFAULT_FOLLOWUP_POLICY;
     const saved=String(policy?.templateBody||'').replace(/\r\n?/g,'\n').trim();
@@ -3916,6 +3940,8 @@
 
   function renderBatchFollowUpTemplate(options={}){
     if(!batchFollowUpTemplateEl)return;
+    const visible=syncFollowUpBatchVisibility();
+    if(!visible)return;
     const policy=operationState.loaded?(operationState.store.followUpPolicies?.default||Operations.DEFAULT_FOLLOWUP_POLICY):Operations.DEFAULT_FOLLOWUP_POLICY;
     const saved=String(policy?.templateBody||'').replace(/\r\n?/g,'\n').trim();
     const version=Math.max(0,Number(policy?.templateVersion||0));
@@ -3925,17 +3951,17 @@
     const state=batchFollowUpTemplateState();
     batchFollowUpTemplateEl.dataset.baseBody=saved;
     batchFollowUpTemplateEl.dataset.baseVersion=String(version);
-    if(batchFollowUpCountEl)batchFollowUpCountEl.textContent=state.changed?'待更新':`v${version}`;
-    if(batchFollowUpSummaryEl)batchFollowUpSummaryEl.textContent=state.changed?(state.value?`→ v${state.nextVersion}`:'将清空'):(saved?'已设置':'未设置');
-    if(batchFollowUpBadgeEl)batchFollowUpBadgeEl.textContent=state.changed?'待更新':(saved?`v${version}`:'未设置');
+    if(batchFollowUpCountEl)batchFollowUpCountEl.textContent=state.changed?'待更新':(saved?'已设置':'未设置');
+    if(batchFollowUpSummaryEl)batchFollowUpSummaryEl.textContent=state.changed?(state.value?'有修改':'将清空'):(saved?'当前可用':'需要设置');
+    if(batchFollowUpBadgeEl)batchFollowUpBadgeEl.textContent=state.changed?'待更新':(saved?'已设置':'未设置');
     if(batchFollowUpSyncCountEl)batchFollowUpSyncCountEl.textContent=state.syncable.length?`${state.syncable.length} 封可同步`:(state.protectedCount?`${state.protectedCount} 封人工正文受保护`:(state.lockedCount?`${state.lockedCount} 封已排期锁定`:'当前无待同步邮件'));
     if(batchFollowUpSyncEl){batchFollowUpSyncEl.disabled=!state.changed||!state.value||!state.syncable.length;if(batchFollowUpSyncEl.disabled&&state.syncable.length===0)batchFollowUpSyncEl.checked=true;}
     if(batchFollowUpResultEl){
       if(!state.validation.valid)batchFollowUpResultEl.innerHTML=`<strong>模板结构不规范</strong><span>${escapeHtml(state.validation.reason)}</span>`;
       else if(state.changed&&!state.value)batchFollowUpResultEl.innerHTML='<strong>将清空模板</strong><span>未来不会再自动生成模板正文；已经生成的 Follow-up 保留现状。</span>';
-      else if(state.changed)batchFollowUpResultEl.innerHTML=`<strong>待保存为 v${state.nextVersion}</strong><span>未来派生任务使用新正文${state.syncable.length?`；${state.syncable.length} 封未发送模板派生邮件可同步刷新`:''}${state.protectedCount?`；${state.protectedCount} 封人工改写正文不会覆盖`:''}${state.lockedCount?`；${state.lockedCount} 封已排期邮件保持原版本`:''}。</span>`;
-      else if(saved)batchFollowUpResultEl.innerHTML=`<strong>模板 v${version} 已生效</strong><span>到期后按此正文批量派生；称呼与署名继续从各自 Initial 继承。</span>`;
-      else batchFollowUpResultEl.innerHTML='<strong>未设置模板</strong><span>保存正文后，后续到期邮件才能按模板批量派生。</span>';
+      else if(state.changed)batchFollowUpResultEl.innerHTML=`<strong>模板待保存</strong><span>未来派生任务使用新正文${state.syncable.length?`；${state.syncable.length} 封未发送模板派生邮件可同步刷新`:''}${state.protectedCount?`；${state.protectedCount} 封人工改写正文不会覆盖`:''}${state.lockedCount?`；${state.lockedCount} 封已排期邮件保持现状`:''}。</span>`;
+      else if(saved)batchFollowUpResultEl.innerHTML='<strong>模板已生效</strong><span>到期后按此正文批量派生；称呼与署名继续从各自 Initial 继承。</span>';
+      else batchFollowUpResultEl.innerHTML='<strong>当前 Follow-up 需要模板</strong><span>填写正文后，当前到期邮件和后续跟进才能按模板派生。</span>';
     }
     if(options.focus)requestAnimationFrame(()=>batchFollowUpTemplateEl?.focus?.({preventScroll:true}));
   }
@@ -3956,9 +3982,10 @@
     }
     const order=new Map((batch.tasks||[]).map((task,index)=>[task.editKey,index]));
     const rows=[...byKey.values()].sort((a,b)=>(order.get(a.task.editKey)??999999)-(order.get(b.task.editKey)??999999));
-    const followUpReady=followUp.changed&&followUp.validation.valid;
+    const followUpVisible=followUpBatchContext();
+    const followUpReady=followUpVisible&&followUp.changed&&followUp.validation.valid;
     const formatTaskKeys=new Set(formatEntries.map(entry=>entry.row.task.editKey));
-    return {subject:subjectState.value,subjectRows:subjectState.ready?subjectState.missing:[],formatAnalyses,formatEntries,rows,subjectCount:subjectState.ready?subjectState.missing.length:0,formatCount:formatTaskKeys.size,formatRuleCount:formatAnalyses.length,followUp,followUpReady,syncFollowUps:followUpReady&&followUp.syncEnabled};
+    return {subject:subjectState.value,subjectRows:subjectState.ready?subjectState.missing:[],formatAnalyses,formatEntries,rows,subjectCount:subjectState.ready?subjectState.missing.length:0,formatCount:formatTaskKeys.size,formatRuleCount:formatAnalyses.length,followUp,followUpVisible,followUpReady,syncFollowUps:followUpReady&&followUp.syncEnabled};
   }
 
   function syncBatchProcessingApply(){
@@ -3973,7 +4000,7 @@
       const parts=[];
       if(plan.subjectCount)parts.push(`补主题 ${plan.subjectCount} 封`);
       if(plan.formatCount)parts.push(`统一格式 ${plan.formatRuleCount} 条 / ${plan.formatCount} 封`);
-      if(plan.followUpReady)parts.push(plan.followUp.value?`Follow-up 模板 → v${plan.followUp.nextVersion}`:'清空 Follow-up 模板');
+      if(plan.followUpReady)parts.push(plan.followUp.value?'更新 Follow-up 模板':'清空 Follow-up 模板');
       if(plan.syncFollowUps)parts.push(`同步 ${plan.followUp.syncable.length} 封待发 Follow-up`);
       batchStandardPlanSummaryEl.textContent=parts.length?`${parts.join(' · ')}${total?` · 当前影响 ${total} 封`:''}`:'尚未配置可执行批量处理';
     }
@@ -4000,7 +4027,7 @@
 
   function syncFormatGovernancePreviewBadge(suggestions=[]){
     const formatCount=Array.isArray(suggestions)?suggestions.length:0,subjectCount=missingSubjectTasks().length;
-    const followUp=batchFollowUpTemplateState(),followUpNeeds=followUp.changed||(!followUp.saved&&followUp.policy?.enabled!==false);
+    const followUp=batchFollowUpTemplateState(),followUpVisible=followUpBatchContext(),followUpNeeds=followUpVisible&&(followUp.changed||(!followUp.saved&&followUp.policy?.enabled!==false));
     const count=(subjectCount?1:0)+(formatCount?1:0)+(followUpNeeds?1:0);
     if(batchStandardFormatCountEl)batchStandardFormatCountEl.textContent=String(formatCount);
     if(batchStandardSubjectCountEl)batchStandardSubjectCountEl.textContent=String(subjectCount);
@@ -4060,14 +4087,16 @@
 
   async function openBatchProcessingToFollowUp(){
     await ensureOperationStore();
-    const opened=openReviewWorkspace({pendingOnly:false});if(opened===false)return;
+    batch.followUpTemplateRequested=true;
+    const opened=openReviewWorkspace({pendingOnly:false});if(opened===false){batch.followUpTemplateRequested=false;return;}
     const first=allReviewTasks()[0];
     if(batch.reviewSurface!=='preview'&&first)openReviewPreview(first.editKey);
-    if(batch.reviewSurface!=='preview'){setMonitorNotice('当前没有可进入 Preview 的邮件；有邮件后可从 Preview 的“批量处理”配置 Follow-up 模板。','warn');return;}
+    if(batch.reviewSurface!=='preview'){batch.followUpTemplateRequested=false;setMonitorNotice('当前没有可进入 Preview 的邮件；有需要处理的 Follow-up 后再进入模板设置。','warn');return;}
     openFormatGovernance({section:'followup'});
   }
 
   function closeFormatGovernance(){
+    batch.followUpTemplateRequested=false;
     if(formatGovernanceEl)formatGovernanceEl.hidden=true;
     if(reviewInlineEl)delete reviewInlineEl.dataset.formatGovernanceOpen;
     if(formatGovernanceEntryEl){formatGovernanceEntryEl.setAttribute('aria-expanded','false');formatGovernanceEntryEl.classList.remove('is-open');}
@@ -4211,7 +4240,7 @@
       const parts=[];
       if(subjectChanged)parts.push(`补齐主题 ${subjectChanged} 封`);
       if(formatChangedTasks)parts.push(`统一格式 ${appliedFormatRules.length} 条 / ${formatChangedTasks} 封 / ${formatChangedOccurrences} 处`);
-      if(plan.followUpReady)parts.push(plan.followUp.value?`Follow-up 模板 v${followUpTemplateVersion} 已保存`:'Follow-up 模板已清空');
+      if(plan.followUpReady)parts.push(plan.followUp.value?'Follow-up 模板已保存':'Follow-up 模板已清空');
       if(followUpSynced)parts.push(`同步 ${followUpSynced} 封待发 Follow-up`);
       if(followUpProtected)parts.push(`${followUpProtected} 封人工正文保留`);
       if(plan.followUpReady&&plan.followUp.lockedCount)parts.push(`${plan.followUp.lockedCount} 封已排期 Follow-up 未改`);
