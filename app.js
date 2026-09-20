@@ -679,7 +679,7 @@
                 <div class="nmda-planning-head-actions">
                   <div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div>
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-open-schedule-modal" type="button">时间规则</button>
-                  <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-open-roster-planner" type="button">名单分批</button>
+                  <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-open-roster-planner" type="button">优先轮次</button>
                 </div>
               </div>
               <div class="nmda-planning-overview" id="nmda-planning-overview"></div>
@@ -706,7 +706,7 @@
               <header class="nmda-roster-planner-view-head">
                 <div class="nmda-roster-planner-view-leading">
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-planner-back" type="button">← 返回选择与排期</button>
-                  <div><span class="nmda-dialog-eyebrow">Batch planning</span><h2 id="nmda-roster-planner-title">名单分批</h2><p>明确批次会自动读取；其他联系人保持待分，由你新建批次后加入。</p></div>
+                  <div><span class="nmda-dialog-eyebrow">Priority rounds</span><h2 id="nmda-roster-planner-title">优先轮次</h2><p>明确的同校优先轮次会自动读取；其他联系人保持待设，由你新建 R1/R2… 后加入。</p></div>
                 </div>
                 <div class="nmda-roster-planner-view-actions">
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-planner-done" type="button">完成分批</button>
@@ -743,14 +743,14 @@
                     <div class="nmda-roster-selection-context">
                       <div class="nmda-roster-selection-copy">
                         <strong id="nmda-roster-selection-label">尚未选择</strong>
-                        <small id="nmda-roster-selection-detail">先新建批次，再按颜色 / 特征选择或直接框选联系人加入。</small>
+                        <small id="nmda-roster-selection-detail">先新建优先轮次，再按颜色 / 特征选择或直接框选联系人加入。</small>
                       </div>
                       <div class="nmda-roster-active-batch" id="nmda-roster-active-batch" data-state="empty">
-                        <span>当前批次</span><strong id="nmda-roster-active-batch-label">未创建</strong>
+                        <span>当前优先轮次</span><strong id="nmda-roster-active-batch-label">未创建</strong>
                       </div>
-                      <button class="nmda-btn nmda-btn-small nmda-btn-primary nmda-roster-batch-add" id="nmda-roster-batch-add" type="button" disabled>加入当前批次</button>
-                      <button class="nmda-btn nmda-btn-small nmda-roster-batch-create" id="nmda-roster-batch-create" type="button">＋ 新建批次</button>
-                      <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-roster-batch-clear" id="nmda-roster-batch-clear" type="button" disabled>移出批次</button>
+                      <button class="nmda-btn nmda-btn-small nmda-btn-primary nmda-roster-batch-add" id="nmda-roster-batch-add" type="button" disabled>加入当前轮次</button>
+                      <button class="nmda-btn nmda-btn-small nmda-roster-batch-create" id="nmda-roster-batch-create" type="button">＋ 新建轮次</button>
+                      <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-roster-batch-clear" id="nmda-roster-batch-clear" type="button" disabled>移出轮次</button>
                     </div>
                   </div>
                   <div class="nmda-roster-sheet-viewport" id="nmda-roster-sheet-viewport" tabindex="0" aria-label="总名单预览，可拖动框选联系人">
@@ -763,14 +763,14 @@
             <div class="nmda-workflow-modal-overlay" id="nmda-schedule-modal" hidden>
               <section class="nmda-workflow-dialog nmda-schedule-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-schedule-dialog-title">
                 <header class="nmda-workflow-dialog-head">
-                  <div><span class="nmda-dialog-eyebrow">本批次</span><h3 id="nmda-schedule-dialog-title">时间规则</h3><p>根据名单批次、时间、间隔和网易已有排期生成最终发送计划。</p></div>
+                  <div><span class="nmda-dialog-eyebrow">本批次</span><h3 id="nmda-schedule-dialog-title">时间规则</h3><p>根据同校优先顺序、时间、间隔和网易已有排期生成最终发送计划；优先轮次只决定同校先后，不绑定具体日期。</p></div>
                   <button class="nmda-dialog-close" id="nmda-close-schedule-modal" type="button" aria-label="关闭时间规则">×</button>
                 </header>
                 <section class="nmda-schedule-dialog-body" id="nmda-scheduler-card">
                   <div class="nmda-schedule-dialog-summary" id="nmda-schedule-summary"></div>
                   <div class="nmda-scheduler-grid">
                     <label class="nmda-field"><span class="nmda-label">开始时间</span><input id="nmda-rule-start-at" type="datetime-local"></label>
-                    <label class="nmda-field"><span class="nmda-label">每所院校每轮最多</span><input id="nmda-rule-max-school" type="number" min="1" max="20" step="1" value="1"></label>
+                    <label class="nmda-field"><span class="nmda-label">每校每个排期周期最多</span><input id="nmda-rule-max-school" type="number" min="1" max="20" step="1" value="1"></label>
                     <label class="nmda-field"><span class="nmda-label">同校间隔</span><div class="nmda-input-suffix"><input id="nmda-rule-interval-days" type="number" min="1" max="365" step="1" value="7"><span>天</span></div></label>
                     <label class="nmda-check-card"><input id="nmda-rule-preserve-existing" type="checkbox" checked><span><strong>保留本批已有时间</strong></span></label>
                     <label class="nmda-check-card"><input id="nmda-rule-include-mailbox-scheduled" type="checkbox" checked><span><strong>纳入网易已有排期</strong></span></label>
@@ -1959,13 +1959,14 @@
   }
   function rosterPlannerExplicitBatch(entry){
     if(!entry)return'';
+    if(RosterPlanner?.explicitPriorityRound)return String(RosterPlanner.explicitPriorityRound(entry)||'').trim();
     if(RosterPlanner?.explicitBatch)return String(RosterPlanner.explicitBatch(entry)||'').trim();
-    const raw=String(entry?.batch||'').trim();return RosterPlanner?.parseRound?.(raw)!=null?raw:'';
+    const raw=String(entry?.priorityRound||entry?.batch||'').trim();return RosterPlanner?.parseRound?.(raw)!=null?raw:'';
   }
   function rosterPlannerEffectiveBatch(entry){
     const intent=RosterPlanner?.intentForEntry?.(batch.rosterPlanner,entry)||null;
-    if(intent?.batchSuppressed)return'';
-    return String(intent?.batch||rosterPlannerExplicitBatch(entry)||'').trim();
+    if(intent?.priorityRoundSuppressed||intent?.batchSuppressed)return'';
+    return String(intent?.priorityRoundLabel||intent?.batch||rosterPlannerExplicitBatch(entry)||'').trim();
   }
   function rosterPlannerFeatureGroups(set,entries=rosterPlannerEntriesForSet(set)){
     if(!set||!RosterPlanner)return[];
@@ -1989,11 +1990,11 @@
     const ordered=[...counts.entries()].sort((a,b)=>{const an=RosterPlanner?.parseRound?.(a[0]),bn=RosterPlanner?.parseRound?.(b[0]);return (an??999)-(bn??999)||a[0].localeCompare(b[0]);});
     return {ordered,unassigned,fixed,known};
   }
-  function rosterPlannerActiveBatch(){return String(batch.rosterPlanner?.activeBatch||'').trim();}
+  function rosterPlannerActiveBatch(){return String(batch.rosterPlanner?.activePriorityRound||batch.rosterPlanner?.activeBatch||'').trim();}
   function rosterBatchGapTasks(tasks=dispatchTasks()){
     return (tasks||[]).filter(task=>{
       if(!task||!task.enabled||task.status!=='ready'||!task.rosterReference)return false;
-      const round=task?.rosterMeta?.plannerRound;
+      const round=task?.rosterMeta?.priorityRoundIndex ?? task?.rosterMeta?.plannerRound;
       if(round!=null&&String(round).trim()!==''&&Number.isInteger(Number(round))&&Number(round)>=0)return false;
       const scheduleAt=String(task.scheduleAt||'').trim(),source=String(task.scheduleSource||'');
       if(scheduleAt&&source!=='auto')return false;
@@ -2009,7 +2010,7 @@
   }
   function ensureRosterBatchReadiness({openPlanner=false}={}){
     const gaps=rosterBatchGapTasks();if(!gaps.length)return true;
-    setBatchStatus(`${gaps.length} 封名单邮件尚未明确批次。请新建批次后按行主导颜色 / 格式选择或框选加入；系统不会替你猜轮次。`,'warn');
+    setBatchStatus(`${gaps.length} 封名单邮件尚未明确同校优先轮次。请设置 R1/R2… 后按行主导颜色 / 格式选择或框选加入；系统不会替你猜优先级。`,'warn');
     if(openPlanner&&!batch.rosterPlannerOpen)openRosterPlannerView();
     requestAnimationFrame(highlightRosterUnassigned);
     return false;
@@ -2027,7 +2028,7 @@
     const entries=rosterPlannerSelectionEntries();
     let label='尚未选择';
     if(selectedRows?.size){
-      if(rosterPlannerSelectionKind==='batch')label=`${rosterPlannerSelectionMeta||'批次'} · ${entries.length} 位`;
+      if(rosterPlannerSelectionKind==='batch')label=`${rosterPlannerSelectionMeta||'优先轮次'} · ${entries.length} 位`;
       else if(rosterPlannerSelectionKind==='unassigned')label=`待分 · ${entries.length} 位`;
       else if(rosterPlannerSelectionKind==='fixed')label=`固定时间 · ${entries.length} 位`;
       else if(rosterPlannerSelectionKind==='feature')label=`${rosterPlannerSelectionMeta||'特征'} · ${entries.length} 位`;
@@ -2038,12 +2039,12 @@
     const active=rosterPlannerActiveBatch();
     if(rosterSelectionDetailEl){
       rosterSelectionDetailEl.textContent=entries.length
-        ? (active?`已选联系人；加入 ${active} 后会直接在名单中标记。`:'已选联系人；先新建一个批次，再加入。')
-        : (selectedRows?.size||range?'当前选择没有命中可识别联系人。':'新建批次后，可按每行主导颜色 / 格式快速选人，也可直接框选。');
+        ? (active?`已选联系人；加入 ${active} 后会直接在名单中标记。`:'已选联系人；先新建一个优先轮次，再加入。')
+        : (selectedRows?.size||range?'当前选择没有命中可识别联系人。':'新建优先轮次后，可按每行主导颜色 / 格式快速选人，也可直接框选。');
     }
     if(rosterActiveBatchEl)rosterActiveBatchEl.dataset.state=active?'ready':'empty';
     if(rosterActiveBatchLabelEl)rosterActiveBatchLabelEl.textContent=active||'未创建';
-    if(rosterBatchAddEl){rosterBatchAddEl.disabled=!entries.length||!active;rosterBatchAddEl.textContent=active?`加入 ${active}`:'先新建批次';}
+    if(rosterBatchAddEl){rosterBatchAddEl.disabled=!entries.length||!active;rosterBatchAddEl.textContent=active?`加入 ${active}`:'先新建轮次';}
     if(rosterBatchClearEl)rosterBatchClearEl.disabled=!entries.length||!entries.some(entry=>!!rosterPlannerEffectiveBatch(entry));
   }
   function rosterFeatureChip(group,index){
@@ -2069,19 +2070,19 @@
     let current=rosterPlannerCurrentSource();if(!current)current=sources[0];batch.rosterPlanner.sourceKey=current.key;if(rosterPlannerSourceEl)rosterPlannerSourceEl.value=current.key;
     const set=current.set,entries=rosterPlannerEntriesForSet(set),groups=rosterPlannerFeatureGroups(set,entries),batchCounts=rosterPlannerBatchCounts(entries);
     const assigned=batchCounts.ordered.reduce((sum,item)=>sum+item[1],0);
-    if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.innerHTML=`<strong>${entries.length}</strong><span>联系人</span><i></i><b>${assigned}</b><span>已分</span>${batchCounts.fixed?`<i></i><b>${batchCounts.fixed}</b><span>固定时间</span>`:''}<i></i><b>${batchCounts.unassigned}</b><span>待分</span>`;
+    if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.innerHTML=`<strong>${entries.length}</strong><span>联系人</span><i></i><b>${assigned}</b><span>已设轮次</span>${batchCounts.fixed?`<i></i><b>${batchCounts.fixed}</b><span>固定时间</span>`:''}<i></i><b>${batchCounts.unassigned}</b><span>待设</span>`;
     if(rosterVisualGroupsEl)rosterVisualGroupsEl.innerHTML=groups.length?groups.slice(0,24).map(rosterFeatureChip).join(''):'<span class="nmda-roster-visual-label">没有可复用的格式特征，直接框选即可</span>';
     renderRosterPlannerTable(set);
     if(rosterIntentSummaryEl){
       const active=rosterPlannerActiveBatch(),isUnassigned=rosterPlannerSelectionKind==='unassigned',isFixed=rosterPlannerSelectionKind==='fixed';
       const segments=batchCounts.ordered.map(([label,count])=>{
-        const explicit=entries.some(entry=>rosterPlannerExplicitBatch(entry)===label),title=explicit?'Excel 中有明确批次；点击查看成员':'你新建的批次；点击查看成员';
+        const explicit=entries.some(entry=>rosterPlannerExplicitBatch(entry)===label),title=explicit?'Excel 中有明确优先轮次；点击查看成员':'你新建的优先轮次；点击查看成员';
         return `<button type="button" class="nmda-roster-batch-segment${active===label?' is-active':''}" data-roster-batch-focus="${escapeHtml(label)}" style="--weight:${Math.max(1,count)}" title="${escapeHtml(title)}"><span>${escapeHtml(label)}</span><b>${count}</b></button>`;
       }).join('');
-      const fixed=batchCounts.fixed?`<button type="button" class="nmda-roster-batch-segment is-fixed${isFixed?' is-active':''}" data-roster-batch-focus="__fixed__" style="--weight:${Math.max(1,batchCounts.fixed)}" title="Excel 中已有明确发送时间，无需分批"><span>固定时间</span><b>${batchCounts.fixed}</b></button>`:'';
-      const unassigned=batchCounts.unassigned?`<button type="button" class="nmda-roster-batch-segment is-unassigned${isUnassigned?' is-active':''}" data-roster-batch-focus="__unassigned__" style="--weight:${Math.max(1,batchCounts.unassigned)}" title="尚未明确轮次，需要由你加入批次"><span>待分</span><b>${batchCounts.unassigned}</b></button>`:'';
-      const empty=!segments?'<div class="nmda-roster-batch-empty-state"><strong>尚未创建批次</strong><span>点击“新建批次”，再选人加入。</span></div>':'';
-      rosterIntentSummaryEl.innerHTML=`<div class="nmda-roster-batch-overview-title"><strong>批次</strong><span>${assigned} 已分 · ${batchCounts.unassigned} 待分</span></div><div class="nmda-roster-batch-track">${segments}${fixed}${unassigned}${empty}</div><small>相近颜色会自动归为同一颜色族，仅用于选人；不会自动变成轮次</small>`;
+      const fixed=batchCounts.fixed?`<button type="button" class="nmda-roster-batch-segment is-fixed${isFixed?' is-active':''}" data-roster-batch-focus="__fixed__" style="--weight:${Math.max(1,batchCounts.fixed)}" title="Excel 中已有明确发送时间；该时间直接进入排期，不再由优先轮次决定日期"><span>固定时间</span><b>${batchCounts.fixed}</b></button>`:'';
+      const unassigned=batchCounts.unassigned?`<button type="button" class="nmda-roster-batch-segment is-unassigned${isUnassigned?' is-active':''}" data-roster-batch-focus="__unassigned__" style="--weight:${Math.max(1,batchCounts.unassigned)}" title="尚未明确同校优先轮次，需要由你设置 R1/R2…"><span>待设</span><b>${batchCounts.unassigned}</b></button>`:'';
+      const empty=!segments?'<div class="nmda-roster-batch-empty-state"><strong>尚未创建优先轮次</strong><span>点击“新建轮次”，再选人加入。</span></div>':'';
+      rosterIntentSummaryEl.innerHTML=`<div class="nmda-roster-batch-overview-title"><strong>同校优先轮次</strong><span>${assigned} 已设 · ${batchCounts.unassigned} 待设</span></div><div class="nmda-roster-batch-track">${segments}${fixed}${unassigned}${empty}</div><small>相近颜色会自动归为同一颜色族，仅用于选人；R1/R2 表示同校优先级，不代表发送日期</small>`;
     }
     paintRosterPlannerSelection();
   }
@@ -2105,22 +2106,22 @@
   }
   function createRosterPlannerBatch(){
     const current=rosterPlannerCurrentSource();if(!current||!RosterPlanner)return;
-    const entries=rosterPlannerEntriesForSet(current.set),created=RosterPlanner.createBatch?.(batch.rosterPlanner,entries)||null;if(!created)return;
+    const entries=rosterPlannerEntriesForSet(current.set),created=(RosterPlanner.createPriorityRound?.(batch.rosterPlanner,entries)||RosterPlanner.createBatch?.(batch.rosterPlanner,entries))||null;if(!created)return;
     batch.rosterPlanner=created.state;batch.handoffComplete=false;batch.schedulePlan=null;scheduleWorkspacePersist();renderRosterPlanner();
-    setBatchStatus(`已新建 ${created.label}。现在按行主导颜色 / 格式选择，或框选联系人后加入该批次。`,'ok');
+    setBatchStatus(`已新建优先轮次 ${created.label}。现在按行主导颜色 / 格式选择，或框选联系人后加入该轮次。`,'ok');
   }
   function applyRosterPlannerBatch(label,{clear=false}={}){
     const current=rosterPlannerCurrentSource();if(!current||!RosterPlanner)return;
     const targets=rosterPlannerSelectionEntries();if(!targets.length){setBatchStatus('请先按行主导颜色 / 格式选择，或在名单上框选联系人。','warn');return;}
-    const targetLabel=clear?'':String(label||rosterPlannerActiveBatch()||'').trim();if(!clear&&!targetLabel){setBatchStatus('请先新建一个批次。','warn');return;}
+    const targetLabel=clear?'':String(label||rosterPlannerActiveBatch()||'').trim();if(!clear&&!targetLabel){setBatchStatus('请先新建一个优先轮次。','warn');return;}
     const source=rosterPlannerSelectionKind==='feature'?'feature-selection':rosterPlannerSelectionKind==='batch'||rosterPlannerSelectionKind==='unassigned'?'batch-review':'box-selection';
-    const result=RosterPlanner.applyBatchToEntries(batch.rosterPlanner,targets,current.set,{batch:targetLabel,clear,evidenceSource:source});
+    const result=(RosterPlanner.applyPriorityRoundToEntries||RosterPlanner.applyBatchToEntries)(batch.rosterPlanner,targets,current.set,{batch:targetLabel,clear,evidenceSource:source});
     if(result.warning){setBatchStatus(result.warning,'warn');return;}
     batch.rosterPlanner=result.state;batch.handoffComplete=false;batch.schedulePlan=null;
     if(rosterPlannerSelectionKind==='batch'||rosterPlannerSelectionKind==='unassigned'){rosterPlannerSelectionKind=clear?'unassigned':'batch';rosterPlannerSelectionMeta=clear?'':targetLabel;}
     scheduleWorkspacePersist();
     if(batch.dataset)rebuildTasks();renderRosterPlanner();renderScheduleCenter();
-    setBatchStatus(clear?`已将 ${result.targets.length} 位联系人移出人工批次。`:`已将 ${result.targets.length} 位联系人加入 ${targetLabel}。`,'ok');
+    setBatchStatus(clear?`已将 ${result.targets.length} 位联系人移出优先轮次。`:`已将 ${result.targets.length} 位联系人设为 ${targetLabel}。`,'ok');
   }
 
   function scheduleRecipientEmails(value){
@@ -5490,10 +5491,15 @@
         const explicitExcelBatch=RosterPlanner?.explicitBatch?.(match.entry)||'';
         const effectiveExcelBatch=plannerIntent?.batchSuppressed?'':explicitExcelBatch;
         const excelRound=RosterPlanner?.parseRound?.(effectiveExcelBatch||'');
-        const plannerRound=plannerIntent?.roundIndex!=null&&Number.isFinite(Number(plannerIntent.roundIndex))?Number(plannerIntent.roundIndex):null;
+        const plannerRound=(plannerIntent?.priorityRoundIndex??plannerIntent?.roundIndex)!=null&&Number.isFinite(Number(plannerIntent?.priorityRoundIndex??plannerIntent?.roundIndex))?Number(plannerIntent?.priorityRoundIndex??plannerIntent?.roundIndex):null;
         const fixedAt=String(plannerIntent?.fixedAt||match.entry.scheduleAt||'').trim();
-        const effectiveBatch=String(plannerIntent?.batch||effectiveExcelBatch||'').trim();
-        task.rosterMeta={country:match.entry.country||'',batch:effectiveBatch,batchRaw:match.entry.batch||'',status:match.entry.status||'',priority:plannerPriority!=null?String(plannerPriority):(match.entry.priority||''),priorityOrder:plannerPriority!=null?plannerPriority:excelPriority,plannerRound:plannerRound!=null?plannerRound:(excelRound!=null?excelRound:null),fixedAt,fixedSource:plannerIntent?.fixedAt?'manual-selection':(match.entry.scheduleAt?'excel':''),batchRequired:!fixedAt,label:plannerIntent?.label||'',tags:[...(match.entry.tags||[])],notes:match.entry.notes||''};
+        const effectiveBatch=String(plannerIntent?.priorityRoundLabel||plannerIntent?.batch||effectiveExcelBatch||'').trim();
+        const priorityRoundIndex=plannerRound!=null?plannerRound:(excelRound!=null?excelRound:null);
+        task.rosterMeta={country:match.entry.country||'',
+          priorityRoundLabel:effectiveBatch,priorityRoundIndex,priorityRoundRequired:!fixedAt,
+          // 3.8.x compatibility aliases; scheduler no longer treats these as calendar rounds.
+          batch:effectiveBatch,batchRaw:match.entry.batch||'',plannerRound:priorityRoundIndex,batchRequired:!fixedAt,
+          status:match.entry.status||'',priority:plannerPriority!=null?String(plannerPriority):(match.entry.priority||''),priorityOrder:plannerPriority!=null?plannerPriority:excelPriority,fixedAt,fixedSource:plannerIntent?.fixedAt?'manual-selection':(match.entry.scheduleAt?'excel':''),label:plannerIntent?.label||'',tags:[...(match.entry.tags||[])],notes:match.entry.notes||''};
         if(fixedAt && !['manual','mailbox','imported'].includes(String(task.scheduleSource||''))){
           const parsedFixed=Importer?.parseDateValue?.(fixedAt);if(parsedFixed&&parsedFixed.getTime()>Date.now()+60*1000){task.scheduleAt=Importer.formatLocalDateTime(parsedFixed);task.scheduleSource='roster-fixed';task.scheduleReason=plannerIntent?.fixedAt?'名单规划 · 人工框选固定时间':'总名单 · Excel 固定时间';}
         }
@@ -6042,7 +6048,7 @@
     if(data.audit.conflicts?.length)warnings.push(`${data.audit.conflicts.length} 个同校冲突`);
     if(data.audit.holidayConflicts?.length)warnings.push(`${data.audit.holidayConflicts.length} 个休息日问题`);
     const externalWarnings=(data.audit.externalConflicts?.length||0)+(data.audit.timeConflicts?.length||0);if(externalWarnings)warnings.push(`${externalWarnings} 个已有排期冲突`);
-    const ruleSummary=`每校每轮 ${data.rules.maxPerGroupPerRound||1} 位 · 同校间隔 ${data.rules.intervalDays||7} 天 · ${data.rules.skipHolidays!==false?'避开节假日/周末':'允许节假日/周末'}`;
+    const ruleSummary=`每校每个排期周期 ${data.rules.maxPerGroupPerRound||1} 位 · 同校间隔 ${data.rules.intervalDays||7} 天 · ${data.rules.skipHolidays!==false?'避开节假日/周末':'允许节假日/周末'}`;
     const unscheduled=data.unscheduled.length;
     const lockedCount=data.rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?batch.existingScheduleAnchors.length:null;
     const issueText=warnings.length?warnings.join(' · '):'规则正常';
@@ -6054,14 +6060,14 @@
         </div>
         <div class="nmda-plan-command-stats">
           <span>学校 <strong>${data.schoolRows.length}</strong></span>
-          <span>轮次 <strong>${data.rounds.length}</strong></span>
+          <span>排期周期 <strong>${data.rounds.length}</strong></span>
           <span>本次 <strong>${snapshot.selectedTotal}</strong></span>
           ${data.rules.includeMailboxScheduled!==false?`<span>已有排期 <strong>${lockedCount==null?'—':lockedCount}</strong></span>`:''}
           <span>可创建 <strong>${snapshot.selectedReady}</strong></span>
           <span data-tone="${warnings.length?'warn':'ok'}">${escapeHtml(issueText)}</span>
         </div>
       </section>
-      ${unscheduled?`<section class="nmda-plan-exceptionbar"><div><strong>${unscheduled} 封尚未进入轮次</strong><span>这些邮件没有发送日期，不应占用矩阵列；请先补排期。</span></div><button type="button" data-show-unscheduled>查看异常</button></section>`:''}
+      ${unscheduled?`<section class="nmda-plan-exceptionbar"><div><strong>${unscheduled} 封尚未排期</strong><span>这些邮件没有发送日期，不应占用矩阵列；请先补排期。</span></div><button type="button" data-show-unscheduled>查看异常</button></section>`:''}
     `;
   }
 
@@ -6091,10 +6097,10 @@
     if(scheduleSummaryEl)scheduleSummaryEl.innerHTML=`<strong>${selected.length}</strong> 已选 · 自动 ${auto} · 已有 ${protectedCount} · 待排 ${unscheduled}${rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?` · 锁定 ${externalAnchors.length}`:''}${externalConflictCount?` · <span class="nmda-danger">与已有排期冲突 ${externalConflictCount}</span>`:''}${conflictCount?` · <span class="nmda-danger">同校冲突 ${conflictCount}</span>`:''}${holidayConflictCount?` · <span class="nmda-danger">休息日 ${holidayConflictCount}</span>`:''}`;
     if(scheduleRulePreviewEl){
       const conflictText=conflictCount?` · ${conflictCount} 个同校时间冲突`:'';const externalText=externalConflictCount?` · ${externalConflictCount} 个与网易已有排期冲突`:'';const holidayText=holidayConflictCount?` · ${holidayConflictCount} 个已有时间落在休息日`:'';
-      scheduleRulePreviewEl.textContent=`每所院校每轮最多 ${rules.maxPerGroupPerRound||1} 位 · 间隔 ${rules.intervalDays||7} 天${rules.skipHolidays!==false?' · 跳过节假日/周末':''} · ${mailboxInfo}${conflictText}${externalText}${holidayText}`;
+      scheduleRulePreviewEl.textContent=`每校每个排期周期最多 ${rules.maxPerGroupPerRound||1} 位 · 间隔 ${rules.intervalDays||7} 天${rules.skipHolidays!==false?' · 跳过节假日/周末':''} · ${mailboxInfo}${conflictText}${externalText}${holidayText}`;
     }
     const ruleChip=$('nmda-planning-rule-chip');
-    if(ruleChip)ruleChip.textContent=`每校每轮 ${rules.maxPerGroupPerRound||1} 位 · 间隔 ${rules.intervalDays||7} 天${rules.skipHolidays!==false?' · 避开休息日':''}${rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?` · 锁定 ${externalAnchors.length}`:''}${conflictCount+externalConflictCount?` · ${conflictCount+externalConflictCount} 个冲突`:''}`;
+    if(ruleChip)ruleChip.textContent=`每校每个排期周期 ${rules.maxPerGroupPerRound||1} 位 · 间隔 ${rules.intervalDays||7} 天${rules.skipHolidays!==false?' · 避开休息日':''}${rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?` · 锁定 ${externalAnchors.length}`:''}${conflictCount+externalConflictCount?` · ${conflictCount+externalConflictCount} 个冲突`:''}`;
     const scheduleContextCopy=$('nmda-schedule-context-copy');
     if(scheduleContextCopy){
       const rosterCount=referenceRosterCount();
@@ -6200,7 +6206,7 @@
     try{
       const rules=readScheduleRuleControls();
       const tasks=dispatchTasks();
-      const unbatched=rosterBatchGapTasks(tasks);if(unbatched.length)throw new Error(`${unbatched.length} 封名单邮件尚未明确批次。请先在“名单分批”中由你新建批次并加入联系人；系统不会自动猜轮次。`);
+      const unbatched=rosterBatchGapTasks(tasks);if(unbatched.length)throw new Error(`${unbatched.length} 封名单邮件尚未明确同校优先轮次。请先在“优先轮次”中设置 R1/R2…；系统不会自动猜优先级。`);
       const externalAnchors=rules.includeMailboxScheduled!==false?await readExistingScheduleAnchors({required:true}):[];
       const plan=Scheduler.buildPlan(tasks,rules,new Date(),{externalAnchors});
       for(const assignment of plan.assignments){
@@ -6220,7 +6226,7 @@
       const holidayConflict=audit.holidayConflicts?.length?`；${audit.holidayConflicts.length} 个保留时间仍落在节假日/周末`:'';
       const locked=s.externalAnchors?`；纳入网易已有定时草稿 ${s.externalAnchors} 封（只读）`:'';
       const avoided=s.lockedTimeAdjusted?`；${s.lockedTimeAdjusted} 封已避开已有时间槽`:'';
-      setBatchStatus(`时间已安排：${s.selected} 封邮件，自动安排 ${s.auto} 封，保留当前已有 ${s.preserved} 封，共 ${s.rounds} 轮${locked}${avoided}${priority}${holiday}${conflict}${externalConflict}${holidayConflict}。`,conflicts?'warn':'ok');
+      setBatchStatus(`时间已安排：${s.selected} 封邮件，自动安排 ${s.auto} 封，保留当前已有 ${s.preserved} 封，共 ${s.scheduleCycles||s.rounds} 个排期周期${locked}${avoided}${priority}${holiday}${conflict}${externalConflict}${holidayConflict}。`,conflicts?'warn':'ok');
       return true;
     }catch(error){setBatchStatus(`安排时间失败：${error.message}`,'error');return false;}
   }
@@ -6233,7 +6239,7 @@
       const audit=Scheduler?.audit?.(tasks,rules,{externalAnchors:anchors})||{externalConflicts:[],timeConflicts:[]};
       const groupConflicts=audit.externalConflicts?.length||0,timeConflicts=audit.timeConflicts?.length||0;
       if(groupConflicts||timeConflicts){
-        const parts=[];if(groupConflicts)parts.push(`${groupConflicts} 个同校轮次冲突`);if(timeConflicts)parts.push(`${timeConflicts} 个时间槽冲突`);
+        const parts=[];if(groupConflicts)parts.push(`${groupConflicts} 个同校排期周期冲突`);if(timeConflicts)parts.push(`${timeConflicts} 个时间槽冲突`);
         return {ok:false,anchors,audit,reason:`网易已有排期发生变化：${parts.join('、')}。请重新应用排期后再执行。`};
       }
       return {ok:true,anchors,audit};
@@ -6346,7 +6352,7 @@
       ...planning.rounds.map(round=>renderPlanningRoundHeader(round))
     ];
     const rows=planning.schoolRows.map(school=>renderPlanningSchoolRow(school,planning.rounds)).join('');
-    const unscheduledHtml=planning.unscheduled.length?`<section class="nmda-plan-unscheduled" id="nmda-unscheduled-exceptions" hidden><header><div><strong>尚未进入轮次</strong><small>${planning.unscheduled.length} 封邮件缺少发送日期</small></div></header><div class="nmda-plan-unscheduled-list">${planning.unscheduled.map(task=>renderPlanningLooseTask(task)).join('')}</div></section>`:'';
+    const unscheduledHtml=planning.unscheduled.length?`<section class="nmda-plan-unscheduled" id="nmda-unscheduled-exceptions" hidden><header><div><strong>尚未排期</strong><small>${planning.unscheduled.length} 封邮件缺少发送日期</small></div></header><div class="nmda-plan-unscheduled-list">${planning.unscheduled.map(task=>renderPlanningLooseTask(task)).join('')}</div></section>`:'';
 
     if(!planning.schoolRows.length){
       previewBodyEl.innerHTML='<div class="nmda-plan-empty">没有匹配的邮件。调整搜索条件后再试。</div>';
@@ -6378,14 +6384,14 @@
 
   function renderPlanningRoundHeader(round){
     const warn=round.duplicateSchools.length?`<span class="nmda-plan-matrix-colmeta is-warn">同校超额 ${round.duplicateSchools.length}</span>`:`<span class="nmda-plan-matrix-colmeta">正常</span>`;
-    return `<div class="nmda-plan-matrix-colhead"><div class="nmda-plan-matrix-coltop"><em>R${round.roundIndex}</em><strong>${escapeHtml(round.dateLabel)}</strong></div><small>${round.selectedCount}/${round.tasks.length} 封 · ${round.schoolCount} 校</small>${warn}</div>`;
+    return `<div class="nmda-plan-matrix-colhead"><div class="nmda-plan-matrix-coltop"><em>排期 ${round.roundIndex}</em><strong>${escapeHtml(round.dateLabel)}</strong></div><small>${round.selectedCount}/${round.tasks.length} 封 · ${round.schoolCount} 校</small>${warn}</div>`;
   }
 
   function renderPlanningSchoolRow(school, rounds){
     const badges=[];
     badges.push(`<span class="nmda-plan-schoolbadge">${school.totalCount} 封</span>`);
-    if(school.roundRefs.length)badges.push(`<span class="nmda-plan-schoolbadge">R${school.roundRefs.join('/R')}</span>`);
-    if(school.overflowRounds.length)badges.push(`<span class="nmda-plan-schoolbadge is-warn">超额 R${school.overflowRounds.join('/R')}</span>`);
+    if(school.roundRefs.length)badges.push(`<span class="nmda-plan-schoolbadge">排期 ${school.roundRefs.join('/')}</span>`);
+    if(school.overflowRounds.length)badges.push(`<span class="nmda-plan-schoolbadge is-warn">排期超额 ${school.overflowRounds.join('/')}</span>`);
     const cells=[
       `<div class="nmda-plan-matrix-rowhead"><strong>${escapeHtml(school.label)}</strong><div class="nmda-plan-schoolbadges">${badges.join('')}</div></div>`,
       ...rounds.map(round=>{
@@ -6833,7 +6839,7 @@
     const button=event.target.closest?.('[data-roster-batch-focus]');if(!button)return;const current=rosterPlannerCurrentSource();if(!current)return;
     const value=String(button.dataset.rosterBatchFocus||''),entries=rosterPlannerEntriesForSet(current.set);
     const targets=value==='__unassigned__'?entries.filter(entry=>!rosterPlannerEffectiveBatch(entry)&&!String(entry?.scheduleAt||'').trim()):value==='__fixed__'?entries.filter(entry=>!rosterPlannerEffectiveBatch(entry)&&!!String(entry?.scheduleAt||'').trim()):entries.filter(entry=>rosterPlannerEffectiveBatch(entry)===value);
-    if(value!=='__unassigned__'&&value!=='__fixed__')batch.rosterPlanner=RosterPlanner?.setActiveBatch?.(batch.rosterPlanner,value)||batch.rosterPlanner;
+    if(value!=='__unassigned__'&&value!=='__fixed__'){const setRound=RosterPlanner?.setActivePriorityRound||RosterPlanner?.setActiveBatch;batch.rosterPlanner=setRound?.(batch.rosterPlanner,value)||batch.rosterPlanner;}
     rosterPlannerSelection=null;rosterPlannerAnchor=null;rosterPlannerDragging=false;rosterPlannerSelectedRows=new Set(targets.map(entry=>Math.max(0,Number(entry?.sourceRow||0)-1)));rosterPlannerSelectionKind=value==='__unassigned__'?'unassigned':value==='__fixed__'?'fixed':'batch';rosterPlannerSelectionMeta=value.startsWith('__')?'':value;rosterPlannerFeatureKey='';scheduleWorkspacePersist();renderRosterPlanner();
     const first=targets[0]&&Math.max(0,Number(targets[0]?.sourceRow||0)-1);if(Number.isFinite(first))rosterSheetTableEl?.querySelector?.(`[data-row="${first}"]`)?.scrollIntoView?.({block:'nearest',inline:'nearest'});
   });
@@ -7318,7 +7324,7 @@
     }
     const executable = queue.filter(task => task.enabled && task.status === 'ready');
     if (!executable.length) { setBatchStatus('没有已选择且可创建的任务。请先在执行池中选择需要创建的草稿。', 'error'); return; }
-    const unbatchedRoster=rosterBatchGapTasks(executable);if(unbatchedRoster.length){setBatchStatus(`还有 ${unbatchedRoster.length} 封名单邮件没有明确批次。请先在“名单分批”中新建批次并加入联系人；不会自动替你分轮。`,'error');return;}
+    const unbatchedRoster=rosterBatchGapTasks(executable);if(unbatchedRoster.length){setBatchStatus(`还有 ${unbatchedRoster.length} 封名单邮件没有明确同校优先轮次。请先在“优先轮次”中设置 R1/R2…；不会自动替你判断优先级。`,'error');return;}
     const staleScheduled=executable.filter(task=>task.scheduleAt && (Scheduler?.parseLocalDateTime?.(task.scheduleAt)?.getTime()||0) <= Date.now()+60*1000);
     if(staleScheduled.length){setBatchStatus(`有 ${staleScheduled.length} 封邮件的定时时间已过。请先在“时间规则”中更新或清空。`,'error');return;}
     const executableKeys = new Set(executable.map(task => task.editKey)); // freeze this dispatch run

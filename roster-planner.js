@@ -12,21 +12,31 @@
   }
   function createState(saved={}){
     const rawIntents=saved?.intents&&typeof saved.intents==='object'?saved.intents:{},intents={};
-    // Keep only user-authored batch intents. Older versions could persist batches
-    // inferred from ambiguous Excel text; those must not survive this migration.
+    // 3.8.51 semantic migration: R1/R2 are within-school priority rounds.
+    // Legacy `batch/roundIndex` fields remain synchronized only for workspace compatibility;
+    // they are never interpreted as calendar schedule cycles.
     for(const [key,raw] of Object.entries(rawIntents)){
       const item={...raw};
-      if(item.batch&&!(String(item.batchSource||'').startsWith('manual')||['feature-selection','box-selection','batch-review'].includes(String(item.batchSource||'')))){
+      const legacyManual=item.batch&&(String(item.batchSource||'').startsWith('manual')||['feature-selection','box-selection','batch-review'].includes(String(item.batchSource||'')));
+      if(item.batch&&!legacyManual&&!item.priorityRoundLabel){
         delete item.batch;delete item.roundIndex;delete item.batchSource;delete item.batchSuppressed;
       }
+      const label=clean(item.priorityRoundLabel||item.batch||'');
+      const idx=item.priorityRoundIndex!=null?Number(item.priorityRoundIndex):(item.roundIndex!=null?Number(item.roundIndex):parseRound(label));
+      if(label&&Number.isInteger(idx)&&idx>=0){
+        item.priorityRoundLabel=label;item.priorityRoundIndex=idx;item.priorityRoundSource=item.priorityRoundSource||item.batchSource||'manual-migrated';
+        item.batch=label;item.roundIndex=idx;item.batchSource=item.batchSource||item.priorityRoundSource;
+      }
+      if(item.priorityRoundSuppressed||item.batchSuppressed){item.priorityRoundSuppressed=true;item.batchSuppressed=true;}
       intents[key]=item;
     }
-    const batches=[];
-    const addBatch=raw=>{const label=clean(typeof raw==='string'?raw:raw?.label);if(parseRound(label)!=null&&!batches.includes(label))batches.push(label);};
-    for(const raw of (Array.isArray(saved?.batches)?saved.batches:[]))addBatch(raw);
-    for(const intent of Object.values(intents))if(intent?.batch)addBatch(intent.batch);
-    const active=clean(saved?.activeBatch);
-    return {version:4,sourceKey:clean(saved?.sourceKey),intents,batches,activeBatch:batches.includes(active)?active:'',lastSelection:saved?.lastSelection||null,lastUpdatedAt:clean(saved?.lastUpdatedAt),showIrrelevantColumns:!!saved?.showIrrelevantColumns};
+    const priorityRounds=[];
+    const addRound=raw=>{const label=clean(typeof raw==='string'?raw:raw?.label);if(parseRound(label)!=null&&!priorityRounds.includes(label))priorityRounds.push(label);};
+    for(const raw of (Array.isArray(saved?.priorityRounds)?saved.priorityRounds:(Array.isArray(saved?.batches)?saved.batches:[])))addRound(raw);
+    for(const intent of Object.values(intents))if(intent?.priorityRoundLabel||intent?.batch)addRound(intent.priorityRoundLabel||intent.batch);
+    const active=clean(saved?.activePriorityRound||saved?.activeBatch);
+    const activePriorityRound=priorityRounds.includes(active)?active:'';
+    return {version:5,sourceKey:clean(saved?.sourceKey),intents,priorityRounds,batches:[...priorityRounds],activePriorityRound,activeBatch:activePriorityRound,lastSelection:saved?.lastSelection||null,lastUpdatedAt:clean(saved?.lastUpdatedAt),showIrrelevantColumns:!!saved?.showIrrelevantColumns};
   }
   function excelVisual(set){return set?.meta?.excelVisual||null;}
   function styleLookup(set){
@@ -213,19 +223,27 @@
     const others=[...groups.values()].map(g=>({...g,count:g.rows.length})).filter(g=>g.count>=2).sort((a,b)=>{const weight={'font-color':1,bold:2,border:3,italic:4};return (weight[a.kind]??9)-(weight[b.kind]??9)||b.count-a.count||a.key.localeCompare(b.key);});
     return [...fills,...others];
   }
-  function explicitBatch(entry={}){if(entry?.batchExplicit!==true)return'';const round=parseRound(entry?.batch);return round!=null?`R${round+1}`:'';}
-  function knownBatches(state,entries=[]){
+  function explicitPriorityRound(entry={}){
+    const explicit=entry?.priorityRoundExplicit===true||entry?.batchExplicit===true;if(!explicit)return'';
+    const raw=entry?.priorityRound||entry?.batch||'';const round=parseRound(raw);return round!=null?`R${round+1}`:'';
+  }
+  const explicitBatch=explicitPriorityRound;
+  function knownPriorityRounds(state,entries=[]){
     const labels=[];const push=raw=>{const label=clean(raw);if(label&&!labels.includes(label))labels.push(label);};
-    for(const label of state?.batches||[])push(label);
-    for(const entry of entries||[])push(explicitBatch(entry));
-    for(const entry of entries||[])push(intentForEntry(state,entry)?.batch);
+    for(const label of state?.priorityRounds||state?.batches||[])push(label);
+    for(const entry of entries||[])push(explicitPriorityRound(entry));
+    for(const entry of entries||[]){const intent=intentForEntry(state,entry);push(intent?.priorityRoundLabel||intent?.batch);}
     return labels.sort((a,b)=>{const ar=parseRound(a),br=parseRound(b);if(ar!=null||br!=null)return (ar??9999)-(br??9999)||a.localeCompare(b);return a.localeCompare(b);});
   }
-  function nextBatchLabel(state,entries=[]){const used=new Set();for(const label of knownBatches(state,entries)){const round=parseRound(label);if(round!=null)used.add(round+1);}let n=1;while(used.has(n)&&n<999)n++;return `R${n}`;}
-  function createBatch(state,entries=[],preferred=''){
-    const next=createState(state),label=clean(preferred)||nextBatchLabel(next,entries);if(!next.batches.includes(label))next.batches.push(label);next.activeBatch=label;next.lastUpdatedAt=new Date().toISOString();return {state:next,label};
+  const knownBatches=knownPriorityRounds;
+  function nextPriorityRoundLabel(state,entries=[]){const used=new Set();for(const label of knownPriorityRounds(state,entries)){const round=parseRound(label);if(round!=null)used.add(round+1);}let n=1;while(used.has(n)&&n<999)n++;return `R${n}`;}
+  const nextBatchLabel=nextPriorityRoundLabel;
+  function createPriorityRound(state,entries=[],preferred=''){
+    const next=createState(state),label=clean(preferred)||nextPriorityRoundLabel(next,entries);if(!next.priorityRounds.includes(label))next.priorityRounds.push(label);next.batches=[...next.priorityRounds];next.activePriorityRound=label;next.activeBatch=label;next.lastUpdatedAt=new Date().toISOString();return {state:next,label};
   }
-  function setActiveBatch(state,label=''){const next=createState(state);next.activeBatch=clean(label);return next;}
+  const createBatch=createPriorityRound;
+  function setActivePriorityRound(state,label=''){const next=createState(state),value=clean(label);next.activePriorityRound=value;next.activeBatch=value;return next;}
+  const setActiveBatch=setActivePriorityRound;
   function entriesForRange(entries,set,range){
     const n=normalizeRange(range);if(!n)return[];const source=clean(set?.source),collection=clean(set?.name);
     return (entries||[]).filter(entry=>{
@@ -237,12 +255,12 @@
   }
   function intentForEntry(state,entry){return state?.intents?.[entryKey(entry)]||null;}
   function chineseRoundNumber(raw){
-    const m=String(raw||'').match(/(?:第\s*)?([一二三四五六七八九十]{1,3})\s*(?:批|轮)/);if(!m)return null;
+    const m=String(raw||'').match(/(?:第\s*)?([一二三四五六七八九十]{1,3})\s*轮/);if(!m)return null;
     const chars=m[1],digit={一:1,二:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9};
     if(chars==='十')return 10;if(chars.includes('十')){const [a,b]=chars.split('十');return (a?digit[a]||0:1)*10+(b?digit[b]||0:0);}return digit[chars]||null;
   }
   function parseRound(value){
-    const raw=clean(value);if(!raw)return null;let m=raw.match(/^(?:R|ROUND|BATCH|WAVE)\s*[-:#]?\s*(\d+)$/i)||raw.match(/^(?:第\s*)?(\d+)\s*(?:批|轮)$/);
+    const raw=clean(value);if(!raw)return null;let m=raw.match(/^(?:R|ROUND)\s*[-:#]?\s*(\d+)$/i)||raw.match(/^(?:第\s*)?(\d+)\s*轮$/);
     const n=m?Number(m[1]):chineseRoundNumber(raw);return Number.isInteger(n)&&n>0?n-1:null;
   }
   function applyInterpretation(state,entries,set,range,{semantic,value}={}){
@@ -253,7 +271,7 @@
     }else if(semantic==='priority-sequence'){
       let rank=Math.max(1,Number(value)||1);for(const entry of targets){const key=entryKey(entry),base=next.intents[key]||{};next.intents[key]={...base,priorityOrder:rank++,prioritySource:'manual-selection',evidence};}
     }else if(semantic==='batch'){
-      const label=clean(value);if(!label)return {state:next,targets:[],warning:'请先新建或选择一个批次。'};const roundIndex=parseRound(label);for(const entry of targets){const key=entryKey(entry),base=next.intents[key]||{};next.intents[key]={...base,batch:label,roundIndex, batchSource:'manual-selection',evidence};}
+      const label=clean(value);if(!label)return {state:next,targets:[],warning:'请先新建或选择一个优先轮次。'};const roundIndex=parseRound(label);for(const entry of targets){const key=entryKey(entry),base=next.intents[key]||{};next.intents[key]={...base,priorityRoundLabel:label,priorityRoundIndex:roundIndex,priorityRoundSource:'manual-selection',batch:label,roundIndex,batchSource:'manual-selection',evidence};}
     }else if(semantic==='fixed-time'){
       const fixedAt=clean(value);if(!fixedAt)return {state:next,targets:[],warning:'请选择固定发送时间。'};for(const entry of targets){const key=entryKey(entry),base=next.intents[key]||{};next.intents[key]={...base,fixedAt,fixedSource:'manual-selection',evidence};}
     }else if(semantic==='label'){
@@ -267,21 +285,22 @@
     const next=createState(state),stamp=new Date().toISOString(),unique=[],seen=new Set(),evidence={source:clean(set?.source),collection:clean(set?.name),selection:evidenceSource,at:stamp};
     for(const entry of targets||[]){const key=entryKey(entry);if(seen.has(key))continue;seen.add(key);unique.push(entry);const base={...(next.intents[key]||{})};
       if(clear){
-        delete base.batch;delete base.roundIndex;delete base.batchSource;
-        if(explicitBatch(entry)){base.batchSuppressed=true;base.batchSource='manual-clear';next.intents[key]={...base,evidence};}
-        else{delete base.batchSuppressed;if(!Object.keys(base).some(k=>!['evidence'].includes(k)))delete next.intents[key];else next.intents[key]={...base,evidence};}
+        delete base.priorityRoundLabel;delete base.priorityRoundIndex;delete base.priorityRoundSource;delete base.batch;delete base.roundIndex;delete base.batchSource;
+        if(explicitPriorityRound(entry)){base.priorityRoundSuppressed=true;base.batchSuppressed=true;base.priorityRoundSource='manual-clear';base.batchSource='manual-clear';next.intents[key]={...base,evidence};}
+        else{delete base.priorityRoundSuppressed;delete base.batchSuppressed;if(!Object.keys(base).some(k=>!['evidence'].includes(k)))delete next.intents[key];else next.intents[key]={...base,evidence};}
       }
-      else{const label=clean(batch);if(!label)continue;delete base.batchSuppressed;next.intents[key]={...base,batch:label,roundIndex:parseRound(label),batchSource:evidenceSource,evidence};if(!next.batches.includes(label))next.batches.push(label);next.activeBatch=label;}
+      else{const label=clean(batch);if(!label)continue;const roundIndex=parseRound(label);delete base.priorityRoundSuppressed;delete base.batchSuppressed;next.intents[key]={...base,priorityRoundLabel:label,priorityRoundIndex:roundIndex,priorityRoundSource:evidenceSource,batch:label,roundIndex,batchSource:evidenceSource,evidence};if(!next.priorityRounds.includes(label))next.priorityRounds.push(label);next.batches=[...next.priorityRounds];next.activePriorityRound=label;next.activeBatch=label;}
     }
     if(!unique.length)return {state:next,targets:[],warning:'当前选择没有命中联系人。'};
-    if(!clear&&!clean(batch))return {state:next,targets:[],warning:'请先新建或选择一个批次。'};
+    if(!clear&&!clean(batch))return {state:next,targets:[],warning:'请先新建或选择一个优先轮次。'};
     next.sourceKey=sourceKey(set);next.lastUpdatedAt=stamp;return {state:next,targets:unique};
   }
   function summary(state,entries=[]){
     let priority=0,batch=0,fixed=0,label=0;
-    for(const entry of entries){const intent=intentForEntry(state,entry);if(!intent)continue;if(Number.isFinite(Number(intent.priorityOrder)))priority++;if(intent.batch)batch++;if(intent.fixedAt)fixed++;if(intent.label)label++;}
+    for(const entry of entries){const intent=intentForEntry(state,entry);if(!intent)continue;if(Number.isFinite(Number(intent.priorityOrder)))priority++;if(intent.priorityRoundLabel||intent.batch)batch++;if(intent.fixedAt)fixed++;if(intent.label)label++;}
     return {priority,batch,fixed,label,total:new Set(entries.filter(e=>intentForEntry(state,e)).map(entryKey)).size};
   }
 
-  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,dominantRowFeature,visualGroups,featureGroups,colorDistance,entriesForRange,intentForEntry,parseRound,explicitBatch,knownBatches,nextBatchLabel,createBatch,setActiveBatch,applyInterpretation,applyBatchToEntries,summary};
+  const applyPriorityRoundToEntries=applyBatchToEntries;
+  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,dominantRowFeature,visualGroups,featureGroups,colorDistance,entriesForRange,intentForEntry,parseRound,explicitPriorityRound,explicitBatch,knownPriorityRounds,knownBatches,nextPriorityRoundLabel,nextBatchLabel,createPriorityRound,createBatch,setActivePriorityRound,setActiveBatch,applyInterpretation,applyPriorityRoundToEntries,applyBatchToEntries,summary};
 })();

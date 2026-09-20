@@ -6,7 +6,9 @@
     name:['导师','导师姓名','教授','教授姓名','姓名','老师','联系人','supervisor','professor','faculty','name','contact name'],
     school:['学校','院校','大学','高校','所属学校','所属院校','机构','单位','university','school','institution','organisation','organization','affiliation'],
     country:['国家','国家地区','国家/地区','地区','所在国家','country','country/region','country region','region'],
-    batch:['批次','轮次','第几批','联系批次','发送批次','batch','round','wave'],
+    // Roster round is a within-school priority concept, never a scheduling batch.
+    // Deliberately do not treat generic '批次 / batch / wave / 发送批次' headers as priority rounds.
+    batch:['轮次','第几轮','联系轮次','同校轮次','优先轮次','优先级轮次','round','priority round','priorityround'],
     status:['状态','联系状态','套磁状态','申请状态','status','contact status'],
     priority:['套磁顺序','联系顺序','发送顺序','优先级','优先度','排序','顺序','等级','priority','rank','tier','order','sequence','contact order','outreach order'],
     schedule:['定时','定时时间','发送时间','计划时间','计划发送','预约发送','scheduled at','schedule','send time','send date','scheduled time'],
@@ -117,7 +119,7 @@
     if(/[\r\n]/.test(raw)||/(?:https?:\/\/|www\.)/i.test(raw))return false;
     // A real column header is normally a compact noun phrase, not a sentence or
     // application note. This prevents body text such as "round:R1/3 ..." from
-    // being promoted to the Batch column.
+    // being promoted to the within-school priority-round column.
     if(/[。！？!?]/.test(raw)&&raw.length>18)return false;
     return true;
   }
@@ -181,10 +183,10 @@
   }
   function strictRoundToken(value,{allowBareNumber=false}={}){
     const raw=clean(value);if(!raw)return null;let m=null;
-    m=raw.match(/^(?:R|ROUND|BATCH|WAVE)\s*[-:#]?\s*(\d+)$/i);
-    if(!m)m=raw.match(/^(?:第\s*)?(\d+)\s*(?:批|轮)$/);
+    m=raw.match(/^(?:R|ROUND)\s*[-:#]?\s*(\d+)$/i);
+    if(!m)m=raw.match(/^(?:第\s*)?(\d+)\s*轮$/);
     if(!m){
-      const cm=raw.match(/^(?:第\s*)?([一二三四五六七八九十]{1,3})\s*(?:批|轮)$/);
+      const cm=raw.match(/^(?:第\s*)?([一二三四五六七八九十]{1,3})\s*轮$/);
       if(cm){const digit={一:1,二:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9},chars=cm[1];let n=null;if(chars==='十')n=10;else if(chars.includes('十')){const [a,b]=chars.split('十');n=(a?digit[a]||0:1)*10+(b?digit[b]||0:0);}else n=digit[chars]||null;return Number.isInteger(n)&&n>0?n:null;}
     }
     if(!m&&allowBareNumber&&/^\d+$/.test(raw))m=[raw,raw];
@@ -226,12 +228,17 @@
         const batchRaw=strictBatchSpec?clean(semanticCell(set,r,strictBatchSpec.index,mergeMap)):'';
         const batchNumber=strictBatchSpec?strictRoundToken(batchRaw,{allowBareNumber:true}):null;
         const batchExplicit=Number.isInteger(batchNumber)&&batchNumber>0,batch=batchExplicit?`R${batchNumber}`:'';
+        const priorityRoundIndex=batchExplicit?batchNumber-1:null,priorityRound=batch;
         const scheduleRaw=strictScheduleSpec?clean(semanticCell(set,r,strictScheduleSpec.index,mergeMap)):'';
         const scheduleDate=scheduleRaw?globalThis.NMDAImporter?.parseDateValue?.(scheduleRaw)||null:null,scheduleAt=scheduleDate?globalThis.NMDAImporter?.formatLocalDateTime?.(scheduleDate)||scheduleRaw:'';
         const scheduleExplicit=!!scheduleAt;
         if(!email&&!name&&!school)continue;
         entries.push({
-          key:`r${entries.length+1}`,email,name,school,country,batch,batchRaw,batchExplicit,batchSourceHeader:batchExplicit?clean(rows?.[d.row]?.[strictBatchSpec?.index]||''):'',status,priority,priorityOrder,scheduleRaw,scheduleAt,scheduleExplicit,tags,notes,
+          key:`r${entries.length+1}`,email,name,school,country,
+          // Compatibility aliases (`batch*`) are retained for persisted 3.8.x workspaces,
+          // but their meaning here is strictly the within-school priority round.
+          priorityRound,priorityRoundIndex,priorityRoundExplicit:batchExplicit,priorityRoundRaw:batchRaw,
+          batch,batchRaw,batchExplicit,batchSourceHeader:batchExplicit?clean(rows?.[d.row]?.[strictBatchSpec?.index]||''):'',status,priority,priorityOrder,scheduleRaw,scheduleAt,scheduleExplicit,tags,notes,
           source:set.source||set.name||'',collection:set.name||'',sourceRow:r+1,
           nameKey:normalizeName(name),nameKeys:nameKeys(name),schoolKey:schoolKey(school),schoolInherited:!explicitSchool&&!!school
         });
