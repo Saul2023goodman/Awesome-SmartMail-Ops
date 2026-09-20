@@ -156,6 +156,7 @@
     search: '<circle cx="8.5" cy="8.5" r="4.75"/><path d="M12 12 16 16"/>',
     success: '<path d="M4.75 10.25 8 13.5l7.25-7.25"/>',
     archive: '<path d="M4 4.75h12v3H4z"/><path d="M5 7.75h10v7.5H5z"/><path d="M8 10.75h4"/>',
+    trash: '<path d="M4.75 6.25h10.5M8 3.75h4l.75 2.5H7.25L8 3.75Z"/><path d="M6.25 6.25 7 16h6l.75-9.75M8.75 9v4.25M11.25 9v4.25"/>',
     doc: '<path d="M6 2.75h5.75l3.25 3.25V17.25H6z"/><path d="M11.75 2.75V6h3.25"/><path d="M8 9.25h4M8 12h4M8 14.75h4"/>',
     code: '<path d="m7.25 6.25-3 3.75 3 3.75M12.75 6.25l3 3.75-3 3.75M10.75 4.75 9.25 15.25"/>',
     table: '<rect x="3.5" y="4" width="13" height="12" rx="1.4"/><path d="M3.5 8h13M8 4v12M12 4v12"/>',
@@ -212,7 +213,8 @@
       ['.nmda-plan-motion-check','success'],
       ['.nmda-supplement-dialog .nmda-dialog-status-icon','success'],
       ['.nmda-attachment-target-toolbar label > span','search'],
-      ['.nmda-classify-folder-icon','folder']
+      ['.nmda-classify-folder-icon','folder'],
+      ['.nmda-review-trash-icon','trash']
     ]);
     directMap.forEach((name, selector) => root.querySelectorAll(selector).forEach(el => setUnifiedIcon(el, name)));
 
@@ -537,7 +539,7 @@
               <div class="nmda-card nmda-inline-review" id="nmda-inline-review" hidden>
                 <div class="nmda-inline-review-top">
                   <div><div class="nmda-card-title" id="nmda-review-workspace-title">邮件审阅</div><div class="nmda-card-desc" id="nmda-review-workspace-desc"></div></div>
-                  <div class="nmda-inline-review-actions"><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-restore-excluded" type="button" hidden>恢复已排除</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-template-toggle" id="nmda-review-followup-template-toggle" type="button">模板</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个需处理</button></div>
+                  <div class="nmda-inline-review-actions"><details class="nmda-review-trash" id="nmda-review-trash"><summary class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-trash-trigger" id="nmda-review-trash-trigger" title="查看被排除的邮件"><span class="nmda-review-trash-icon" aria-hidden="true"></span><span>垃圾箱</span><strong id="nmda-review-trash-count">0</strong></summary><div class="nmda-review-trash-popover"><header><div><strong>垃圾箱</strong><small>排除只影响后续排期与发送，邮件内容仍保留。</small></div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-trash-restore-all" type="button">全部恢复</button></header><div class="nmda-review-trash-list" id="nmda-review-trash-list"></div><div class="nmda-review-trash-empty" id="nmda-review-trash-empty">垃圾箱为空</div></div></details><button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-template-toggle" id="nmda-review-followup-template-toggle" type="button">模板</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个需处理</button></div>
                 </div>
                 <div class="nmda-review-followup-template" id="nmda-review-followup-template-card" hidden>
                   <div class="nmda-review-followup-template-copy"><strong>Follow-up 模板</strong><small id="nmda-review-followup-template-meta">v0</small></div>
@@ -593,7 +595,7 @@
                           <div class="nmda-review-mail-actions">
                             <div class="nmda-review-pager" role="group" aria-label="切换邮件"><button type="button" id="nmda-review-prev" aria-label="上一封">‹</button><span id="nmda-review-position">1 / 1</span><button type="button" id="nmda-review-next" aria-label="下一封">›</button></div>
                             <button class="nmda-review-edit-direct" id="nmda-review-edit" type="button" title="编辑收件人、主题或正文">编辑</button>
-                            <button class="nmda-review-exclude-direct" id="nmda-review-exclude" type="button" title="排除后不进入排期与发送，可在已排除邮件中恢复">排除此封</button>
+                            <button class="nmda-review-exclude-direct" id="nmda-review-exclude" type="button" title="排除后移入垃圾箱，不进入排期与发送，可随时恢复">排除此封</button>
                             <button class="nmda-icon-btn nmda-review-detail-close" id="nmda-import-editor-close" type="button" aria-label="关闭邮件审阅">×</button>
                           </div>
                         </div>
@@ -3051,6 +3053,78 @@
     return count;
   }
 
+
+  function excludedImportItems() {
+    const items=[];
+    const sets=recordSets();
+    for(const [editKey,edit] of batch.taskEdits.entries()){
+      if(!edit?.importExcluded)continue;
+      const match=String(editKey||'').match(/^(\d+):(\d+)$/);
+      if(!match){items.push({editKey:String(editKey||''),id:String(edit?.id||''),recipients:String(edit?.recipients||''),subject:String(edit?.subject||''),sourceFile:''});continue;}
+      const collectionIndex=Number(match[1]),rowIndex=Number(match[2]);
+      const collection=sets[collectionIndex]||null;
+      const config=collection?ensureCollectionConfig(collectionIndex):null;
+      const row=collection?.rows?.[rowIndex]||[];
+      const mapping=config?.mapping||{};
+      const getValue=field=>mapping[field]==null?'':(row?.[mapping[field]]??'');
+      const rowMeta=collection?.meta?.rowMeta?.[rowIndex]||null;
+      const sourceFile=String(rowMeta?.sourceFile||(collection?.meta?.wordTaskRows?row?.[8]:'')||collection?.source||'').trim();
+      const recipients=String(edit.recipients!=null?edit.recipients:getValue('recipients')).trim();
+      const subject=String(edit.subject!=null?edit.subject:getValue('subject')).trim();
+      const id=String(edit.id!=null?edit.id:getValue('id')).trim()||`${collectionIndex+1}-${rowIndex+1}`;
+      items.push({editKey:String(editKey),id,recipients,subject,sourceFile});
+    }
+    return items.sort((a,b)=>String(a.subject||a.recipients||a.id).localeCompare(String(b.subject||b.recipients||b.id),'zh-CN'));
+  }
+
+  function renderReviewTrash() {
+    const items=excludedImportItems();
+    const details=$('nmda-review-trash');
+    const countEl=$('nmda-review-trash-count');
+    const listEl=$('nmda-review-trash-list');
+    const emptyEl=$('nmda-review-trash-empty');
+    const restoreAll=$('nmda-review-trash-restore-all');
+    if(countEl){countEl.textContent=String(items.length);countEl.dataset.empty=items.length?'0':'1';}
+    if(details)details.dataset.empty=items.length?'0':'1';
+    if(restoreAll)restoreAll.disabled=!items.length;
+    if(emptyEl)emptyEl.hidden=!!items.length;
+    if(listEl){
+      listEl.innerHTML=items.map(item=>{
+        const primary=String(item.subject||item.recipients||item.id||'已排除邮件').trim();
+        const secondary=[item.recipients&&item.recipients!==primary?item.recipients:'',item.sourceFile].filter(Boolean).join(' · ');
+        return `<article class="nmda-review-trash-item" data-trash-key="${escapeHtml(item.editKey)}"><span class="nmda-review-trash-item-mark" aria-hidden="true">${iconSvg('mail')}</span><div><strong title="${escapeHtml(primary)}">${escapeHtml(primary)}</strong>${secondary?`<small title="${escapeHtml(secondary)}">${escapeHtml(secondary)}</small>`:''}</div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-restore-excluded="${escapeHtml(item.editKey)}">恢复</button></article>`;
+      }).join('');
+      decorateUnifiedIcons(listEl);
+    }
+  }
+
+  function restoreExcludedTask(editKey) {
+    const key=String(editKey||'');
+    const edit=batch.taskEdits.get(key);
+    if(!edit?.importExcluded)return false;
+    batch.handoffComplete=false;
+    batch.taskEdits.set(key,{...edit,importExcluded:false});
+    rebuildTasks();
+    renderReviewTrash();
+    setImportStatus('已从垃圾箱恢复 1 封邮件；已重新加入审阅与后续排期流程。','ok');
+    return true;
+  }
+
+  function restoreAllExcludedTasks() {
+    let restored=0;
+    for(const [key,edit] of batch.taskEdits.entries()){
+      if(!edit?.importExcluded)continue;
+      batch.taskEdits.set(key,{...edit,importExcluded:false});restored++;
+    }
+    if(!restored)return 0;
+    batch.handoffComplete=false;
+    rebuildTasks();
+    const details=$('nmda-review-trash');if(details)details.open=false;
+    renderReviewTrash();
+    setImportStatus(`已从垃圾箱恢复 ${restored} 封邮件；已重新加入审阅与后续排期流程。`,'ok');
+    return restored;
+  }
+
   function taskSourceMeta(task) {
     const collection=recordSets()[Number(task?.collectionIndex)||0];
     const rowMeta=collection?.meta?.rowMeta?.[task?.rowIndex] || null;
@@ -3580,6 +3654,7 @@
   }
 
   function renderReviewPageOverview() {
+    renderReviewTrash();
     const tasks=allReviewTasks();
     const initialCount=tasks.filter(task=>!isFollowUpReviewTask(task)).length;
     const followUpCount=tasks.filter(isFollowUpReviewTask).length;
@@ -4388,9 +4463,7 @@
 
   function renderImportTaskPreview() {
     if (typeof renderProcessGuide === 'function') renderProcessGuide();
-    const excluded=excludedImportCount();
-    const restoreExcluded=$('nmda-restore-excluded');
-    if(restoreExcluded){restoreExcluded.hidden=!excluded;restoreExcluded.textContent=excluded?`恢复已排除（${excluded}）`:'恢复已排除';}
+    renderReviewTrash();
   }
 
   function updateReviewMailNavigation(task) {
@@ -4446,7 +4519,7 @@
     const editorTitle=$('nmda-import-editor-title');
     if(editorTitle)editorTitle.textContent=isFollowUpReviewTask(task)?`审阅 Follow-up #${Math.max(1,Number(task.sequence||1))}`:`审阅邮件 · ${task.id||task.collectionName||'当前邮件'}`;
     const excludeButton=$('nmda-review-exclude');
-    if(excludeButton){excludeButton.hidden=false;excludeButton.textContent=isFollowUpReviewTask(task)?'取消跟进':'排除此封';excludeButton.title=isFollowUpReviewTask(task)?'取消本次 Follow-up Task':'排除后可在已排除邮件中恢复';}
+    if(excludeButton){excludeButton.hidden=false;excludeButton.textContent=isFollowUpReviewTask(task)?'取消跟进':'排除此封';excludeButton.title=isFollowUpReviewTask(task)?'取消本次 Follow-up Task':'排除后移入垃圾箱，可随时恢复';}
     const directFields=directCorrectionFields(task);
     if(importEditorEvidenceEl){
       const scheduleNote=task.scheduleAt?`${scheduleSourceLabel(task)}：${String(task.scheduleAt).replace('T',' ')}`:'';
@@ -4622,9 +4695,10 @@
       batch.handoffComplete=false;
       setTaskEdit(task,{importExcluded:true});
       rebuildTasks();
-      setImportStatus(`已排除「${label}」；内容与人工修改仍保留，可从“恢复已排除”重新加入。`,'ok');
+      setImportStatus(`已将「${label}」移入垃圾箱；内容与人工修改仍保留，可随时恢复。`,'ok');
     }
     renderReviewPageOverview();
+    renderReviewTrash();
     const next=reviewTasks()[0]||null;
     if(next)openImportTaskEditor(next);else{closeImportTaskEditor();await continueAfterReviewResolution('待处理邮件已完成');}
   }
@@ -6278,7 +6352,8 @@
     hideSubjectAssist();
     if(schedulerCardEl){schedulerCardEl.open=true;schedulerCardEl.hidden=true;}
     if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent='收起';
-    const restoreBtn = $('nmda-restore-excluded'); if (restoreBtn) restoreBtn.hidden = true;
+    const trashDetails = $('nmda-review-trash'); if (trashDetails) trashDetails.open = false;
+    renderReviewTrash();
     const fileInfo = $('nmda-file-index-info'); if (fileInfo) fileInfo.textContent = '尚未选择本地附件。';
     const attachmentSummary = $('nmda-attachment-summary'); if (attachmentSummary) attachmentSummary.textContent = '尚未添加附件。';
     const attachmentResolution = $('nmda-attachment-resolution'); if (attachmentResolution) attachmentResolution.hidden = true;
@@ -6606,10 +6681,24 @@
     if(current&&!taskNeedsImportReview(current))await continueAfterReviewResolution('当前邮件已补齐');
   });
   schedulerCardEl?.addEventListener('toggle',()=>{if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent=schedulerCardEl.open?'收起':'展开';});
-  $('nmda-restore-excluded')?.addEventListener('click', () => {
-    batch.handoffComplete=false;
-    for (const [key,edit] of batch.taskEdits) if(edit?.importExcluded) batch.taskEdits.set(key,{...edit,importExcluded:false});
-    rebuildTasks();
+  $('nmda-review-trash-list')?.addEventListener('click', event => {
+    const button=event.target?.closest?.('[data-restore-excluded]');
+    if(!button)return;
+    event.preventDefault();event.stopPropagation();
+    restoreExcludedTask(button.dataset.restoreExcluded||'');
+  });
+  $('nmda-review-trash-restore-all')?.addEventListener('click', event => {
+    event.preventDefault();event.stopPropagation();
+    restoreAllExcludedTasks();
+  });
+  document.addEventListener('click', event => {
+    const trash=$('nmda-review-trash');
+    if(trash?.open && !trash.contains(event.target))trash.open=false;
+  });
+  document.addEventListener('keydown', event => {
+    if(event.key!=='Escape')return;
+    const trash=$('nmda-review-trash');
+    if(trash?.open){trash.open=false;event.preventDefault();}
   });
 
   dirEl?.addEventListener('change', () => {
