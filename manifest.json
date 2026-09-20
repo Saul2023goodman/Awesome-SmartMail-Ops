@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.61",
-  "description": "SmartMail Ops — reconciles Follow-up state from authoritative Sent-mail history, recognizing repeated no-reply outbounds as existing Follow-ups before generating the next step.",
+  "version": "3.8.62",
+  "description": "SmartMail Ops — integrates batch-format governance into Preview as a floating contextual tool with deliberate sequential rewrite choreography, while preserving authoritative Follow-up history reconciliation.",
   "permissions": [
     "scripting",
     "tabs",

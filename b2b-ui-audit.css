@@ -765,138 +765,290 @@
 #nmda-root.nmda-standalone .nmda-semantic-legend-item[data-semantic="format"] { --semantic:#72759a; --semantic-bg:#f0f1f7; }
 #nmda-root.nmda-standalone .nmda-format-mark { --format-accent:#8b5aa7; }
 
-/* v3.8.59 — Batch format governance belongs to Preview, not the per-mail review board. */
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > .nmda-format-governance {
-  display:none !important;
+/* v3.8.62 — Preview-native format lens: batch formatting is contextual, never a toolbar row. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"]{
+  position:relative !important;
+  grid-template-rows:auto minmax(0,1fr) !important;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] {
-  grid-template-rows:auto auto minmax(0,1fr) !important;
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar{
+  grid-template-columns:auto minmax(90px,auto) minmax(0,1fr) !important;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar {
-  grid-template-columns:auto minmax(90px,auto) auto minmax(0,1fr) !important;
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-key{
+  min-width:0;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry {
-  min-height:30px !important;
-  display:inline-flex !important;
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-dock{display:none}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-preview-format-dock{
+  display:flex;
+  position:absolute;
+  z-index:18;
+  top:54px;
+  right:14px;
+  pointer-events:none;
+  transition:opacity .18s ease,transform .22s cubic-bezier(.2,.78,.2,1);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry{
+  position:relative;
+  pointer-events:auto;
+  width:42px;
+  height:42px;
+  min-width:42px !important;
+  padding:0 !important;
+  display:flex !important;
   align-items:center;
-  gap:6px;
-  white-space:nowrap;
-  border-color:#d7dee7 !important;
-  background:#fff !important;
-  color:#46515f !important;
+  justify-content:flex-start;
+  gap:8px;
+  overflow:hidden;
+  border:1px solid rgba(88,103,124,.16) !important;
+  border-radius:14px !important;
+  background:rgba(255,255,255,.86) !important;
+  color:#435064 !important;
+  box-shadow:0 7px 20px rgba(39,52,70,.09),inset 0 1px 0 rgba(255,255,255,.92) !important;
+  backdrop-filter:blur(18px) saturate(1.12);
+  -webkit-backdrop-filter:blur(18px) saturate(1.12);
+  cursor:pointer;
+  transition:width .26s cubic-bezier(.2,.82,.2,1),border-color .18s ease,background .18s ease,box-shadow .22s ease,transform .22s ease !important;
 }
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry:hover,
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry.is-open,
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry[aria-expanded="true"] {
-  border-color:#b8c8dd !important;
-  background:#f2f7fd !important;
-  color:#245f9d !important;
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry:focus-visible{
+  width:116px;
+  border-color:rgba(103,78,143,.25) !important;
+  background:rgba(253,251,255,.94) !important;
+  box-shadow:0 10px 26px rgba(58,45,77,.13),inset 0 1px 0 #fff !important;
+  transform:translateY(-1px);
+  outline:none;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry.has-drift:not(.is-open) {
-  border-color:#d8c7e8 !important;
-  background:#fbf8ff !important;
-  color:#684792 !important;
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry.has-drift:not(.is-open){
+  border-color:rgba(119,84,167,.24) !important;
+  background:rgba(251,248,255,.92) !important;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry > strong {
-  min-width:17px;
-  height:17px;
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-glyph{
+  position:relative;
+  flex:0 0 40px;
+  width:40px;
+  height:40px;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-glyph::before,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-glyph::after,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-glyph i::before,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-glyph i::after{
+  content:"";
+  position:absolute;
+  left:20px;
+  top:20px;
+  border-radius:999px;
+  background:#71509b;
+  transform:translate(-50%,-50%);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-glyph::before{width:2px;height:13px}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-glyph::after{width:13px;height:2px}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-glyph i::before{width:2px;height:8px;transform:translate(-50%,-50%) rotate(45deg);opacity:.45}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-glyph i::after{width:8px;height:2px;transform:translate(-50%,-50%) rotate(45deg);opacity:.45}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-glyph b{
+  position:absolute;right:7px;top:7px;width:4px;height:4px;border-radius:50%;background:#9c80c1;box-shadow:0 0 0 3px rgba(124,91,170,.07)
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-label{
+  flex:0 0 auto;
+  opacity:0;
+  transform:translateX(5px);
+  color:#51445f;
+  font-size:10px;
+  font-weight:760;
+  white-space:nowrap;
+  transition:opacity .16s ease .04s,transform .2s ease .04s;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry:hover .nmda-preview-format-label,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry:focus-visible .nmda-preview-format-label{opacity:1;transform:none}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry > strong{
+  position:absolute;
+  top:-4px;
+  right:-4px;
+  min-width:18px;
+  height:18px;
   padding:0 5px;
   display:grid;
   place-items:center;
+  border:2px solid #fff;
   border-radius:999px;
   background:#7650a1;
   color:#fff;
   font:800 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  box-shadow:0 2px 7px rgba(87,58,124,.18);
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry > strong[hidden] { display:none !important; }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance {
-  grid-column:1 / -1 !important;
-  grid-row:2 !important;
-  position:relative;
-  z-index:6;
-  width:auto !important;
-  max-height:min(34vh,310px);
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry > strong[hidden]{display:none!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-format-governance-open="1"] > .nmda-preview-format-dock{
+  opacity:0;
+  transform:translateX(8px) scale(.96);
+  pointer-events:none;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance{
+  grid-column:auto !important;
+  grid-row:auto !important;
+  position:absolute !important;
+  z-index:24;
+  top:52px;
+  right:14px;
+  width:min(520px,calc(100% - 306px)) !important;
+  min-width:410px;
+  max-height:calc(100% - 66px) !important;
   margin:0 !important;
-  padding:11px 14px 10px !important;
+  padding:14px !important;
   overflow:auto;
-  border-width:0 0 1px !important;
-  border-color:#dbe2ea !important;
-  border-radius:0 !important;
-  background:linear-gradient(180deg,rgba(252,251,255,.99),rgba(248,249,252,.98)) !important;
-  box-shadow:0 10px 24px rgba(31,43,57,.055) !important;
-  backdrop-filter:blur(16px);
-  -webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(79,66,94,.13) !important;
+  border-radius:18px !important;
+  background:linear-gradient(145deg,rgba(253,252,255,.94),rgba(248,250,253,.92)) !important;
+  box-shadow:0 22px 58px rgba(31,38,50,.16),0 3px 12px rgba(35,31,43,.06),inset 0 1px 0 rgba(255,255,255,.95) !important;
+  backdrop-filter:blur(24px) saturate(1.12);
+  -webkit-backdrop-filter:blur(24px) saturate(1.12);
+  animation:nmdaFormatLensIn .24s cubic-bezier(.2,.78,.2,1) both;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-head {
-  margin-bottom:9px;
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-head{margin-bottom:11px!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-head strong{font-size:13px}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-head small{max-width:390px}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-builder{grid-template-columns:1fr !important;gap:9px!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-formats{justify-content:flex-start;flex-wrap:wrap}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-case{width:max-content}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-list{max-height:180px}
+@keyframes nmdaFormatLensIn{from{opacity:0;transform:translateX(14px) scale(.985);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+
+/* During execution the lens folds into a quiet HUD so the document remains the hero. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance.is-running{
+  width:350px !important;
+  min-width:0 !important;
+  max-height:128px !important;
+  padding:8px !important;
+  overflow:hidden !important;
+  background:rgba(251,250,254,.94) !important;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-builder {
-  grid-template-columns:minmax(260px,1.35fr) auto auto;
-  gap:10px;
-}
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-review-preview-rail {
-  grid-row:3 !important;
-}
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > #nmda-review-queue.nmda-review-continuous-preview {
-  grid-row:3 !important;
-}
-@media (max-width:980px) {
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar {
-    grid-template-columns:auto minmax(0,1fr) auto !important;
-  }
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-key {
-    grid-column:1 / -1 !important;
-  }
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-builder {
-    grid-template-columns:1fr auto !important;
-  }
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-case {
-    grid-column:2;
-  }
-}
-@media (max-width:720px) {
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-toolbar {
-    grid-template-columns:auto minmax(0,1fr) auto !important;
-  }
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance {
-    max-height:min(42vh,360px);
-    padding:10px !important;
-  }
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-builder {
-    grid-template-columns:1fr !important;
-  }
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance .nmda-format-governance-case {
-    grid-column:auto;
-  }
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance.is-running > .nmda-format-governance-head,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance.is-running > .nmda-format-governance-builder,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance.is-running > .nmda-format-governance-suggestions,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance.is-running > .nmda-format-governance-result,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance.is-running > .nmda-format-governance-list,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance.is-running > .nmda-format-governance-actions{display:none!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance.is-running .nmda-format-governance-run{
+  margin:0 !important;
+  border:0 !important;
+  padding:9px 10px 8px !important;
+  background:transparent !important;
+  box-shadow:none !important;
 }
 
-/* v3.8.60 — Preview sequential rewrite motion. Visual only; never persisted into mail HTML. */
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-sheet{position:relative;overflow:hidden}
+/* v3.8.62 — composed rewrite choreography: focus → trace → ink-set → rest. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page{
+  transform-origin:center 42%;
+  transition:border-color .32s ease,box-shadow .38s cubic-bezier(.2,.76,.2,1),transform .38s cubic-bezier(.2,.76,.2,1),opacity .28s ease !important;
+}
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-running,
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-rewriting{
-  border-color:#b8a2d5!important;
-  box-shadow:0 0 0 3px rgba(117,82,165,.08),0 10px 30px rgba(42,34,55,.10)!important;
+  border-color:rgba(139,108,179,.46)!important;
+  box-shadow:0 0 0 3px rgba(126,92,169,.055),0 18px 42px rgba(47,39,58,.12)!important;
+  transform:translateY(-2px) scale(1.0015);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page[data-format-phase="focus"] .nmda-review-preview-sheet{
+  background:linear-gradient(180deg,#fff 0%,#fff 72%,rgba(249,247,252,.94) 100%);
 }
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-running .nmda-review-preview-sheet::after,
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-rewriting .nmda-review-preview-sheet::after{
-  content:"";position:absolute;z-index:5;pointer-events:none;top:-12%;bottom:-12%;left:-34%;width:30%;
-  background:linear-gradient(90deg,transparent,rgba(137,103,185,.035) 20%,rgba(130,96,179,.15) 48%,rgba(121,151,203,.08) 72%,transparent);
-  filter:blur(1px);transform:skewX(-8deg);animation:nmdaFormatRewriteSweep .48s cubic-bezier(.2,.72,.25,1) both
+  animation:none!important;
+  content:"";
+  position:absolute;
+  z-index:4;
+  pointer-events:none;
+  inset:0;
+  opacity:0;
+  transform:none;
+  filter:none;
+  background:transparent;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-rewriting .nmda-review-preview-sheet::after{animation-duration:.34s;background:linear-gradient(90deg,transparent,rgba(119,86,165,.04),rgba(119,86,165,.18),rgba(76,130,168,.07),transparent)}
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-done{border-color:#cbdccf!important;box-shadow:0 0 0 2px rgba(74,128,92,.055),0 6px 18px rgba(29,37,48,.06)!important}
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-done::after{content:"";position:absolute;z-index:8;right:12px;top:12px;width:7px;height:7px;border-radius:50%;background:#5c896b;box-shadow:0 0 0 4px rgba(80,137,99,.09);animation:nmdaFormatSettle .32s ease-out both}
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-body::highlight(nmda-governance-target){background:rgba(155,123,200,.19);color:inherit;text-decoration:underline;text-decoration-color:rgba(112,77,168,.62);text-decoration-thickness:1.5px;text-underline-offset:3px}
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-body::highlight(nmda-governance-applied){background:rgba(88,147,108,.13);color:inherit;text-decoration:underline;text-decoration-color:rgba(73,129,92,.40);text-decoration-thickness:1px;text-underline-offset:3px}
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-running{border-color:#baa4d5!important;background:linear-gradient(90deg,rgba(119,86,165,.09),rgba(255,255,255,.86))!important;transform:translateX(3px)!important;box-shadow:0 4px 14px rgba(70,52,93,.08)!important}
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-running::before{background:#8060aa!important;transform:scaleY(1)!important;box-shadow:0 0 9px rgba(128,96,170,.38)}
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-done::before{background:#5c896b!important;transform:scaleY(.72)!important}
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-format-governance-running="1"] .nmda-review-preview-edit{pointer-events:none;opacity:.52}
-@keyframes nmdaFormatRewriteSweep{0%{left:-34%;opacity:0}16%{opacity:1}100%{left:112%;opacity:0}}
-@keyframes nmdaFormatSettle{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.22);opacity:1}100%{transform:scale(1);opacity:1}}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-sheet::before{
+  content:"";
+  position:absolute;
+  z-index:5;
+  pointer-events:none;
+  left:7%;
+  right:7%;
+  top:10%;
+  height:54px;
+  opacity:0;
+  transform:translateY(-18px);
+  border-radius:50%;
+  background:linear-gradient(180deg,transparent,rgba(143,110,185,.055) 34%,rgba(115,141,187,.075) 50%,rgba(143,110,185,.035) 66%,transparent);
+  filter:blur(5px);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page[data-format-phase="trace"] .nmda-review-preview-sheet::before{
+  animation:nmdaFormatTracePass var(--nmda-trace-duration,.52s) cubic-bezier(.32,.06,.18,1) both;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page[data-format-phase="rewrite"] .nmda-review-preview-sheet::after{
+  opacity:1;
+  background:radial-gradient(ellipse at 52% 48%,rgba(137,102,181,.105),rgba(115,143,186,.035) 32%,transparent 66%);
+  animation:nmdaFormatInkBloom .48s cubic-bezier(.18,.76,.22,1) both!important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page[data-format-phase="rewrite"] .nmda-review-preview-body{
+  animation:nmdaFormatBodySet .46s cubic-bezier(.2,.78,.2,1) both;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-done{
+  border-color:rgba(144,169,151,.48)!important;
+  box-shadow:0 0 0 2px rgba(78,130,95,.035),0 8px 22px rgba(29,37,48,.055)!important;
+  transform:none;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-done::after{
+  width:6px;height:6px;right:13px;top:13px;background:#628c70;box-shadow:0 0 0 4px rgba(87,139,104,.075);animation:nmdaFormatSettleSoft .42s cubic-bezier(.2,.75,.22,1) both
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-body::highlight(nmda-governance-target){
+  background:rgba(154,123,195,.16);color:inherit;text-decoration:underline;text-decoration-color:rgba(111,78,154,.58);text-decoration-thickness:1.5px;text-underline-offset:3px
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-body::highlight(nmda-governance-applied){
+  background:rgba(91,145,108,.11);color:inherit;text-decoration:underline;text-decoration-color:rgba(74,125,91,.32);text-decoration-thickness:1px;text-underline-offset:3px
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-running{
+  transform:translateX(2px)!important;
+  border-color:rgba(135,105,174,.38)!important;
+  background:linear-gradient(90deg,rgba(119,86,165,.075),rgba(255,255,255,.9))!important;
+  box-shadow:0 6px 16px rgba(70,52,93,.07)!important;
+  transition:all .34s cubic-bezier(.2,.76,.2,1)!important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-running::before{
+  background:#8060aa!important;transform:scaleY(.86)!important;box-shadow:0 0 0 4px rgba(128,96,170,.07),0 0 9px rgba(128,96,170,.18)
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-done::before{background:#628c70!important;transform:scaleY(.58)!important;box-shadow:none}
+@keyframes nmdaFormatTracePass{0%{opacity:0;transform:translateY(-24px) scaleY(.8)}18%{opacity:.9}78%{opacity:.55}100%{opacity:0;transform:translateY(420px) scaleY(1.08)}}
+@keyframes nmdaFormatInkBloom{0%{opacity:0;transform:scale(.985)}44%{opacity:1}100%{opacity:0;transform:scale(1.015)}}
+@keyframes nmdaFormatBodySet{0%{filter:saturate(.96);transform:translateY(.6px)}48%{filter:saturate(1.04)}100%{filter:none;transform:none}}
+@keyframes nmdaFormatSettleSoft{0%{opacity:0;transform:scale(.55)}58%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-run-track i,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-run-track b{
+  transition-duration:.46s !important;
+  transition-timing-function:cubic-bezier(.2,.78,.2,1) !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-run[data-phase="trace"] .nmda-format-governance-sigil{
+  box-shadow:0 0 0 5px rgba(120,88,165,.055),0 6px 18px rgba(79,57,111,.07);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance-run[data-phase="rewrite"] .is-after{
+  animation:nmdaGovernanceInkSetSoft .48s cubic-bezier(.18,.78,.2,1) both!important;
+}
+@keyframes nmdaGovernanceInkSetSoft{0%{opacity:.25;filter:blur(2.2px);transform:translateY(1px) scale(.995)}58%{opacity:1;filter:blur(0);transform:translateY(-.5px) scale(1.002)}100%{opacity:1;transform:none}}
+
+@media (max-width:980px){
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance{
+    right:12px;width:min(480px,calc(100% - 36px)) !important;min-width:0;
+  }
+}
+@media (max-width:720px){
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-preview-format-dock{right:10px;top:52px}
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance{left:10px;right:10px;top:50px;width:auto!important;max-height:calc(100% - 60px)!important}
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance.is-running{left:auto;width:min(350px,calc(100% - 20px))!important}
+}
 @media (prefers-reduced-motion:reduce){
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-running .nmda-review-preview-sheet::after,
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-rewriting .nmda-review-preview-sheet::after,
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page.is-format-done::after{animation:none!important;display:none!important}
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-rail-card.is-format-running{transform:none!important}
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry,
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-format-governance,
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-page,
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-body{animation:none!important;transition:none!important;transform:none!important}
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-sheet::before,
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-preview-sheet::after{animation:none!important;display:none!important}
+}
+
+/* Smoothly fold the contextual lens into/out of its execution HUD. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance{
+  transition:width .28s cubic-bezier(.2,.78,.2,1),max-height .28s cubic-bezier(.2,.78,.2,1),padding .22s ease,box-shadow .22s ease,background .22s ease;
 }

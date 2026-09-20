@@ -833,7 +833,6 @@
                 <div class="nmda-review-preview-toolbar" id="nmda-review-preview-toolbar" hidden>
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-preview-back" id="nmda-review-preview-back" type="button">← 返回卡片</button>
                   <div class="nmda-review-preview-toolbar-copy"><strong>Preview</strong><small id="nmda-review-preview-meta"></small></div>
-                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-format-entry nmda-preview-format-entry" id="nmda-review-format-governance" type="button" aria-expanded="false" title="检查并统一整批草稿中的固定字段格式"><span>批量格式</span><strong id="nmda-preview-format-drift-count" hidden>0</strong></button>
                   <div class="nmda-review-preview-key" aria-label="关键信息定位标识">
                     <span class="nmda-semantic-legend-item" data-semantic="advisor"><i></i><strong>导师</strong></span>
                     <span class="nmda-semantic-legend-item" data-semantic="student"><i></i><strong>学生</strong></span>
@@ -849,6 +848,13 @@
                   <div class="nmda-review-preview-rail-list" id="nmda-review-preview-rail-list"></div>
                 </aside>
                 <div id="nmda-review-queue" class="nmda-review-queue nmda-review-mail-grid"></div>
+                <div class="nmda-preview-format-dock" id="nmda-preview-format-dock" aria-label="Preview 批量格式工具">
+                  <button class="nmda-review-format-entry nmda-preview-format-entry" id="nmda-review-format-governance" type="button" aria-expanded="false" title="批量格式校正">
+                    <span class="nmda-preview-format-glyph" aria-hidden="true"><i></i><b></b></span>
+                    <span class="nmda-preview-format-label">格式校正</span>
+                    <strong id="nmda-preview-format-drift-count" hidden>0</strong>
+                  </button>
+                </div>
 
                 <div class="nmda-review-workbench" id="nmda-import-editor-overlay" hidden aria-hidden="true">
                   <section class="nmda-review-detail-dialog" role="region" aria-labelledby="nmda-import-editor-title">
@@ -3970,9 +3976,39 @@
     return html;
   }
 
-  function governanceMotionSlot(total=1){
-    if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return 18;
-    return Math.max(90,Math.min(620,Math.round(7200/Math.max(1,total))));
+  function governanceMotionPlan(index=0,total=1){
+    if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return{approach:18,trace:18,rewrite:18,settle:18};
+    const count=Math.max(1,total),progress=count<=1?0:index/(count-1);
+    // Deliberate cadence: introduce the effect slowly, find a steady middle rhythm,
+    // then soften the final entries. This keeps large batches readable without
+    // turning the sequence into either a slideshow or a machine-gun flash.
+    const base=count<=4?1420:count<=12?1120:count<=30?860:640;
+    const edge=Math.pow(Math.abs(progress-.5)*2,2);
+    const tempo=Math.round(base*(1+.28*edge));
+    return{
+      approach:Math.round(tempo*.27),
+      trace:Math.round(tempo*.25),
+      rewrite:Math.round(tempo*.28),
+      settle:Math.round(tempo*.20)
+    };
+  }
+
+  function scrollGovernancePageIntoView(page,duration=260){
+    if(!page||!reviewQueueEl)return Promise.resolve();
+    const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const scroller=reviewQueueEl,scrollerRect=scroller.getBoundingClientRect(),pageRect=page.getBoundingClientRect();
+    const start=scroller.scrollTop;
+    const target=Math.max(0,Math.min(scroller.scrollHeight-scroller.clientHeight,start+(pageRect.top-scrollerRect.top)-Math.max(10,(scroller.clientHeight-pageRect.height)/2)));
+    if(reduced||Math.abs(target-start)<3){scroller.scrollTop=target;return Promise.resolve();}
+    return new Promise(resolve=>{
+      const begin=performance.now(),span=Math.max(140,duration);
+      const tick=now=>{
+        const t=Math.min(1,(now-begin)/span),ease=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+        scroller.scrollTop=start+(target-start)*ease;
+        if(t<1)requestAnimationFrame(tick);else resolve();
+      };
+      requestAnimationFrame(tick);
+    });
   }
 
   function clearGovernancePreviewHighlight(){
@@ -4017,7 +4053,7 @@
   }
 
   function clearGovernanceRunMarks({all=false}={}){
-    reviewQueueEl?.querySelectorAll?.(all?'.is-format-running,.is-format-rewriting,.is-format-done':'.is-format-running,.is-format-rewriting').forEach(el=>el.classList.remove('is-format-running','is-format-rewriting',...(all?['is-format-done']:[])));
+    reviewQueueEl?.querySelectorAll?.(all?'.is-format-running,.is-format-rewriting,.is-format-done':'.is-format-running,.is-format-rewriting').forEach(el=>{el.classList.remove('is-format-running','is-format-rewriting',...(all?['is-format-done']:[]));delete el.dataset.formatPhase;});
     reviewPreviewRailListEl?.querySelectorAll?.(all?'.is-format-running,.is-format-done':'.is-format-running').forEach(el=>el.classList.remove('is-format-running',...(all?['is-format-done']:[])));
     formatGovernanceListEl?.querySelectorAll?.(all?'.is-format-running,.is-format-done':'.is-format-running').forEach(el=>el.classList.remove('is-format-running',...(all?['is-format-done']:[])));
   }
@@ -4042,43 +4078,57 @@
     if(formatGovernanceRunMetaEl){
       if(phase==='complete')formatGovernanceRunMetaEl.textContent=`已逐封处理 ${changed} 封；正文措辞未改变`;
       else if(phase==='error')formatGovernanceRunMetaEl.textContent='已保留此前成功写入的格式修改';
-      else formatGovernanceRunMetaEl.textContent=[String(task?.recipients||'').trim(),row?.needed?`${row.needed} 处待统一`:'' ].filter(Boolean).join(' · ');
+      else {
+        const stage=phase==='focus'?'定位邮件':phase==='trace'?'捕获固定表达':phase==='rewrite'?'格式落定':phase==='settle'?'完成并进入下一封':'';
+        formatGovernanceRunMetaEl.textContent=[stage,String(task?.recipients||'').trim(),row?.needed?`${row.needed} 处`:'' ].filter(Boolean).join(' · ');
+      }
     }
     if(formatGovernanceRunCountEl)formatGovernanceRunCountEl.textContent=phase==='complete'?`${total} / ${total}`:`${Math.min(index+1,total)} / ${total}`;
-    if(formatGovernanceRunBarEl){const step=phase==='settle'?.96:phase==='rewrite'?.68:.18;const fraction=phase==='complete'?1:Math.max(0,Math.min(1,(index+step)/Math.max(1,total)));formatGovernanceRunBarEl.style.setProperty('--run-progress',String(fraction));formatGovernanceRunEl.style.setProperty('--run-progress',String(fraction));}
+    if(formatGovernanceRunBarEl){const phaseStep=phase==='settle'?.96:phase==='rewrite'?.72:phase==='trace'?.46:phase==='focus'?.18:.12;const fraction=phase==='complete'?1:Math.max(0,Math.min(1,(index+phaseStep)/Math.max(1,total)));formatGovernanceRunBarEl.style.setProperty('--run-progress',String(fraction));formatGovernanceRunEl.style.setProperty('--run-progress',String(fraction));}
     if(formatGovernanceRunBeforeEl)formatGovernanceRunBeforeEl.textContent=analysis?.rule?.phrase||'';
     if(formatGovernanceRunAfterEl)formatGovernanceRunAfterEl.innerHTML=governanceFormattedPhraseHtml(analysis?.rule?.phrase||'',analysis?.rule?.formats||[]);
     if(formatGovernanceApplyEl&&formatGovernanceRunState?.running&&phase!=='complete')formatGovernanceApplyEl.textContent=`正在逐封校正 ${Math.min(index+1,total)} / ${total}`;
   }
 
-  async function animateGovernanceTask(row,index,total,analysis,slot){
+  async function animateGovernanceTask(row,index,total,analysis){
     const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    const parts=ensureGovernancePreviewPage(row.task);
+    const motion=governanceMotionPlan(index,total),parts=ensureGovernancePreviewPage(row.task);
     clearGovernanceRunMarks();
     parts.page?.classList.add('is-format-running');parts.rail?.classList.add('is-format-running');parts.row?.classList.add('is-format-running');
-    if(row.task?.editKey)setReviewPreviewActiveKey(row.task.editKey,{revealRail:true,railBehavior:reduced?'auto':'smooth'});
-    if(parts.page)parts.page.scrollIntoView?.({block:'center',behavior:reduced?'auto':(total>24?'auto':'smooth')});
-    const body=parts.page?.querySelector?.('.nmda-review-preview-body');setGovernancePreviewHighlight(body,analysis.rule.phrase,analysis.rule.caseSensitive,'nmda-governance-target');
-    updateGovernanceRunPanel({phase:'locate',index,total,row,analysis});
-    await sleep(Math.max(0,Math.round(slot*.30)));
+    if(parts.page)parts.page.dataset.formatPhase='focus';
+    if(row.task?.editKey)setReviewPreviewActiveKey(row.task.editKey,{revealRail:true,railBehavior:'auto'});
+    updateGovernanceRunPanel({phase:'focus',index,total,row,analysis});
+    await scrollGovernancePageIntoView(parts.page,motion.approach);
+
+    const body=parts.page?.querySelector?.('.nmda-review-preview-body');
+    if(parts.page)parts.page.dataset.formatPhase='trace';
+    setGovernancePreviewHighlight(body,analysis.rule.phrase,analysis.rule.caseSensitive,'nmda-governance-target');
+    updateGovernanceRunPanel({phase:'trace',index,total,row,analysis});
+    await sleep(motion.trace);
 
     const result=inspectGovernanceRuleHtml(taskRichBodyHtml(row.task),analysis.rule,{apply:true});
     if(result.changed){
       setTaskEdit(row.task,{bodyHtml:result.html,bodyIsHtml:true,reviewConfirmed:!!row.task.reviewConfirmed,reviewDraftPending:!!row.task.reviewDraftPending});
       scheduleWorkspacePersist();
       if(body){body.innerHTML=decorateReviewRichHtml(row.task);setGovernancePreviewHighlight(body,analysis.rule.phrase,analysis.rule.caseSensitive,'nmda-governance-applied');}
-      parts.page?.classList.remove('is-format-running');parts.page?.classList.add('is-format-rewriting');
+      parts.page?.classList.add('is-format-rewriting');
+      if(parts.page)parts.page.dataset.formatPhase='rewrite';
       parts.row?.querySelector?.('b')?.replaceChildren(document.createTextNode(`${result.changed} 处已修复`));
       updateGovernanceRunPanel({phase:'rewrite',index,total,row,analysis});
+      await sleep(motion.rewrite);
+    }else if(!reduced){
+      await sleep(Math.min(120,motion.rewrite));
     }
-    await sleep(Math.max(0,Math.round(slot*.43)));
+
     parts.page?.classList.remove('is-format-rewriting','is-format-running');parts.page?.classList.add('is-format-done');
+    if(parts.page)parts.page.dataset.formatPhase='settle';
     parts.rail?.classList.remove('is-format-running');parts.rail?.classList.add('is-format-done');
     parts.row?.classList.remove('is-format-running');parts.row?.classList.add('is-format-done');
     formatGovernanceRunState?.doneKeys?.add?.(row.task.editKey);
     updateGovernanceRunPanel({phase:'settle',index,total,row,analysis});
-    await sleep(Math.max(0,Math.round(slot*.27)));
+    await sleep(motion.settle);
     clearGovernancePreviewHighlight();
+    if(parts.page)delete parts.page.dataset.formatPhase;
     return result.changed||0;
   }
 
@@ -4087,11 +4137,11 @@
     const analysis=formatGovernanceAnalysis||analyzeGovernanceRule(currentGovernanceRule());if(!analysis?.changeTasks)return;
     const runRows=analysis.records.filter(row=>row.needed>0);if(!runRows.length)return;
     const previewContext=batch.reviewSurface==='preview'?{activeKey:String(batch.reviewPreviewKey||''),scrollTop:reviewQueueEl?.scrollTop||0,railScrollTop:reviewPreviewRailListEl?.scrollTop||0}:null;
-    const slot=governanceMotionSlot(runRows.length);formatGovernanceRunState={running:true,id:crypto.randomUUID(),doneKeys:new Set()};const runId=formatGovernanceRunState.id;setFormatGovernanceRunning(true);clearGovernanceRunMarks({all:true});
+    formatGovernanceRunState={running:true,id:crypto.randomUUID(),doneKeys:new Set()};const runId=formatGovernanceRunState.id;setFormatGovernanceRunning(true);clearGovernanceRunMarks({all:true});
     let changedTasks=0,changedOccurrences=0;const changedKeys=[];
     try{
       for(let index=0;index<runRows.length;index++){
-        const row=runRows[index],changed=await animateGovernanceTask(row,index,runRows.length,analysis,slot);if(!changed)continue;
+        const row=runRows[index],changed=await animateGovernanceTask(row,index,runRows.length,analysis);if(!changed)continue;
         changedTasks++;changedOccurrences+=changed;changedKeys.push(row.task.editKey);
       }
       if(!changedTasks){if(formatGovernanceRunEl)formatGovernanceRunEl.hidden=true;return;}
@@ -4106,8 +4156,11 @@
       updateGovernanceRunPanel({phase:'complete',index:runRows.length-1,total:runRows.length,analysis,changed:changedTasks});
       const labels=analysis.rule.formats.map(key=>MAIL_GOVERNANCE_FORMATS[key]?.label||key).join(' + ');setImportStatus(`已逐封统一“${analysis.rule.phrase}”的${labels}格式：修改 ${changedTasks} 封、${changedOccurrences} 处；Preview 已恢复到原浏览位置。`,'ok');
       const completedRunId=runId;if(formatGovernanceRunState?.id===runId)formatGovernanceRunState.running=false;
+      // Keep the compact execution HUD intact for a short completion breath; only
+      // then unfold the editing lens again. This avoids a jarring panel expansion
+      // at the exact moment the final mail settles.
+      await sleep(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches?100:1150);
       setFormatGovernanceRunning(false,{keepRunPanel:true});
-      await sleep(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches?120:1400);
       if(formatGovernanceRunEl&&formatGovernanceRunState?.id===completedRunId&&!formatGovernanceRunState.running)formatGovernanceRunEl.hidden=true;
     }catch(error){
       console.error('[NMDA] batch format animation failed',error);updateGovernanceRunPanel({phase:'error',index:0,total:runRows.length,analysis,changed:changedTasks});setImportStatus(`批量格式校正执行中断：${error?.message||error}`,'error');
