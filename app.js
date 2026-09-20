@@ -322,7 +322,7 @@
                     <span class="nmda-context-eyebrow" id="nmda-roster-context-eyebrow">推荐 · 导入时补充</span>
                     <strong id="nmda-roster-context-title">有参考总名单？建议一起加入</strong>
                     <small id="nmda-roster-context-copy">用于查重、名单核对和院校排期；没有也可以继续。</small>
-                    <div class="nmda-context-benefits" id="nmda-roster-context-benefits"><span>减少重复联系</span><span>发现名单遗漏</span><span>辅助院校排期</span></div>
+                    <div class="nmda-context-benefits" id="nmda-roster-context-benefits"><span>匹配已有 Draft</span><span>发现名单遗漏</span><span>辅助院校排期</span></div>
                     <div id="nmda-roster-source-status" class="nmda-context-status">未添加参考总名单。</div>
                   </div>
                   <div class="nmda-context-cue-actions">
@@ -334,7 +334,7 @@
                 <div id="nmda-import-status" class="nmda-summary nmda-import-status">还没有添加资料。</div>
                 <div id="nmda-source-inventory" class="nmda-source-inventory" hidden></div>
                 <section class="nmda-import-dedupe-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
-                  <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>批次重复 + 邮箱历史防重</strong></div><div class="nmda-import-dedupe-head-actions"><small id="nmda-import-dedupe-state">正在核验</small><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">重新核验</button></div></div>
+                  <div class="nmda-import-dedupe-head"><div><span>导入核验</span><strong>批次重复 · 邮箱历史 · 总名单 ↔ Draft</strong></div><div class="nmda-import-dedupe-head-actions"><small id="nmda-import-dedupe-state">正在核验</small><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">重新核验</button></div></div>
                   <input id="nmda-roster-enabled" type="checkbox" checked hidden>
                   <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
                   <input id="nmda-roster-strict" type="checkbox" hidden>
@@ -3411,7 +3411,7 @@
     draftHistoryListEl.innerHTML=hits.map(({task,history})=>{
       const recent=Operations.formatDisplayTime(history.lastDraftAt)||'时间未知';
       const subject=String(history.lastDraftSubject||'').trim();
-      return `<label class="nmda-draft-history-filter-row"><input type="checkbox" data-draft-history-pick="${escapeHtml(task.editKey)}" checked><span><strong>${escapeHtml(task.recipients||task.id||'当前邮件')}</strong><small>已有草稿 ${history.draftCount} · 最近 ${escapeHtml(recent)}${subject?` · ${escapeHtml(subject)}`:''}</small></span><em>建议筛除</em></label>`;
+      return `<label class="nmda-draft-history-filter-row"><input type="checkbox" data-draft-history-pick="${escapeHtml(task.editKey)}" checked><span><strong>${escapeHtml(task.recipients||task.id||'当前邮件')}</strong><small>已有草稿 ${history.draftCount}${history.viaRoster?' · 总名单关联':''} · 最近 ${escapeHtml(recent)}${subject?` · ${escapeHtml(subject)}`:''}</small></span><em>建议筛除</em></label>`;
     }).join('');
     if(draftHistoryExcludeEl)draftHistoryExcludeEl.textContent=`筛除所选（${hits.length}）`;
     if(draftHistoryKeepEl)draftHistoryKeepEl.textContent=`仍保留所选（${hits.length}）`;
@@ -4782,7 +4782,7 @@
   }
 
   function emptyRosterState(overrides={}) {
-    return {dataset:null,entries:[],manualEntries:[],routedEntries:[],audit:null,warnings:[],manualWarnings:[],routedWarnings:[],enabled:true,autoSchool:true,strict:false,sourceNames:[],manualSourceNames:[],routedSourceNames:[],...overrides};
+    return {dataset:null,entries:[],manualEntries:[],routedEntries:[],audit:null,draftAudit:null,warnings:[],manualWarnings:[],routedWarnings:[],enabled:true,autoSchool:true,strict:false,sourceNames:[],manualSourceNames:[],routedSourceNames:[],...overrides};
   }
 
   function rosterState() {
@@ -4811,7 +4811,7 @@
     state.entries=mergeUniqueRosterEntries([...(state.manualEntries||[]),...(state.routedEntries||[])]);
     state.sourceNames=[...new Set([...(state.manualSourceNames||[]),...(state.routedSourceNames||[])])];
     state.warnings=[...new Set([...(state.manualWarnings||[]),...(state.routedWarnings||[])])];
-    state.audit=null;
+    state.audit=null;state.draftAudit=null;
     const status=$('nmda-roster-source-status');
     if(status)status.textContent=state.entries.length?`已添加 ${state.entries.length} 条参考名单${state.sourceNames.length?` · ${state.sourceNames.join('、')}`:''}`:'未添加总名单。';
     const remove=$('nmda-roster-remove');if(remove)remove.hidden=!state.entries.length;
@@ -4842,21 +4842,74 @@
     return !!(sync.lastDedupeAt||sync.lastFullAt);
   }
 
+
+  function rosterEntryStableKey(entry){
+    if(!entry)return '';
+    return String(entry.key||[String(entry.email||'').toLowerCase(),Roster?.normalizeName?.(entry.name||'')||'',String(entry.schoolKey||entry.school||'').toLowerCase()].join('|'));
+  }
+
+  function mailboxDraftsForRosterMatching(){
+    if(!operationState.loaded||!operationState.store)return[];
+    return Object.values(operationState.store.draftRecords||{}).filter(record=>{
+      if(!record || record.status==='sent' || record.status==='cancelled')return false;
+      if(record.kind==='follow_up'||Number(record.sequence||0)>0)return false;
+      return Array.isArray(record.recipients)&&record.recipients.some(item=>item?.email);
+    });
+  }
+
+  function rosterDraftReconciliation(){
+    const state=rosterState();
+    if(!Roster?.reconcileDrafts || !state.entries.length || !operationState.loaded)return null;
+    const audit=Roster.reconcileDrafts(state.entries,mailboxDraftsForRosterMatching());
+    audit.complete=mailboxDedupeSnapshotAvailable();
+    audit.syncedAt=operationState.store?.mailboxSync?.lastDedupeAt||operationState.store?.mailboxSync?.lastFullAt||operationState.store?.mailboxSync?.lastQuickAt||'';
+    state.draftAudit=audit;
+    return audit;
+  }
+
+  function strongRosterDraftBridge(taskMatch,draftMatch){
+    if(!taskMatch?.entry||!draftMatch?.entry)return false;
+    if(rosterEntryStableKey(taskMatch.entry)!==rosterEntryStableKey(draftMatch.entry))return false;
+    if(!['matched','conflict'].includes(taskMatch.status)||!['matched','conflict'].includes(draftMatch.status))return false;
+    const a=Number(taskMatch.score||0),b=Number(draftMatch.score||0),hi=Math.max(a,b),lo=Math.min(a,b);
+    return (a>=102&&b>=102)||(hi>=120&&lo>=90);
+  }
+
+  function rosterDraftBridgeForTask(task){
+    const state=rosterState();
+    if(!taskNeedsDuplicateGate(task)||!state.entries.length||!Roster?.matchOne||!operationState.loaded)return[];
+    const taskMatch=task?.rosterReference
+      ? {entry:task.rosterReference,status:task.rosterMatchStatus||'matched',score:Number(task.rosterMatchScore||0),by:task.rosterMatchBy||''}
+      : Roster.matchOne(task,state.entries);
+    if(!taskMatch?.entry||!['matched','conflict'].includes(taskMatch.status))return[];
+    const audit=state.draftAudit||rosterDraftReconciliation();
+    if(!audit)return[];
+    const rows=audit.byRoster?.get?.(rosterEntryStableKey(taskMatch.entry))||[];
+    return rows.filter(row=>strongRosterDraftBridge(taskMatch,row));
+  }
+
   function mailboxHistoryForTask(task){
-    if(!Operations || !operationState.loaded || !taskNeedsDuplicateGate(task))return {sent:[],drafts:[],sentCount:0,draftCount:0,lastSentAt:'',lastDraftAt:'',lastSubject:'',lastDraftSubject:''};
+    if(!Operations || !operationState.loaded || !taskNeedsDuplicateGate(task))return {sent:[],drafts:[],sentCount:0,draftCount:0,lastSentAt:'',lastDraftAt:'',lastSubject:'',lastDraftSubject:'',viaRoster:false};
     const raw=Operations.mailboxHistoryForRecipients(operationState.store,task?.recipients||'');
     const selfKey=String(task?.editKey||task?.id||'');
     const sent=(raw.sent||[]).filter(record=>String(record?.taskId||'')!==selfKey);
-    const drafts=(raw.drafts||[]).filter(record=>String(record?.taskId||'')!==selfKey);
+    const directDrafts=(raw.drafts||[]).filter(record=>String(record?.taskId||'')!==selfKey);
+    const draftMap=new Map(directDrafts.map((record,index)=>[String(record?.id||record?.providerMessageId||`${record?.savedAt||''}|${record?.subject||''}|${index}`),record]));
+    let viaRoster=false,rosterEntry=null;
+    for(const bridge of rosterDraftBridgeForTask(task)){
+      const record=bridge?.draft;if(!record||String(record?.taskId||'')===selfKey)continue;
+      const key=String(record.id||record.providerMessageId||'');if(key&&!draftMap.has(key)){draftMap.set(key,record);viaRoster=true;rosterEntry=bridge.entry||rosterEntry;}
+    }
+    const drafts=[...draftMap.values()].sort((a,b)=>Date.parse(b?.savedAt||b?.scheduleAt||0)-Date.parse(a?.savedAt||a?.scheduleAt||0));
     return {
       sent,drafts,sentCount:sent.length,draftCount:drafts.length,
-      lastSentAt:sent[0]?.sentAt||'',lastDraftAt:drafts[0]?.savedAt||'',
-      lastSubject:sent[0]?.subject||'',lastDraftSubject:drafts[0]?.subject||''
+      lastSentAt:sent[0]?.sentAt||'',lastDraftAt:drafts[0]?.savedAt||drafts[0]?.scheduleAt||'',
+      lastSubject:sent[0]?.subject||'',lastDraftSubject:drafts[0]?.subject||'',viaRoster,rosterEntry
     };
   }
 
   function draftHistoryHitKey(task,history){
-    return [String(task?.recipients||'').trim().toLowerCase(),history?.draftCount||0,history?.lastDraftAt||'-',history?.lastDraftSubject||'-'].join('|');
+    return [String(task?.recipients||'').trim().toLowerCase(),history?.viaRoster?'roster':'direct',rosterEntryStableKey(history?.rosterEntry),history?.draftCount||0,history?.lastDraftAt||'-',history?.lastDraftSubject||'-'].join('|');
   }
 
   function unresolvedDraftHistoryHits(tasks=batch.tasks||[]){
@@ -4935,8 +4988,9 @@
 
   function applyRosterCrossCheck(tasks) {
     const state=rosterState();
-    if(!Roster || !state.enabled || !state.entries.length){state.audit=null;return null;}
+    if(!Roster || !state.enabled || !state.entries.length){state.audit=null;state.draftAudit=null;return null;}
     const audit=Roster.crossCheck(tasks,state.entries);
+    const draftAudit=rosterDraftReconciliation();
     const byKey=new Map((tasks||[]).map(t=>[t.editKey,t]));
     for(const match of audit.matches){
       const task=match.task;if(!task)continue;
@@ -4960,6 +5014,9 @@
       }
       if(match.entry){
         task.rosterMeta={country:match.entry.country||'',batch:match.entry.batch||'',status:match.entry.status||'',priority:match.entry.priority||'',priorityOrder:match.entry.priorityOrder!=null&&String(match.entry.priorityOrder).trim()!==''&&Number.isFinite(Number(match.entry.priorityOrder))?Number(match.entry.priorityOrder):null,tags:[...(match.entry.tags||[])],notes:match.entry.notes||''};
+        const draftRows=(draftAudit?.byRoster?.get?.(rosterEntryStableKey(match.entry))||[]).filter(row=>strongRosterDraftBridge(match,row));
+        task.rosterDraftMatches=draftRows.map(row=>({id:String(row.draft?.id||''),subject:String(row.draft?.subject||''),savedAt:String(row.draft?.savedAt||''),scheduleAt:String(row.draft?.scheduleAt||''),score:Number(row.score||0),by:String(row.by||'')}));
+        task.rosterDraftBridgeHit=task.rosterDraftMatches.length>0;
       }
     }
     for(const dup of audit.duplicateMatches||[]){
@@ -5010,6 +5067,7 @@
     const duplicateAudit=batch.duplicateAudit || Roster?.auditTaskDuplicates?.(tasks) || {groups:[],summary:{tasks:tasks.length,groups:0,exact:0,probable:0,affectedTasks:0}};
     const history=operationHistoryAudit(tasks);
     const rosterAudit=state.entries.length ? (state.audit || (Roster&&tasks.length?Roster.crossCheck(tasks,state.entries):null)) : null;
+    const draftAudit=state.entries.length ? (state.draftAudit || rosterDraftReconciliation()) : null;
     const dx=duplicateAudit.summary||{},pendingDuplicates=unresolvedDuplicateGroupCount();
     const metrics=[];
     if(tasks.length)metrics.push(`<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>当前邮件</span></div>`);
@@ -5022,6 +5080,17 @@
       metrics.push(`<div class="nmda-import-metric"><strong>${x.matched||0}</strong><span>名单匹配</span></div>`);
       if(x.unwritten)metrics.push(`<div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>尚未加入</span></div>`);
       if(x.ambiguous||x.duplicates)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${(x.ambiguous||0)+(x.duplicates||0)}</strong><span>名单待核对</span></div>`);
+    }
+    if(draftAudit){
+      const d=draftAudit.summary||{};
+      if(draftAudit.complete){
+        metrics.push(`<div class="nmda-import-metric"><strong>${d.rosterWithDraft||0}</strong><span>名单 ↔ 草稿</span></div>`);
+        if(d.missingDrafts)metrics.push(`<div class="nmda-import-metric"><strong>${d.missingDrafts}</strong><span>名单缺草稿</span></div>`);
+        const draftIssues=(d.unmatchedDrafts||0)+(d.ambiguousDrafts||0)+(d.duplicateDraftContacts||0);
+        if(draftIssues)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${draftIssues}</strong><span>草稿待核对</span></div>`);
+      }else{
+        metrics.push(`<div class="nmda-import-metric"><strong>…</strong><span>草稿匹配中</span></div>`);
+      }
     }
     if(summary)summary.innerHTML=metrics.join('');
 
@@ -5043,6 +5112,17 @@
         if(x.unwritten)rosterParts.push(`${x.unwritten} 位名单联系人尚未加入本批次`);
         parts.push(`参考总名单${rosterParts.length?`额外${rosterParts.join('、')}`:'已完成交叉核对'}`);
       }else if(state.entries.length&&!tasks.length)parts.push('参考总名单已就绪；加入邮件后会自动进行交叉核对');
+      if(draftAudit){
+        const d=draftAudit.summary||{};
+        if(draftAudit.complete){
+          const draftParts=[`${d.rosterWithDraft||0} 位名单联系人已有 Draft`];
+          if(d.missingDrafts)draftParts.push(`${d.missingDrafts} 位尚无 Draft`);
+          if(d.unmatchedDrafts)draftParts.push(`${d.unmatchedDrafts} 封 Draft 不在名单`);
+          if(d.ambiguousDrafts)draftParts.push(`${d.ambiguousDrafts} 封 Draft 匹配不唯一`);
+          if(d.duplicateDraftContacts)draftParts.push(`${d.duplicateDraftContacts} 位联系人存在多份 Draft`);
+          parts.push(`总名单 ↔ Draft 已完成：${draftParts.join('、')}`);
+        }else parts.push('总名单 ↔ Draft 正在等待完整草稿箱历史；完成后会自动建立关联');
+      }
       note.innerHTML=parts.length?`${parts.join('；')}。`:'核验将在加入邮件后自动开始。';
     }
 
@@ -5075,6 +5155,18 @@
         html+=section('排程参考（不影响邮件）',scheduleDiffs,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → ${escapeHtml(rosterEntryLabel(m.entry))}</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='conflict').length);
         html+=section('名单映射重复',rosterDups,d=>`<span>${escapeHtml(rosterEntryLabel(d.entry))} · ${d.matches?.length||0} 封邮件</span>`,rosterAudit.duplicateMatches?.length||0);
       }
+      if(draftAudit&&draftAudit.complete){
+        const matched=(draftAudit.matched||[]).slice(0,12);
+        const missing=(draftAudit.missing||[]).slice(0,12);
+        const unmatched=(draftAudit.unmatched||[]).slice(0,12);
+        const ambiguous=(draftAudit.ambiguous||[]).slice(0,12);
+        const multi=(draftAudit.duplicateDrafts||[]).slice(0,8);
+        html+=section('总名单 ↔ Draft',matched,m=>`<span>${escapeHtml(rosterEntryLabel(m.entry))} ← ${escapeHtml(m.draft?.subject||m.draft?.recipients?.[0]?.email||'草稿')} · ${escapeHtml(m.by||'匹配')}</span>`,draftAudit.matched?.length||0);
+        html+=section('名单尚无 Draft',missing,e=>`<span>${escapeHtml(rosterEntryLabel(e))}</span>`,draftAudit.missing?.length||0);
+        html+=section('Draft 不在名单',unmatched,m=>`<span>${escapeHtml(m.draft?.recipients?.[0]?.email||'未知收件人')} · ${escapeHtml(m.draft?.subject||'无主题')}</span>`,draftAudit.unmatched?.length||0);
+        html+=section('Draft 匹配待核对',ambiguous,m=>`<span>${escapeHtml(m.draft?.recipients?.[0]?.email||m.task?.name||'草稿')} → ${m.candidates?.length||0} 个名单候选</span>`,draftAudit.ambiguous?.length||0);
+        html+=section('同一名单联系人多份 Draft',multi,d=>`<span>${escapeHtml(rosterEntryLabel(d.entry))} · ${d.matches?.length||0} 份草稿</span>`,draftAudit.duplicateDrafts?.length||0);
+      }
       details.innerHTML=html;
     }
     renderDraftHistoryFilter();
@@ -5099,6 +5191,8 @@
       renderImportLifecycleState();
       renderSupplementPreflight();
       if(batch.dataset&&batch.supplementPreflightDone)renderImportHandoff();
+      scheduleWorkspacePersist();
+      scheduleMailboxAutoSync('history',{source:'roster',force:true});
     }catch(error){console.error(`[${APP}] roster`,error);if(status)status.textContent=`总名单读取失败：${error.message}`;}
     finally{if(rosterFileEl)rosterFileEl.value='';}
   }
@@ -5113,6 +5207,7 @@
     const remove=$('nmda-roster-remove');if(remove)remove.hidden=true;
     if(batch.dataset){rebuildTasks();renderSourceInventory();}else renderRosterAudit();
     renderImportLifecycleState();
+    scheduleWorkspacePersist();
   }
 
   function mergedRowSourcePurpose(sourceFile) {
@@ -6601,7 +6696,7 @@
         setMailboxAutoSyncCue('waiting',connection?.connected?'完成登录后自动读取':'连接网易邮箱后自动读取');
         return null;
       }
-      const sourceLabel=source==='import'?'导入后核验历史':source==='ready-handoff'?'任务就绪自动同步':source?.startsWith?.('tab:')?'页面切换刷新':source==='connection'?'邮箱连接完成':'自动刷新';
+      const sourceLabel=source==='import'?'导入后核验历史':source==='roster'?'总名单匹配草稿':source==='ready-handoff'?'任务就绪自动同步':source?.startsWith?.('tab:')?'页面切换刷新':source==='connection'?'邮箱连接完成':'自动刷新';
       const detail=normalizedKind==='history'?`${sourceLabel} · 已发送 + 草稿`:normalizedKind==='full'?`${sourceLabel} · 完整邮箱`:`${sourceLabel} · 已发送 + 草稿 + 收件`;
       setMailboxAutoSyncCue('syncing',detail);
       try{
@@ -6838,6 +6933,7 @@
     await restoreWorkspaceFromStorage();
     invalidateBatchView(true);
     await ensureOperationStore(true).catch(error=>console.warn(`[${APP}] operations init failed`,error));
+    if(referenceRosterCount())scheduleMailboxAutoSync('history',{source:'roster'});
     applyDeepLink();
     scheduleBatchRender({aux:true,force:true});
   })();
