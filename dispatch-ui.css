@@ -232,3 +232,78 @@
   #nmda-root .nmda-dispatch-page .nmda-execution-mode,
   #nmda-root .nmda-dispatch-page .nmda-mail-handoff-action { width:100%; justify-content:center; }
 }
+
+/* v3.8.28 motion study — Apply Plan: spatial reflow + settle */
+#nmda-root .nmda-dispatch-page #nmda-preview-card {
+  position:relative;
+}
+#nmda-root .nmda-dispatch-page #nmda-preview-card.is-plan-settling::after {
+  content:"";
+  position:absolute;
+  z-index:7;
+  pointer-events:none;
+  top:0;
+  bottom:0;
+  left:-22%;
+  width:24%;
+  opacity:0;
+  background:linear-gradient(90deg,rgba(255,255,255,0),rgba(219,234,254,.42),rgba(255,255,255,0));
+  filter:blur(1px);
+  animation:nmda-plan-sweep 760ms cubic-bezier(.2,.72,.2,1) both;
+}
+#nmda-root .nmda-plan-motion-toast {
+  position:absolute;
+  z-index:12;
+  right:18px;
+  top:62px;
+  min-width:190px;
+  max-width:min(320px,calc(100% - 36px));
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border:1px solid rgba(148,163,184,.3);
+  border-radius:12px;
+  background:rgba(255,255,255,.94);
+  box-shadow:0 16px 38px rgba(15,23,42,.12),0 2px 8px rgba(15,23,42,.06);
+  backdrop-filter:blur(14px);
+  color:#27364a;
+  pointer-events:none;
+  animation:nmda-plan-toast 1750ms cubic-bezier(.2,.78,.2,1) both;
+}
+#nmda-root .nmda-plan-motion-toast > span:last-child { display:grid; gap:1px; min-width:0; }
+#nmda-root .nmda-plan-motion-toast strong { font-size:12px; line-height:1.2; letter-spacing:.01em; }
+#nmda-root .nmda-plan-motion-toast small { color:#708095; font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#nmda-root .nmda-plan-motion-check {
+  width:26px;
+  height:26px;
+  flex:0 0 26px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  color:#2563eb;
+  font-size:13px;
+  font-weight:900;
+  box-shadow:inset 0 0 0 3px rgba(255,255,255,.7);
+}
+#nmda-root .nmda-dispatch-page .nmda-plan-matrix-task {
+  transform-origin:center center;
+  will-change:transform,opacity;
+}
+@keyframes nmda-plan-sweep {
+  0% { transform:translateX(0); opacity:0; }
+  18% { opacity:.72; }
+  100% { transform:translateX(520%); opacity:0; }
+}
+@keyframes nmda-plan-toast {
+  0% { transform:translateY(-8px) scale(.98); opacity:0; }
+  12%,78% { transform:translateY(0) scale(1); opacity:1; }
+  100% { transform:translateY(-4px) scale(.99); opacity:0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #nmda-root .nmda-dispatch-page #nmda-preview-card.is-plan-settling::after { animation:none; display:none; }
+  #nmda-root .nmda-plan-motion-toast { animation:none; opacity:1; }
+  #nmda-root .nmda-dispatch-page .nmda-plan-matrix-task { will-change:auto; }
+}

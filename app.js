@@ -5181,6 +5181,94 @@
     if(scheduleClearEl)scheduleClearEl.disabled=batch.running||!tasks.some(t=>t.scheduleSource==='auto'&&t.scheduleAt);
   }
 
+  function captureSchedulePlanMotionState() {
+    const wrap=previewBodyEl?.querySelector?.('.nmda-plan-matrix-wrap');
+    const rects=new Map();
+    previewBodyEl?.querySelectorAll?.('[data-plan-task-key]').forEach(el=>{
+      const key=String(el.dataset.planTaskKey||'');
+      if(!key)return;
+      const rect=el.getBoundingClientRect();
+      if(rect.width>0&&rect.height>0)rects.set(key,{left:rect.left,top:rect.top,width:rect.width,height:rect.height});
+    });
+    return {
+      rects,
+      scrollLeft:wrap?.scrollLeft||0,
+      scrollTop:wrap?.scrollTop||0,
+      capturedAt:performance.now()
+    };
+  }
+
+  function schedulePlanMotionSummary(plan){
+    const summary=plan?.summary||{};
+    const parts=[];
+    if(summary.auto)parts.push(`${summary.auto} 封落位`);
+    if(summary.rounds)parts.push(`${summary.rounds} 轮`);
+    if(summary.lockedTimeAdjusted)parts.push(`避让 ${summary.lockedTimeAdjusted}`);
+    if(summary.holidayAdjusted)parts.push(`顺延 ${summary.holidayAdjusted}`);
+    return parts.join(' · ')||'排期已应用';
+  }
+
+  function playSchedulePlanMotion(previous, plan){
+    if(!previous||!previewBodyEl)return;
+    const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const wrap=previewBodyEl.querySelector('.nmda-plan-matrix-wrap');
+    if(wrap){wrap.scrollLeft=previous.scrollLeft||0;wrap.scrollTop=previous.scrollTop||0;}
+    const card=$('nmda-preview-card');
+    if(card){
+      card.classList.remove('is-plan-settling');
+      void card.offsetWidth;
+      card.classList.add('is-plan-settling');
+      window.setTimeout(()=>card.classList.remove('is-plan-settling'),900);
+    }
+    const toast=document.createElement('div');
+    toast.className='nmda-plan-motion-toast';
+    toast.innerHTML=`<span class="nmda-plan-motion-check" aria-hidden="true">✓</span><span><strong>Plan applied</strong><small>${escapeHtml(schedulePlanMotionSummary(plan))}</small></span>`;
+    card?.appendChild(toast);
+    window.setTimeout(()=>toast.remove(),1800);
+    if(reduceMotion)return;
+
+    const viewport=previewBodyEl.getBoundingClientRect();
+    const candidates=[...previewBodyEl.querySelectorAll('[data-plan-task-key]')].filter(el=>{
+      const rect=el.getBoundingClientRect();
+      return rect.bottom>=viewport.top-80&&rect.top<=viewport.bottom+80&&rect.right>=viewport.left-80&&rect.left<=viewport.right+80;
+    }).slice(0,90);
+    let enterIndex=0;
+    for(const el of candidates){
+      const key=String(el.dataset.planTaskKey||'');
+      const now=el.getBoundingClientRect();
+      const before=previous.rects.get(key);
+      if(before){
+        const dx=before.left-now.left,dy=before.top-now.top;
+        const moved=Math.abs(dx)>1||Math.abs(dy)>1;
+        el.animate(moved?[
+          {transform:`translate(${dx}px, ${dy}px) scale(.985)`,opacity:.78,boxShadow:'0 14px 34px rgba(37,99,235,.14)'},
+          {transform:'translate(0, 0) scale(1)',opacity:1,boxShadow:'0 2px 8px rgba(15,23,42,.05)'}
+        ]:[
+          {transform:'scale(.985)',filter:'brightness(1.04)'},
+          {transform:'scale(1)',filter:'brightness(1)'}
+        ],{duration:moved?560:360,easing:moved?'cubic-bezier(.2,.82,.2,1)':'ease-out',fill:'both'});
+      }else{
+        const delay=Math.min(enterIndex++,10)*34;
+        el.animate([
+          {transform:'translateY(12px) scale(.965)',opacity:0},
+          {transform:'translateY(-2px) scale(1.006)',opacity:1,offset:.78},
+          {transform:'translateY(0) scale(1)',opacity:1}
+        ],{duration:460,delay,easing:'cubic-bezier(.2,.78,.2,1)',fill:'both'});
+      }
+    }
+    [...previewBodyEl.querySelectorAll('.nmda-plan-matrix-colhead')].slice(0,12).forEach((el,index)=>{
+      el.animate([
+        {transform:'translateY(-5px)',opacity:.72},
+        {transform:'translateY(0)',opacity:1}
+      ],{duration:330,delay:index*28,easing:'cubic-bezier(.2,.8,.2,1)'});
+    });
+  }
+
+  function renderAppliedScheduleWithMotion(previous, plan){
+    renderPreview({aux:false});
+    requestAnimationFrame(()=>requestAnimationFrame(()=>playSchedulePlanMotion(previous,plan)));
+  }
+
   async function applySmartSchedule() {
     if(!Scheduler){setBatchStatus('自动安排暂不可用。','error');return;}
     try{
@@ -5368,7 +5456,7 @@
 
   function renderPlanningMatrixTask(task, context={}){
     const state=compactPlanningState(task);
-    return `<article class="nmda-plan-matrix-task" data-state-tone="${escapeHtml(state.tone)}" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}">
+    return `<article class="nmda-plan-matrix-task" data-plan-task-key="${escapeHtml(task.editKey)}" data-state-tone="${escapeHtml(state.tone)}" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}">
       <label class="nmda-plan-matrix-toggle"><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''} ${batch.running||task.policyBlocked||task.status==='running'||task.status==='done'?'disabled':''}></label>
       <div class="nmda-plan-matrix-taskbody">
         <div class="nmda-plan-matrix-taskline"><strong>${escapeHtml(task.recipients||'—')}</strong><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span></div>
@@ -5381,7 +5469,7 @@
   function renderPlanningLooseTask(task){
     const state=compactPlanningState(task);
     const school=Scheduler?.groupForTask?.(task)?.label||task.school||'未识别学校';
-    return `<article class="nmda-plan-loose-task" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${dispatchKindBadge(task)} ${escapeHtml(school)}</small></div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'disabled title="网易已有排期为只读"':''}></article>`;
+    return `<article class="nmda-plan-loose-task" data-plan-task-key="${escapeHtml(task.editKey)}" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${dispatchKindBadge(task)} ${escapeHtml(school)}</small></div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(task.scheduleAt||'')}" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'disabled title="网易已有排期为只读"':''}></article>`;
   }
 
 
@@ -6018,7 +6106,14 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
-  scheduleApplyEl?.addEventListener('click', () => { void (async()=>{const ok=await applySmartSchedule();if(ok)closeScheduleModal();})(); });
+  scheduleApplyEl?.addEventListener('click', () => { void (async()=>{
+    const motionState=captureSchedulePlanMotionState();
+    const ok=await applySmartSchedule();
+    if(!ok)return;
+    closeScheduleModal({restoreFocus:false});
+    renderAppliedScheduleWithMotion(motionState,batch.schedulePlan);
+    requestAnimationFrame(()=>$('nmda-open-schedule-modal')?.focus?.({preventScroll:true}));
+  })(); });
   scheduleClearEl?.addEventListener('click',()=>void clearAutoSchedule());
   [scheduleStartEl,scheduleMaxSchoolEl,scheduleIntervalDaysEl,schedulePreserveEl,scheduleMailboxExistingEl,scheduleHolidayEl].forEach(el=>el?.addEventListener('change',()=>{readScheduleRuleControls();batch.schedulePlan=null;renderScheduleCenter();}));
   syncScheduleRuleControls();
