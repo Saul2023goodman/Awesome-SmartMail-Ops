@@ -779,12 +779,12 @@
                 </div>
                 <section class="nmda-format-governance nmda-batch-standards" id="nmda-format-governance" hidden aria-label="Preview 批量处理">
                   <header class="nmda-format-governance-head nmda-batch-standards-head">
-                    <div><strong>批量处理</strong><small id="nmda-batch-standards-desc">只显示当前真正需要处理的批量事项：补齐主题、统一正文格式。</small></div>
+                    <div><strong>批量处理</strong><small id="nmda-batch-standards-desc">只显示当前真正需要处理的批量事项：补齐主题、处理检测到的格式偏移。</small></div>
                     <button class="nmda-icon-btn" id="nmda-format-governance-close" type="button" aria-label="关闭批量处理">×</button>
                   </header>
                   <div class="nmda-batch-standards-overview" aria-label="批量处理检查结果">
                     <span data-standard-summary="subject"><i>T</i><b>主题补齐</b><strong id="nmda-batch-standard-subject-count">0</strong><small>缺失</small></span>
-                    <span data-standard-summary="format"><i>✦</i><b>格式统一</b><strong id="nmda-batch-standard-format-count">0</strong><small>漂移</small></span>
+                    <span data-standard-summary="format"><i>✦</i><b>格式偏移</b><strong id="nmda-batch-standard-format-count">0</strong><small>推荐</small></span>
                     <span data-standard-summary="followup" hidden><i>↗</i><b>Follow-up 模板</b><strong id="nmda-batch-followup-count">未设置</strong><small id="nmda-batch-followup-summary">按需显示</small></span>
                   </div>
                   <section class="nmda-batch-standard-card is-subject" id="nmda-batch-standard-subject">
@@ -794,24 +794,29 @@
                     <div class="nmda-batch-standard-result" id="nmda-batch-standard-subject-result">正在检查主题完整性…</div>
                   </section>
                   <section class="nmda-batch-standard-card is-format" id="nmda-batch-standard-format">
-                    <header><div><strong>正文格式一致性</strong><small>固定表达在模板衍生后应保持同一格式；系统先检查命中与漂移，再加入校正计划。</small></div></header>
-                    <div class="nmda-format-governance-builder">
-                      <label class="nmda-format-governance-phrase"><span>固定字段 / 文本</span><input id="nmda-format-governance-phrase" type="text" maxlength="240" placeholder="例如：Computational Imaging" autocomplete="off"><small>精确匹配正文固定表达；适合项目名、论文名、术语等。</small></label>
-                      <div class="nmda-format-governance-formats" role="group" aria-label="需要统一的格式">
-                        <span>统一为</span>
-                        <button class="is-active" type="button" data-governance-format="italic" aria-pressed="true" title="斜体"><em>I</em><small>斜体</small></button>
-                        <button type="button" data-governance-format="bold" aria-pressed="false" title="加粗"><strong>B</strong><small>加粗</small></button>
-                        <button type="button" data-governance-format="underline" aria-pressed="false" title="下划线"><u>U</u><small>下划线</small></button>
-                        <button type="button" data-governance-format="strike" aria-pressed="false" title="删除线"><s>S</s><small>删除线</small></button>
-                      </div>
-                      <label class="nmda-format-governance-case"><input id="nmda-format-governance-case" type="checkbox" checked><span>区分大小写</span></label>
-                      <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-format-governance-add" id="nmda-format-governance-add" type="button" disabled>加入本次处理</button>
-                    </div>
-                    <div class="nmda-format-governance-suggestions" id="nmda-format-governance-suggestions" hidden></div>
+                    <header><div><strong>格式偏移</strong><small>默认只展示系统从当前邮件中检测到的偏移推荐；选择后一次批量修复。</small></div></header>
+                    <div class="nmda-format-governance-suggestions" id="nmda-format-governance-suggestions"></div>
                     <div class="nmda-format-governance-queue" id="nmda-format-governance-queue" hidden></div>
-                    <div class="nmda-format-governance-result" id="nmda-format-governance-result">输入固定文本，或采用上方检测到的格式漂移。</div>
-                    <div class="nmda-format-governance-list" id="nmda-format-governance-list" hidden></div>
-                    <div id="nmda-format-governance-history" class="nmda-format-governance-history"></div>
+                    <details class="nmda-format-governance-custom" id="nmda-format-governance-custom">
+                      <summary><span><strong>自定义格式规则</strong><small>仅在推荐无法覆盖时使用</small></span><i aria-hidden="true">⌄</i></summary>
+                      <div class="nmda-format-governance-custom-body">
+                        <div class="nmda-format-governance-builder">
+                          <label class="nmda-format-governance-phrase"><span>固定文本</span><input id="nmda-format-governance-phrase" type="text" maxlength="240" placeholder="例如：Computational Imaging" autocomplete="off"><small>精确匹配正文中的固定表达。</small></label>
+                          <div class="nmda-format-governance-formats" role="group" aria-label="需要统一的格式">
+                            <span>统一为</span>
+                            <button class="is-active" type="button" data-governance-format="italic" aria-pressed="true" title="斜体"><em>I</em><small>斜体</small></button>
+                            <button type="button" data-governance-format="bold" aria-pressed="false" title="加粗"><strong>B</strong><small>加粗</small></button>
+                            <button type="button" data-governance-format="underline" aria-pressed="false" title="下划线"><u>U</u><small>下划线</small></button>
+                            <button type="button" data-governance-format="strike" aria-pressed="false" title="删除线"><s>S</s><small>删除线</small></button>
+                          </div>
+                          <label class="nmda-format-governance-case"><input id="nmda-format-governance-case" type="checkbox" checked><span>区分大小写</span></label>
+                          <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-format-governance-add" id="nmda-format-governance-add" type="button" disabled>加入本次处理</button>
+                        </div>
+                        <div class="nmda-format-governance-result" id="nmda-format-governance-result">输入固定文本后检查命中范围。</div>
+                        <div class="nmda-format-governance-list" id="nmda-format-governance-list" hidden></div>
+                        <div id="nmda-format-governance-history" class="nmda-format-governance-history"></div>
+                      </div>
+                    </details>
                   </section>
                   <section class="nmda-batch-standard-card is-followup" id="nmda-batch-followup-template-card" hidden>
                     <header><div><strong>Follow-up 正文模板</strong><small>这是批量派生规则，不是单封邮件编辑。称呼与署名从 Initial 自动继承，这里只维护中间正文。</small></div><b id="nmda-batch-followup-badge">未设置</b></header>
@@ -4001,8 +4006,8 @@
     if(batchFollowUpCardEl)batchFollowUpCardEl.hidden=!visible;
     if(batchStandardsEl)batchStandardsEl.dataset.followupContext=visible?'1':'0';
     if(batchStandardsDescEl)batchStandardsDescEl.textContent=visible
-      ? '只显示当前真正需要处理的批量事项：补齐主题、统一正文格式，并处理当前 Follow-up。'
-      : '只显示当前真正需要处理的批量事项：补齐主题、统一正文格式。';
+      ? '只显示当前真正需要处理的批量事项：补齐主题、处理检测到的格式偏移，并处理当前 Follow-up。'
+      : '只显示当前真正需要处理的批量事项：补齐主题、处理检测到的格式偏移。';
     return visible;
   }
 
@@ -4124,18 +4129,18 @@
 
   function renderFormatDriftSuggestions(){
     if(!formatGovernanceSuggestionsEl)return;const suggestions=collectFormatDriftSuggestions();syncFormatGovernancePreviewBadge(suggestions);renderBatchSubjectGovernance();
-    if(!suggestions.length){formatGovernanceSuggestionsEl.hidden=true;formatGovernanceSuggestionsEl.innerHTML='';formatGovernanceSuggestionsEl._nmdaSuggestions=[];renderFormatGovernanceQueue();syncBatchProcessingApply();return;}
+    if(!suggestions.length){formatGovernanceSuggestionsEl.hidden=false;formatGovernanceSuggestionsEl.innerHTML='<div class="nmda-format-governance-recommendation-empty"><strong>未发现明确格式偏移</strong><span>当前邮件之间没有形成可可靠推荐的格式差异。</span></div>';formatGovernanceSuggestionsEl._nmdaSuggestions=[];renderFormatGovernanceQueue();syncBatchProcessingApply();return;}
     const queued=queuedGovernanceRules(),queuedKeys=new Set(queued.map(governanceRuleKey));
     const selectedCount=suggestions.reduce((count,item)=>count+(queuedKeys.has(governanceRuleKey({phrase:item.phrase,formats:[item.format],caseSensitive:true}))?1:0),0);
     formatGovernanceSuggestionsEl.hidden=false;
-    formatGovernanceSuggestionsEl.innerHTML=`<div class="nmda-format-governance-suggestion-head"><span><strong>发现 ${suggestions.length} 个疑似格式漂移</strong><small>${selectedCount?`已加入 ${selectedCount} 条；可继续多选，最后一次执行。`:'可逐条检查后加入，也可一次加入全部。'}</small></span><span class="nmda-format-governance-suggestion-actions"><button type="button" data-governance-add-all ${selectedCount===suggestions.length?'disabled':''}>全部加入</button>${selectedCount?'<button type="button" data-governance-clear-suggestions>取消已选</button>':''}</span></div><div class="nmda-format-governance-suggestion-list">${suggestions.map((item,index)=>{const rule={phrase:item.phrase,formats:[item.format],caseSensitive:true},selected=queuedKeys.has(governanceRuleKey(rule));return `<button type="button" class="${selected?'is-selected':''}" data-governance-suggestion="${index}" aria-pressed="${selected?'true':'false'}"><i aria-hidden="true">${selected?'✓':'+'}</i><b>${escapeHtml(MAIL_GOVERNANCE_FORMATS[item.format]?.label||item.format)}</b><span>${escapeHtml(item.phrase)}</span><small>${item.missing} / ${item.total} 封待统一</small></button>`;}).join('')}</div>`;
+    formatGovernanceSuggestionsEl.innerHTML=`<div class="nmda-format-governance-suggestion-head"><span><strong>推荐修复 ${suggestions.length} 组格式偏移</strong><small>${selectedCount?`已加入 ${selectedCount} 组；可继续多选，最后一次执行。`:'点击需要处理的推荐，或一次加入全部。'}</small></span><span class="nmda-format-governance-suggestion-actions"><button type="button" data-governance-add-all ${selectedCount===suggestions.length?'disabled':''}>全部加入</button>${selectedCount?'<button type="button" data-governance-clear-suggestions>取消已选</button>':''}</span></div><div class="nmda-format-governance-suggestion-list">${suggestions.map((item,index)=>{const rule={phrase:item.phrase,formats:[item.format],caseSensitive:true},selected=queuedKeys.has(governanceRuleKey(rule));return `<button type="button" class="${selected?'is-selected':''}" data-governance-suggestion="${index}" aria-pressed="${selected?'true':'false'}"><i aria-hidden="true">${selected?'✓':'+'}</i><b>${escapeHtml(MAIL_GOVERNANCE_FORMATS[item.format]?.label||item.format)}</b><span>${escapeHtml(item.phrase)}</span><small>${item.missing} / ${item.total} 封偏移</small></button>`;}).join('')}</div>`;
     formatGovernanceSuggestionsEl._nmdaSuggestions=suggestions;renderFormatGovernanceQueue();syncBatchProcessingApply();
   }
 
   function renderFormatGovernanceAnalysis(){
     if(!formatGovernanceEl||formatGovernanceEl.hidden)return;const rule=currentGovernanceRule();renderFormatGovernanceHistory();
     if(rule.phrase.length<2){formatGovernanceAnalysis=null;if(formatGovernanceResultEl)formatGovernanceResultEl.textContent='输入至少 2 个字符的固定文本；系统只会修改实际命中的草稿。';if(formatGovernanceListEl){formatGovernanceListEl.hidden=true;formatGovernanceListEl.innerHTML='';}syncFormatGovernanceAddButton(null);syncBatchProcessingApply();return;}
-    if(rule.phrase.includes('\n')){formatGovernanceAnalysis=null;if(formatGovernanceResultEl)formatGovernanceResultEl.textContent='固定字段请使用单行文本；跨段落格式不做批量改写。';syncFormatGovernanceAddButton(null);syncBatchProcessingApply();return;}
+    if(rule.phrase.includes('\n')){formatGovernanceAnalysis=null;if(formatGovernanceResultEl)formatGovernanceResultEl.textContent='自定义文本请使用单行内容；跨段落格式不做批量改写。';syncFormatGovernanceAddButton(null);syncBatchProcessingApply();return;}
     if(!rule.formats.length){formatGovernanceAnalysis=null;if(formatGovernanceResultEl)formatGovernanceResultEl.textContent='至少选择一种要统一的格式。';syncFormatGovernanceAddButton(null);syncBatchProcessingApply();return;}
     const analysis=analyzeGovernanceRule(rule);formatGovernanceAnalysis=analysis;
     const labels=rule.formats.map(key=>MAIL_GOVERNANCE_FORMATS[key]?.label||key).join(' + ');
@@ -4164,7 +4169,7 @@
     renderBatchSubjectGovernance();renderFormatDriftSuggestions();renderFormatGovernanceHistory();renderFormatGovernanceAnalysis();renderBatchFollowUpTemplate();
     requestAnimationFrame(()=>{
       if(options.section==='followup'){batchFollowUpTemplateEl?.focus?.({preventScroll:true});batchFollowUpTemplateEl?.scrollIntoView?.({block:'center',behavior:'smooth'});return;}
-      if(missingSubjectTasks().length)batchStandardSubjectInputEl?.focus?.({preventScroll:true});else formatGovernancePhraseEl?.focus?.({preventScroll:true});
+      if(missingSubjectTasks().length){batchStandardSubjectInputEl?.focus?.({preventScroll:true});return;}const recommended=formatGovernanceSuggestionsEl?.querySelector?.('[data-governance-suggestion]');recommended?.focus?.({preventScroll:true});
     });
   }
 
@@ -7350,16 +7355,16 @@
       setQueuedGovernanceRules(queuedGovernanceRules().filter(rule=>!suggestionKeys.has(governanceRuleKey(rule))));renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();return;
     }
     const button=event.target.closest?.('[data-governance-suggestion]');if(!button)return;const suggestion=suggestions[Number(button.dataset.governanceSuggestion)];if(!suggestion)return;
-    const rule={phrase:suggestion.phrase,formats:[suggestion.format],caseSensitive:true};toggleGovernanceRuleInQueue(rule);loadGovernanceRuleIntoEditor(rule);renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncBatchProcessingApply();
+    const rule={phrase:suggestion.phrase,formats:[suggestion.format],caseSensitive:true};toggleGovernanceRuleInQueue(rule);renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncBatchProcessingApply();
   });
   formatGovernanceQueueEl?.addEventListener('click',event=>{
     if(event.target.closest?.('[data-governance-queue-clear]')){setQueuedGovernanceRules([]);renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();return;}
     const remove=event.target.closest?.('[data-governance-queue-remove]');if(remove){const rules=queuedGovernanceRules(),index=Number(remove.dataset.governanceQueueRemove);if(Number.isInteger(index)&&rules[index]){rules.splice(index,1);setQueuedGovernanceRules(rules);renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();}return;}
-    const chip=event.target.closest?.('[data-governance-queue-rule]');if(!chip)return;const rule=queuedGovernanceRules()[Number(chip.dataset.governanceQueueRule)];if(!rule)return;loadGovernanceRuleIntoEditor(rule);
+    const chip=event.target.closest?.('[data-governance-queue-rule]');if(!chip)return;const rule=queuedGovernanceRules()[Number(chip.dataset.governanceQueueRule)];if(!rule)return;const custom=$('nmda-format-governance-custom');if(custom)custom.open=true;loadGovernanceRuleIntoEditor(rule);
   });
   formatGovernanceHistoryEl?.addEventListener('click',event=>{
     const button=event.target.closest?.('[data-governance-history]');if(!button)return;const rule=(batch.formatGovernanceRules||[]).find(item=>item.id===button.dataset.governanceHistory);if(!rule)return;
-    loadGovernanceRuleIntoEditor(rule);syncBatchProcessingApply();
+    const custom=$('nmda-format-governance-custom');if(custom)custom.open=true;loadGovernanceRuleIntoEditor(rule);syncBatchProcessingApply();
   });
   formatGovernanceApplyEl?.addEventListener('click',()=>{void applyBatchProcessing();});
 
