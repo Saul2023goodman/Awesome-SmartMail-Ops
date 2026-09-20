@@ -112,6 +112,16 @@
     return recipients && subject ? `${recipients}|${subject}` : '';
   }
 
+  // Follow-up lineage is contact-based, not subject-based. Subject text can drift
+  // between forwards, manual sends, tests, or provider-generated variants; treating
+  // each subject as a new conversation would incorrectly create multiple independent
+  // Follow-up chains for the same recipient. The recipient set is the stable identity
+  // for automated follow-up eligibility.
+  function followUpConversationKeyForOutbound(record = {}) {
+    const recipients = recipientKey(record.recipients || []);
+    return recipients ? `recipient:${recipients}` : '';
+  }
+
   function decorateConversationOutbounds(records = []) {
     const sorted = [...(records || [])].filter(record => record?.status === 'sent').sort((a, b) => timeMs(a.sentAt) - timeMs(b.sentAt));
     return sorted.map((record, index) => {
@@ -138,15 +148,15 @@
   function conversationContextFromStore(store, rootTaskId) {
     const allOutbounds = Object.values(store?.outboundRecords || {}).filter(record => record?.rootTaskId && record?.status === 'sent');
     const ownOutbounds = allOutbounds.filter(record => record?.rootTaskId === String(rootTaskId));
-    const keys = new Set(ownOutbounds.map(conversationKeyForOutbound).filter(Boolean));
+    const keys = new Set(ownOutbounds.map(followUpConversationKeyForOutbound).filter(Boolean));
     const rootIds = new Set([String(rootTaskId)]);
     if (keys.size) {
       for (const outbound of allOutbounds) {
-        const key = conversationKeyForOutbound(outbound);
+        const key = followUpConversationKeyForOutbound(outbound);
         if (key && keys.has(key)) rootIds.add(String(outbound.rootTaskId));
       }
     }
-    const conversationOutbounds = decorateConversationOutbounds(allOutbounds.filter(outbound => rootIds.has(String(outbound.rootTaskId)) && (!keys.size || keys.has(conversationKeyForOutbound(outbound)))));
+    const conversationOutbounds = decorateConversationOutbounds(allOutbounds.filter(outbound => rootIds.has(String(outbound.rootTaskId)) && (!keys.size || keys.has(followUpConversationKeyForOutbound(outbound)))));
     const observations = Object.values(store?.replyObservations || {})
       .filter(obs => obs?.rootTaskId && rootIds.has(String(obs.rootTaskId)))
       .sort((a, b) => timeMs(a.receivedAt) - timeMs(b.receivedAt));
@@ -484,7 +494,7 @@
     const buckets = new Map();
     for (const outbound of Object.values(next.outboundRecords || {})) {
       if (!outbound?.rootTaskId || outbound.status !== 'sent') continue;
-      const key = conversationKeyForOutbound(outbound);
+      const key = followUpConversationKeyForOutbound(outbound);
       if (!key) continue;
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key).push(outbound);
@@ -1411,7 +1421,7 @@
     const buckets = new Map();
     for (const outbound of Object.values(store.outboundRecords || {})) {
       if (!outbound?.rootTaskId || outbound.status !== 'sent') continue;
-      const conversationKey = conversationKeyForOutbound(outbound);
+      const conversationKey = followUpConversationKeyForOutbound(outbound);
       const bucketKey = conversationKey || `root:${String(outbound.rootTaskId)}`;
       if (!buckets.has(bucketKey)) buckets.set(bucketKey, { conversationKey, records: [] });
       buckets.get(bucketKey).records.push(outbound);
@@ -1476,6 +1486,7 @@
     stableHash,
     subjectThreadKey,
     conversationKeyForOutbound,
+    followUpConversationKeyForOutbound,
     decorateConversationOutbounds,
     conversationContextForRoot,
     classifyInboundMessage,
