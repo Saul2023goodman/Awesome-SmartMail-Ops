@@ -5068,3 +5068,241 @@
   #nmda-root .nmda-draft-history-filter-row{grid-template-columns:auto minmax(0,1fr)}
   #nmda-root .nmda-draft-history-filter-row em{grid-column:2;justify-self:start}
 }
+
+/* v3.8.30 · Unified plugin icon language */
+#nmda-root .nmda-launcher-mark,
+#nmda-root .nmda-brand-mark,
+#nmda-root .nmda-icon-btn,
+#nmda-root .nmda-source-action-icon,
+#nmda-root .nmda-source-item-icon,
+#nmda-root .nmda-context-cue-icon,
+#nmda-root .nmda-classify-dropzone .nmda-drop-icon,
+#nmda-root .nmda-import-drop-zone-icon span,
+#nmda-root .nmda-attachment-manager-drop-icon,
+#nmda-root .nmda-classify-search > span,
+#nmda-root .nmda-review-search > span,
+#nmda-root .nmda-review-problem-shape,
+#nmda-root .nmda-attachment-target-toolbar label > span,
+#nmda-root .nmda-plan-motion-check,
+#nmda-root .nmda-dialog-status-icon,
+#nmda-root .nmda-classify-folder-icon,
+#nmda-root .nmda-support-view-toggle > button > span:first-child,
+#nmda-root .nmda-inspector-review-note > span:first-child {
+  display:grid;
+  place-items:center;
+}
+#nmda-root .nmda-launcher-mark svg,
+#nmda-root .nmda-brand-mark svg,
+#nmda-root .nmda-icon-btn svg,
+#nmda-root .nmda-tab-icon svg,
+#nmda-root .nmda-source-action-icon svg,
+#nmda-root .nmda-source-item-icon svg,
+#nmda-root .nmda-context-cue-icon svg,
+#nmda-root .nmda-classify-dropzone .nmda-drop-icon svg,
+#nmda-root .nmda-import-drop-zone-icon span svg,
+#nmda-root .nmda-attachment-manager-drop-icon svg,
+#nmda-root .nmda-classify-search > span svg,
+#nmda-root .nmda-review-search > span svg,
+#nmda-root .nmda-review-problem-shape svg,
+#nmda-root .nmda-attachment-target-toolbar label > span svg,
+#nmda-root .nmda-plan-motion-check svg,
+#nmda-root .nmda-dialog-status-icon svg,
+#nmda-root .nmda-classify-folder-icon svg,
+#nmda-root .nmda-support-view-toggle > button > span:first-child svg,
+#nmda-root .nmda-inspector-review-note > span:first-child svg {
+  width:70%;
+  height:70%;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+}
+#nmda-root .nmda-launcher-mark { display:grid; place-items:center; width:22px; height:22px; }
+#nmda-root .nmda-source-item-icon { font-size:0; }
+#nmda-root .nmda-source-action-icon,
+#nmda-root .nmda-source-item-icon,
+#nmda-root .nmda-context-cue-icon,
+#nmda-root .nmda-classify-dropzone .nmda-drop-icon,
+#nmda-root .nmda-attachment-manager-drop-icon,
+#nmda-root .nmda-dialog-status-icon,
+#nmda-root .nmda-support-view-toggle > button > span:first-child,
+#nmda-root .nmda-inspector-review-note > span:first-child,
+#nmda-root .nmda-plan-motion-check { font-size:0 !important; }
+#nmda-root .nmda-classify-search > span,
+#nmda-root .nmda-review-search > span,
+#nmda-root .nmda-attachment-target-toolbar label > span,
+#nmda-root .nmda-classify-folder-icon { font-size:0; }
+
+/* v3.8.31 · Automatic mailbox sync + shared motion language */
+#nmda-root .nmda-mail-auto-sync {
+  --nmda-sync-tone:#64748b;
+  min-width:116px;
+  height:36px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:0 10px;
+  border:1px solid var(--nmda-border);
+  border-radius:10px;
+  background:rgba(248,250,252,.92);
+  color:#475569;
+  overflow:hidden;
+  transition:width .28s cubic-bezier(.2,.8,.2,1), min-width .28s cubic-bezier(.2,.8,.2,1), border-color .2s ease, background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+#nmda-root .nmda-mail-auto-sync[data-state="syncing"] {
+  --nmda-sync-tone:#2563eb;
+  min-width:198px;
+  border-color:#bfd5fb;
+  background:#f7fbff;
+  color:#1d4ed8;
+  box-shadow:0 0 0 3px rgba(37,99,235,.055);
+}
+#nmda-root .nmda-mail-auto-sync[data-state="success"] {
+  --nmda-sync-tone:#15803d;
+  min-width:176px;
+  border-color:#c7e7d0;
+  background:#f7fcf8;
+  color:#166534;
+}
+#nmda-root .nmda-mail-auto-sync[data-state="error"] {
+  --nmda-sync-tone:#b45309;
+  min-width:180px;
+  border-color:#f1d39f;
+  background:#fffaf2;
+  color:#92400e;
+}
+#nmda-root .nmda-mail-auto-sync[data-state="waiting"] {
+  --nmda-sync-tone:#94a3b8;
+  min-width:166px;
+  color:#64748b;
+}
+#nmda-root .nmda-mail-auto-sync-track {
+  position:relative;
+  flex:0 0 auto;
+  width:34px;
+  height:16px;
+  display:block;
+}
+#nmda-root .nmda-mail-auto-sync-track::before {
+  content:"";
+  position:absolute;
+  left:4px;
+  right:4px;
+  top:7px;
+  height:1px;
+  background:color-mix(in srgb, var(--nmda-sync-tone) 30%, transparent);
+}
+#nmda-root .nmda-mail-auto-sync-track > i {
+  position:absolute;
+  top:5px;
+  width:5px;
+  height:5px;
+  border:1.4px solid var(--nmda-sync-tone);
+  border-radius:50%;
+  background:#fff;
+  transition:background .18s ease, transform .18s ease, opacity .18s ease;
+}
+#nmda-root .nmda-mail-auto-sync-track > i:nth-child(1){left:2px;}
+#nmda-root .nmda-mail-auto-sync-track > i:nth-child(2){left:14px;}
+#nmda-root .nmda-mail-auto-sync-track > i:nth-child(3){left:26px;}
+#nmda-root .nmda-mail-auto-sync-track > b {
+  position:absolute;
+  left:2px;
+  top:4px;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--nmda-sync-tone);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--nmda-sync-tone) 12%, transparent);
+  opacity:0;
+}
+#nmda-root .nmda-mail-auto-sync[data-state="syncing"] .nmda-mail-auto-sync-track > b {
+  opacity:1;
+  animation:nmda-mail-sync-runner 1.45s cubic-bezier(.45,0,.55,1) infinite;
+}
+#nmda-root .nmda-mail-auto-sync[data-state="syncing"] .nmda-mail-auto-sync-track > i:nth-child(1){animation:nmda-mail-sync-node 1.45s ease-in-out infinite 0s;}
+#nmda-root .nmda-mail-auto-sync[data-state="syncing"] .nmda-mail-auto-sync-track > i:nth-child(2){animation:nmda-mail-sync-node 1.45s ease-in-out infinite .24s;}
+#nmda-root .nmda-mail-auto-sync[data-state="syncing"] .nmda-mail-auto-sync-track > i:nth-child(3){animation:nmda-mail-sync-node 1.45s ease-in-out infinite .48s;}
+#nmda-root .nmda-mail-auto-sync[data-state="success"] .nmda-mail-auto-sync-track > i {
+  background:var(--nmda-sync-tone);
+  transform:scale(.88);
+}
+#nmda-root .nmda-mail-auto-sync[data-state="success"] .nmda-mail-auto-sync-track > b {
+  opacity:0;
+}
+#nmda-root .nmda-mail-auto-sync-copy {
+  min-width:0;
+  display:grid;
+  gap:1px;
+  line-height:1.05;
+}
+#nmda-root .nmda-mail-auto-sync-copy strong {
+  font-size:10.5px;
+  font-weight:760;
+  color:currentColor;
+  white-space:nowrap;
+}
+#nmda-root .nmda-mail-auto-sync-copy small {
+  max-width:144px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:8.5px;
+  color:#8994a3;
+}
+#nmda-root .nmda-mail-auto-sync[data-state="syncing"] .nmda-mail-auto-sync-copy small,
+#nmda-root .nmda-mail-auto-sync[data-state="success"] .nmda-mail-auto-sync-copy small,
+#nmda-root .nmda-mail-auto-sync[data-state="error"] .nmda-mail-auto-sync-copy small { color:color-mix(in srgb, currentColor 67%, #94a3b8); }
+
+@keyframes nmda-mail-sync-runner {
+  0% { transform:translateX(0) scale(.82); opacity:.2; }
+  14% { opacity:1; }
+  50% { transform:translateX(12px) scale(1); opacity:1; }
+  86% { opacity:1; }
+  100% { transform:translateX(24px) scale(.82); opacity:.2; }
+}
+@keyframes nmda-mail-sync-node {
+  0%,62%,100% { background:#fff; transform:scale(1); }
+  18% { background:var(--nmda-sync-tone); transform:scale(1.18); }
+}
+
+/* Automatic reading is the default. Manual actions remain as quiet recovery controls. */
+#nmda-root #nmda-monitor-sync,
+#nmda-root #nmda-monitor-full-sync,
+#nmda-root #nmda-dedupe-refresh-mailbox { opacity:.78; }
+#nmda-root #nmda-monitor-sync:hover,
+#nmda-root #nmda-monitor-full-sync:hover,
+#nmda-root #nmda-dedupe-refresh-mailbox:hover { opacity:1; }
+#nmda-root .nmda-duplicate-candidate.is-auto-sync {
+  position:relative;
+  overflow:hidden;
+}
+#nmda-root .nmda-duplicate-candidate.is-auto-sync::after {
+  content:"";
+  position:absolute;
+  left:-38%;
+  top:0;
+  bottom:0;
+  width:34%;
+  background:linear-gradient(90deg,transparent,rgba(37,99,235,.08),transparent);
+  animation:nmda-mail-sync-sweep 1.5s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes nmda-mail-sync-sweep { to { transform:translateX(410%); } }
+
+@media (max-width:920px){
+  #nmda-root .nmda-mail-auto-sync { min-width:36px; width:36px; padding:0; justify-content:center; }
+  #nmda-root .nmda-mail-auto-sync[data-state="syncing"],
+  #nmda-root .nmda-mail-auto-sync[data-state="success"],
+  #nmda-root .nmda-mail-auto-sync[data-state="error"],
+  #nmda-root .nmda-mail-auto-sync[data-state="waiting"] { min-width:36px; width:36px; }
+  #nmda-root .nmda-mail-auto-sync-copy { display:none; }
+}
+@media (prefers-reduced-motion: reduce){
+  #nmda-root .nmda-mail-auto-sync,
+  #nmda-root .nmda-mail-auto-sync-track > i,
+  #nmda-root .nmda-mail-auto-sync-track > b { transition:none !important; animation:none !important; }
+  #nmda-root .nmda-duplicate-candidate.is-auto-sync::after { display:none; }
+}

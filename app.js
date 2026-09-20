@@ -135,6 +135,98 @@
     return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
   }
 
+
+  const NMDA_ICONS = {
+    app: '<path d="M5.25 6.5h6.5a4.75 4.75 0 0 1 0 9.5H8.5"/><circle cx="5.25" cy="6.5" r="1.75"/><circle cx="15.25" cy="11.25" r="1.75"/><circle cx="8.5" cy="16" r="1.75"/>',
+    expand: '<path d="M7 3.5H3.5V7M13 3.5h3.5V7M7 16.5H3.5V13M13 16.5h3.5V13"/><path d="M8 6 3.5 3.5M12 6l4.5-2.5M8 14l-4.5 2.5M12 14l4.5 2.5"/>',
+    close: '<path d="M5 5l10 10M15 5 5 15"/>',
+    batch: '<rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.2"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.2"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.2"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.2"/>',
+    review: '<path d="M6 2.75h6.5l3 3v11.5H6z"/><path d="M12.5 2.75v3h3M8.5 8.5h4.75M8.5 11.25h4.75M8.5 14h3"/>',
+    dispatch: '<path d="M3.5 5.5h13M3.5 10h13M3.5 14.5h13"/><circle cx="6.5" cy="5.5" r="1.25"/><circle cx="12.5" cy="10" r="1.25"/><circle cx="9" cy="14.5" r="1.25"/>',
+    monitor: '<path d="M3.5 5.75h13v8.75h-13z"/><path d="m3.5 6.5 6.5 4.75 6.5-4.75"/><circle cx="14.75" cy="5" r="1.75"/>',
+    import: '<path d="M10 3.5v8"/><path d="m6.75 8.25 3.25 3.25 3.25-3.25"/><path d="M4 13.5h12v3H4z"/>',
+    file: '<path d="M6 2.75h5.75l3.25 3.25V17.25H6z"/><path d="M11.75 2.75V6h3.25"/><path d="M8 9.25h4M8 12h4"/>',
+    folder: '<path d="M2.75 5.5h4l1.5 1.75h9v7.75H2.75z"/>',
+    paste: '<rect x="5.25" y="4.25" width="9.5" height="12" rx="1.6"/><path d="M8 4.25V3.5h4v.75M8.25 7.75h3.5M8.25 10.5h4.5M8.25 13.25h4.5"/>',
+    mail: '<path d="M3.5 5.75h13v8.75h-13z"/><path d="m3.5 6.5 6.5 4.75 6.5-4.75"/>',
+    roster: '<circle cx="7" cy="7" r="2"/><circle cx="13.5" cy="6.5" r="1.75"/><path d="M3.75 14c.7-1.95 2.45-3 4.25-3s3.55 1.05 4.25 3"/><path d="M11 13.75c.45-1.35 1.7-2.15 3.05-2.15 1.3 0 2.55.75 3.2 2.15"/>',
+    attachment: '<path d="M7.25 9.75 11 6a2.25 2.25 0 1 1 3.2 3.2l-5 5a3.25 3.25 0 0 1-4.6-4.6l5.25-5.25"/>',
+    warning: '<path d="M10 3.5 16.5 15H3.5L10 3.5Z"/><path d="M10 7.5v3.75M10 13.25v.25"/>',
+    ignored: '<circle cx="10" cy="10" r="6.5"/><path d="M6.5 6.5l7 7"/>',
+    search: '<circle cx="8.5" cy="8.5" r="4.75"/><path d="M12 12 16 16"/>',
+    success: '<path d="M4.75 10.25 8 13.5l7.25-7.25"/>',
+    archive: '<path d="M4 4.75h12v3H4z"/><path d="M5 7.75h10v7.5H5z"/><path d="M8 10.75h4"/>',
+    doc: '<path d="M6 2.75h5.75l3.25 3.25V17.25H6z"/><path d="M11.75 2.75V6h3.25"/><path d="M8 9.25h4M8 12h4M8 14.75h4"/>',
+    code: '<path d="m7.25 6.25-3 3.75 3 3.75M12.75 6.25l3 3.75-3 3.75M10.75 4.75 9.25 15.25"/>',
+    table: '<rect x="3.5" y="4" width="13" height="12" rx="1.4"/><path d="M3.5 8h13M8 4v12M12 4v12"/>',
+    text: '<path d="M5 6h10M5 9.5h10M5 13h7.5"/>',
+    source: '<path d="M10 3.75 15.5 10 10 16.25 4.5 10Z"/>',
+    dot: '<circle cx="10" cy="10" r="1.6"/>'
+  };
+
+  function iconSvg(name) {
+    const body = NMDA_ICONS[name] || NMDA_ICONS.source;
+    return `<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">${body}</svg>`;
+  }
+
+  function setUnifiedIcon(element, name) {
+    if (!element || !name) return;
+    if (element.dataset.nmdaIconName === name) return;
+    element.dataset.nmdaIconName = name;
+    element.innerHTML = iconSvg(name);
+  }
+
+  function textIconToName(value) {
+    const key = String(value || '').trim();
+    return ({
+      '✉':'mail','名':'roster','人':'roster','附':'attachment','⇧':'attachment','!':'warning','×':'close','✓':'success','⌕':'search','↓':'import','＋':'file','▤':'folder','⌘':'paste','◎':'roster','?':'warning','—':'ignored','W':'doc','{}':'code','¶':'text','≡':'text','<>':'code','XML':'code','▦':'table','◇':'source','ZIP':'archive'
+    })[key] || '';
+  }
+
+  function decorateUnifiedIcons(scope = document) {
+    const root = scope?.querySelector ? scope : document;
+    setUnifiedIcon(root.querySelector('.nmda-launcher-mark'), 'app');
+    setUnifiedIcon(root.querySelector('.nmda-brand-mark'), 'app');
+    setUnifiedIcon(root.querySelector('#nmda-expand'), 'expand');
+    setUnifiedIcon(root.querySelector('#nmda-close'), 'close');
+
+    root.querySelectorAll('.nmda-tab').forEach(tab => {
+      const iconHost = tab.querySelector('.nmda-tab-icon');
+      const tabName = String(tab.dataset.tab || '');
+      const name = ({ batch:'batch', review:'review', dispatch:'dispatch', monitor:'monitor' })[tabName] || 'source';
+      setUnifiedIcon(iconHost, name);
+    });
+
+    const directMap = new Map([
+      ['#nmda-import-drop-zone .nmda-import-drop-zone-icon span','import'],
+      ['label[for="nmda-import-file"] .nmda-source-action-icon','file'],
+      ['label[for="nmda-import-dir"] .nmda-source-action-icon','folder'],
+      ['#nmda-show-paste .nmda-source-action-icon','paste'],
+      ['#nmda-import-drafts .nmda-source-action-icon','mail'],
+      ['.nmda-context-cue-icon','roster'],
+      ['.nmda-attachment-manager-drop-icon','attachment'],
+      ['.nmda-classify-search > span','search'],
+      ['.nmda-review-search > span','search'],
+      ['.nmda-review-problem-shape','warning'],
+      ['.nmda-plan-motion-check','success'],
+      ['.nmda-supplement-dialog .nmda-dialog-status-icon','success'],
+      ['.nmda-attachment-target-toolbar label > span','search'],
+      ['.nmda-classify-folder-icon','folder']
+    ]);
+    directMap.forEach((name, selector) => root.querySelectorAll(selector).forEach(el => setUnifiedIcon(el, name)));
+
+    root.querySelectorAll('.nmda-classify-dropzone .nmda-drop-icon').forEach(el => {
+      const purpose = el.closest('.nmda-classify-dropzone')?.dataset.dropPurpose || '';
+      const name = ({ mail:'mail', roster:'roster', attachment:'attachment', review:'warning', ignored:'ignored' })[purpose] || textIconToName(el.textContent) || 'source';
+      setUnifiedIcon(el, name);
+    });
+
+    root.querySelectorAll('.nmda-source-item-icon, .nmda-review-source-badge .nmda-source-item-icon, .nmda-dialog-status-icon, .nmda-support-view-toggle > button > span:first-child, .nmda-inspector-review-note > span:first-child').forEach(el => {
+      const name = textIconToName(el.textContent) || (el.closest('.nmda-inspector-review-note') ? 'warning' : 'source');
+      setUnifiedIcon(el, name || 'source');
+    });
+  }
+
   function buildUI() {
     const root = document.createElement('div');
     root.id = 'nmda-root';
@@ -153,6 +245,10 @@
           </div>
           <div class="nmda-head-actions">
             <div class="nmda-mail-connection" id="nmda-mail-connection" data-state="checking"><span class="nmda-mail-connection-dot"></span><span class="nmda-mail-connection-copy"><strong id="nmda-mail-connection-title">正在检查网易邮箱</strong><small id="nmda-mail-connection-detail">连接状态</small></span><button class="nmda-btn nmda-btn-small nmda-mail-open-button" id="nmda-open-mail" type="button">连接邮箱</button></div>
+            <div class="nmda-mail-auto-sync" id="nmda-mail-auto-sync" data-state="idle" aria-live="polite" title="SmartMail 会按需自动读取邮箱事实">
+              <span class="nmda-mail-auto-sync-track" aria-hidden="true"><i></i><i></i><i></i><b></b></span>
+              <span class="nmda-mail-auto-sync-copy"><strong id="nmda-mail-auto-sync-title">自动同步</strong><small id="nmda-mail-auto-sync-detail">按需读取邮箱事实</small></span>
+            </div>
             <button class="nmda-icon-btn" id="nmda-expand" type="button" title="全屏 / 还原">⛶</button>
             <button class="nmda-icon-btn nmda-close" id="nmda-close" type="button" title="关闭">×</button>
           </div>
@@ -230,7 +326,7 @@
                 <div id="nmda-import-status" class="nmda-summary nmda-import-status">还没有添加资料。</div>
                 <div id="nmda-source-inventory" class="nmda-source-inventory" hidden></div>
                 <section class="nmda-import-dedupe-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
-                  <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>批次重复 + 邮箱历史防重</strong></div><div class="nmda-import-dedupe-head-actions"><small id="nmda-import-dedupe-state">正在核验</small><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">读取最新邮箱</button></div></div>
+                  <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>批次重复 + 邮箱历史防重</strong></div><div class="nmda-import-dedupe-head-actions"><small id="nmda-import-dedupe-state">正在核验</small><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">重新核验</button></div></div>
                   <input id="nmda-roster-enabled" type="checkbox" checked hidden>
                   <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
                   <input id="nmda-roster-strict" type="checkbox" hidden>
@@ -627,8 +723,8 @@
             <div class="nmda-monitor-toolbar">
               <div class="nmda-monitor-toolbar-copy"><div><strong>邮件监测</strong><small id="nmda-monitor-sync-copy"></small></div></div>
               <div class="nmda-row nmda-wrap">
-                <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-monitor-sync" type="button">读取邮箱</button>
-                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-full-sync" type="button">完整读取</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-sync" type="button">立即刷新</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-full-sync" type="button">完整重读</button>
               </div>
             </div>
 
@@ -675,10 +771,22 @@
         </main>
       </section>`;
     document.documentElement.appendChild(root);
+    decorateUnifiedIcons(root);
     return root;
   }
 
   const ui = buildUI();
+  let unifiedIconRefreshQueued = false;
+  const queueUnifiedIconRefresh = () => {
+    if (unifiedIconRefreshQueued) return;
+    unifiedIconRefreshQueued = true;
+    queueMicrotask(() => { unifiedIconRefreshQueued = false; decorateUnifiedIcons(ui); });
+  };
+  new MutationObserver(mutations => {
+    for (const mutation of mutations || []) {
+      if (mutation.type === 'childList' && (mutation.addedNodes?.length || mutation.removedNodes?.length)) { queueUnifiedIconRefresh(); return; }
+    }
+  }).observe(ui, { childList:true, subtree:true });
   // v3.8.7: Review is a first-class workspace. Import owns source preparation;
   // Review owns message decisions; Dispatch owns execution.
   const reviewCardHost=ui.querySelector('#nmda-inline-review');
@@ -736,6 +844,21 @@
   function setPanelOpen(open){panel.hidden=!open;setHostScrollLocked(open);if(open)syncModalState();}
 
   const connectionEl=$('nmda-mail-connection'), connectionTitleEl=$('nmda-mail-connection-title'), connectionDetailEl=$('nmda-mail-connection-detail'), openMailEl=$('nmda-open-mail');
+  const mailboxAutoSyncEl=$('nmda-mail-auto-sync'), mailboxAutoSyncTitleEl=$('nmda-mail-auto-sync-title'), mailboxAutoSyncDetailEl=$('nmda-mail-auto-sync-detail');
+  const mailboxAutoSyncState={running:null,runningKind:'',lastQuickAt:0,lastHistoryAt:0,lastFullAt:0,generation:0};
+  function setMailboxAutoSyncCue(state='idle',detail=''){
+    if(!mailboxAutoSyncEl)return;
+    mailboxAutoSyncEl.dataset.state=state;
+    const titles={idle:'自动同步',syncing:'正在读取邮箱',success:'邮箱已同步',error:'同步异常',waiting:'等待邮箱连接'};
+    if(mailboxAutoSyncTitleEl)mailboxAutoSyncTitleEl.textContent=titles[state]||titles.idle;
+    if(mailboxAutoSyncDetailEl)mailboxAutoSyncDetailEl.textContent=detail||({idle:'按需读取邮箱事实',syncing:'已发送 · 草稿 · 收件',success:'最新邮箱事实已更新',error:'稍后会自动重试',waiting:'登录后自动开始'}[state]||'');
+  }
+  function mailboxSyncKindPriority(kind='quick'){
+    return ({quick:1,history:2,full:3})[kind]||1;
+  }
+  function scheduleMailboxAutoSync(kind='quick',options={}){
+    queueMicrotask(()=>{ requestAutoMailboxSync(kind,options).catch(()=>{}); });
+  }
   async function refreshMailboxConnection(){
     if(!connectionEl)return null;
     try{
@@ -748,6 +871,9 @@
       if(authenticated && state.account && Operations) {
         const normalized=Operations.normalizeEmail(state.account)||String(state.account).toLowerCase();
         if(operationState.loaded && operationState.account!==normalized){await ensureOperationStore(true);invalidateBatchView(true);}
+        scheduleMailboxAutoSync('quick',{source:'connection'});
+      } else if(!authenticated) {
+        setMailboxAutoSyncCue(connected?'waiting':'waiting',connected?'完成登录后自动读取':'连接网易邮箱后自动读取');
       }
       return state;
     }catch(error){
@@ -769,6 +895,7 @@
   window.addEventListener('focus',refreshMailboxConnection);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshMailboxConnection();});
   refreshMailboxConnection();
+  setTimeout(()=>scheduleMailboxAutoSync('quick',{source:'startup'}),120);
 
   const FOLLOWUP_PREFS_KEY = 'nmda.followup.settings.v1';
 
@@ -1008,7 +1135,7 @@
     if(els.syncCopy){
       const last=sync.lastQuickAt||sync.lastFullAt;
       const coverage=sync.inbox?.read!==undefined?` · 收件 ${sync.inbox.read}/${sync.inbox.total ?? sync.inbox.read}`:'';
-      els.syncCopy.textContent=last?`上次人工读取 ${Operations.formatDisplayTime(last)}${coverage} · 此后未自动访问邮箱`:'尚未读取邮箱 · 点击“读取邮箱”获取当前已发送、草稿和收件箱事实。';
+      els.syncCopy.textContent=last?`自动同步 ${Operations.formatDisplayTime(last)}${coverage}`:'正在等待首次自动同步；连接网易邮箱后会自动读取已发送、草稿和收件箱事实。';
     }
     const query=String(monitorState.search||'').toLocaleLowerCase('zh-CN').trim();
     const visible=enriched.filter(item=>{
@@ -1031,7 +1158,7 @@
     }
     if(els.list){
       if(!visible.length){
-        els.list.innerHTML=`<div class="nmda-monitor-empty"><div><strong>${groups.length?'当前筛选没有邮件':'尚无已发送邮件'}</strong><small>${groups.length?'切换筛选条件，或清空搜索。':'点击“读取邮箱”后，已发送邮件会自动进入检测范围；只有再次人工读取时才刷新邮箱事实。'}</small></div></div>`;
+        els.list.innerHTML=`<div class="nmda-monitor-empty"><div><strong>${groups.length?'当前筛选没有邮件':'尚无已发送邮件'}</strong><small>${groups.length?'切换筛选条件，或清空搜索。':'连接网易邮箱后会自动读取并更新已发送、草稿与回复事实；无需手动触发。'}</small></div></div>`;
       }else{
         els.list.innerHTML=visible.map(group=>{
           const last=group.lastOutbound, st=group.viewState, active=st.activeTask;
@@ -1079,7 +1206,7 @@
     if(quick)quick.disabled=true;if(full)full.disabled=true;
     setMonitorNotice(mode==='full'?'正在完整读取已发送、草稿和收件箱…':'正在读取当前已发送、草稿和收件箱…');
     try{
-      const result=await syncMailboxOperations(mode);
+      const result=await requestAutoMailboxSync(mode==='full'?'full':'quick',{source:'monitor-manual',force:true});
       const extra=result?`已发送 ${result.outboundRead||0} · 收件 ${result.inboxRead||0} · 关联回复 ${result.repliesAssociated||0}${result.autoMonitored?` · 自动纳入 ${result.autoMonitored}`:''}`:'同步完成';
       setMonitorNotice(`读取完成：${extra}`,'ok');
       renderMonitoring();
@@ -1231,7 +1358,7 @@
 
   function bindMonitoringUI() {
     $('nmda-monitor-sync')?.addEventListener('click',()=>void syncMonitoringMailbox('quick'));
-    $('nmda-monitor-full-sync')?.addEventListener('click',()=>{if(confirm('完整读取会重新读取全部已发送、草稿和收件箱，继续吗？'))void syncMonitoringMailbox('full');});
+    $('nmda-monitor-full-sync')?.addEventListener('click',()=>{if(confirm('完整重读会重新读取全部已发送、草稿和收件箱，继续吗？'))void syncMonitoringMailbox('full');});
     $('nmda-monitor-save-policy')?.addEventListener('click',async()=>{
       await ensureOperationStore();
       const result=Operations.setFollowUpPolicy(operationState.store,'',{delayDays:Number($('nmda-monitor-delay').value||0),maxAttempts:Number($('nmda-monitor-max').value||0),composeMode:$('nmda-monitor-compose-mode').value||'forward'});
@@ -1391,6 +1518,8 @@
     if (name === 'review') requestAnimationFrame(() => { if(reviewInlineEl)reviewInlineEl.hidden=false; void (async()=>{ await ensureOperationStore(); renderReviewPageOverview(); })(); });
     if (name === 'dispatch') requestAnimationFrame(() => { void (async()=>{ await ensureOperationStore(); scheduleBatchRender({aux:false,force:true}); })(); });
     if (name === 'monitor') requestAnimationFrame(() => { void loadMonitoring(); });
+    if(name==='batch' && batch?.dataset && !mailboxDedupeSnapshotAvailable()) scheduleMailboxAutoSync('history',{source:'batch'});
+    else scheduleMailboxAutoSync('quick',{source:`tab:${name}`});
   }
 
   launcher.addEventListener('click', () => {
@@ -3099,15 +3228,15 @@
     const checkable=(batch.tasks||[]).filter(task=>!task?.importExcluded&&taskNeedsDuplicateGate(task));
     const mailboxUnread=checkable.length>0&&!syncAt;
     const pendingCount=groups.length+draftHits.length;
-    if(stateEl)stateEl.textContent=mailboxUnread?'邮箱历史待读取':pendingCount?`${pendingCount} 项待处理`:`查重完成 · 邮箱 ${Operations.formatDisplayTime(syncAt)}`;
+    if(stateEl)stateEl.textContent=mailboxUnread?'邮箱历史自动读取中':pendingCount?`${pendingCount} 项待处理`:`查重完成 · 邮箱 ${Operations.formatDisplayTime(syncAt)}`;
     if(mailboxUnread){
       duplicateDecisionEl.hidden=false;delete duplicateDecisionEl.dataset.groupId;duplicateDecisionEl.dataset.scope='mailbox-read';
       if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent='前置核验';duplicateDecisionKindEl.dataset.tone='strong';}
-      if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent='先读取邮箱历史，再进入邮件审阅';
-      if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent='新的 Initial Task 必须核对网易邮箱里的已有草稿和已发送记录。点击上方“读取最新邮箱”；系统不会自动访问邮箱。';
+      if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent='正在自动核验邮箱历史';
+      if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent='新的 Initial Task 会自动核对网易邮箱里的已有草稿和已发送记录。核验完成后，这里会直接进入重复处理。';
       if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent='“读取草稿箱”导入属于接管现有草稿，不受此门控。';
       duplicateCandidatesEl.dataset.count='0';
-      duplicateCandidatesEl.innerHTML='<article class="nmda-duplicate-candidate nmda-history-evidence"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>等待人工读取</strong></div></div><div class="nmda-duplicate-preview-body"><pre>核验范围：已有草稿 · 已发送</pre></div></article>';
+      duplicateCandidatesEl.innerHTML='<article class="nmda-duplicate-candidate nmda-history-evidence is-auto-sync"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>自动读取中</strong></div></div><div class="nmda-duplicate-preview-body"><pre>核验范围：已有草稿 · 已发送</pre></div></article>';
       if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.hidden=true;
       if(duplicateKeepAllEl)duplicateKeepAllEl.hidden=true;
       return;
@@ -4231,7 +4360,7 @@
     if (!Operations || !isCurrentBatchSession(sessionToken)) return false;
     try {
       // Only use mailbox facts already read in the current app session. Mailbox access is explicitly user-triggered
-      // from the Mail Monitoring module via “读取邮箱 / 完整读取”.
+      // from the shared automatic mailbox sync layer (manual full reread remains available as recovery).
       await ensureOperationStore();
       return isCurrentBatchSession(sessionToken);
     } catch (error) {
@@ -4666,7 +4795,7 @@
       const parts=[];
       const mailboxUnread=dedupeTasks.length>0&&!mailboxDedupeSnapshotAvailable();
       const decisionGroups=Math.max(0,pendingDuplicates-(mailboxUnread?1:0));
-      if(mailboxUnread)parts.push('尚未读取邮箱历史；新的 Initial Task 需要先核对已有草稿和已发送记录');
+      if(mailboxUnread)parts.push('正在自动读取邮箱历史；新的 Initial Task 会先核对已有草稿和已发送记录');
       if(decisionGroups)parts.push(`发现 <strong>${decisionGroups}</strong> 项查重待处理，请先完成批次版本取舍、草稿筛选或发送历史决策`);
       else if(dx.groups&&!mailboxUnread)parts.push(`本次发现过 <strong>${dx.groups}</strong> 组查重冲突，当前已全部处理`);
       else if(tasks.length&&!mailboxUnread)parts.push('当前批次未发现重复任务');
@@ -5652,6 +5781,8 @@
     else setBatchStatus(`已准备 ${batch.tasks.length} 封邮件。${(batch.tasks||[]).some(taskHasBlockingIssue)?'请在邮件审阅阶段处理待办。':'后续阶段当前可执行。'}`, 'ok');
     if(batch.tasks.length){
       if(batch.supplementPreflightDone)renderImportHandoff();
+      if(!dataset?.meta?.mailboxDraftImport) scheduleMailboxAutoSync('history',{source:'import',force:true});
+      else scheduleMailboxAutoSync('quick',{source:'mailbox-draft-import'});
     }
     return true;
   }
@@ -5996,8 +6127,8 @@
   $('nmda-dedupe-refresh-mailbox')?.addEventListener('click',()=>void (async()=>{
     const button=$('nmda-dedupe-refresh-mailbox');if(button)button.disabled=true;
     try{
-      setImportStatus('正在人工完整读取邮箱历史，用于核对已有草稿和已发送记录…');
-      const result=await syncMailboxDedupeHistory();
+      setImportStatus('正在重新核验邮箱历史，用于核对已有草稿和已发送记录…');
+      const result=await requestAutoMailboxSync('history',{source:'manual-dedupe',force:true});
       renderRosterAudit();renderProcessGuide();
       const pending=unresolvedDuplicateGroupCount();
       setImportStatus(`邮箱历史已更新${result?`：已发送 ${result.outboundRead||0} · 草稿 ${result.draftsRead||0}`:''}${pending?`；还有 ${pending} 项查重待处理。`:'；当前查重已完成。'}`,pending?'warn':'ok');
@@ -6167,6 +6298,60 @@
     if(batchTagIncludeEl)batchTagIncludeEl.value = '';
     scheduleBatchRender({aux:false});
   });
+
+  async function requestAutoMailboxSync(kind='quick',{force=false,source='auto'}={}){
+    if(!Operations)return null;
+    const normalizedKind=['quick','history','full'].includes(kind)?kind:'quick';
+    const now=Date.now();
+    const ttl=normalizedKind==='quick'?30000:normalizedKind==='history'?5*60*1000:10*60*1000;
+    const last=normalizedKind==='quick'?mailboxAutoSyncState.lastQuickAt:normalizedKind==='history'?mailboxAutoSyncState.lastHistoryAt:mailboxAutoSyncState.lastFullAt;
+    if(!force && last && now-last<ttl)return null;
+
+    if(mailboxAutoSyncState.running){
+      if(mailboxSyncKindPriority(normalizedKind)<=mailboxSyncKindPriority(mailboxAutoSyncState.runningKind||'quick'))return mailboxAutoSyncState.running;
+      try{await mailboxAutoSyncState.running;}catch(_){ }
+      return requestAutoMailboxSync(normalizedKind,{force:true,source});
+    }
+
+    const runGeneration=++mailboxAutoSyncState.generation;
+    mailboxAutoSyncState.runningKind=normalizedKind;
+    mailboxAutoSyncState.running=(async()=>{
+      let connection=null;
+      try{connection=await chrome.runtime.sendMessage({type:'NMDA_CONNECTION_STATUS'});}catch(_){connection=null;}
+      if(!connection?.connected||!connection?.authenticated){
+        setMailboxAutoSyncCue('waiting',connection?.connected?'完成登录后自动读取':'连接网易邮箱后自动读取');
+        return null;
+      }
+      const sourceLabel=source==='import'?'导入后核验历史':source?.startsWith?.('tab:')?'页面切换刷新':source==='connection'?'邮箱连接完成':'自动刷新';
+      const detail=normalizedKind==='history'?`${sourceLabel} · 已发送 + 草稿`:normalizedKind==='full'?`${sourceLabel} · 完整邮箱`:`${sourceLabel} · 已发送 + 草稿 + 收件`;
+      setMailboxAutoSyncCue('syncing',detail);
+      try{
+        const result=normalizedKind==='history'?await syncMailboxDedupeHistory():await syncMailboxOperations(normalizedKind==='full'?'full':'quick');
+        const finished=Date.now();
+        if(normalizedKind==='quick')mailboxAutoSyncState.lastQuickAt=finished;
+        if(normalizedKind==='history')mailboxAutoSyncState.lastHistoryAt=finished;
+        if(normalizedKind==='full'){mailboxAutoSyncState.lastFullAt=finished;mailboxAutoSyncState.lastQuickAt=finished;}
+        if(batch?.dataset){renderDuplicateDecision();renderRosterAudit();renderProcessGuide();}
+        renderMonitoring();
+        renderReviewPageOverview();
+        const facts=normalizedKind==='history'
+          ? `历史核验完成${result?.outboundRead!=null?` · 已发送 ${result.outboundRead}`:''}${result?.draftsRead!=null?` · 草稿 ${result.draftsRead}`:''}`
+          : `已发送 ${result?.outboundRead||0} · 草稿 ${result?.draftsRead||0} · 收件 ${result?.inboxRead||0}`;
+        setMailboxAutoSyncCue('success',facts);
+        setTimeout(()=>{if(mailboxAutoSyncState.generation===runGeneration && !mailboxAutoSyncState.running)setMailboxAutoSyncCue('idle','后台按需保持最新');},2200);
+        return result;
+      }catch(error){
+        setMailboxAutoSyncCue('error',error?.message||String(error));
+        setTimeout(()=>{if(mailboxAutoSyncState.generation===runGeneration && !mailboxAutoSyncState.running)setMailboxAutoSyncCue('idle','稍后自动重试');},4200);
+        throw error;
+      }
+    })();
+    try{return await mailboxAutoSyncState.running;}
+    finally{
+      mailboxAutoSyncState.running=null;
+      mailboxAutoSyncState.runningKind='';
+    }
+  }
 
   async function syncMailboxDedupeHistory(){
     if(!Operations)return null;
