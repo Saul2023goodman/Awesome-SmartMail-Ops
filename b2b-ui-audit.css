@@ -1052,3 +1052,50 @@
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance{
   transition:width .28s cubic-bezier(.2,.78,.2,1),max-height .28s cubic-bezier(.2,.78,.2,1),padding .22s ease,box-shadow .22s ease,background .22s ease;
 }
+
+
+/* v3.8.63 — Batch Standards Lens: subject completeness + format consistency share one Preview-native QA component. */
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry:hover,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry:focus-visible{width:110px}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-standard-glyph::after{background:#71509b}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards-head small{max-width:420px!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards-overview{
+  display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:0 0 10px;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards-overview>span{
+  min-width:0;display:grid;grid-template-columns:22px minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center;column-gap:7px;
+  padding:8px 9px;border:1px solid rgba(73,82,97,.09);border-radius:11px;background:rgba(255,255,255,.55);
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards-overview i{grid-row:1/3;width:22px;height:22px;display:grid;place-items:center;border-radius:7px;background:rgba(92,108,132,.07);color:#5c6676;font:800 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;font-style:normal}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards-overview b{font-size:9.5px;color:#4d5664;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards-overview strong{grid-column:3;grid-row:1/3;font:800 15px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#3f4d61}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards-overview small{grid-column:2;font-size:8px;color:#949aa3}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-card{
+  display:grid;gap:9px;margin-top:8px;padding:10px;border:1px solid rgba(72,78,90,.09);border-radius:13px;background:rgba(255,255,255,.58);box-shadow:inset 0 1px 0 rgba(255,255,255,.72)
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-card>header>div{display:grid;gap:2px;min-width:0}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-card>header strong{font-size:10.5px;color:#3e4652}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-card>header small{font-size:8.5px;line-height:1.38;color:#8c929b}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-card>header>b{padding:3px 6px;border-radius:999px;background:rgba(190,123,37,.08);color:#9b671d;font-size:8px;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-subject-field{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-subject-field>span{font-size:8.5px;font-weight:760;color:#777e88;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-subject-field input{min-width:0;width:100%;height:34px;padding:0 10px;border:1px solid rgba(62,72,86,.14);border-radius:9px;background:rgba(255,255,255,.86);font:inherit;color:#313945;outline:none;box-sizing:border-box}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-subject-field input:focus{border-color:rgba(76,111,160,.38);box-shadow:0 0 0 3px rgba(70,106,157,.07)}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-subject-field input:disabled{opacity:.54;background:rgba(244,246,248,.72)}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-suggestion{min-width:0;max-width:100%;width:max-content;padding:5px 7px;border:0;border-radius:8px;background:rgba(72,106,154,.07);color:#4f6686;font-size:8.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-suggestion[hidden]{display:none!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-result{display:flex;align-items:baseline;gap:6px;min-width:0;font-size:8.5px;color:#818792}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-result strong{color:#586271;font-size:9px;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-card.is-format .nmda-format-governance-suggestions{margin-top:0!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-card.is-format .nmda-format-governance-history{padding-top:1px}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards-actions{margin-top:10px!important;padding-top:9px!important;border-top:1px solid rgba(60,65,76,.08);align-items:center!important}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-plan-summary{min-width:0;color:#767d87;font-size:8.5px;line-height:1.35}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards.is-running>.nmda-batch-standards-overview,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards.is-running>.nmda-batch-standard-card{display:none!important}
+#nmda-root.nmda-standalone .nmda-review-main-page [data-preview-subject]{transition:background .28s ease,box-shadow .28s ease,color .28s ease,transform .32s cubic-bezier(.2,.78,.2,1)}
+#nmda-root.nmda-standalone .nmda-review-main-page [data-preview-subject].is-standard-subject-target{background:linear-gradient(90deg,rgba(224,173,82,.16),rgba(224,173,82,.055));box-shadow:0 0 0 3px rgba(219,158,59,.055);border-radius:4px;color:#80581e;transform:translateY(-1px)}
+#nmda-root.nmda-standalone .nmda-review-main-page [data-preview-subject].is-standard-subject-applied{animation:nmdaSubjectStandardSet .58s cubic-bezier(.2,.8,.2,1) both}
+@keyframes nmdaSubjectStandardSet{0%{background:rgba(228,178,88,.18);filter:blur(.45px);transform:translateY(-1px)}55%{background:rgba(91,135,105,.10);filter:none;transform:translateY(0)}100%{background:transparent;transform:none}}
+@media (max-width:720px){#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standards-overview{grid-template-columns:1fr}#nmda-root.nmda-standalone .nmda-review-main-page .nmda-batch-standard-subject-field{grid-template-columns:1fr;gap:4px}}
+@media (prefers-reduced-motion:reduce){#nmda-root.nmda-standalone .nmda-review-main-page [data-preview-subject]{transition:none!important;animation:none!important}}

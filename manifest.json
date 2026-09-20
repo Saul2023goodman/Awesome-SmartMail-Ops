@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.62",
-  "description": "SmartMail Ops — integrates batch-format governance into Preview as a floating contextual tool with deliberate sequential rewrite choreography, while preserving authoritative Follow-up history reconciliation.",
+  "version": "3.8.63",
+  "description": "SmartMail Ops — unifies missing-subject repair and body-format consistency into one Preview-native Batch Standards Lens with a single sequential correction plan, while preserving authoritative Follow-up history reconciliation.",
   "permissions": [
     "scripting",
     "tabs",
