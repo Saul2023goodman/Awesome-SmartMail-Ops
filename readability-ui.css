@@ -598,39 +598,3 @@
 .nmda-format-governance-history{display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden}.nmda-format-governance-history>span{font-size:9px;color:#9a929f;white-space:nowrap}.nmda-format-governance-history button{display:flex;align-items:center;gap:4px;max-width:180px;padding:4px 6px;border:0;border-radius:7px;background:rgba(45,38,52,.04);cursor:pointer;color:#726979}.nmda-format-governance-history button:hover{background:rgba(91,65,130,.08)}.nmda-format-governance-history button b{font-size:8px;color:#63468c}.nmda-format-governance-history button i{font-style:normal;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nmda-format-governance-history button small{font-size:8px;color:#9c94a1;white-space:nowrap}
 @media (max-width:920px){.nmda-format-governance-builder{grid-template-columns:1fr}.nmda-format-governance-formats{flex-wrap:wrap}.nmda-format-governance-case{width:max-content}.nmda-format-governance-row{grid-template-columns:1fr auto}.nmda-format-governance-row p{grid-column:1/-1}.nmda-format-governance-history{display:none}}
 
-/* v3.8.60 — sequential format rewrite choreography */
-.nmda-format-governance-run{
-  --run-progress:0;
-  position:relative;overflow:hidden;margin-top:10px;padding:10px 11px 9px;
-  border:1px solid rgba(98,70,145,.14);border-radius:12px;
-  background:linear-gradient(120deg,rgba(250,248,253,.98),rgba(255,255,255,.95) 48%,rgba(247,250,255,.96));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.9)
-}
-.nmda-format-governance-run[hidden]{display:none!important}
-.nmda-format-governance-run-head{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:9px}
-.nmda-format-governance-sigil{position:relative;width:26px;height:26px;border:1px solid rgba(96,68,143,.16);border-radius:9px;background:rgba(111,79,163,.065);box-shadow:0 4px 14px rgba(79,57,111,.06)}
-.nmda-format-governance-sigil::before,.nmda-format-governance-sigil::after,.nmda-format-governance-sigil i::before,.nmda-format-governance-sigil i::after{content:"";position:absolute;left:50%;top:50%;background:#7452a4;transform:translate(-50%,-50%);border-radius:99px}
-.nmda-format-governance-sigil::before{width:2px;height:13px}.nmda-format-governance-sigil::after{width:13px;height:2px}
-.nmda-format-governance-sigil i::before{width:2px;height:8px;transform:translate(-50%,-50%) rotate(45deg);opacity:.48}.nmda-format-governance-sigil i::after{width:8px;height:2px;transform:translate(-50%,-50%) rotate(45deg);opacity:.48}
-.nmda-format-governance-sigil b{position:absolute;right:4px;top:4px;width:4px;height:4px;border-radius:50%;background:#a487ca;box-shadow:0 0 0 3px rgba(128,94,178,.08)}
-.nmda-format-governance-run-copy{display:grid;gap:2px;min-width:0}.nmda-format-governance-run-copy strong{font-size:10.5px;color:#443b4d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nmda-format-governance-run-copy small{font-size:9px;color:#8b8292;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nmda-format-governance-run-count{color:#695478;font:800 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
-.nmda-format-governance-run-track{position:relative;height:3px;margin:9px 1px 8px;border-radius:99px;background:rgba(71,56,87,.075);overflow:visible}
-.nmda-format-governance-run-track i{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(90deg,#8b6ab9,#667fbd 58%,#7d9ec8);transform:scaleX(var(--run-progress));transform-origin:left center;transition:transform .22s cubic-bezier(.2,.8,.2,1)}
-.nmda-format-governance-run-track b{position:absolute;top:50%;left:calc(var(--run-progress) * 100%);width:8px;height:8px;border:2px solid #fff;border-radius:50%;background:#7958a8;box-shadow:0 0 0 3px rgba(117,82,165,.10),0 2px 7px rgba(62,44,87,.18);transform:translate(-50%,-50%);transition:left .22s cubic-bezier(.2,.8,.2,1)}
-.nmda-format-governance-rewrite{display:grid;grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr);align-items:center;gap:6px;min-height:28px}
-.nmda-format-governance-rewrite>span{min-width:0;padding:5px 7px;border:1px solid rgba(68,55,80,.08);border-radius:7px;background:rgba(255,255,255,.74);color:#69616f;font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nmda-format-governance-rewrite>i{font-style:normal;text-align:center;color:#a298aa;font-size:10px}
-.nmda-format-governance-rewrite .is-after{color:#4f3d64;background:rgba(111,79,163,.055)}
-.nmda-format-governance-run[data-phase="locate"] .is-before{border-color:rgba(117,82,165,.22);box-shadow:0 0 0 2px rgba(117,82,165,.045)}
-.nmda-format-governance-run[data-phase="rewrite"] .is-after{animation:nmdaGovernanceInkSet .36s cubic-bezier(.2,.8,.2,1) both}
-.nmda-format-governance-run[data-phase="complete"]{border-color:rgba(71,128,91,.18);background:linear-gradient(120deg,rgba(248,252,249,.98),#fff)}
-.nmda-format-governance-run[data-phase="complete"] .nmda-format-governance-sigil{border-color:rgba(71,128,91,.18);background:rgba(71,128,91,.07)}
-.nmda-format-governance-run[data-phase="complete"] .nmda-format-governance-sigil::before,.nmda-format-governance-run[data-phase="complete"] .nmda-format-governance-sigil::after,.nmda-format-governance-run[data-phase="complete"] .nmda-format-governance-sigil i::before,.nmda-format-governance-run[data-phase="complete"] .nmda-format-governance-sigil i::after{background:#568267}
-.nmda-format-governance.is-running .nmda-format-governance-builder,.nmda-format-governance.is-running .nmda-format-governance-suggestions,.nmda-format-governance.is-running .nmda-format-governance-history{opacity:.54}
-.nmda-format-governance-row.is-format-running{background:linear-gradient(90deg,rgba(111,79,163,.09),rgba(111,79,163,.025));box-shadow:inset 2px 0 0 #8060aa}
-.nmda-format-governance-row.is-format-running>b{color:#68428f}
-.nmda-format-governance-row.is-format-done{background:rgba(72,128,92,.035)}
-.nmda-format-governance-row.is-format-done>b{color:#477a59}
-@keyframes nmdaGovernanceInkSet{0%{opacity:.28;filter:blur(2px);transform:translateY(2px)}60%{opacity:1;filter:blur(0);transform:translateY(-1px)}100%{opacity:1;transform:translateY(0)}}
-@media (prefers-reduced-motion:reduce){.nmda-format-governance-run-track i,.nmda-format-governance-run-track b{transition:none!important}.nmda-format-governance-run[data-phase="rewrite"] .is-after{animation:none!important}}

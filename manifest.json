@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.65",
-  "description": "SmartMail Ops — unifies Single Review and Preview into one continuous read/edit surface: Preview is authoritative, editing opens in place, legacy overlay review code is removed, while Batch Standards and Follow-up reconciliation remain intact.",
+  "version": "3.8.66",
+  "description": "SmartMail Ops — Batch Standards now commits all subject/format repairs immediately, then shows a short Preview afterimage instead of slow per-message animation; sequential queue/HUD/scroll choreography removed.",
   "permissions": [
     "scripting",
     "tabs",

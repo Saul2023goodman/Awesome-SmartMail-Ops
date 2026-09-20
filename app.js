@@ -815,17 +815,6 @@
                     <div class="nmda-format-governance-list" id="nmda-format-governance-list" hidden></div>
                     <div id="nmda-format-governance-history" class="nmda-format-governance-history"></div>
                   </section>
-                  <div class="nmda-format-governance-run" id="nmda-format-governance-run" hidden aria-live="polite">
-                    <div class="nmda-format-governance-run-head">
-                      <span class="nmda-format-governance-sigil" aria-hidden="true"><i></i><b></b></span>
-                      <span class="nmda-format-governance-run-copy"><strong id="nmda-format-governance-run-title">准备逐封校正</strong><small id="nmda-format-governance-run-meta"></small></span>
-                      <strong class="nmda-format-governance-run-count" id="nmda-format-governance-run-count">0 / 0</strong>
-                    </div>
-                    <div class="nmda-format-governance-run-track" aria-hidden="true"><i id="nmda-format-governance-run-bar"></i><b id="nmda-format-governance-run-orb"></b></div>
-                    <div class="nmda-format-governance-rewrite" id="nmda-format-governance-rewrite">
-                      <span class="is-before" id="nmda-format-governance-run-before"></span><i aria-hidden="true">→</i><span class="is-after" id="nmda-format-governance-run-after"></span>
-                    </div>
-                  </div>
                   <footer class="nmda-format-governance-actions nmda-batch-standards-actions">
                     <div id="nmda-batch-standard-plan-summary" class="nmda-batch-standard-plan-summary">尚未配置可执行校正</div>
                     <button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-format-governance-apply" type="button" disabled>执行批次校正</button>
@@ -2047,7 +2036,6 @@
   const reviewBatchbarEl=$('nmda-review-batchbar'), reviewSelectedCountEl=$('nmda-review-selected-count');
   const formatGovernanceEntryEl=$('nmda-review-format-governance'), formatGovernanceEntryCountEl=$('nmda-preview-format-drift-count'), formatGovernanceEl=$('nmda-format-governance'), formatGovernancePhraseEl=$('nmda-format-governance-phrase'), formatGovernanceCaseEl=$('nmda-format-governance-case'), formatGovernanceResultEl=$('nmda-format-governance-result'), formatGovernanceListEl=$('nmda-format-governance-list'), formatGovernanceApplyEl=$('nmda-format-governance-apply'), formatGovernanceSuggestionsEl=$('nmda-format-governance-suggestions'), formatGovernanceHistoryEl=$('nmda-format-governance-history');
   const batchStandardSubjectCountEl=$('nmda-batch-standard-subject-count'), batchStandardFormatCountEl=$('nmda-batch-standard-format-count'), batchStandardSubjectBadgeEl=$('nmda-batch-standard-subject-badge'), batchStandardSubjectInputEl=$('nmda-batch-standard-subject-input'), batchStandardSubjectSuggestionEl=$('nmda-batch-standard-subject-suggestion'), batchStandardSubjectResultEl=$('nmda-batch-standard-subject-result'), batchStandardPlanSummaryEl=$('nmda-batch-standard-plan-summary');
-  const formatGovernanceRunEl=$('nmda-format-governance-run'), formatGovernanceRunTitleEl=$('nmda-format-governance-run-title'), formatGovernanceRunMetaEl=$('nmda-format-governance-run-meta'), formatGovernanceRunCountEl=$('nmda-format-governance-run-count'), formatGovernanceRunBarEl=$('nmda-format-governance-run-bar'), formatGovernanceRunBeforeEl=$('nmda-format-governance-run-before'), formatGovernanceRunAfterEl=$('nmda-format-governance-run-after');
   const reviewFollowUpTemplateCardEl=$('nmda-review-followup-template-card'), reviewFollowUpTemplateToggleEl=$('nmda-review-followup-template-toggle'), reviewFollowUpTemplateEl=$('nmda-review-followup-template'), reviewFollowUpTemplateMetaEl=$('nmda-review-followup-template-meta'), reviewFollowUpTemplateSaveEl=$('nmda-review-followup-template-save');
   const duplicateDecisionEl=$('nmda-duplicate-decision'), duplicateDecisionTitleEl=$('nmda-duplicate-decision-title'), duplicateDecisionCopyEl=$('nmda-duplicate-decision-copy'), duplicateDecisionKindEl=$('nmda-duplicate-decision-kind'), duplicateCandidatesEl=$('nmda-duplicate-candidates'), duplicateDecisionHintEl=$('nmda-duplicate-decision-hint'), duplicateKeepSelectedEl=$('nmda-duplicate-keep-selected'), duplicateKeepAllEl=$('nmda-duplicate-keep-all');
   const draftHistoryFilterEl=$('nmda-draft-history-filter'), draftHistoryCountEl=$('nmda-draft-history-count'), draftHistoryListEl=$('nmda-draft-history-list'), draftHistoryHintEl=$('nmda-draft-history-hint'), draftHistoryExcludeEl=$('nmda-draft-history-exclude'), draftHistoryKeepEl=$('nmda-draft-history-keep');
@@ -2404,7 +2392,6 @@
   });
 
   reviewQueueEl?.addEventListener('click',event=>{
-    if(formatGovernanceRunState?.running)return;
     const loadMore=event.target.closest?.('[data-review-load-more]');
     if(loadMore){viewPerf.reviewRenderLimit=(viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK)+REVIEW_RENDER_CHUNK;renderReviewQueue(batch.reviewSurface==='preview'?(batch.reviewEditingKey||batch.reviewPreviewKey):'',{preserveScroll:true});return;}
     const previewAction=event.target.closest?.('[data-review-preview-key]');
@@ -2421,7 +2408,6 @@
     if(rich){const page=rich.closest('.nmda-review-preview-page');const editor=page?.querySelector?.('[data-preview-edit-body]');if(!editor)return;editor.focus();try{document.execCommand(String(rich.dataset.previewRichCommand||''),false,null);}catch(_){ }editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'format'}));return;}
   });
   reviewPreviewRailEl?.addEventListener('click',event=>{
-    if(formatGovernanceRunState?.running)return;
     const target=event.target.closest?.('[data-review-rail-key]');if(!target)return;
     const key=String(target.dataset.reviewRailKey||'');
     if(batch.reviewEditingKey&&batch.reviewEditingKey!==key){setImportStatus('请先保存或取消当前邮件的编辑。','warn');return;}
@@ -2445,7 +2431,6 @@
       reviewScrollFrame=0;
       if(!reviewQueueEl || reviewQueueEl.clientHeight<=0)return;
       if(batch.reviewSurface==='preview')syncReviewPreviewActiveFromScroll();
-      if(reviewInlineEl?.dataset.formatGovernanceRunning==='1')return;
       const remaining=reviewQueueEl.scrollHeight-reviewQueueEl.scrollTop-reviewQueueEl.clientHeight;
       if(remaining>Math.max(420,reviewQueueEl.clientHeight*.55))return;
       const total=reviewQueueItems(reviewVisibleTasks()).length;
@@ -3824,8 +3809,8 @@
   function syncBatchGovernanceApply(){
     if(!formatGovernanceApplyEl)return;
     const plan=currentBatchGovernancePlan(),total=plan.rows.length;
-    formatGovernanceApplyEl.disabled=!!formatGovernanceRunState?.running||!total;
-    formatGovernanceApplyEl.textContent=formatGovernanceRunState?.running?formatGovernanceApplyEl.textContent:(total?`执行校正 · ${total} 封`:'执行批次校正');
+    formatGovernanceApplyEl.disabled=!total;
+    formatGovernanceApplyEl.textContent=total?`执行校正 · ${total} 封`:'执行批次校正';
     if(batchStandardPlanSummaryEl){
       const parts=[];if(plan.subjectCount)parts.push(`主题 ${plan.subjectCount} 封`);if(plan.formatCount)parts.push(`格式 ${plan.formatCount} 封`);
       batchStandardPlanSummaryEl.textContent=parts.length?`${parts.join(' · ')} · 共影响 ${total} 封`:'尚未配置可执行校正';
@@ -3902,55 +3887,13 @@
   }
 
   function closeFormatGovernance(){
-    if(formatGovernanceRunState?.running)return;
     if(formatGovernanceEl)formatGovernanceEl.hidden=true;
     if(reviewInlineEl)delete reviewInlineEl.dataset.formatGovernanceOpen;
     if(formatGovernanceEntryEl){formatGovernanceEntryEl.setAttribute('aria-expanded','false');formatGovernanceEntryEl.classList.remove('is-open');}
     formatGovernanceAnalysis=null;
   }
 
-  let formatGovernanceRunState=null;
-
-  function governanceFormattedPhraseHtml(phrase,formats=[]){
-    let html=escapeHtml(String(phrase||''));
-    for(const key of formats){const tag=MAIL_GOVERNANCE_FORMATS[key]?.tag;if(tag)html=`<${tag}>${html}</${tag}>`;}
-    return html;
-  }
-
-  function governanceMotionPlan(index=0,total=1){
-    if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return{approach:18,trace:18,rewrite:18,settle:18};
-    const count=Math.max(1,total),progress=count<=1?0:index/(count-1);
-    // Deliberate cadence: introduce the effect slowly, find a steady middle rhythm,
-    // then soften the final entries. This keeps large batches readable without
-    // turning the sequence into either a slideshow or a machine-gun flash.
-    const base=count<=4?1420:count<=12?1120:count<=30?860:640;
-    const edge=Math.pow(Math.abs(progress-.5)*2,2);
-    const tempo=Math.round(base*(1+.28*edge));
-    return{
-      approach:Math.round(tempo*.27),
-      trace:Math.round(tempo*.25),
-      rewrite:Math.round(tempo*.28),
-      settle:Math.round(tempo*.20)
-    };
-  }
-
-  function scrollGovernancePageIntoView(page,duration=260){
-    if(!page||!reviewQueueEl)return Promise.resolve();
-    const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    const scroller=reviewQueueEl,scrollerRect=scroller.getBoundingClientRect(),pageRect=page.getBoundingClientRect();
-    const start=scroller.scrollTop;
-    const target=Math.max(0,Math.min(scroller.scrollHeight-scroller.clientHeight,start+(pageRect.top-scrollerRect.top)-Math.max(10,(scroller.clientHeight-pageRect.height)/2)));
-    if(reduced||Math.abs(target-start)<3){scroller.scrollTop=target;return Promise.resolve();}
-    return new Promise(resolve=>{
-      const begin=performance.now(),span=Math.max(140,duration);
-      const tick=now=>{
-        const t=Math.min(1,(now-begin)/span),ease=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
-        scroller.scrollTop=start+(target-start)*ease;
-        if(t<1)requestAnimationFrame(tick);else resolve();
-      };
-      requestAnimationFrame(tick);
-    });
-  }
+  let batchGovernanceFeedbackTimer=0;
 
   function clearGovernancePreviewHighlight(){
     try{window.CSS?.highlights?.delete?.('nmda-governance-target');window.CSS?.highlights?.delete?.('nmda-governance-applied');}catch(_){}
@@ -3970,156 +3913,94 @@
     }catch(_){return 0;}
   }
 
-  function governanceRunElementsForKey(key){
+  function governanceFeedbackElementsForKey(key){
     const escaped=CSS.escape(String(key||''));
     return{
       page:reviewQueueEl?.querySelector?.(`[data-review-row="${escaped}"]`)||null,
-      rail:reviewPreviewRailListEl?.querySelector?.(`[data-review-rail-key="${escaped}"]`)||null,
-      row:formatGovernanceListEl?.querySelector?.(`[data-governance-row-key="${escaped}"]`)||null
+      rail:reviewPreviewRailListEl?.querySelector?.(`[data-review-rail-key="${escaped}"]`)||null
     };
   }
 
-  function restoreGovernanceDoneMarks(){
-    const done=formatGovernanceRunState?.doneKeys;if(!(done instanceof Set)||!done.size)return;
-    for(const key of done){const parts=governanceRunElementsForKey(key);parts.page?.classList.add('is-format-done');parts.rail?.classList.add('is-format-done');parts.row?.classList.add('is-format-done');}
+  function clearBatchGovernanceFeedback(){
+    if(batchGovernanceFeedbackTimer){clearTimeout(batchGovernanceFeedbackTimer);batchGovernanceFeedbackTimer=0;}
+    if(reviewInlineEl)delete reviewInlineEl.dataset.batchGovernanceFeedback;
+    reviewQueueEl?.querySelectorAll?.('.is-batch-standard-feedback,.is-batch-format-feedback').forEach(el=>el.classList.remove('is-batch-standard-feedback','is-batch-format-feedback'));
+    reviewPreviewRailListEl?.querySelectorAll?.('.is-batch-standard-feedback').forEach(el=>el.classList.remove('is-batch-standard-feedback'));
+    reviewQueueEl?.querySelectorAll?.('[data-preview-subject].is-standard-subject-applied').forEach(el=>el.classList.remove('is-standard-subject-applied'));
+    reviewInlineEl?.querySelector?.('.nmda-batch-standard-feedback-chip')?.remove?.();
+    clearGovernancePreviewHighlight();
   }
 
-  function ensureGovernancePreviewPage(task){
-    let parts=governanceRunElementsForKey(task?.editKey);if(parts.page)return parts;
-    const visible=reviewVisibleTasks(),index=visible.findIndex(item=>item.editKey===task?.editKey);
-    if(index<0)return parts;
-    const current=Math.max(REVIEW_RENDER_CHUNK,viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK);
-    if(index>=current){viewPerf.reviewRenderLimit=Math.min(visible.length,index+REVIEW_RENDER_CHUNK);renderReviewQueue(task.editKey,{preserveScroll:true});restoreGovernanceDoneMarks();parts=governanceRunElementsForKey(task.editKey);}
-    return parts;
-  }
-
-  function clearGovernanceRunMarks({all=false}={}){
-    reviewQueueEl?.querySelectorAll?.(all?'.is-format-running,.is-format-rewriting,.is-format-done':'.is-format-running,.is-format-rewriting').forEach(el=>{el.classList.remove('is-format-running','is-format-rewriting',...(all?['is-format-done']:[]));delete el.dataset.formatPhase;});
-    reviewPreviewRailListEl?.querySelectorAll?.(all?'.is-format-running,.is-format-done':'.is-format-running').forEach(el=>el.classList.remove('is-format-running',...(all?['is-format-done']:[])));
-    formatGovernanceListEl?.querySelectorAll?.(all?'.is-format-running,.is-format-done':'.is-format-running').forEach(el=>el.classList.remove('is-format-running',...(all?['is-format-done']:[])));
-    reviewQueueEl?.querySelectorAll?.('[data-preview-subject].is-standard-subject-target,[data-preview-subject].is-standard-subject-applied').forEach(el=>el.classList.remove('is-standard-subject-target','is-standard-subject-applied'));
-  }
-
-  function setFormatGovernanceRunning(running,{keepRunPanel=false}={}){
-    if(reviewInlineEl){if(running)reviewInlineEl.dataset.formatGovernanceRunning='1';else delete reviewInlineEl.dataset.formatGovernanceRunning;}
-    if(formatGovernanceEl){
-      formatGovernanceEl.classList.toggle('is-running',!!running);
-      formatGovernanceEl.querySelectorAll('input,button').forEach(control=>{
-        if(control===formatGovernanceApplyEl){control.disabled=!!running||!currentBatchGovernancePlan().rows.length;return;}
-        control.disabled=!!running;
-      });
+  function showBatchGovernanceFeedback({changedKeys=[],subjectKeys=[],formatKeys=[],phrase='',caseSensitive=true,summary=''}={}){
+    clearBatchGovernanceFeedback();
+    const changed=new Set(changedKeys),subjects=new Set(subjectKeys),formats=new Set(formatKeys);
+    if(!changed.size)return;
+    if(reviewInlineEl)reviewInlineEl.dataset.batchGovernanceFeedback='1';
+    for(const key of changed){
+      const {page,rail}=governanceFeedbackElementsForKey(key);
+      page?.classList.add('is-batch-standard-feedback');
+      rail?.classList.add('is-batch-standard-feedback');
+      if(formats.has(key))page?.classList.add('is-batch-format-feedback');
+      if(subjects.has(key))page?.querySelectorAll?.('[data-preview-subject]').forEach(el=>el.classList.add('is-standard-subject-applied'));
     }
-    if(formatGovernanceRunEl&&!keepRunPanel)formatGovernanceRunEl.hidden=!running;
-  }
-
-  function batchGovernanceRunPair(row,plan){
-    if(row?.subject&&row?.formatRow)return {before:'主题缺失 · 格式漂移',after:`主题已补齐 · ${plan.formatAnalysis?.rule?.formats?.map(key=>MAIL_GOVERNANCE_FORMATS[key]?.label||key).join('+')||'格式'}已统一`};
-    if(row?.subject)return {before:'（空白主题）',after:plan.subject||''};
-    const phrase=plan.formatAnalysis?.rule?.phrase||'';return {before:phrase,afterHtml:governanceFormattedPhraseHtml(phrase,plan.formatAnalysis?.rule?.formats||[])};
-  }
-
-  function updateGovernanceRunPanel({phase='focus',index=0,total=0,row=null,plan=null,changedTasks=0,subjectChanged=0,formatChangedTasks=0,formatChangedOccurrences=0}={}){
-    if(!formatGovernanceRunEl)return;
-    formatGovernanceRunEl.hidden=false;formatGovernanceRunEl.dataset.phase=phase;
-    const task=row?.task||null,subject=String(task?.subject||'').trim()||'（无主题）';
-    if(formatGovernanceRunTitleEl)formatGovernanceRunTitleEl.textContent=phase==='complete'?'批次规范校正完成':phase==='error'?'批次规范校正中断':subject;
-    if(formatGovernanceRunMetaEl){
-      if(phase==='complete')formatGovernanceRunMetaEl.textContent=[`已逐封处理 ${changedTasks} 封`,subjectChanged?`补主题 ${subjectChanged} 封`:'',formatChangedTasks?`格式 ${formatChangedTasks} 封 / ${formatChangedOccurrences} 处`:'' ].filter(Boolean).join(' · ');
-      else if(phase==='error')formatGovernanceRunMetaEl.textContent='此前成功写入的规范修改已保留';
-      else {
-        const actions=[row?.subject?'主题':'',row?.formatRow?'格式':''].filter(Boolean).join(' + ');
-        const stage=phase==='focus'?'定位邮件':phase==='trace'?'捕获规范缺口':phase==='rewrite'?'规范落定':phase==='settle'?'完成并进入下一封':'';
-        formatGovernanceRunMetaEl.textContent=[stage,actions,String(task?.recipients||'').trim()].filter(Boolean).join(' · ');
-      }
+    const activeKey=String(batch.reviewEditingKey||batch.reviewPreviewKey||'');
+    if(activeKey&&formats.has(activeKey)&&phrase){
+      const body=governanceFeedbackElementsForKey(activeKey).page?.querySelector?.('.nmda-review-preview-body');
+      if(body)setGovernancePreviewHighlight(body,phrase,caseSensitive,'nmda-governance-applied');
     }
-    if(formatGovernanceRunCountEl)formatGovernanceRunCountEl.textContent=phase==='complete'?`${total} / ${total}`:`${Math.min(index+1,total)} / ${total}`;
-    if(formatGovernanceRunBarEl){const phaseStep=phase==='settle'?.96:phase==='rewrite'?.72:phase==='trace'?.46:phase==='focus'?.18:.12;const fraction=phase==='complete'?1:Math.max(0,Math.min(1,(index+phaseStep)/Math.max(1,total)));formatGovernanceRunBarEl.style.setProperty('--run-progress',String(fraction));formatGovernanceRunEl.style.setProperty('--run-progress',String(fraction));}
-    const pair=batchGovernanceRunPair(row,plan||{});
-    if(formatGovernanceRunBeforeEl)formatGovernanceRunBeforeEl.textContent=pair.before||'';
-    if(formatGovernanceRunAfterEl){if(pair.afterHtml!=null)formatGovernanceRunAfterEl.innerHTML=pair.afterHtml;else formatGovernanceRunAfterEl.textContent=pair.after||'';}
-    if(formatGovernanceApplyEl&&formatGovernanceRunState?.running&&phase!=='complete')formatGovernanceApplyEl.textContent=`正在逐封校正 ${Math.min(index+1,total)} / ${total}`;
-  }
-
-  async function animateBatchGovernanceTask(row,index,total,plan){
+    if(reviewInlineEl){
+      const chip=document.createElement('div');chip.className='nmda-batch-standard-feedback-chip';chip.setAttribute('role','status');
+      const mark=document.createElement('span');mark.className='nmda-batch-standard-feedback-mark';mark.textContent='✓';
+      const copy=document.createElement('span');copy.textContent=summary||`已校正 ${changed.size} 封`;
+      chip.append(mark,copy);reviewInlineEl.append(chip);requestAnimationFrame(()=>chip.classList.add('is-visible'));
+    }
     const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    const motion=governanceMotionPlan(index,total),parts=ensureGovernancePreviewPage(row.task);
-    clearGovernanceRunMarks();
-    parts.page?.classList.add('is-format-running');parts.rail?.classList.add('is-format-running');parts.row?.classList.add('is-format-running');
-    if(parts.page)parts.page.dataset.formatPhase='focus';
-    if(row.task?.editKey)setReviewPreviewActiveKey(row.task.editKey,{revealRail:true,railBehavior:'auto'});
-    updateGovernanceRunPanel({phase:'focus',index,total,row,plan});
-    await scrollGovernancePageIntoView(parts.page,motion.approach);
-
-    const body=parts.page?.querySelector?.('.nmda-review-preview-body');
-    const subjectEls=[...(parts.page?.querySelectorAll?.('[data-preview-subject]')||[])];
-    if(parts.page)parts.page.dataset.formatPhase='trace';
-    if(row.subject)subjectEls.forEach(el=>el.classList.add('is-standard-subject-target'));
-    if(row.formatRow&&plan.formatAnalysis)setGovernancePreviewHighlight(body,plan.formatAnalysis.rule.phrase,plan.formatAnalysis.rule.caseSensitive,'nmda-governance-target');
-    updateGovernanceRunPanel({phase:'trace',index,total,row,plan});
-    await sleep(motion.trace);
-
-    let subjectChanged=0,formatChangedOccurrences=0;
-    if(row.subject&&plan.subject){
-      setTaskEdit(row.task,{subject:plan.subject,reviewConfirmed:!!row.task.reviewConfirmed,reviewDraftPending:!!row.task.reviewDraftPending});
-      subjectChanged=1;scheduleWorkspacePersist();
-      subjectEls.forEach(el=>{el.innerHTML=semanticHighlightHtml(plan.subject,row.task);el.classList.remove('is-standard-subject-target');el.classList.add('is-standard-subject-applied');});
-    }
-    if(row.formatRow&&plan.formatAnalysis){
-      const result=inspectGovernanceRuleHtml(taskRichBodyHtml(row.task),plan.formatAnalysis.rule,{apply:true});
-      if(result.changed){
-        setTaskEdit(row.task,{bodyHtml:result.html,bodyIsHtml:true,reviewConfirmed:!!row.task.reviewConfirmed,reviewDraftPending:!!row.task.reviewDraftPending});
-        formatChangedOccurrences=result.changed;scheduleWorkspacePersist();
-        if(body){body.innerHTML=decorateReviewRichHtml(row.task);setGovernancePreviewHighlight(body,plan.formatAnalysis.rule.phrase,plan.formatAnalysis.rule.caseSensitive,'nmda-governance-applied');}
-        parts.row?.querySelector?.('b')?.replaceChildren(document.createTextNode(`${result.changed} 处已修复`));
-      }
-    }
-    if(subjectChanged||formatChangedOccurrences){
-      parts.page?.classList.add('is-format-rewriting');if(parts.page)parts.page.dataset.formatPhase='rewrite';
-      updateGovernanceRunPanel({phase:'rewrite',index,total,row,plan});await sleep(motion.rewrite);
-    }else if(!reduced)await sleep(Math.min(120,motion.rewrite));
-
-    parts.page?.classList.remove('is-format-rewriting','is-format-running');parts.page?.classList.add('is-format-done');
-    if(parts.page)parts.page.dataset.formatPhase='settle';
-    parts.rail?.classList.remove('is-format-running');parts.rail?.classList.add('is-format-done');parts.row?.classList.remove('is-format-running');parts.row?.classList.add('is-format-done');
-    formatGovernanceRunState?.doneKeys?.add?.(row.task.editKey);
-    updateGovernanceRunPanel({phase:'settle',index,total,row,plan});await sleep(motion.settle);
-    subjectEls.forEach(el=>el.classList.remove('is-standard-subject-target','is-standard-subject-applied'));
-    clearGovernancePreviewHighlight();if(parts.page)delete parts.page.dataset.formatPhase;
-    return {changed:!!(subjectChanged||formatChangedOccurrences),subjectChanged,formatChangedOccurrences};
+    batchGovernanceFeedbackTimer=setTimeout(()=>clearBatchGovernanceFeedback(),reduced?420:1500);
   }
 
-  async function applyBatchGovernance(){
-    if(formatGovernanceRunState?.running)return;
+  function applyBatchGovernance(){
     const plan=currentBatchGovernancePlan();if(!plan.rows.length)return;
-    const previewContext=batch.reviewSurface==='preview'?{activeKey:String(batch.reviewPreviewKey||''),scrollTop:reviewQueueEl?.scrollTop||0,railScrollTop:reviewPreviewRailListEl?.scrollTop||0}:null;
-    formatGovernanceRunState={running:true,id:crypto.randomUUID(),doneKeys:new Set()};const runId=formatGovernanceRunState.id;setFormatGovernanceRunning(true);clearGovernanceRunMarks({all:true});
-    let changedTasks=0,subjectChanged=0,formatChangedTasks=0,formatChangedOccurrences=0;const formatChangedKeys=[];
+    const previewContext=batch.reviewSurface==='preview'?{activeKey:String(batch.reviewEditingKey||batch.reviewPreviewKey||''),scrollTop:reviewQueueEl?.scrollTop||0,railScrollTop:reviewPreviewRailListEl?.scrollTop||0}:null;
+    let changedTasks=0,subjectChanged=0,formatChangedTasks=0,formatChangedOccurrences=0;
+    const changedKeys=[],subjectChangedKeys=[],formatChangedKeys=[];
     try{
-      for(let index=0;index<plan.rows.length;index++){
-        const row=plan.rows[index],result=await animateBatchGovernanceTask(row,index,plan.rows.length,plan);if(!result.changed)continue;
-        changedTasks++;subjectChanged+=result.subjectChanged;
-        if(result.formatChangedOccurrences){formatChangedTasks++;formatChangedOccurrences+=result.formatChangedOccurrences;formatChangedKeys.push(row.task.editKey);}
+      for(const row of plan.rows){
+        let rowChanged=false;
+        if(row.subject&&plan.subject){
+          setTaskEdit(row.task,{subject:plan.subject,reviewConfirmed:!!row.task.reviewConfirmed,reviewDraftPending:!!row.task.reviewDraftPending});
+          subjectChanged++;rowChanged=true;subjectChangedKeys.push(row.task.editKey);
+        }
+        if(row.formatRow&&plan.formatAnalysis){
+          const result=inspectGovernanceRuleHtml(taskRichBodyHtml(row.task),plan.formatAnalysis.rule,{apply:true});
+          if(result.changed){
+            setTaskEdit(row.task,{bodyHtml:result.html,bodyIsHtml:true,reviewConfirmed:!!row.task.reviewConfirmed,reviewDraftPending:!!row.task.reviewDraftPending});
+            formatChangedTasks++;formatChangedOccurrences+=result.changed;rowChanged=true;formatChangedKeys.push(row.task.editKey);
+          }
+        }
+        if(rowChanged){changedTasks++;changedKeys.push(row.task.editKey);}
       }
-      if(!changedTasks){if(formatGovernanceRunEl)formatGovernanceRunEl.hidden=true;return;}
+      if(!changedTasks){syncBatchGovernanceApply();return;}
       batch.handoffComplete=false;
-      if(formatChangedTasks&&plan.formatAnalysis){batch.formatGovernanceRules=[{id:crypto.randomUUID(),phrase:plan.formatAnalysis.rule.phrase,formats:[...plan.formatAnalysis.rule.formats],caseSensitive:plan.formatAnalysis.rule.caseSensitive,appliedAt:new Date().toISOString(),changedTasks:formatChangedTasks,changedOccurrences:formatChangedOccurrences,taskKeys:formatChangedKeys},...(batch.formatGovernanceRules||[])].slice(0,30);}
+      if(formatChangedTasks&&plan.formatAnalysis){
+        batch.formatGovernanceRules=[{id:crypto.randomUUID(),phrase:plan.formatAnalysis.rule.phrase,formats:[...plan.formatAnalysis.rule.formats],caseSensitive:plan.formatAnalysis.rule.caseSensitive,appliedAt:new Date().toISOString(),changedTasks:formatChangedTasks,changedOccurrences:formatChangedOccurrences,taskKeys:[...formatChangedKeys]},...(batch.formatGovernanceRules||[])].slice(0,30);
+      }
       rebuildTasks();scheduleWorkspacePersist();renderReviewPageOverview();renderImportTaskPreview();renderFormatDriftSuggestions();renderFormatGovernanceAnalysis();renderBatchSubjectGovernance();
-      if(previewContext)requestAnimationFrame(()=>{
-        if(reviewQueueEl)reviewQueueEl.scrollTop=Math.min(previewContext.scrollTop,Math.max(0,reviewQueueEl.scrollHeight-reviewQueueEl.clientHeight));
-        if(reviewPreviewRailListEl)reviewPreviewRailListEl.scrollTop=Math.min(previewContext.railScrollTop,Math.max(0,reviewPreviewRailListEl.scrollHeight-reviewPreviewRailListEl.clientHeight));
-        if(previewContext.activeKey)setReviewPreviewActiveKey(previewContext.activeKey,{revealRail:false});
-      });
-      updateGovernanceRunPanel({phase:'complete',index:plan.rows.length-1,total:plan.rows.length,plan,changedTasks,subjectChanged,formatChangedTasks,formatChangedOccurrences});
       const parts=[];if(subjectChanged)parts.push(`补齐主题 ${subjectChanged} 封`);if(formatChangedTasks)parts.push(`统一格式 ${formatChangedTasks} 封 / ${formatChangedOccurrences} 处`);
-      setImportStatus(`批次规范校正完成：${parts.join('；')}。Preview 已恢复到原浏览位置。`,'ok');
-      const completedRunId=runId;if(formatGovernanceRunState?.id===runId)formatGovernanceRunState.running=false;
-      await sleep(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches?100:1150);
-      setFormatGovernanceRunning(false,{keepRunPanel:true});if(formatGovernanceRunEl&&formatGovernanceRunState?.id===completedRunId&&!formatGovernanceRunState.running)formatGovernanceRunEl.hidden=true;
+      const summary=parts.join(' · ')||`校正 ${changedTasks} 封`;
+      const reveal=()=>{
+        if(batch.reviewSurface!=='preview')return;
+        if(previewContext){
+          if(reviewQueueEl)reviewQueueEl.scrollTop=Math.min(previewContext.scrollTop,Math.max(0,reviewQueueEl.scrollHeight-reviewQueueEl.clientHeight));
+          if(reviewPreviewRailListEl)reviewPreviewRailListEl.scrollTop=Math.min(previewContext.railScrollTop,Math.max(0,reviewPreviewRailListEl.scrollHeight-reviewPreviewRailListEl.clientHeight));
+          if(previewContext.activeKey)setReviewPreviewActiveKey(previewContext.activeKey,{revealRail:false});
+        }
+        showBatchGovernanceFeedback({changedKeys,subjectKeys:subjectChangedKeys,formatKeys:formatChangedKeys,phrase:plan.formatAnalysis?.rule?.phrase||'',caseSensitive:plan.formatAnalysis?.rule?.caseSensitive!==false,summary});
+      };
+      requestAnimationFrame(()=>requestAnimationFrame(reveal));
+      setImportStatus(`批次规范校正完成：${parts.join('；')}。修改已一次性写入。`,'ok');
     }catch(error){
-      console.error('[NMDA] batch standards execution failed',error);updateGovernanceRunPanel({phase:'error',index:0,total:plan.rows.length,plan,changedTasks,subjectChanged,formatChangedTasks,formatChangedOccurrences});setImportStatus(`批次规范校正中断：${error?.message||error}`,'error');
-    }finally{
-      if(formatGovernanceRunState?.id===runId){clearGovernancePreviewHighlight();clearGovernanceRunMarks({all:true});formatGovernanceRunState.running=false;setFormatGovernanceRunning(false,{keepRunPanel:formatGovernanceRunEl&&!formatGovernanceRunEl.hidden});syncBatchGovernanceApply();}
-    }
+      console.error('[NMDA] batch standards execution failed',error);setImportStatus(`批次规范校正失败：${error?.message||error}`,'error');
+    }finally{syncBatchGovernanceApply();}
   }
 
 
@@ -4206,7 +4087,6 @@
 
   function beginPreviewEdit(editKey=''){
     const key=String(editKey||'');const task=reviewTaskByKey(key);if(!task)return false;
-    if(formatGovernanceRunState?.running){setImportStatus('批次规范正在逐封执行；完成后再编辑单封邮件。','warn');return false;}
     if(batch.reviewEditingKey&&batch.reviewEditingKey!==key){setImportStatus('当前还有一封邮件处于编辑状态；请先保存或取消。','warn');return false;}
     setWorkbenchTab('review');
     if(reviewInlineEl)reviewInlineEl.hidden=false;
@@ -5075,7 +4955,6 @@
   }
 
   function closeReviewPreview() {
-    if(formatGovernanceRunState?.running)return;
     if(batch.reviewEditingKey){setImportStatus('请先保存或取消当前邮件的编辑，再返回卡片。','warn');return;}
     const key=String(batch.reviewPreviewKey||'');
     batch.reviewPreviewKey='';
