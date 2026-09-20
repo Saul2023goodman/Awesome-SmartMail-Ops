@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.40",
-  "description": "SmartMail Ops — attachment transaction barrier with NetEase Compose-state verification, cumulative outreach workspace, roster reconciliation, automatic mailbox sync, unified icons, and live execution motion.",
+  "version": "3.8.41",
+  "description": "SmartMail Ops — review edit/exclude controls, top-left review layout, attachment transaction barrier with NetEase Compose-state verification, cumulative outreach workspace, roster reconciliation, automatic mailbox sync, unified icons, and live execution motion.",
   "permissions": [
     "scripting",
     "tabs",

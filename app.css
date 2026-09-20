@@ -5306,3 +5306,48 @@
   #nmda-root .nmda-mail-auto-sync-track > b { transition:none !important; animation:none !important; }
   #nmda-root .nmda-duplicate-candidate.is-auto-sync::after { display:none; }
 }
+
+/* v3.8.41 · explicit review edit / exclude controls */
+.nmda-review-edit-direct {
+  min-height:31px;
+  padding:5px 11px;
+  border:1px solid #b7cff8;
+  border-radius:7px;
+  background:#f7fbff;
+  color:#0969da;
+  font:700 9px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:background .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease;
+}
+.nmda-review-edit-direct:hover:not(:disabled) {
+  border-color:#7eb0f5;
+  background:#edf6ff;
+  box-shadow:0 2px 8px rgba(9,105,218,.10);
+}
+.nmda-review-edit-direct.is-active,
+.nmda-review-edit-direct:disabled {
+  border-color:#9fc1ef;
+  background:#eaf3ff;
+  color:#0550ae;
+  cursor:default;
+  opacity:1;
+}
+.nmda-review-edit-direct:focus-visible { outline:2px solid #0969da; outline-offset:2px; }
+
+/* Exclusion is destructive to execution eligibility, not to stored content. Keep it visible
+   but visually secondary to the edit action. */
+.nmda-review-exclude-direct {
+  background:#fffaf9;
+  border-color:#efc7c2;
+  color:#a7332a;
+}
+.nmda-review-exclude-direct:hover {
+  background:#fff3f1;
+  border-color:#e99c93;
+}
+
+/* The audit/correction switch is now owned by the toolbar. The footer only contains the
+   version-appropriate save/confirm actions, preventing two competing edit entrances. */
+#nmda-review-correct { display:none !important; }
+.nmda-review-correction-panel:not([hidden]) + * { scroll-margin-top:8px; }

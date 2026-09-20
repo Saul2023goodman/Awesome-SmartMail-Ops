@@ -592,7 +592,8 @@
                           <span class="nmda-review-mail-heading"><strong id="nmda-import-editor-title">审阅邮件</strong><small id="nmda-import-editor-evidence"></small></span>
                           <div class="nmda-review-mail-actions">
                             <div class="nmda-review-pager" role="group" aria-label="切换邮件"><button type="button" id="nmda-review-prev" aria-label="上一封">‹</button><span id="nmda-review-position">1 / 1</span><button type="button" id="nmda-review-next" aria-label="下一封">›</button></div>
-                            <button class="nmda-review-exclude-direct" id="nmda-review-exclude" type="button" title="排除后可在已排除邮件中恢复">排除此封</button>
+                            <button class="nmda-review-edit-direct" id="nmda-review-edit" type="button" title="编辑收件人、主题或正文">编辑</button>
+                            <button class="nmda-review-exclude-direct" id="nmda-review-exclude" type="button" title="排除后不进入排期与发送，可在已排除邮件中恢复">排除此封</button>
                             <button class="nmda-icon-btn nmda-review-detail-close" id="nmda-import-editor-close" type="button" aria-label="关闭邮件审阅">×</button>
                           </div>
                         </div>
@@ -644,7 +645,6 @@
                           <span class="nmda-review-action-copy"></span>
                           <div class="nmda-row nmda-wrap">
                             <button class="nmda-btn nmda-btn-quiet" id="nmda-review-back-audit" type="button" hidden>← 返回审阅</button>
-                            <button class="nmda-btn" id="nmda-review-correct" type="button">发现问题，修正</button>
                             <button class="nmda-btn" id="nmda-import-editor-save" type="button">确认无误</button>
                             <button class="nmda-btn nmda-btn-primary" id="nmda-import-editor-next" type="button">确认无误，下一封</button>
                           </div>
@@ -4204,7 +4204,7 @@
     if(mode===true)mode='correction';
     if(mode===false)mode='audit';
     mode=['audit','correction','direct'].includes(mode)?mode:'audit';
-    const audit=$('nmda-review-audit-view'),panel=$('nmda-review-correction-panel'),back=$('nmda-review-back-audit'),correct=$('nmda-review-correct');
+    const audit=$('nmda-review-audit-view'),panel=$('nmda-review-correction-panel'),back=$('nmda-review-back-audit'),correct=$('nmda-review-correct'),editTop=$('nmda-review-edit');
     const direct=mode==='direct';
     const correction=mode==='correction';
     const fields=directCorrectionFields(task);
@@ -4215,14 +4215,20 @@
     if(audit)audit.hidden=correction||direct;
     if(panel)panel.hidden=!correction&&!direct;
     if(back)back.hidden=!correction;
-    if(correct)correct.hidden=correction||direct;
+    if(correct)correct.hidden=true;
+    if(editTop){
+      editTop.disabled=correction||direct;
+      editTop.classList.toggle('is-active',correction||direct);
+      editTop.textContent=direct?'补齐中':correction?'编辑中':'编辑';
+      editTop.title=direct?'正在补齐缺失信息':correction?'正在编辑当前邮件':'编辑收件人、主题或正文';
+    }
     const fieldMap={recipients:$('nmda-review-field-recipients'),subject:$('nmda-review-field-subject'),body:$('nmda-review-field-body')};
     for(const [key,el] of Object.entries(fieldMap)){if(el)el.hidden=direct&&!fields.includes(key);}
     const assist=$('nmda-subject-assist');
     if(assist&&direct&&!fields.includes('subject'))assist.hidden=true;
     const head=panel?.querySelector('.nmda-review-correction-head');
     const headStrong=head?.querySelector('strong'),headSmall=head?.querySelector('small');
-    if(headStrong)headStrong.textContent=direct?'直接补齐缺失信息':'修正识别结果';
+    if(headStrong)headStrong.textContent=direct?'直接补齐缺失信息':'编辑邮件';
     if(headSmall)headSmall.textContent='';
     if((direct||correction)&&task){
       if(importEditRecipientsEl)importEditRecipientsEl.value=task?.recipients||'';
@@ -4320,16 +4326,28 @@
     const coreValid=editing
       ? recipientLooksValid(importEditRecipientsEl?.value||'') && liveSubjectOk && !!String(importEditBodyEl?.value||'').trim()
       : !!task&&taskCoreValid(task);
-    const save=$('nmda-import-editor-save'), next=$('nmda-import-editor-next'), correct=$('nmda-review-correct'), back=$('nmda-review-back-audit');
+    const save=$('nmda-import-editor-save'), next=$('nmda-import-editor-next'), correct=$('nmda-review-correct'), back=$('nmda-review-back-audit'), editTop=$('nmda-review-edit');
     if(reviewActionsEl)reviewActionsEl.hidden=false;
-    if(save){save.hidden=false;save.disabled=!coreValid;save.textContent=editing?'保存修正':'确认无误';}
-    if(next){next.hidden=false;next.disabled=!coreValid;next.textContent=editing?'保存并下一项':'确认无误，下一封';}
-    if(correct){correct.hidden=editing;correct.classList.toggle('nmda-btn-primary',!coreValid);}
+    if(save){
+      save.hidden=false;save.disabled=!coreValid;
+      save.textContent=correctionMode?'保存并返回审阅':directMode?'保存补齐':'确认无误';
+    }
+    if(next){
+      next.hidden=correctionMode;
+      next.disabled=!coreValid;
+      next.textContent=directMode?'保存并下一项':'确认无误，下一封';
+    }
+    if(correct)correct.hidden=true;
     if(back)back.hidden=!correctionMode;
+    if(editTop){
+      editTop.disabled=editing;
+      editTop.classList.toggle('is-active',editing);
+      editTop.textContent=directMode?'补齐中':correctionMode?'编辑中':'编辑';
+    }
     const copy=reviewActionsEl?.querySelector('.nmda-review-action-copy');
     if(copy)copy.textContent=isFollowUpReviewTask(task)
-      ? (directMode?'补齐缺失信息后重新核对 Follow-up。':correctionMode?'修正后返回完整 Follow-up 审阅；任何修改都会使旧 Pass 失效。':coreValid?'该 Follow-up 因异常或人工修改进入审阅；确认当前版本后进入选择与排期。':'Follow-up 有必填信息缺失，需先修正。')
-      : duplicateActive?'先完成重复邮件取舍。':directMode?'缺失项已直接展开；补齐后保存，系统会立即重新核验。':correctionMode?'修正后保存，再返回完整审阅结果。':coreValid?'重点核对开头称呼、结尾署名及邮件边界；确认无误后继续。':'识别到必填内容缺失，已直接展开可修正字段。';
+      ? (directMode?'补齐缺失信息后重新核对 Follow-up。':correctionMode?'修改会先保存为新版本，再返回完整 Follow-up 审阅；旧 Pass 不会沿用。':coreValid?'该 Follow-up 因异常或人工修改进入审阅；确认当前版本后进入选择与排期。':'Follow-up 有必填信息缺失，需先修正。')
+      : duplicateActive?'先完成重复邮件取舍。':directMode?'缺失项已直接展开；补齐后保存，系统会立即重新核验。':correctionMode?'修改会先保存，再返回完整邮件审阅；旧确认不会沿用。':coreValid?'重点核对开头称呼、结尾署名及邮件边界；确认无误后继续。':'识别到必填内容缺失，已直接展开可修正字段。';
   }
 
   function updateReviewFieldStates(task) {
@@ -4509,6 +4527,17 @@
     }
     let current=(batch.tasks||[]).find(t=>t.editKey===key);
 
+    // A normal manual edit is a new mail version, not an approval. Save it first, then
+    // return to the read-first audit so the operator explicitly confirms the edited version.
+    if(mode==='correction'){
+      current=(batch.tasks||[]).find(t=>t.editKey===key);
+      if(!current){closeImportTaskEditor();return;}
+      renderReviewPageOverview();
+      openImportTaskEditor(current);
+      setImportStatus('修改已保存；请重新核对当前版本后确认。','warn');
+      return;
+    }
+
     // Deterministic gaps are a repair operation, not a human approval shortcut.
     // After the missing values are filled, unresolved soft/ambiguous issues must return to
     // the read-first audit instead of being silently marked confirmed.
@@ -4572,7 +4601,14 @@
 
   async function excludeCurrentReviewTask() {
     const key=importEditorOverlayEl?.dataset.editKey; if(!key)return;
-    const task=reviewTaskByKey(key); if(!task)return;
+    let task=reviewTaskByKey(key); if(!task)return;
+    // If the operator edited fields before excluding, preserve that exact version in the
+    // workspace. Exclusion controls downstream eligibility; it must not behave like delete.
+    if(!isFollowUpReviewTask(task)){
+      stashCurrentReviewDraft();
+      rebuildTasks();
+      task=reviewTaskByKey(key)||task;
+    }
     const label=String(task.subject||task.recipients||task.id||'这封邮件').trim();
     if(reviewMoreMenuEl)reviewMoreMenuEl.open=false;
     batch.reviewSelected?.delete?.(key);
@@ -4586,7 +4622,7 @@
       batch.handoffComplete=false;
       setTaskEdit(task,{importExcluded:true});
       rebuildTasks();
-      setImportStatus(`已排除「${label}」；需要时可在邮件审阅中恢复。`,'ok');
+      setImportStatus(`已排除「${label}」；内容与人工修改仍保留，可从“恢复已排除”重新加入。`,'ok');
     }
     renderReviewPageOverview();
     const next=reviewTasks()[0]||null;
@@ -6529,7 +6565,9 @@
   $('nmda-import-editor-close')?.addEventListener('click', closeImportTaskEditor);
   $('nmda-import-editor-save')?.addEventListener('click', () => saveImportTaskEditor(false));
   $('nmda-import-editor-next')?.addEventListener('click', () => saveImportTaskEditor(true));
-  $('nmda-review-correct')?.addEventListener('click',()=>{const task=reviewCurrentTask();if(task)setReviewCorrectionMode('correction',task);});
+  const enterReviewEdit=()=>{const task=reviewCurrentTask();if(task)setReviewCorrectionMode('correction',task);};
+  $('nmda-review-edit')?.addEventListener('click',enterReviewEdit);
+  $('nmda-review-correct')?.addEventListener('click',enterReviewEdit);
   $('nmda-review-back-audit')?.addEventListener('click',returnToReviewAudit);
   $('nmda-review-exclude')?.addEventListener('click', excludeCurrentReviewTask);
   [importEditRecipientsEl,importEditSubjectEl,importEditBodyEl].forEach(el=>el?.addEventListener('input',()=>{refreshReviewDraftIndicators();if(el===importEditBodyEl)autoSizeReviewBody();}));
