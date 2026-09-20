@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.44",
-  "description": "SmartMail Ops — independent style-aware roster planning view with preserved XLSX formatting, human-in-the-loop free selection, roster intents, compact time rules, review trash, attachment transaction barrier, cumulative workspace, and automatic mailbox sync.",
+  "version": "3.8.45",
+  "description": "SmartMail Ops — independent style-aware roster planning with merge-aware XLSX restoration, automatic irrelevant-column focus, reversible full-column evidence view, human-in-the-loop roster intents, attachment transaction barrier, and cumulative workspace.",
   "permissions": [
     "scripting",
     "tabs",

@@ -766,3 +766,51 @@
     overflow-x:auto;
   }
 }
+
+/* v3.8.45 — roster parsing projection: restore merges, hide unrelated columns */
+#nmda-root .nmda-roster-planner-canvas-tools {
+  min-width:0;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+}
+#nmda-root .nmda-roster-column-focus {
+  flex:0 1 auto;
+  max-width:310px;
+  min-height:24px;
+  display:inline-flex;
+  align-items:center;
+  padding:0 8px;
+  border:1px solid #e1e7ee;
+  border-radius:999px;
+  background:#f6f8fa;
+  color:#687486;
+  font-size:8.8px;
+  font-weight:650;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#nmda-root .nmda-roster-column-toggle {
+  flex:0 0 auto;
+  min-height:26px;
+  padding-inline:8px;
+}
+#nmda-root .nmda-roster-sheet-table td[rowspan],
+#nmda-root .nmda-roster-sheet-table td[colspan] {
+  position:relative;
+}
+#nmda-root .nmda-roster-sheet-table td[rowspan]::after,
+#nmda-root .nmda-roster-sheet-table td[colspan]::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border:1px solid rgba(95,112,135,.12);
+}
+@media(max-width:980px){
+  #nmda-root .nmda-roster-planner-canvas-head { align-items:flex-start; }
+  #nmda-root .nmda-roster-planner-canvas-tools { flex-wrap:wrap; }
+  #nmda-root .nmda-roster-column-focus { max-width:220px; }
+}

@@ -341,5 +341,5 @@
     };
   }
 
-  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,nameKeys,taskName,taskNameCandidates,sourceNameCandidate,surnameKey,decodeEscapedUnicode,schoolKey,sameSchool,parsePriorityOrder,parseDataset,auditTaskDuplicates,crossCheck,matchOne,buildMatchIndex};
+  globalThis.NMDARoster={FIELD_ALIASES,normalizeName,nameKeys,taskName,taskNameCandidates,sourceNameCandidate,surnameKey,decodeEscapedUnicode,schoolKey,sameSchool,parsePriorityOrder,detectColumns,parseDataset,auditTaskDuplicates,crossCheck,matchOne,buildMatchIndex};
 })();

@@ -12,7 +12,7 @@
   }
   function createState(saved={}){
     const intents=saved?.intents&&typeof saved.intents==='object'?saved.intents:{};
-    return {version:1,sourceKey:clean(saved?.sourceKey),intents:{...intents},lastSelection:saved?.lastSelection||null,lastUpdatedAt:clean(saved?.lastUpdatedAt)};
+    return {version:2,sourceKey:clean(saved?.sourceKey),intents:{...intents},lastSelection:saved?.lastSelection||null,lastUpdatedAt:clean(saved?.lastUpdatedAt),showIrrelevantColumns:!!saved?.showIrrelevantColumns};
   }
   function excelVisual(set){return set?.meta?.excelVisual||null;}
   function styleLookup(set){
@@ -47,6 +47,51 @@
   function columnLabel(index){let n=Number(index)+1,out='';while(n>0){const rem=(n-1)%26;out=String.fromCharCode(65+rem)+out;n=Math.floor((n-1)/26);}return out;}
   function rangeLabel(range){if(!range)return'';const r1=Math.min(range.r1,range.r2),r2=Math.max(range.r1,range.r2),c1=Math.min(range.c1,range.c2),c2=Math.max(range.c1,range.c2);return `${columnLabel(c1)}${r1+1}:${columnLabel(c2)}${r2+1}`;}
   function normalizeRange(range){if(!range)return null;return {r1:Math.min(range.r1,range.r2),r2:Math.max(range.r1,range.r2),c1:Math.min(range.c1,range.c2),c2:Math.max(range.c1,range.c2)};}
+
+  function columnPlan(set){
+    const rows=set?.rows||[],visual=excelVisual(set)||{},maxCols=Math.max(Number(visual.usedRange?.cols||0),...rows.slice(0,320).map(row=>row?.length||0),0);
+    const detection=Roster?.detectColumns?.(rows)||{row:0,map:{}};
+    const mapped=new Map();
+    for(const [field,spec] of Object.entries(detection?.map||{})){
+      const index=Number(spec?.index);if(Number.isInteger(index)&&index>=0&&index<maxCols)mapped.set(index,field);
+    }
+    const identityFields=new Set(['name','email','school']);
+    const schedulingFields=new Set(['country','priority','batch','schedule','status']);
+    const relevant=new Set();
+    for(const [index,field] of mapped)if(identityFields.has(field)||schedulingFields.has(field))relevant.add(index);
+    const headerRow=Math.max(0,Number(detection?.row)||0),header=rows[headerRow]||[];
+    // Keep a compact sequence/id column when it sits next to the operational fields.
+    for(let c=0;c<maxCols;c++){
+      if(relevant.has(c))continue;const label=clean(header[c]).toLowerCase();
+      if(/^(?:#|no\.?|序号|编号|id|index|序列)$/i.test(label)){relevant.add(c);break;}
+    }
+    const nonEmpty=new Set();
+    for(let c=0;c<maxCols;c++){
+      if(rows.slice(0,Math.min(rows.length,220)).some(row=>clean(row?.[c])!==''))nonEmpty.add(c);
+    }
+    // Be conservative when the sheet could not be confidently interpreted: do not
+    // collapse an unfamiliar workbook into a misleading narrow projection.
+    const identityMapped=[...mapped.values()].filter(field=>identityFields.has(field)).length;
+    if(relevant.size<2||identityMapped<1)for(const c of nonEmpty)relevant.add(c);
+    const originalHidden=new Set();for(const spec of visual.hiddenCols||[]){const [a,b]=spec||[];for(let c=Math.max(0,Number(a)||0);c<=Math.min(maxCols-1,Number(b)||0);c++)originalHidden.add(c);}
+    const autoHidden=new Set();for(let c=0;c<maxCols;c++)if(nonEmpty.has(c)&&!relevant.has(c)&&!originalHidden.has(c))autoHidden.add(c);
+    const emptyHidden=new Set();for(let c=0;c<maxCols;c++)if(!nonEmpty.has(c)&&!originalHidden.has(c))emptyHidden.add(c);
+    const fields=[...mapped.entries()].sort((a,b)=>a[0]-b[0]).map(([index,field])=>({index,field,label:clean(header[index])||columnLabel(index)}));
+    return {maxCols,headerRow,relevant,autoHidden,emptyHidden,originalHidden,mapped,fields,visibleCount:[...relevant].filter(c=>!originalHidden.has(c)).length};
+  }
+  function projectedMerges(set,{hiddenCols=[],hiddenRows=[]}={}){
+    const hiddenColSet=hiddenCols instanceof Set?hiddenCols:new Set(hiddenCols||[]),hiddenRowSet=hiddenRows instanceof Set?hiddenRows:new Set(hiddenRows||[]),top=new Map(),covered=new Set();
+    for(const merge of excelVisual(set)?.merges||[]){
+      if(!Array.isArray(merge)||merge.length<4)continue;let [r1,c1,r2,c2]=merge.map(Number);if(![r1,c1,r2,c2].every(Number.isFinite))continue;
+      if(r2<r1)[r1,r2]=[r2,r1];if(c2<c1)[c1,c2]=[c2,c1];
+      const rows=[];for(let r=r1;r<=r2;r++)if(!hiddenRowSet.has(r))rows.push(r);
+      const cols=[];for(let c=c1;c<=c2;c++)if(!hiddenColSet.has(c))cols.push(c);
+      if(!rows.length||!cols.length)continue;
+      const ar=rows[0],ac=cols[0];top.set(`${ar}:${ac}`,{rowSpan:rows.length,colSpan:cols.length,source:[r1,c1,r2,c2],anchor:[r1,c1]});
+      for(const r of rows)for(const c of cols)if(r!==ar||c!==ac)covered.add(`${r}:${c}`);
+    }
+    return {top,covered};
+  }
   function dominantRowFill(set,row,cache=null){
     const data=cache||styleLookup(set),values=set?.rows?.[row]||[];const counts=new Map();let styled=0;
     for(let col=0;col<values.length;col++){
@@ -104,5 +149,5 @@
     return {priority,batch,fixed,label,total:new Set(entries.filter(e=>intentForEntry(state,e)).map(entryKey)).size};
   }
 
-  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,visualGroups,entriesForRange,intentForEntry,parseRound,applyInterpretation,summary};
+  globalThis.NMDARosterPlanner={createState,sourceKey,entryKey,excelVisual,styleLookup,styleAt,cssForStyle,columnLabel,rangeLabel,normalizeRange,columnPlan,projectedMerges,visualGroups,entriesForRange,intentForEntry,parseRound,applyInterpretation,summary};
 })();

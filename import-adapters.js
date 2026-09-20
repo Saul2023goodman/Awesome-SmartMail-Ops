@@ -437,7 +437,13 @@
       const ref=String(merge.getAttribute('ref')||''),parts=ref.split(':');if(parts.length!==2)continue;
       const a=parts[0].match(/^([A-Z]+)(\d+)$/i),b=parts[1].match(/^([A-Z]+)(\d+)$/i);if(!a||!b)continue;
       const c1=columnIndex(a[1]),c2=columnIndex(b[1]),r1=Number(a[2])-1,r2=Number(b[2])-1;merges.push([r1,c1,r2,c2]);maxCol=Math.max(maxCol,c2+1);
-      if(c1!==c2||r2<=r1)continue;
+      // Restore the semantic context of vertical merges without destroying the
+      // visual merge itself. Excel stores the value only at the anchor cell.
+      // For a merge that spans several rows (even when it also spans columns),
+      // carry the anchor value down the merge's first column so roster parsing
+      // can still associate every covered contact row with its group context.
+      // Single-row/header merges are left untouched.
+      if(r2<=r1)continue;
       const value=rows[r1]?.[c1];if(value==null||String(value).trim()==='')continue;
       for(let rowIndex=r1+1;rowIndex<=r2;rowIndex++){if(!rows[rowIndex])rows[rowIndex]=[];if(rows[rowIndex][c1]==null||String(rows[rowIndex][c1]).trim()==='')rows[rowIndex][c1]=value;}
     }

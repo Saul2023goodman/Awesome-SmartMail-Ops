@@ -727,14 +727,18 @@
                   </div>
                   <div class="nmda-roster-planner-rail-note">
                     <strong>原表 = 证据层</strong>
-                    <span>颜色、边框、加粗、合并单元格和空白分隔都原样保留。只有明确字段或人工解释会形成排期 Intent。</span>
+                    <span>颜色、边框、加粗、合并单元格和空白分隔都作为证据保留；研究方向、官网等非排期列默认收起，可随时显示全部。</span>
                   </div>
                 </aside>
 
                 <main class="nmda-roster-planner-canvas">
                   <div class="nmda-roster-planner-canvas-head">
-                    <div><strong>原 Excel 视图</strong><span>拖动可自由框选任意矩形；Shift 可从锚点扩展选区。</span></div>
-                    <div class="nmda-roster-planner-selection-mini" id="nmda-roster-selection-mini">尚未框选</div>
+                    <div><strong>原 Excel 视图</strong><span>合并单元格按原表还原；默认聚焦名单与排期必要列。</span></div>
+                    <div class="nmda-roster-planner-canvas-tools">
+                      <span class="nmda-roster-column-focus" id="nmda-roster-column-focus">正在识别必要列…</span>
+                      <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-roster-column-toggle" id="nmda-roster-column-toggle" type="button" hidden>显示全部列</button>
+                      <div class="nmda-roster-planner-selection-mini" id="nmda-roster-selection-mini">尚未框选</div>
+                    </div>
                   </div>
                   <div class="nmda-roster-sheet-viewport" id="nmda-roster-sheet-viewport" tabindex="0" aria-label="总名单原格式预览，可拖动框选单元格">
                     <table class="nmda-roster-sheet-table" id="nmda-roster-sheet-table"></table>
@@ -1829,7 +1833,7 @@
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time');
   const scheduleStartEl = $('nmda-rule-start-at'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), scheduleIntervalDaysEl = $('nmda-rule-interval-days'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleMailboxExistingEl = $('nmda-rule-include-mailbox-scheduled'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
   const scheduleApplyEl = $('nmda-apply-schedule'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
-  const rosterPlannerViewEl=$('nmda-roster-planner-view'), rosterPlannerSourceEl=$('nmda-roster-planner-source'), rosterPlannerSummaryEl=$('nmda-roster-planner-summary'), rosterVisualGroupsEl=$('nmda-roster-visual-groups'), rosterSheetViewportEl=$('nmda-roster-sheet-viewport'), rosterSheetTableEl=$('nmda-roster-sheet-table'), rosterSelectionMiniEl=$('nmda-roster-selection-mini'), rosterSelectionLabelEl=$('nmda-roster-selection-label'), rosterSelectionDetailEl=$('nmda-roster-selection-detail'), rosterIntentSemanticEl=$('nmda-roster-intent-semantic'), rosterIntentValueFieldEl=$('nmda-roster-intent-value-field'), rosterIntentValueEl=$('nmda-roster-intent-value'), rosterIntentTimeFieldEl=$('nmda-roster-intent-time-field'), rosterIntentTimeEl=$('nmda-roster-intent-time'), rosterIntentApplyEl=$('nmda-roster-intent-apply'), rosterSelectionClearEl=$('nmda-roster-selection-clear'), rosterIntentSummaryEl=$('nmda-roster-intent-summary');
+  const rosterPlannerViewEl=$('nmda-roster-planner-view'), rosterPlannerSourceEl=$('nmda-roster-planner-source'), rosterPlannerSummaryEl=$('nmda-roster-planner-summary'), rosterVisualGroupsEl=$('nmda-roster-visual-groups'), rosterSheetViewportEl=$('nmda-roster-sheet-viewport'), rosterSheetTableEl=$('nmda-roster-sheet-table'), rosterSelectionMiniEl=$('nmda-roster-selection-mini'), rosterColumnFocusEl=$('nmda-roster-column-focus'), rosterColumnToggleEl=$('nmda-roster-column-toggle'), rosterSelectionLabelEl=$('nmda-roster-selection-label'), rosterSelectionDetailEl=$('nmda-roster-selection-detail'), rosterIntentSemanticEl=$('nmda-roster-intent-semantic'), rosterIntentValueFieldEl=$('nmda-roster-intent-value-field'), rosterIntentValueEl=$('nmda-roster-intent-value'), rosterIntentTimeFieldEl=$('nmda-roster-intent-time-field'), rosterIntentTimeEl=$('nmda-roster-intent-time'), rosterIntentApplyEl=$('nmda-roster-intent-apply'), rosterSelectionClearEl=$('nmda-roster-selection-clear'), rosterIntentSummaryEl=$('nmda-roster-intent-summary');
   const batchSearchEl = $('nmda-batch-search');
   const batchTagIncludeEl = $('nmda-batch-tag-include');
   const importBusyBadgeEl = $('nmda-import-busy-badge'), resetImportEl = $('nmda-reset-import');
@@ -1898,10 +1902,14 @@
     const sources=rosterPlannerSources();if(!sources.length)return null;
     const wanted=String(batch.rosterPlanner?.sourceKey||'');return sources.find(item=>item.key===wanted)||sources[0];
   }
-  function rosterPlannerMergeMaps(set){
-    const top=new Map(),covered=new Set();
-    for(const merge of set?.meta?.excelVisual?.merges||[]){if(!Array.isArray(merge)||merge.length<4)continue;const [r1,c1,r2,c2]=merge;top.set(`${r1}:${c1}`,{rowSpan:r2-r1+1,colSpan:c2-c1+1});for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)if(r!==r1||c!==c1)covered.add(`${r}:${c}`);}
-    return {top,covered};
+  function rosterPlannerColumnProjection(set){
+    const plan=RosterPlanner?.columnPlan?.(set)||{maxCols:Math.max(...(set?.rows||[]).map(row=>row?.length||0),1),autoHidden:new Set(),emptyHidden:new Set(),originalHidden:new Set(),relevant:new Set()};
+    const showAll=!!batch.rosterPlanner?.showIrrelevantColumns,hiddenCols=new Set(plan.originalHidden||[]);
+    if(!showAll){for(const c of plan.autoHidden||[])hiddenCols.add(c);for(const c of plan.emptyHidden||[])hiddenCols.add(c);}
+    return {plan,hiddenCols,showAll};
+  }
+  function rosterPlannerMergeMaps(set,hiddenCols=new Set(),hiddenRows=new Set()){
+    return RosterPlanner?.projectedMerges?.(set,{hiddenCols,hiddenRows})||{top:new Map(),covered:new Set()};
   }
   function rosterPlannerColumnWidths(set,maxCols){
     const widths=Array.from({length:maxCols},(_,c)=>Math.min(280,Math.max(88,Math.max(...(set.rows||[]).slice(0,60).map(row=>String(row?.[c]??'').length),6)*7+24)));
@@ -1910,23 +1918,35 @@
   }
   function renderRosterPlannerTable(set){
     if(!rosterSheetTableEl)return;
-    const rows=set?.rows||[],visual=set?.meta?.excelVisual||{},maxRows=Math.min(rows.length,320),maxCols=Math.min(40,Math.max(Number(visual.usedRange?.cols||0),...rows.slice(0,maxRows).map(row=>row?.length||0),1));
-    const widths=rosterPlannerColumnWidths(set,maxCols),merge=rosterPlannerMergeMaps(set),styleCache=RosterPlanner.styleLookup(set),hiddenRows=new Set(visual.hiddenRows||[]),hiddenCols=[];
-    for(const [a,b] of visual.hiddenCols||[])for(let c=a;c<=b;c++)hiddenCols.push(c);const hiddenColSet=new Set(hiddenCols);
-    let html='<colgroup>'+widths.map((width,c)=>`<col style="width:${Math.round(width)}px;${hiddenColSet.has(c)?'display:none;':''}">`).join('')+'</colgroup><thead><tr><th class="nmda-roster-corner"></th>';
-    for(let c=0;c<maxCols;c++)html+=`<th class="nmda-roster-colhead"${hiddenColSet.has(c)?' style="display:none"':''}>${RosterPlanner.columnLabel(c)}</th>`;html+='</tr></thead><tbody>';
+    const rows=set?.rows||[],visual=set?.meta?.excelVisual||{},maxRows=Math.min(rows.length,320),projection=rosterPlannerColumnProjection(set),plan=projection.plan,maxCols=Math.min(40,Math.max(Number(plan.maxCols||0),Number(visual.usedRange?.cols||0),...rows.slice(0,maxRows).map(row=>row?.length||0),1));
+    const hiddenRows=new Set(visual.hiddenRows||[]),hiddenColSet=projection.hiddenCols,widths=rosterPlannerColumnWidths(set,maxCols),merge=rosterPlannerMergeMaps(set,hiddenColSet,hiddenRows),styleCache=RosterPlanner.styleLookup(set);
+    const visibleCols=[];for(let c=0;c<maxCols;c++)if(!hiddenColSet.has(c))visibleCols.push(c);
+    let html='<colgroup><col style="width:38px">'+visibleCols.map(c=>`<col style="width:${Math.round(widths[c])}px">`).join('')+'</colgroup><thead><tr><th class="nmda-roster-corner"></th>';
+    for(const c of visibleCols)html+=`<th class="nmda-roster-colhead" data-col="${c}">${RosterPlanner.columnLabel(c)}</th>`;html+='</tr></thead><tbody>';
     for(let r=0;r<maxRows;r++){
-      const rowHeight=Number(visual.rowHeights?.[r]||0),trStyle=`${rowHeight?`height:${Math.max(22,Math.min(110,rowHeight*1.333))}px;`:''}${hiddenRows.has(r)?'display:none;':''}`;
+      if(hiddenRows.has(r))continue;
+      const rowHeight=Number(visual.rowHeights?.[r]||0),trStyle=rowHeight?`height:${Math.max(22,Math.min(110,rowHeight*1.333))}px;`:'';
       html+=`<tr style="${trStyle}"><th class="nmda-roster-rowhead">${r+1}</th>`;
-      for(let c=0;c<maxCols;c++){
-        if(hiddenColSet.has(c)||merge.covered.has(`${r}:${c}`))continue;
-        const span=merge.top.get(`${r}:${c}`)||{},style=RosterPlanner.styleAt(set,r,c,styleCache),css=RosterPlanner.cssForStyle(style),value=String(rows[r]?.[c]??'');
+      for(const c of visibleCols){
+        if(merge.covered.has(`${r}:${c}`))continue;
+        const span=merge.top.get(`${r}:${c}`)||{},sourceAnchor=span.anchor||[r,c],sr=Number(sourceAnchor[0]),sc=Number(sourceAnchor[1]),style=RosterPlanner.styleAt(set,sr,sc,styleCache),css=RosterPlanner.cssForStyle(style),value=String(rows[sr]?.[sc]??rows[r]?.[c]??'');
         const spanAttrs=`${span.rowSpan>1?` rowspan="${span.rowSpan}"`:''}${span.colSpan>1?` colspan="${span.colSpan}"`:''}`;
-        html+=`<td data-roster-cell data-row="${r}" data-col="${c}"${spanAttrs} style="${css}"><span>${escapeHtml(value)}</span></td>`;
+        const mergeData=span.source?` data-merge-r1="${span.source[0]}" data-merge-c1="${span.source[1]}" data-merge-r2="${span.source[2]}" data-merge-c2="${span.source[3]}"`:'';
+        html+=`<td data-roster-cell data-row="${r}" data-col="${c}"${spanAttrs}${mergeData} style="${css}"><span>${escapeHtml(value)}</span></td>`;
       }
       html+='</tr>';
     }
     html+='</tbody>';rosterSheetTableEl.innerHTML=html;paintRosterPlannerSelection();
+    const autoHiddenCount=(plan.autoHidden?.size||0)+(plan.emptyHidden?.size||0),shown=visibleCols.length,total=Math.min(40,plan.maxCols||maxCols);
+    if(rosterColumnFocusEl){
+      const fieldLabels=(plan.fields||[]).filter(item=>!hiddenColSet.has(item.index)).map(item=>item.label).slice(0,5);
+      rosterColumnFocusEl.textContent=projection.showAll?`全部列 · ${shown}/${total}`:`必要列 · ${shown}/${total}${fieldLabels.length?` · ${fieldLabels.join(' / ')}`:''}`;
+      rosterColumnFocusEl.title=projection.showAll?'当前显示所有非 Excel 原生隐藏列':'解析后默认隐藏不参与联系人、优先级、批次或定时的列';
+    }
+    if(rosterColumnToggleEl){
+      rosterColumnToggleEl.hidden=!autoHiddenCount;rosterColumnToggleEl.textContent=projection.showAll?`仅显示必要列`:`显示全部列 · +${autoHiddenCount}`;
+      rosterColumnToggleEl.setAttribute('aria-pressed',projection.showAll?'true':'false');
+    }
   }
   function rosterPlannerSelectionEntries(){const current=rosterPlannerCurrentSource();if(!current||!rosterPlannerSelection)return[];return RosterPlanner.entriesForRange(rosterPlannerEntriesForSet(current.set),current.set,rosterPlannerSelection);}
   function paintRosterPlannerSelection(){
@@ -1952,8 +1972,8 @@
     }
     let current=rosterPlannerCurrentSource();if(!current)current=sources[0];batch.rosterPlanner.sourceKey=current.key;if(rosterPlannerSourceEl)rosterPlannerSourceEl.value=current.key;
     const set=current.set,entries=rosterPlannerEntriesForSet(set),groups=RosterPlanner.visualGroups(set,{startRow:Math.max(1,Math.min(...entries.map(e=>Math.max(0,Number(e.sourceRow||1)-1)),1))});
-    const summary=RosterPlanner.summary(batch.rosterPlanner,entries),priorityExcel=entries.filter(e=>Number.isFinite(Number(e.priorityOrder))).length,batchExcel=entries.filter(e=>String(e.batch||'').trim()).length,fixedExcel=entries.filter(e=>String(e.scheduleAt||'').trim()).length;
-    if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.innerHTML=`<strong>${entries.length}</strong> 位联系人<br><span>原格式已保留${groups.length?` · ${groups.length} 种行填色`:''}${priorityExcel?` · 优先级 ${priorityExcel}`:''}${batchExcel?` · 批次 ${batchExcel}`:''}${fixedExcel?` · 定时 ${fixedExcel}`:''}</span>`;
+    const summary=RosterPlanner.summary(batch.rosterPlanner,entries),priorityExcel=entries.filter(e=>Number.isFinite(Number(e.priorityOrder))).length,batchExcel=entries.filter(e=>String(e.batch||'').trim()).length,fixedExcel=entries.filter(e=>String(e.scheduleAt||'').trim()).length,columnPlan=RosterPlanner.columnPlan?.(set),autoHiddenCols=(columnPlan?.autoHidden?.size||0)+(columnPlan?.emptyHidden?.size||0);
+    if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.innerHTML=`<strong>${entries.length}</strong> 位联系人<br><span>原格式已保留${groups.length?` · ${groups.length} 种行填色`:''}${priorityExcel?` · 优先级 ${priorityExcel}`:''}${batchExcel?` · 批次 ${batchExcel}`:''}${fixedExcel?` · 定时 ${fixedExcel}`:''}${autoHiddenCols?` · 隐藏无关列 ${autoHiddenCols}`:''}</span>`;
     if(rosterVisualGroupsEl)rosterVisualGroupsEl.innerHTML=groups.length?`${groups.slice(0,12).flatMap(group=>group.spans.slice(0,12).map(span=>`<button class="nmda-roster-visual-chip" type="button" data-roster-span-r1="${span[0]}" data-roster-span-r2="${span[1]}" title="仅选择，不自动解释"><i style="background:${escapeHtml(group.fill)}"></i><span>${escapeHtml(group.fill)}</span><b>行 ${span[0]+1}${span[1]!==span[0]?`–${span[1]+1}`:''}</b></button>`)).join('')}`:'<span class="nmda-roster-visual-label">未检测到明显整行填色；仍可自由框选。</span>';
     renderRosterPlannerTable(set);
     if(rosterIntentSummaryEl)rosterIntentSummaryEl.innerHTML=`<span>人工解释</span><strong>${summary.total}</strong> 位${summary.priority?` · 优先级 ${summary.priority}`:''}${summary.batch?` · 批次 ${summary.batch}`:''}${summary.fixed?` · 固定时间 ${summary.fixed}`:''}${summary.label?` · 标签 ${summary.label}`:''}<small>格式仅作为证据；只有明确字段或人工解释会参与最终排期。</small>`;
@@ -6679,6 +6699,7 @@
   $('nmda-roster-planner-done')?.addEventListener('click',()=>closeRosterPlannerView());
   $('nmda-roster-planner-next')?.addEventListener('click',openScheduleModal);
   rosterPlannerSourceEl?.addEventListener('change',()=>{batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;batch.rosterPlanner.sourceKey=String(rosterPlannerSourceEl.value||'');clearRosterPlannerSelection();scheduleWorkspacePersist();renderRosterPlanner();});
+  rosterColumnToggleEl?.addEventListener('click',()=>{batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;batch.rosterPlanner.showIrrelevantColumns=!batch.rosterPlanner.showIrrelevantColumns;clearRosterPlannerSelection();scheduleWorkspacePersist();renderRosterPlanner();});
   rosterVisualGroupsEl?.addEventListener('click',event=>{
     const button=event.target.closest?.('[data-roster-span-r1]');if(!button)return;const current=rosterPlannerCurrentSource();if(!current)return;
     const r1=Number(button.dataset.rosterSpanR1),r2=Number(button.dataset.rosterSpanR2),usedCols=Math.max(1,Number(current.set?.meta?.excelVisual?.usedRange?.cols||0),...(current.set?.rows||[]).slice(0,320).map(row=>row?.length||0));
