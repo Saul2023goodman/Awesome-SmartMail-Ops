@@ -1403,7 +1403,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message?.type === 'NMDA_DRAFT_ATTACHMENT_MUTATE') {
       const draftId = String(message.draftId || '').trim();
-      const deleteIds = [...new Set((Array.isArray(message.deleteIds) ? message.deleteIds : []).map(value => String(value || '').trim()).filter(Boolean))];
       const deleteAttachments = (Array.isArray(message.deleteAttachments) ? message.deleteAttachments : []).map(item=>({
         id:String(item?.id||'').trim(), name:String(item?.name||'').trim(), size:Number(item?.size||0)||0, partId:String(item?.partId||'').trim()
       })).filter(item=>item.id||item.name);
@@ -1411,284 +1410,308 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const summary = message.summary || {};
       if (!draftId) return {ok:false,reason:'draft-id-missing'};
 
-      // Baseline remains a mailbox-level read used only for preservation verification.
+      // Read the untouched original first. v3.8.97 intentionally no longer mutates
+      // its CID in place. NetEase's deleteAttach() is an internal ComposeAttach.remove()
+      // step, not a general-purpose Draft mutation API; detached continue(delete)
+      // requests returned FS_UNKNOWN in real 163 even when their XML matched the bundle.
       const baseline = await readDraftDetail(tabId, { ...summary, id:draftId });
       if (!baseline?.ok) return {ok:false,reason:baseline?.reason || 'draft-baseline-read-failed'};
       if ((baseline.attachments || []).some(item => item?.kind === 'cloud-link')) {
         return {ok:false,reason:'draft-has-cloud-link-attachment'};
       }
+      if ((baseline.attachments || []).some(item => item?.inlined || item?.mixed)) {
+        return {ok:false,reason:'draft-has-inline-or-mixed-attachment'};
+      }
 
-      // NetEase native contract:
-      //   restoreDraft({id: MID}) -> var.id = Compose CID
-      //   mbox:compose(action=continue, id=CID) mutates attachment state
-      //   mbox:compose(action=save|schedule, id=CID) commits the edited draft
-      // Passing the mailbox MID directly to action=continue returns FA_ID_NOT_FOUND.
-      const mutation = await runMain(tabId, (draftIdArg, deleteIdsArg, deleteAttachmentsArg, sourceArg, summaryArg) => new Promise(async resolve => {
-        let cid = '';
-        let cancelled = false;
-        const successCode = window.$?.S_OK;
-        const normalizeId = value => {
-          const raw=String(value||'');
-          return raw.includes(':') ? raw.split(':').pop() : raw;
+      const createdAt = Date.now();
+      const clone = await runMain(tabId, (draftIdArg, deleteAttachmentsArg, sourceArg, summaryArg, baselineArg) => new Promise(async resolve => {
+        let originalCid='';
+        let newCid='';
+        const successCode=window.$?.S_OK;
+        const values=value=>Array.isArray(value)?value:(value&&typeof value==='object'?Object.values(value):[]);
+        const normalizeId=value=>{const raw=String(value||'');return raw.includes(':')?raw.split(':').pop():raw;};
+        const sameId=(a,b)=>String(a||'')===String(b||'')||normalizeId(a)===normalizeId(b);
+        const request=(func,body,ignoreError=true)=>new Promise(res=>{
+          try{
+            if(!window.$?.DataAction)return res({__error:true,reason:'$.DataAction unavailable'});
+            const action=new window.$.DataAction();
+            action.wmsvr({func,body,ignoreError,call(response){res(response||{});},error(error){res({__error:true,reason:error?.message||error?.code||`${func} failed`,code:error?.code});}});
+          }catch(error){res({__error:true,reason:error?.message||String(error)});}
+        });
+        const isOk=response=>!response?.__error&&(response?.code===undefined||successCode===undefined||response.code===successCode);
+        const cancelCid=async (cid,deleteDraft=false)=>{
+          if(!cid)return {ok:true};
+          const response=await request('mbox:cancelComposes',{ids:[cid],...(deleteDraft?{deleteDraft:true}:{})},true);
+          return {ok:isOk(response),response};
         };
-        const sameId = (a,b) => String(a||'')===String(b||'') || normalizeId(a)===normalizeId(b);
-        const values = value => Array.isArray(value) ? value : (value && typeof value === 'object' ? Object.values(value) : []);
-        const request = (func, body, ignoreError=true) => new Promise(res => {
-          try {
-            if (!window.$?.DataAction) return res({__error:true,reason:'$.DataAction unavailable'});
-            const action = new window.$.DataAction();
-            action.wmsvr({
-              func, body, ignoreError,
-              call(response){ res(response || {}); },
-              error(error){ res({__error:true,reason:error?.message || error?.code || `${func} failed`,code:error?.code}); }
+        const sameAttachment=(a,b)=>{
+          if(!a||!b)return false;
+          if(a.id&&b.id&&String(a.id)===String(b.id))return true;
+          const an=String(a.name||a.fileName||a.attn||'').trim();
+          const bn=String(b.name||b.fileName||b.attn||'').trim();
+          if(!an||!bn||an!==bn)return false;
+          const as=Number(a.size||a.fileSize||a.attsize||0),bs=Number(b.size||b.fileSize||b.attsize||0);
+          return !as||!bs||Math.abs(as-bs)<100;
+        };
+        const candidateIdsFrom=response=>{
+          const out=[];
+          const add=value=>{const raw=String(value||'').trim();if(raw&&!out.includes(raw))out.push(raw);};
+          add(response?.draftId);
+          for(const obj of [response?.savedSent,response?.scheduledSent,response?.var]){
+            if(!obj||typeof obj!=='object')continue;
+            add(obj.draftId);add(obj.id);add(obj.mid);
+            if(obj.msid!=null&&obj.mid!=null)add(`${obj.msid}:${obj.mid}`);
+          }
+          return out;
+        };
+        try{
+          const restoredResponse=await request('mbox:restoreDraft',{id:String(draftIdArg)},false);
+          if(!isOk(restoredResponse))return resolve({ok:false,stage:'restore-original',reason:restoredResponse?.reason||`mbox:restoreDraft code=${String(restoredResponse?.code)}`,code:restoredResponse?.code});
+          const restored=restoredResponse?.var;
+          if(!restored||typeof restored!=='object'||Array.isArray(restored))return resolve({ok:false,stage:'restore-original',reason:'mbox:restoreDraft returned invalid compose object'});
+          originalCid=String(restored.id||'').trim();
+          if(!originalCid)return resolve({ok:false,stage:'restore-original',reason:'restoreDraft-compose-cid-missing'});
+
+          // Resolve every attachment that must survive the replacement to a provider
+          // mailbox source (_mid + _part). This uses the same listAttachments source
+          // contract already used by the one-time replacement seed.
+          const listed=await request('mbox:listAttachments',{order:'date',limit:200,desc:true,skipLockedFolders:true},true);
+          if(!isOk(listed)){
+            await cancelCid(originalCid,false);
+            return resolve({ok:false,stage:'resolve-kept-attachments',reason:listed?.reason||`mbox:listAttachments code=${String(listed?.code)}`,code:listed?.code});
+          }
+          const rows=values(listed?.var).filter(item=>sameId(item?.id,draftIdArg)&&String(item?.partId??item?._part??'').trim());
+          const requested=Array.isArray(deleteAttachmentsArg)?deleteAttachmentsArg:[];
+          const normalBaseline=values(baselineArg?.attachments).filter(item=>item&&item.kind==='attachment'&&!item.inlined&&!item.mixed);
+          const keep=normalBaseline.filter(att=>!requested.some(old=>sameAttachment(att,old)));
+          const used=new Set();
+          const preservedSources=[];
+          for(const att of keep){
+            const idx=rows.findIndex((row,index)=>{
+              if(used.has(index))return false;
+              const probe={name:String(row?.attn||row?.name||''),size:Number(row?.attsize||row?.size||0)};
+              return sameAttachment(att,probe);
             });
-          } catch (error) { res({__error:true,reason:error?.message || String(error)}); }
-        });
-        const isOk = response => !response?.__error && (response?.code===undefined || successCode===undefined || response.code===successCode);
-        const cancel = async () => {
-          if (!cid || cancelled) return;
-          cancelled = true;
-          try { await request('mbox:cancelComposes',{ids:[cid]},true); } catch (_) {}
-        };
-        const isSourceAttachment = (item, src) => {
-          if (!item || !src) return false;
-          const itemMid=String(item._mid||item.mid||'').trim();
-          const itemPart=String(item._part??item.partId??'').trim();
-          if (itemMid && src.mid && !sameId(itemMid,src.mid)) return false;
-          if (itemPart && src.part && String(itemPart)!==String(src.part)) return false;
-          const sameName=String(item.name||item.fileName||'').trim()===String(src.name||'').trim();
-          const a=Number(item.size||item.attsize||0), b=Number(src.size||0);
-          const sizeOk=!a||!b||Math.abs(a-b)<100;
-          return !!((itemMid || itemPart) && sameName && sizeOk);
-        };
-        const sourcePresent = (attachments, src) => {
-          if (!src) return true;
-          return values(attachments).some(item => item && !item.deleted && (isSourceAttachment(item,src) || (()=>{
-            const sameName=String(item.name||item.fileName||'').trim()===String(src.name||'').trim();
-            const a=Number(item.size||item.attsize||0), b=Number(src.size||0);
-            return sameName && (!a||!b||Math.abs(a-b)<100) && (!item._mid || sameId(item._mid,src.mid));
-          })()));
-        };
-        const remapDeleteIds = (attachments, requestedDeletes, fallbackIds, src) => {
-          const current = values(attachments).filter(item=>item && !item.deleted);
-          const used = new Set();
-          const ids = [];
-          const requested = Array.isArray(requestedDeletes) ? requestedDeletes : [];
-          for (const old of requested) {
-            let index=current.findIndex((item,idx)=>!used.has(idx) && !isSourceAttachment(item,src) && old.id && String(item?.id||item?.attachmentId||'')===String(old.id));
-            if(index<0 && old.partId){
-              index=current.findIndex((item,idx)=>!used.has(idx) && !isSourceAttachment(item,src) && String(item?._part??item?.partId??'')===String(old.partId));
+            if(idx<0){
+              await cancelCid(originalCid,false);
+              return resolve({ok:false,stage:'resolve-kept-attachments',reason:`kept-attachment-part-not-found:${String(att?.name||'unknown')}`});
             }
-            if(index<0){
-              index=current.findIndex((item,idx)=>{
-                if(used.has(idx) || isSourceAttachment(item,src)) return false;
-                const sameName=String(item?.name||item?.fileName||'').trim()===String(old.name||'').trim();
-                const a=Number(item?.size||item?.fileSize||item?.attsize||0), b=Number(old.size||0);
-                return sameName && (!a||!b||Math.abs(a-b)<100);
-              });
-            }
-            if(index<0) return {ok:false,reason:`old-attachment-not-found-in-current-compose:${String(old.name||old.id||'unknown')}`};
-            used.add(index);
-            const id=String(current[index]?.id||current[index]?.attachmentId||'').trim();
-            if(!id) return {ok:false,reason:`current-attachment-id-missing:${String(old.name||'unknown')}`};
-            ids.push(id);
-          }
-          if(!requested.length){
-            for(const id of (fallbackIds||[]).map(String).filter(Boolean)){
-              const item=current.find(entry=>!isSourceAttachment(entry,src) && String(entry?.id||entry?.attachmentId||'')===id);
-              if(item) ids.push(id);
-            }
-          }
-          return {ok:true,ids:[...new Set(ids)]};
-        };
-        try {
-          const restoredResponse = await request('mbox:restoreDraft',{id:String(draftIdArg)},false);
-          if (!isOk(restoredResponse)) {
-            await cancel();
-            return resolve({ok:false,reason:restoredResponse?.reason || `mbox:restoreDraft code=${String(restoredResponse?.code)}`,code:restoredResponse?.code});
-          }
-          const restored = restoredResponse?.var;
-          if (!restored || typeof restored !== 'object' || Array.isArray(restored)) {
-            await cancel();
-            return resolve({ok:false,reason:'mbox:restoreDraft returned invalid compose object'});
-          }
-          cid = String(restored.id || '').trim();
-          if (!cid) return resolve({ok:false,reason:'restoreDraft-compose-cid-missing'});
-
-          const requestedDeletes = Array.isArray(deleteAttachmentsArg) ? deleteAttachmentsArg : [];
-          let lastAttachments = restored.attachments;
-          if (sourceArg?.mid && sourceArg?.part) {
-            const add = await request('mbox:compose',{
-              id:cid, action:'continue', returnInfo:true,
-              attrs:{attachments:[{
-                type:'internal', _mid:String(sourceArg.mid), _part:String(sourceArg.part),
-                name:String(sourceArg.name||''), size:Number(sourceArg.size||0)
-              }]}
-            },true);
-            if (!isOk(add)) {
-              await cancel();
-              return resolve({ok:false,stage:'attach-add',cid,reason:add?.reason || `mbox:compose continue(add) code=${String(add?.code)}`,code:add?.code});
-            }
-            lastAttachments = add?.var?.attachments || lastAttachments;
-            if (!sourcePresent(lastAttachments, sourceArg)) {
-              const info = await request('mbox:getComposeInfo',{id:cid},true);
-              if (isOk(info)) lastAttachments = info?.var?.attachments || lastAttachments;
-            }
-            if (!sourcePresent(lastAttachments, sourceArg)) {
-              await cancel();
-              return resolve({ok:false,stage:'attach-add-verify',cid,reason:'internal-attachment-not-present-after-continue'});
-            }
+            used.add(idx);
+            const row=rows[idx];
+            preservedSources.push({type:'internal',_mid:String(row?.id||draftIdArg),_part:String(row?.partId??row?._part??''),name:String(row?.attn||row?.name||att.name||''),size:Number(row?.attsize||row?.size||att.size||0)||0});
           }
 
-          // Resolve the old attachment SIDs only AFTER the add mutation. NetEase's own UI
-          // deletes from the current Compose attachment model (e.sid), not from a stale
-          // restore/list snapshot. This also excludes the newly attached internal source.
-          const remapped = remapDeleteIds(lastAttachments, requestedDeletes, deleteIdsArg, sourceArg);
-          if (!remapped.ok) {
-            await cancel();
-            return resolve({ok:false,stage:'attachment-remap',cid,reason:remapped.reason});
+          // Generate a fresh native-shaped client compose id. NetEase itself creates
+          // new ComposeInfo CIDs locally as c:<timestamp> before the first continue/save.
+          const seq=(Number(window.__nmdaDraftCloneCidSeq||0)+1)%997;
+          window.__nmdaDraftCloneCidSeq=seq;
+          newCid=`c:${Date.now()+seq}`;
+          const descriptors=[...preservedSources];
+          if(sourceArg?.mid&&sourceArg?.part){
+            descriptors.push({type:'internal',_mid:String(sourceArg.mid),_part:String(sourceArg.part),name:String(sourceArg.name||''),size:Number(sourceArg.size||0)});
           }
-          const currentDeleteIds = remapped.ids;
-
-          if (currentDeleteIds.length) {
-            // IMPORTANT: mirror NetEase ComposeAction.deleteAttach() exactly.
-            // Unlike syncAttach(), deleteAttach() DOES NOT send returnInfo:true.
-            // The provider routes delete and sync through different continue contracts;
-            // adding returnInfo to a delete mutation causes FS_UNKNOWN on current 163.
-            const remove = await request('mbox:compose',{
-              id:cid, action:'continue',
-              attrs:{attachments:currentDeleteIds.map(id=>({id:String(id),deleted:true}))}
-            },true);
-            if (!isOk(remove)) {
-              await cancel();
-              return resolve({ok:false,stage:'attach-delete',cid,reason:remove?.reason || `mbox:compose continue(delete) code=${String(remove?.code)}`,code:remove?.code});
-            }
-
-            // Native deleteAttach() only checks response.code; it does not expect var.attachments.
-            // Read current Compose state separately and prove all requested SIDs disappeared
-            // before committing the draft. This prevents a nominal S_OK from becoming a false success.
-            const afterDeleteInfo = await request('mbox:getComposeInfo',{id:cid},true);
-            if (!isOk(afterDeleteInfo)) {
-              await cancel();
-              return resolve({ok:false,stage:'attach-delete-verify',cid,reason:afterDeleteInfo?.reason || `mbox:getComposeInfo after delete code=${String(afterDeleteInfo?.code)}`,code:afterDeleteInfo?.code});
-            }
-            lastAttachments = afterDeleteInfo?.var?.attachments || lastAttachments;
-            const remainingIds = new Set(values(lastAttachments).filter(item=>item && !item.deleted).map(item=>String(item?.id||item?.attachmentId||'')).filter(Boolean));
-            const stillPresent = currentDeleteIds.filter(id=>remainingIds.has(String(id)));
-            if (stillPresent.length) {
-              await cancel();
-              return resolve({ok:false,stage:'attach-delete-verify',cid,reason:`old-attachment-still-present:${stillPresent.join(',')}`});
-            }
+          if(!descriptors.length){
+            await cancelCid(originalCid,false);
+            return resolve({ok:false,stage:'build-clone',reason:'replacement-clone-has-no-attachments'});
+          }
+          const attached=await request('mbox:compose',{id:newCid,action:'continue',returnInfo:true,attrs:{attachments:descriptors}},true);
+          if(!isOk(attached)){
+            await cancelCid(originalCid,false);await cancelCid(newCid,true);
+            return resolve({ok:false,stage:'clone-attachments',reason:attached?.reason||`mbox:compose continue(clone) code=${String(attached?.code)}`,code:attached?.code});
           }
 
-          // Reproduce ComposeBase.sendBuild(save/schedule) for the stable fields returned by restoreDraft.
-          // Normal attachments live on the CID and are intentionally NOT re-specified here; only inline/mixed
-          // attachment metadata is carried in attrs, matching native sendBuild().
-          const attrs = {};
-          for (const key of ['account','accountSettings','showOneRcpt','to','cc','bcc','subject','content','isHtml','priority','requestReadReceipt','saveSentCopy','charset','ctrls']) {
-            if (Object.prototype.hasOwnProperty.call(restored,key)) attrs[key]=restored[key];
+          const attrs={};
+          for(const key of ['account','accountSettings','showOneRcpt','to','cc','bcc','subject','content','isHtml','priority','requestReadReceipt','saveSentCopy','charset','ctrls']){
+            if(Object.prototype.hasOwnProperty.call(restored,key))attrs[key]=restored[key];
           }
-          if (!Object.prototype.hasOwnProperty.call(attrs,'priority')) attrs.priority=3;
-          if (!Object.prototype.hasOwnProperty.call(attrs,'requestReadReceipt')) attrs.requestReadReceipt=false;
-          if (!Object.prototype.hasOwnProperty.call(attrs,'saveSentCopy')) {
-            try { attrs.saveSentCopy=Number(window.$S?.('attrs')?.user?.save_sent ?? 0)<2; } catch (_) { attrs.saveSentCopy=true; }
+          if(!Object.prototype.hasOwnProperty.call(attrs,'priority'))attrs.priority=3;
+          if(!Object.prototype.hasOwnProperty.call(attrs,'requestReadReceipt'))attrs.requestReadReceipt=false;
+          if(!Object.prototype.hasOwnProperty.call(attrs,'saveSentCopy')){
+            try{attrs.saveSentCopy=Number(window.$S?.('attrs')?.user?.save_sent??0)<2;}catch(_){attrs.saveSentCopy=true;}
           }
-          if (!attrs.charset) {
-            try { attrs.charset=String(window.$?.Ud?.get?.({field:'ntes_option',flag:'mailencode'}))==='1'?'UTF-8':'GBK'; } catch (_) { attrs.charset='GBK'; }
+          if(!attrs.charset){
+            try{attrs.charset=String(window.$?.Ud?.get?.({field:'ntes_option',flag:'mailencode'}))==='1'?'UTF-8':'GBK';}catch(_){attrs.charset='GBK';}
           }
-          const currentInfo = await request('mbox:getComposeInfo',{id:cid},true);
-          if (isOk(currentInfo) && currentInfo?.var?.attachments) lastAttachments=currentInfo.var.attachments;
-          const inline = values(lastAttachments).filter(item => item && !item.deleted && (item.inlined || item.mixed));
-          if (inline.length) attrs.attachments=inline;
-
-          const scheduled = !!summaryArg?.scheduledDraft || !!summaryArg?.flags?.scheduleDelivery || !!restored.scheduleDate;
-          const commitAction = scheduled ? 'schedule' : 'save';
-          if (scheduled) {
-            if (!restored.scheduleDate) {
-              await cancel();
-              return resolve({ok:false,stage:'commit',cid,reason:'scheduled-draft-missing-native-scheduleDate'});
+          const scheduled=!!summaryArg?.scheduledDraft||!!summaryArg?.flags?.scheduleDelivery||!!restored.scheduleDate;
+          const action=scheduled?'schedule':'save';
+          if(scheduled){
+            // Match native ComposeModule timeset restore: the Drafts list schedule is
+            // authoritative and overwrites restoreDraft.var.scheduleDate before fillContent.
+            // sendBuild later emits that same provider Date again after the timezone pair
+            // setWithTimeZoneFixed()/getWithTimeZoneFixed().
+            let nativeScheduleDate=restored.scheduleDate||null;
+            if(summaryArg?.scheduleAt){
+              const parsed=new Date(String(summaryArg.scheduleAt));
+              if(!Number.isNaN(parsed.getTime()))nativeScheduleDate=parsed;
             }
-            attrs.scheduleDate = restored.scheduleDate;
+            if(!nativeScheduleDate){
+              await cancelCid(originalCid,false);await cancelCid(newCid,true);
+              return resolve({ok:false,stage:'clone-commit',reason:'scheduled-draft-missing-native-scheduleDate'});
+            }
+            attrs.scheduleDate=nativeScheduleDate;
           }
-          const commitBody = {id:cid,action:commitAction,returnInfo:!scheduled,attrs};
-          if (scheduled) {
-            try { if (String(window.$?.Ud?.get?.({field:'ntes_option',flag:'schedule_notify'}))==='0') commitBody.notifyEML=true; } catch (_) {}
+          const body={id:newCid,action,returnInfo:!scheduled,attrs};
+          if(scheduled){try{if(String(window.$?.Ud?.get?.({field:'ntes_option',flag:'schedule_notify'}))==='0')body.notifyEML=true;}catch(_){}}
+          const committed=await request('mbox:compose',body,true);
+          if(!isOk(committed)){
+            await cancelCid(originalCid,false);await cancelCid(newCid,true);
+            return resolve({ok:false,stage:'clone-commit',reason:committed?.reason||`mbox:compose ${action} code=${String(committed?.code)}`,code:committed?.code});
           }
-          const committed = await request('mbox:compose',commitBody,true);
-          if (!isOk(committed)) {
-            await cancel();
-            return resolve({ok:false,stage:'commit',cid,reason:committed?.reason || `mbox:compose ${commitAction} code=${String(committed?.code)}`,code:committed?.code});
-          }
-          const committedDraftId = String(committed?.draftId || draftIdArg || '').trim();
-          await cancel();
-          return resolve({
-            ok:true, cid, action:commitAction, code:committed?.code,
-            originalDraftId:String(draftIdArg), draftId:committedDraftId,
-            scheduledSent:committed?.scheduledSent || null,
-            savedSent:committed?.savedSent || null,
-            serverAttachments:values(lastAttachments).length
-          });
-        } catch (error) {
-          await cancel();
-          resolve({ok:false,cid,reason:error?.message || String(error)});
+          // The old draft is still untouched. Release its temporary restore session;
+          // deletion happens only after the new draft is independently read back.
+          await cancelCid(originalCid,false);
+          // Keep the replacement CID alive until independent mailbox verification.
+          // It gives rollback a provider-native deleteDraft handle even if a scheduled
+          // message id has not propagated to listMessages yet.
+          return resolve({ok:true,mode:'clone-swap',action,newCid,candidateIds:candidateIdsFrom(committed),committed});
+        }catch(error){
+          try{await cancelCid(originalCid,false);}catch(_){}
+          try{await cancelCid(newCid,true);}catch(_){}
+          resolve({ok:false,stage:'clone-exception',reason:error?.message||String(error)});
         }
-      }), [draftId, deleteIds, deleteAttachments, source, summary]);
-      if (!mutation?.ok) return mutation;
+      }),[draftId,deleteAttachments,source,summary,baseline]);
+      if(!clone?.ok)return clone;
 
-      const verifyDraftId = String(mutation.draftId || draftId);
-      const normalizeComparable = value => String(value ?? '').replace(/\r\n?/g,'\n').trim();
-      const sameMinute = (a,b) => {
-        const left=String(a||'').trim(), right=String(b||'').trim();
-        if (!left && !right) return true;
-        if (!left || !right) return false;
-        const la=Date.parse(left), rb=Date.parse(right);
-        return Number.isFinite(la)&&Number.isFinite(rb) ? Math.abs(la-rb)<60000 : left===right;
+      const normalizeId=value=>{const raw=String(value||'');return raw.includes(':')?raw.split(':').pop():raw;};
+      const sameId=(a,b)=>String(a||'')===String(b||'')||normalizeId(a)===normalizeId(b);
+      const norm=value=>String(value??'').replace(/\r\n?/g,'\n').trim();
+      const recipientKey=value=>{
+        if(Array.isArray(value))return value.map(item=>String(item?.email||item?.address||'').trim().toLowerCase()).filter(Boolean).sort().join(';');
+        const text=String(value??'');
+        return (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)||[]).map(item=>item.toLowerCase()).sort().join(';');
       };
-      const preserved = detail => {
-        if (!detail?.ok) return {ok:false,fields:['read']};
-        const fields=[];
-        if (normalizeComparable(detail.subject)!==normalizeComparable(baseline.subject)) fields.push('subject');
-        if (normalizeComparable(detail.recipients)!==normalizeComparable(baseline.recipients)) fields.push('recipients');
-        if (normalizeComparable(detail.cc)!==normalizeComparable(baseline.cc)) fields.push('cc');
-        if (normalizeComparable(detail.bcc)!==normalizeComparable(baseline.bcc)) fields.push('bcc');
-        if (!!detail.isHtml!==!!baseline.isHtml) fields.push('isHtml');
-        if (normalizeComparable(detail.bodyHtml)!==normalizeComparable(baseline.bodyHtml)) fields.push('body');
-        if (baseline.restoredScheduleAt && !sameMinute(detail.restoredScheduleAt, baseline.restoredScheduleAt)) fields.push('schedule');
-        return {ok:fields.length===0,fields};
+      const sameMinute=(a,b)=>{
+        const left=String(a||'').trim(),right=String(b||'').trim();
+        if(!left&&!right)return true;if(!left||!right)return false;
+        const la=Date.parse(left),rb=Date.parse(right);
+        return Number.isFinite(la)&&Number.isFinite(rb)?Math.abs(la-rb)<60000:left===right;
       };
-
-      let detail = null;
-      let preservation = {ok:false,fields:['read']};
-      for (let attempt=0; attempt<5; attempt++) {
-        if (attempt) await new Promise(resolve => setTimeout(resolve, 180 * attempt));
-        detail = await readDraftDetail(tabId, { ...summary, id:verifyDraftId });
-        if (!detail?.ok) continue;
-        const attachments = Array.isArray(detail.attachments) ? detail.attachments : [];
-        const oldGone = deleteAttachments.length
-          ? deleteAttachments.every(old => !attachments.some(item => {
-              const sameName=String(item?.name||'').trim()===String(old.name||'').trim();
-              const a=Number(item?.size||0), b=Number(old.size||0);
-              return sameName && (!a||!b||Math.abs(a-b)<100);
-            }))
-          : deleteIds.every(id => !attachments.some(item => String(item?.id || '') === id));
-        const newPresent = !source || attachments.some(item => {
-          const sameName = String(item?.name || '').trim() === String(source.name || '').trim();
-          const a = Number(item?.size || 0), b = Number(source.size || 0);
-          return sameName && (!a || !b || Math.abs(a-b) < 100);
-        });
-        preservation = preserved(detail);
-        if (oldGone && newPresent && preservation.ok) {
-          return { ...mutation, verified:true, preserved:true, preservedFields:['subject','recipients','cc','bcc','body','schedule'], detail };
+      const candidateIds=(Array.isArray(clone.candidateIds)?clone.candidateIds:[]).filter(Boolean);
+      let replacementSummary=null;
+      for(let attempt=0;attempt<8&&!replacementSummary;attempt++){
+        if(attempt)await new Promise(resolve=>setTimeout(resolve,160*attempt));
+        const listing=await readMailbox(tabId,2,-1,0);
+        if(!listing?.ok)continue;
+        const messages=Array.isArray(listing.messages)?listing.messages:[];
+        replacementSummary=messages.find(item=>String(item?.id||'')!==draftId&&candidateIds.some(id=>sameId(item?.id,id)))||null;
+        if(!replacementSummary){
+          const matches=messages.filter(item=>{
+            if(String(item?.id||'')===draftId)return false;
+            if(norm(item?.subject)!==norm(baseline.subject))return false;
+            if(recipientKey(item?.recipients||item?.toRaw)!==recipientKey(baseline.recipients))return false;
+            if(!!item?.scheduledDraft!==!!baseline?.scheduledDraft&&!!summary?.scheduledDraft!==!!item?.scheduledDraft)return false;
+            if((baseline.restoredScheduleAt||baseline.scheduleAt||summary.scheduleAt)&&!sameMinute(item?.scheduleAt,baseline.restoredScheduleAt||baseline.scheduleAt||summary.scheduleAt))return false;
+            if(!item?.scheduledDraft&&item?.savedAt){const ms=Date.parse(item.savedAt);if(Number.isFinite(ms)&&ms<createdAt-60000)return false;}
+            return true;
+          });
+          if(matches.length===1)replacementSummary=matches[0];
+          else if(matches.length>1){
+            matches.sort((a,b)=>(Date.parse(b.savedAt||b.sentAt||0)||0)-(Date.parse(a.savedAt||a.sentAt||0)||0));
+            replacementSummary=matches[0];
+          }
         }
       }
-      return {
-        ...mutation,
-        verified:false,
-        preserved:preservation.ok,
-        preservationFailures:preservation.fields,
-        reason:preservation.ok?'draft-mutation-verification-failed':`draft-content-changed:${preservation.fields.join(',')}`,
-        detail
+
+      const rollbackClone=async (reasonPrefix='clone-rollback')=>{
+        const replacementId=String(replacementSummary?.id||'');
+        return runMain(tabId,(idArg,cidArg)=>new Promise(async resolve=>{
+          const successCode=window.$?.S_OK;
+          const request=(func,body)=>new Promise(res=>{try{const action=new window.$.DataAction();action.wmsvr({func,body,ignoreError:true,call(r){res(r||{});},error(e){res({__error:true,reason:e?.message||e?.code||`${func} failed`,code:e?.code});}});}catch(e){res({__error:true,reason:e?.message||String(e)});}});
+          const ok=r=>!r?.__error&&(r?.code===undefined||successCode===undefined||r.code===successCode);
+          if(cidArg){
+            const direct=await request('mbox:cancelComposes',{ids:[String(cidArg)],deleteDraft:true});
+            if(ok(direct))return resolve({ok:true,method:'cid-deleteDraft'});
+          }
+          if(!idArg)return resolve({ok:false,reason:`${reasonPrefix}:replacement-id-unavailable`});
+          const restored=await request('mbox:restoreDraft',{id:String(idArg)});
+          if(!ok(restored)||!restored?.var?.id)return resolve({ok:false,reason:`${reasonPrefix}:restore-failed`,code:restored?.code});
+          const deleted=await request('mbox:cancelComposes',{ids:[String(restored.var.id)],deleteDraft:true});
+          resolve({ok:ok(deleted),method:'restore-deleteDraft',reason:ok(deleted)?'':`${reasonPrefix}:cancel-delete-failed`,code:deleted?.code});
+        }),[replacementId,String(clone.newCid||'')]);
       };
+
+      if(!replacementSummary?.id){
+        const rollback=await rollbackClone('discovery-failed-rollback');
+        return {...clone,ok:false,stage:'clone-discovery',reason:'replacement-draft-not-found-after-clone; original draft was not changed',rollback};
+      }
+      const replacementId=String(replacementSummary.id);
+      const replacement=await readDraftDetail(tabId,{...replacementSummary,id:replacementId});
+      const verifyFields=[];
+      if(!replacement?.ok)verifyFields.push('read');
+      else{
+        if(norm(replacement.subject)!==norm(baseline.subject))verifyFields.push('subject');
+        if(norm(replacement.recipients)!==norm(baseline.recipients))verifyFields.push('recipients');
+        if(norm(replacement.cc)!==norm(baseline.cc))verifyFields.push('cc');
+        if(norm(replacement.bcc)!==norm(baseline.bcc))verifyFields.push('bcc');
+        if(!!replacement.isHtml!==!!baseline.isHtml)verifyFields.push('isHtml');
+        if(norm(replacement.bodyHtml)!==norm(baseline.bodyHtml))verifyFields.push('body');
+        const expectedSchedule=baseline.restoredScheduleAt||baseline.scheduleAt||summary.scheduleAt||'';
+        if(expectedSchedule&&!sameMinute(replacement.restoredScheduleAt||replacement.scheduleAt,expectedSchedule))verifyFields.push('schedule');
+        const after=Array.isArray(replacement.attachments)?replacement.attachments:[];
+        const oldStillPresent=deleteAttachments.some(old=>after.some(item=>{
+          const sameName=String(item?.name||'').trim()===String(old.name||'').trim();
+          const a=Number(item?.size||0),b=Number(old.size||0);
+          return sameName&&(!a||!b||Math.abs(a-b)<100);
+        }));
+        if(oldStillPresent)verifyFields.push('old-attachment-still-present');
+        if(source){
+          const newPresent=after.some(item=>{
+            const sameName=String(item?.name||'').trim()===String(source.name||'').trim();
+            const a=Number(item?.size||0),b=Number(source.size||0);
+            return sameName&&(!a||!b||Math.abs(a-b)<100);
+          });
+          if(!newPresent)verifyFields.push('replacement-attachment-missing');
+        }
+        const expectedKept=(baseline.attachments||[]).filter(item=>item?.kind==='attachment'&&!item?.inlined&&!item?.mixed&&!deleteAttachments.some(old=>{
+          const sameName=String(item?.name||'').trim()===String(old.name||'').trim();
+          const a=Number(item?.size||0),b=Number(old.size||0);
+          return (old.id&&item.id&&String(old.id)===String(item.id))||(sameName&&(!a||!b||Math.abs(a-b)<100));
+        }));
+        for(const kept of expectedKept){
+          const present=after.some(item=>{
+            const sameName=String(item?.name||'').trim()===String(kept.name||'').trim();
+            const a=Number(item?.size||0),b=Number(kept.size||0);
+            return sameName&&(!a||!b||Math.abs(a-b)<100);
+          });
+          if(!present){verifyFields.push(`kept-attachment-missing:${kept.name}`);break;}
+        }
+      }
+      if(verifyFields.length){
+        const rollback=await rollbackClone('verify-failed-rollback');
+        return {...clone,ok:false,stage:'clone-verify',replacementDraftId:replacementId,reason:`replacement-draft-verification-failed:${verifyFields.join(',')}`,rollback};
+      }
+
+      // Swap only after the replacement is independently proven good. Deleting a draft
+      // uses the official Compose cancel contract, not security-gated deleteMessages.
+      const removeOriginal=await runMain(tabId,(idArg)=>new Promise(async resolve=>{
+        const successCode=window.$?.S_OK;
+        const request=(func,body)=>new Promise(res=>{try{const action=new window.$.DataAction();action.wmsvr({func,body,ignoreError:true,call(r){res(r||{});},error(e){res({__error:true,reason:e?.message||e?.code||`${func} failed`,code:e?.code});}});}catch(e){res({__error:true,reason:e?.message||String(e)});}});
+        const ok=r=>!r?.__error&&(r?.code===undefined||successCode===undefined||r.code===successCode);
+        const restored=await request('mbox:restoreDraft',{id:String(idArg)});
+        if(!ok(restored)||!restored?.var?.id)return resolve({ok:false,stage:'swap-restore-original',reason:restored?.reason||`mbox:restoreDraft code=${String(restored?.code)}`,code:restored?.code});
+        const deleted=await request('mbox:cancelComposes',{ids:[String(restored.var.id)],deleteDraft:true});
+        resolve({ok:ok(deleted),stage:'swap-delete-original',reason:ok(deleted)?'':(deleted?.reason||`mbox:cancelComposes deleteDraft code=${String(deleted?.code)}`),code:deleted?.code});
+      }),[draftId]);
+      if(!removeOriginal?.ok){
+        const rollback=await rollbackClone('swap-failed-rollback');
+        return {...clone,ok:false,stage:'swap-delete-original',replacementDraftId:replacementId,reason:removeOriginal?.reason||'original-draft-delete-failed',rollback};
+      }
+
+      let oldGone=false;
+      for(let attempt=0;attempt<6;attempt++){
+        if(attempt)await new Promise(resolve=>setTimeout(resolve,140*attempt));
+        const listing=await readMailbox(tabId,2,-1,0);
+        if(listing?.ok&&!((listing.messages||[]).some(item=>sameId(item?.id,draftId)))){oldGone=true;break;}
+      }
+      if(!oldGone){
+        // Do not delete the verified replacement here: the provider already accepted
+        // deleteDraft for the original and mailbox propagation may simply be delayed.
+        return {...clone,ok:false,stage:'swap-verify',draftId:replacementId,replacementDraftId:replacementId,reason:'original-draft-delete-not-yet-visible; replacement was verified and retained'};
+      }
+      if(clone.newCid){
+        await runMain(tabId,(cidArg)=>new Promise(resolve=>{try{const action=new window.$.DataAction();action.wmsvr({func:'mbox:cancelComposes',body:{ids:[String(cidArg)]},ignoreError:true,call(){resolve({ok:true});},error(){resolve({ok:false});}});}catch(_){resolve({ok:false});}}),[String(clone.newCid)]).catch(()=>null);
+      }
+      return {...clone,ok:true,verified:true,preserved:true,mode:'clone-swap',originalDraftId:draftId,draftId:replacementId,replacementDraftId:replacementId,detail:replacement};
     }
     if (message?.type === 'NMDA_CLOSE_COMPOSE') {
       return runMain(tabId, identityArg => new Promise(resolve => {

@@ -1206,10 +1206,10 @@
                   <input id="nmda-draft-attachment-file" type="file" hidden>
                   <button class="nmda-draft-attachment-drop" id="nmda-draft-attachment-drop" type="button" disabled>
                     <span class="nmda-draft-attachment-drop-mark" aria-hidden="true">⇧</span>
-                    <span><strong id="nmda-draft-attachment-new-name">选择新版附件</strong><small id="nmda-draft-attachment-new-meta">只上传一次，随后直接在目标草稿上做服务器侧替换。</small></span>
+                    <span><strong id="nmda-draft-attachment-new-name">选择新版附件</strong><small id="nmda-draft-attachment-new-meta">只上传一次；系统先创建并验证等价新草稿，确认无误后再替换旧草稿。</small></span>
                     <b>选择文件</b>
                   </button>
-                  <div class="nmda-draft-attachment-safety"><strong>原地更新</strong><span>目标草稿只修改附件集合；SmartMail 会逐封回读验证旧附件已删除、新附件已存在，并确认原定时状态没有变化。</span></div>
+                  <div class="nmda-draft-attachment-safety"><strong>安全替换</strong><span>先生成等价新草稿并回读验证正文、收件人、主题、排期和附件；全部正确后才删除旧草稿，失败则保留旧草稿。</span></div>
                   <div class="nmda-draft-attachment-progress" id="nmda-draft-attachment-progress" hidden></div>
                   <div class="nmda-draft-attachment-actions">
                     <button class="nmda-btn nmda-btn-primary" id="nmda-draft-attachment-run" type="button" disabled>更新选中的草稿</button>
@@ -3748,7 +3748,7 @@
     const drop=$('nmda-draft-attachment-drop'),file=draftAttachmentTool.replacementFile;
     if(drop)drop.disabled=!selected||draftAttachmentTool.running;
     setText('nmda-draft-attachment-new-name',file?file.name:'选择新版附件');
-    setText('nmda-draft-attachment-new-meta',file?`${formatAttachmentSize(file)} · 将只上传一次，再服务器侧更新所选草稿。`:'只上传一次，随后直接在目标草稿上做服务器侧替换。');
+    setText('nmda-draft-attachment-new-meta',file?`${formatAttachmentSize(file)} · 将只上传一次；每封先生成并验证替代草稿，再安全替换旧草稿。`:'只上传一次；系统先创建并验证等价新草稿，确认无误后再替换旧草稿。');
     const run=$('nmda-draft-attachment-run');
     if(run){run.disabled=!selected||!file||!selectedCount||draftAttachmentTool.running;run.textContent=draftAttachmentTool.running?'正在更新草稿…':`更新 ${selectedCount||0} 封草稿`;}
     const refresh=$('nmda-draft-attachment-refresh');if(refresh)refresh.disabled=draftAttachmentTool.loading||draftAttachmentTool.running;
@@ -3778,20 +3778,21 @@
       seedIdentity=seed.seedIdentity||null;
       const source={...seed.source,name:file.name,size:file.size};
       let cursor=0,done=0,failed=0;const failures=[],doneIds=new Set();
-      const integrityBaseline=new Map(targets.map(item=>[String(item.draft.id||''),{subject:String(item.draft.subject||''),recipients:String(item.draft.recipients||''),cc:String(item.draft.cc||''),bcc:String(item.draft.bcc||''),bodyHtml:String(item.draft.bodyHtml||''),scheduleAt:String(item.draft.scheduleAt||''),oldAttachmentIds:item.attachments.map(att=>String(att.id||'')).filter(Boolean),oldAttachments:item.attachments.map(att=>({name:String(att.name||''),size:Number(att.size||0)||0}))}]));
-      const workerCount=Math.min(3,Math.max(1,targets.length));
+      const integrityBaseline=new Map(targets.map(item=>[String(item.draft.id||''),{subject:String(item.draft.subject||''),recipients:String(item.draft.recipients||''),cc:String(item.draft.cc||''),bcc:String(item.draft.bcc||''),bodyHtml:String(item.draft.bodyHtml||''),scheduleAt:String(item.draft.scheduleAt||''),oldAttachments:item.attachments.map(att=>({name:String(att.name||''),size:Number(att.size||0)||0}))}]));
+      // Clone-and-swap uses one transaction at a time so a newly scheduled replacement
+      // can be identified unambiguously before the original draft is removed.
+      const workerCount=Math.min(1,Math.max(1,targets.length));
       async function worker(){
         while(cursor<targets.length){
           const item=targets[cursor++],draft=item.draft,draftId=String(draft.id||'');
           const deleteAttachments=item.attachments.map(att=>({id:String(att.id||''),name:String(att.name||''),size:Number(att.size||0)||0,partId:String(att.partId||'')}));
-          const deleteIds=deleteAttachments.map(att=>att.id).filter(Boolean);
+          const targetAttachmentIds=new Set(deleteAttachments.map(att=>att.id).filter(Boolean));
           try{
-            const existing=(draft.attachments||[]).some(att=>!deleteIds.includes(String(att.id||''))&&String(att.name||'')===file.name&&(!Number(att.size||0)||Math.abs(Number(att.size||0)-file.size)<100));
-            setDraftAttachmentProgress(`正在原地替换附件 ${done+failed+1}/${targets.length} · ${draft.subject||draftId}`);
+            const existing=(draft.attachments||[]).some(att=>!targetAttachmentIds.has(String(att.id||''))&&String(att.name||'')===file.name&&(!Number(att.size||0)||Math.abs(Number(att.size||0)-file.size)<100));
+            setDraftAttachmentProgress(`正在安全重建并替换附件 ${done+failed+1}/${targets.length} · ${draft.subject||draftId}`);
             const mutated=await chrome.runtime.sendMessage({
               type:'NMDA_DRAFT_ATTACHMENT_MUTATE',
               draftId,
-              deleteIds,
               deleteAttachments,
               source:existing?null:source,
               summary:{id:draftId,scheduleAt:draft.scheduleAt||'',savedAt:draft.savedAt||'',subject:draft.subject||'',flags:draft.flags||{},scheduledDraft:!!draft.scheduledDraft}
@@ -3842,7 +3843,7 @@
       }
       if(integrityFailures.length){
         setDraftAttachmentUtilityResult(`附件更新已执行，但发现 ${integrityFailures.length} 封草稿存在完整性异常，请立即核对：${integrityFailures.slice(0,3).join('；')}${integrityFailures.length>3?'…':''}${seedCleanupWarning?`；${seedCleanupWarning}`:''}`,'error');
-      }else if(failed)setDraftAttachmentUtilityResult(`已更新 ${done} 封，${failed} 封未完成。失败草稿不会先删除旧附件；${failures.slice(0,3).join('；')}${failures.length>3?'…':''}${seedCleanupWarning?`；${seedCleanupWarning}`:''}`,'warn');
+      }else if(failed)setDraftAttachmentUtilityResult(`已更新 ${done} 封，${failed} 封未完成。失败草稿会保留原草稿；${failures.slice(0,3).join('；')}${failures.length>3?'…':''}${seedCleanupWarning?`；${seedCleanupWarning}`:''}`,'warn');
       else if(seedCleanupWarning)setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新并通过完整性核验；${seedCleanupWarning}`,'warn');
       else setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新，并回读确认正文、收件人、主题与原排期保持不变。`,'ok');
     }catch(error){
