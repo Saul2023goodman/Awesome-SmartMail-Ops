@@ -4101,17 +4101,23 @@
   function syncReviewBatchLaunch(){
     if(!reviewBatchLaunchEl)return;
     const tasks=allReviewTasks().filter(task=>!task?.importExcluded),subjectCount=missingSubjectTasks().length,queuedCount=queuedGovernanceRules().length;
-    reviewBatchLaunchEl.hidden=!tasks.length;
+    // Keep the batch-processing entry visible on the Review board at all times.
+    // An empty board should explain where batch processing lives instead of making
+    // the capability disappear and then jump into the toolbar after import.
+    reviewBatchLaunchEl.hidden=false;
+    reviewBatchLaunchEl.classList.toggle('is-empty',!tasks.length);
     reviewBatchLaunchEl.classList.toggle('needs-subject',subjectCount>0);
     reviewBatchLaunchEl.classList.toggle('has-queued-rules',queuedCount>0);
     if(reviewBatchLaunchCountEl){reviewBatchLaunchCountEl.hidden=!subjectCount;reviewBatchLaunchCountEl.textContent=String(subjectCount||0);}
     if(reviewBatchLaunchMetaEl){
-      if(subjectCount)reviewBatchLaunchMetaEl.textContent=`${subjectCount} 封缺主题 · 点击批量补齐`;
+      if(!tasks.length)reviewBatchLaunchMetaEl.textContent='导入邮件后可用';
+      else if(subjectCount)reviewBatchLaunchMetaEl.textContent=`${subjectCount} 封缺主题 · 点击批量补齐`;
       else if(queuedCount)reviewBatchLaunchMetaEl.textContent=`已选 ${queuedCount} 条格式处理 · 继续`;
       else reviewBatchLaunchMetaEl.textContent='查看格式偏移推荐';
     }
-    reviewBatchLaunchEl.title=subjectCount?`有 ${subjectCount} 封 Initial 缺少主题；点击进入 Preview 批量补齐`:'进入 Preview 查看格式偏移推荐与批量处理';
+    reviewBatchLaunchEl.title=!tasks.length?'批量处理会在导入邮件后进入 Preview 执行':subjectCount?`有 ${subjectCount} 封 Initial 缺少主题；点击进入 Preview 批量补齐`:'进入 Preview 查看格式偏移推荐与批量处理';
     reviewBatchLaunchEl.setAttribute('aria-label',reviewBatchLaunchEl.title);
+    reviewBatchLaunchEl.setAttribute('aria-disabled',tasks.length?'false':'true');
   }
 
   function renderBatchSubjectGovernance(){

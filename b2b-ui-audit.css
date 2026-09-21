@@ -1101,3 +1101,103 @@
     grid-template-columns:auto minmax(0,1fr) !important;
   }
 }
+
+
+/* Review board correction — persistent batch entry and full-width canvas. */
+#nmda-root.nmda-standalone .nmda-review-main-page.nmda-bulk-workbench {
+  grid-template-columns:minmax(0,1fr) !important;
+  column-gap:0 !important;
+  width:100% !important;
+  min-width:0 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review {
+  grid-column:1 / -1 !important;
+  width:100% !important;
+  min-width:0 !important;
+  justify-self:stretch !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-boardbar.nmda-review-boardbar-unified {
+  width:100% !important;
+  min-width:0 !important;
+  grid-template-columns:minmax(430px,.95fr) minmax(430px,1.05fr) !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-boardbar-unified .nmda-review-status-tabs {
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-boardbar-unified .nmda-review-queue-tools {
+  grid-template-columns:minmax(190px,230px) minmax(220px,1fr) auto !important;
+  width:100% !important;
+  min-width:0 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch {
+  width:100% !important;
+  min-width:0 !important;
+  max-width:230px !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty {
+  border-color:#d8dee7 !important;
+  background:#f7f9fb !important;
+  color:#7a8592 !important;
+  box-shadow:none !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty:hover,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty:focus-visible {
+  border-color:#cbd3dd !important;
+  background:#f3f6f9 !important;
+  box-shadow:none !important;
+  transform:none !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty .nmda-review-batch-launch-glyph {
+  background:#edf1f5 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty .nmda-review-batch-launch-glyph::before,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty .nmda-review-batch-launch-glyph::after,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty .nmda-review-batch-launch-glyph i::before,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty .nmda-review-batch-launch-glyph i::after {
+  background:#9aa5b1 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty .nmda-review-batch-launch-copy strong {
+  color:#687482 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty .nmda-review-batch-launch-copy small,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.is-empty .nmda-review-batch-launch-arrow {
+  color:#9aa5b1 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.needs-subject {
+  border-color:#e2b766 !important;
+  background:#fff9ed !important;
+  box-shadow:0 0 0 2px rgba(202,145,45,.08), inset 0 1px 0 #fff !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch.needs-subject .nmda-review-batch-launch-arrow {
+  color:#a66f17 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-page-empty {
+  width:calc(100% - 20px) !important;
+  min-height:116px !important;
+  margin:10px !important;
+  display:grid !important;
+  place-items:center !important;
+  align-content:center !important;
+  padding:18px !important;
+  border:1px dashed #d8e0e9 !important;
+  border-radius:10px !important;
+  background:#fbfcfd !important;
+  color:#7c8794 !important;
+}
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-page-empty[hidden] { display:none !important; }
+@media (max-width:1180px) {
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-boardbar.nmda-review-boardbar-unified {
+    grid-template-columns:1fr !important;
+  }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-boardbar-unified .nmda-review-queue-tools {
+    grid-template-columns:minmax(190px,230px) minmax(220px,1fr) auto !important;
+  }
+}
+@media (max-width:760px) {
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-boardbar-unified .nmda-review-queue-tools {
+    grid-template-columns:minmax(0,1fr) !important;
+  }
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-review-batch-launch {
+    max-width:none !important;
+  }
+}
