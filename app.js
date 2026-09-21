@@ -888,7 +888,7 @@
                 <div><div class="nmda-card-title">安排本次邮件</div><div class="nmda-card-desc"></div></div>
                 <div class="nmda-planning-head-actions">
                   <div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div>
-                  <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-open-schedule-modal" type="button">时间规划</button>
+                  <button class="nmda-btn nmda-btn-small nmda-btn-primary nmda-schedule-entry" id="nmda-open-schedule-modal" type="button" title="设置本次发送的地区、日期、工作日与当地时间"><span>设置时间安排</span><small>日期 · 工作日 · 当地时间</small></button>
                 </div>
               </div>
               <div class="nmda-planning-overview" id="nmda-planning-overview"></div>
@@ -914,11 +914,11 @@
             <section class="nmda-roster-planner-view" id="nmda-roster-planner-view" hidden aria-labelledby="nmda-roster-planner-title">
               <header class="nmda-roster-planner-view-head">
                 <div class="nmda-roster-planner-view-leading">
-                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-planner-back" type="button">← 返回时间规划</button>
-                  <div><span class="nmda-dialog-eyebrow">Within-school priority · Optional</span><h2 id="nmda-roster-planner-title">同校优先级 · 可选</h2><p>仅在需要明确同一学校内的联系先后时设置 R1/R2…；它只是时间规划的可选约束，不设置时按现有名单顺序正常排期。</p></div>
+                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-planner-back" type="button">← 返回时间安排</button>
+                  <div><span class="nmda-dialog-eyebrow">Within-school priority · Optional</span><h2 id="nmda-roster-planner-title">同校优先级 · 可选</h2><p>仅在需要明确同一学校内的联系先后时设置 R1/R2…；它只是时间安排的可选约束，不设置时按现有名单顺序正常排期。</p></div>
                 </div>
                 <div class="nmda-roster-planner-view-actions">
-                  <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-roster-planner-done" type="button">完成并返回时间规划</button>
+                  <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-roster-planner-done" type="button">完成并返回时间安排</button>
                 </div>
               </header>
 
@@ -971,11 +971,19 @@
             <div class="nmda-workflow-modal-overlay" id="nmda-schedule-modal" hidden>
               <section class="nmda-workflow-dialog nmda-schedule-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-schedule-dialog-title">
                 <header class="nmda-workflow-dialog-head">
-                  <div><span class="nmda-dialog-eyebrow">本次发送计划</span><h3 id="nmda-schedule-dialog-title">时间规划</h3><p>先确定发送时间规则，再生成最终排期；同校优先级只是可选的排序约束，不设置也可直接规划。</p></div>
-                  <button class="nmda-dialog-close" id="nmda-close-schedule-modal" type="button" aria-label="关闭时间规划">×</button>
+                  <div><span class="nmda-dialog-eyebrow">本次发送计划</span><h3 id="nmda-schedule-dialog-title">时间安排</h3><p>不用逐封填写时间。先确定收件人当地的发送窗口，再按需要设置避让规则，最后一次生成本批时间。</p></div>
+                  <button class="nmda-dialog-close" id="nmda-close-schedule-modal" type="button" aria-label="关闭时间安排">×</button>
                 </header>
                 <section class="nmda-schedule-dialog-body" id="nmda-scheduler-card">
+                  <div class="nmda-schedule-guide" id="nmda-schedule-guide" aria-label="时间安排步骤">
+                    <div class="nmda-schedule-guide-step" data-schedule-guide-step="1"><b>1</b><span><strong>确定发送窗口</strong><small>地区、开始日期、工作日、当地时间</small></span></div>
+                    <i aria-hidden="true">→</i>
+                    <div class="nmda-schedule-guide-step" data-schedule-guide-step="2"><b>2</b><span><strong>按需设置保护</strong><small>同校限额、已有时间、假期与跳过区间</small></span></div>
+                    <i aria-hidden="true">→</i>
+                    <div class="nmda-schedule-guide-step" data-schedule-guide-step="3"><b>3</b><span><strong>生成本批时间</strong><small>系统自动分散，不必逐封排期</small></span></div>
+                  </div>
                   <div class="nmda-schedule-dialog-summary" id="nmda-schedule-summary"></div>
+                  <div class="nmda-schedule-outcome" id="nmda-schedule-outcome" aria-live="polite"></div>
                   <div class="nmda-schedule-priority-card" id="nmda-schedule-priority-card">
                     <div class="nmda-schedule-priority-copy">
                       <span>可选约束</span>
@@ -985,7 +993,8 @@
                     <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-schedule-open-priority" type="button">设置优先级</button>
                   </div>
                   <div class="nmda-scheduler-grid nmda-scheduler-calendar-grid">
-                    <label class="nmda-field nmda-schedule-region-field"><span class="nmda-label">地区 · Local time</span><select id="nmda-rule-time-zone">
+                    <div class="nmda-schedule-section-title"><span>1</span><div><strong>发送窗口</strong><small>这四项决定“从什么时候开始、在哪些日子、按哪里的几点发送”。</small></div></div>
+                    <label class="nmda-field nmda-schedule-region-field"><span class="nmda-label">收件人地区 · Local time <em>关键</em></span><select id="nmda-rule-time-zone">
                       <option value="system">本机 / 网易当前时区</option>
                       <option value="Asia/Shanghai">中国 · 上海</option>
                       <option value="Asia/Hong_Kong">中国香港</option>
@@ -1003,21 +1012,22 @@
                       <option value="America/Los_Angeles">美国 / 加拿大 · Pacific</option>
                       <option value="America/Toronto">加拿大 · Toronto</option>
                       <option value="America/Vancouver">加拿大 · Vancouver</option>
-                    </select><small class="nmda-field-hint">按所选地区当地时间规划，执行时自动换算到网易当前时区。</small></label>
-                    <label class="nmda-field"><span class="nmda-label">开始日期</span><span class="nmda-smart-temporal"><input id="nmda-rule-start-date" type="date" data-smart-temporal="date" data-smart-role="schedule-start"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置开始日期" title="快速设置">⌄</button></span></label>
-                    <label class="nmda-field"><span class="nmda-label">当地发送时间</span><span class="nmda-smart-temporal"><input id="nmda-rule-local-time" type="time" step="300" value="07:30" data-smart-temporal="time" data-smart-role="schedule-time"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置发送时间" title="快速设置">⌄</button></span></label>
-                    <label class="nmda-field"><span class="nmda-label">每校每个发送日最多</span><input id="nmda-rule-max-school" type="number" min="1" max="20" step="1" value="1"></label>
-                    <div class="nmda-field nmda-workday-field"><span class="nmda-label">发送工作日</span><div class="nmda-workday-picker" role="group" aria-label="选择发送工作日">
+                    </select><small class="nmda-field-hint">选择收件人所在地区。你填写的是当地时间，执行时会自动换算到网易当前时区。</small></label>
+                    <label class="nmda-field"><span class="nmda-label">开始日期 <em>关键</em></span><span class="nmda-smart-temporal"><input id="nmda-rule-start-date" type="date" data-smart-temporal="date" data-smart-role="schedule-start"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置开始日期" title="快速设置">⌄</button></span></label>
+                    <label class="nmda-field"><span class="nmda-label">当地发送时间 <em>关键</em></span><span class="nmda-smart-temporal"><input id="nmda-rule-local-time" type="time" step="300" value="07:30" data-smart-temporal="time" data-smart-role="schedule-time"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置发送时间" title="快速设置">⌄</button></span></label>
+                    <label class="nmda-field"><span class="nmda-label">每校同一天最多联系</span><input id="nmda-rule-max-school" type="number" min="1" max="20" step="1" value="1"><small class="nmda-field-hint">建议保持 1；用于避免同一学校同一天集中联系多人。</small></label>
+                    <div class="nmda-field nmda-workday-field"><span class="nmda-label">发送工作日 <em>关键</em></span><div class="nmda-workday-picker" role="group" aria-label="选择发送工作日">
                       <label><input type="checkbox" data-schedule-weekday value="1"><span>周一</span></label>
                       <label><input type="checkbox" data-schedule-weekday value="2"><span>周二</span></label>
                       <label><input type="checkbox" data-schedule-weekday value="3"><span>周三</span></label>
                       <label><input type="checkbox" data-schedule-weekday value="4" checked><span>周四</span></label>
                       <label><input type="checkbox" data-schedule-weekday value="5"><span>周五</span></label>
-                    </div><small class="nmda-field-hint">取代固定“+7 天”；只在勾选的工作日安排新邮件。</small></div>
-                    <div class="nmda-field nmda-skip-range-field"><span class="nmda-label">跳过时间段 · 可选</span><div class="nmda-skip-range-inputs"><span class="nmda-smart-temporal"><input id="nmda-rule-skip-start" type="date" aria-label="跳过开始日期" data-smart-temporal="date" data-smart-role="skip-start"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置跳过开始日期" title="快速设置">⌄</button></span><span>至</span><span class="nmda-smart-temporal"><input id="nmda-rule-skip-end" type="date" aria-label="跳过结束日期" data-smart-temporal="date" data-smart-role="skip-end"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置跳过结束日期" title="快速设置">⌄</button></span></div><small class="nmda-field-hint">例如假期、申请季间隔；区间内不安排新邮件。</small></div>
-                    <label class="nmda-check-card"><input id="nmda-rule-preserve-existing" type="checkbox" checked><span><strong>保留本批已有时间</strong></span></label>
-                    <label class="nmda-check-card"><input id="nmda-rule-include-mailbox-scheduled" type="checkbox" checked><span><strong>纳入网易已有排期</strong></span></label>
-                    <label class="nmda-check-card nmda-schedule-wide-check"><input id="nmda-rule-skip-holidays" type="checkbox" checked><span><strong>避开可识别的当地节假日</strong></span></label>
+                    </div><small class="nmda-field-hint">系统只会把新邮件放到这些工作日；例如只选周四，就会按每个可用周四向后排。</small></div>
+                    <div class="nmda-schedule-section-title nmda-schedule-section-title-secondary"><span>2</span><div><strong>避让与保护</strong><small>通常保持默认即可；只有遇到假期、已有排期或特殊空档时再调整。</small></div></div>
+                    <div class="nmda-field nmda-skip-range-field"><span class="nmda-label">不发送的日期范围 · 可选</span><div class="nmda-skip-range-inputs"><span class="nmda-smart-temporal"><input id="nmda-rule-skip-start" type="date" aria-label="跳过开始日期" data-smart-temporal="date" data-smart-role="skip-start"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置跳过开始日期" title="快速设置">⌄</button></span><span>至</span><span class="nmda-smart-temporal"><input id="nmda-rule-skip-end" type="date" aria-label="跳过结束日期" data-smart-temporal="date" data-smart-role="skip-end"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置跳过结束日期" title="快速设置">⌄</button></span></div><small class="nmda-field-hint">例如学校假期、圣诞节或你明确不希望发送的一段时间；留空即不额外跳过。</small></div>
+                    <label class="nmda-check-card"><input id="nmda-rule-preserve-existing" type="checkbox" checked><span><strong>保留已经手工设置的时间</strong><small>重排时不覆盖你已经明确指定的单封时间。</small></span></label>
+                    <label class="nmda-check-card"><input id="nmda-rule-include-mailbox-scheduled" type="checkbox" checked><span><strong>避开网易里已经定时的邮件</strong><small>读取现有定时草稿，防止同校或同一时间槽撞车。</small></span></label>
+                    <label class="nmda-check-card nmda-schedule-wide-check"><input id="nmda-rule-skip-holidays" type="checkbox" checked><span><strong>避开可识别的当地节假日</strong><small>按收件人地区尽量跳过可识别的公共假期。</small></span></label>
                   </div>
                   <div class="nmda-schedule-rule-preview" id="nmda-schedule-rule-preview">周四 · 07:30 当地时间 · 每校每个发送日最多 1 位。</div>
                 </section>
@@ -1025,7 +1035,7 @@
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-clear-auto-schedule" type="button">清除自动时间</button>
                   <div class="nmda-dialog-foot-spacer"></div>
                   <button class="nmda-btn nmda-btn-small" id="nmda-cancel-schedule-modal" type="button">取消</button>
-                  <button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-apply-schedule" type="button">应用排期</button>
+                  <button class="nmda-btn nmda-btn-primary nmda-btn-small nmda-schedule-apply" id="nmda-apply-schedule" type="button"><span>生成本批时间</span><small id="nmda-apply-schedule-hint">按上方规则自动安排</small></button>
                 </footer>
               </section>
             </div>
@@ -2509,7 +2519,7 @@
   const planningOverviewEl = $('nmda-planning-overview');
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time');
   const scheduleStartDateEl = $('nmda-rule-start-date'), scheduleLocalTimeEl = $('nmda-rule-local-time'), scheduleTimeZoneEl = $('nmda-rule-time-zone'), scheduleWeekdayEls = [...ui.querySelectorAll('[data-schedule-weekday]')], scheduleSkipStartEl = $('nmda-rule-skip-start'), scheduleSkipEndEl = $('nmda-rule-skip-end'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleMailboxExistingEl = $('nmda-rule-include-mailbox-scheduled'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
-  const scheduleApplyEl = $('nmda-apply-schedule'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
+  const scheduleApplyEl = $('nmda-apply-schedule'), scheduleApplyHintEl=$('nmda-apply-schedule-hint'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleOutcomeEl=$('nmda-schedule-outcome'), scheduleGuideEl=$('nmda-schedule-guide'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
   const rosterPlannerViewEl=$('nmda-roster-planner-view'), rosterPlannerSourceEl=$('nmda-roster-planner-source'), rosterPlannerSummaryEl=$('nmda-roster-planner-summary'), rosterVisualGroupsEl=$('nmda-roster-visual-groups'), rosterSheetViewportEl=$('nmda-roster-sheet-viewport'), rosterSheetTableEl=$('nmda-roster-sheet-table'), rosterSelectionMiniEl=$('nmda-roster-selection-mini'), rosterColumnFocusEl=$('nmda-roster-column-focus'), rosterColumnToggleEl=$('nmda-roster-column-toggle'), rosterSelectionLabelEl=$('nmda-roster-selection-label'), rosterSelectionDetailEl=$('nmda-roster-selection-detail'), rosterActiveBatchEl=$('nmda-roster-active-batch'), rosterActiveBatchLabelEl=$('nmda-roster-active-batch-label'), rosterBatchAddEl=$('nmda-roster-batch-add'), rosterBatchCreateEl=$('nmda-roster-batch-create'), rosterBatchClearEl=$('nmda-roster-batch-clear'), rosterIntentSummaryEl=$('nmda-roster-intent-summary');
   const batchSearchEl = $('nmda-batch-search');
   const batchTagIncludeEl = $('nmda-batch-tag-include');
@@ -2733,7 +2743,7 @@
       if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.textContent='未找到可用于设置同校优先级的 XLSX 总名单';
       if(rosterSheetTableEl)rosterSheetTableEl.innerHTML='<tbody><tr><td class="nmda-roster-empty-sheet">未找到总名单</td></tr></tbody>';
       if(rosterVisualGroupsEl)rosterVisualGroupsEl.innerHTML='<span class="nmda-roster-visual-label">没有名单特征可选择</span>';
-      if(rosterIntentSummaryEl)rosterIntentSummaryEl.innerHTML='<div class="nmda-roster-batch-overview-empty">没有总名单时仍可直接使用时间规划。</div>';
+      if(rosterIntentSummaryEl)rosterIntentSummaryEl.innerHTML='<div class="nmda-roster-batch-overview-empty">没有总名单时仍可直接使用时间安排。</div>';
       paintRosterPlannerSelection();return;
     }
     let current=rosterPlannerCurrentSource();if(!current)current=sources[0];batch.rosterPlanner.sourceKey=current.key;if(rosterPlannerSourceEl)rosterPlannerSourceEl.value=current.key;
@@ -2946,6 +2956,8 @@
     if(currentKey && !visible.some(task=>task.editKey===currentKey)){batch.reviewPreviewKey='';if(batch.reviewSurface==='preview'&&visible[0])focusReviewTask(visible[0].editKey,{behavior:'auto'});}
   });
   planningOverviewEl?.addEventListener('click', event=>{
+    const scheduleGuide=event.target.closest?.('[data-open-schedule-guide]');
+    if(scheduleGuide){openScheduleModal();return;}
     const show=event.target.closest?.('[data-show-unscheduled]');
     if(show){
       const box=$('nmda-unscheduled-exceptions');
@@ -6783,10 +6795,26 @@
           <span data-tone="${warnings.length?'warn':'ok'}">${escapeHtml(issueText)}</span>
         </div>
       </section>
-      ${unscheduled?`<section class="nmda-plan-exceptionbar"><div><strong>${unscheduled} 封尚未排期</strong><span>这些邮件没有发送日期，不应占用矩阵列；请先补排期。</span></div><button type="button" data-show-unscheduled>查看异常</button></section>`:''}
+      ${unscheduled?`<section class="nmda-time-plan-prompt"><span class="nmda-time-plan-prompt-step">下一步</span><div><strong>先设置时间安排，再进入网易执行</strong><span>${unscheduled} 封还没有发送时间。只需设置一次地区、开始日期、工作日和当地时间，系统会自动分散到可用发送日。</span></div><button type="button" data-open-schedule-guide>设置时间安排</button><button type="button" class="is-secondary" data-show-unscheduled>查看未排期</button></section>`:''}
     `;
   }
 
+
+  function schedulePreviewRange(plan,rules){
+    const local=(plan?.assignments||[]).map(item=>String(item?.localScheduleAt||'')).filter(Boolean).sort();
+    if(!local.length)return '';
+    const compact=value=>{const d=String(value||'').slice(0,10);return d?d.slice(5).replace('-','/'):' ';};
+    const first=compact(local[0]),last=compact(local[local.length-1]);
+    return first===last?first:`${first} → ${last}`;
+  }
+  function paintScheduleGuide({ready=true,previewPlan=null,error='' }={}){
+    if(!scheduleGuideEl)return;
+    const steps=[...scheduleGuideEl.querySelectorAll('[data-schedule-guide-step]')];
+    steps.forEach(step=>step.classList.remove('is-done','is-active','is-warning'));
+    if(steps[0])steps[0].classList.add(ready?'is-done':'is-warning');
+    if(steps[1])steps[1].classList.add(ready?'is-done':'');
+    if(steps[2])steps[2].classList.add(error?'is-warning':'is-active');
+  }
 
   function renderScheduleCenter() {
     if (typeof renderProcessGuide === 'function') renderProcessGuide();
@@ -6810,13 +6838,33 @@
     const audit=Scheduler.audit?.(selected,rules,{externalAnchors})||{conflicts:[],externalConflicts:[],timeConflicts:[],holidayConflicts:[]};
     const conflictCount=audit.conflicts?.length||0, externalConflictCount=(audit.externalConflicts?.length||0)+(audit.timeConflicts?.length||0), holidayConflictCount=audit.holidayConflicts?.length||0;
     const mailboxInfo=rules.includeMailboxScheduled===false?'网易已有排期关闭':batch.existingScheduleStatus==='loading'?'正在读取网易已有排期':batch.existingScheduleStatus==='ok'?`网易锁定 ${externalAnchors.length}`:batch.existingScheduleStatus==='error'?'网易已有排期读取失败':'网易已有排期：应用时读取';
-    if(scheduleSummaryEl)scheduleSummaryEl.innerHTML=`<strong>${selected.length}</strong> 已选 · 自动 ${auto} · 已有 ${protectedCount} · 待排 ${unscheduled}${rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?` · 锁定 ${externalAnchors.length}`:''}${externalConflictCount?` · <span class="nmda-danger">与已有排期冲突 ${externalConflictCount}</span>`:''}${conflictCount?` · <span class="nmda-danger">同校冲突 ${conflictCount}</span>`:''}${holidayConflictCount?` · <span class="nmda-danger">日历规则 ${holidayConflictCount}</span>`:''}`;
+    if(scheduleSummaryEl)scheduleSummaryEl.innerHTML=`<strong>${selected.length} 封</strong>参与本次安排 · <span>${unscheduled} 封待生成时间</span> · <span>${protectedCount} 封已有时间</span>${rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?` · <span>网易已有排期 ${externalAnchors.length} 封</span>`:''}${externalConflictCount?` · <span class="nmda-danger">已有排期冲突 ${externalConflictCount}</span>`:''}${conflictCount?` · <span class="nmda-danger">同校冲突 ${conflictCount}</span>`:''}${holidayConflictCount?` · <span class="nmda-danger">日历规则 ${holidayConflictCount}</span>`:''}`;
+    let previewPlan=null,previewError='';
+    const basicsReady=!!(rules.startDate&&rules.localTime&&(rules.weekdays||[]).length&&rules.timeZone);
+    if(basicsReady&&selected.length){
+      try{previewPlan=Scheduler.buildPlan(selected,rules,new Date(),{externalAnchors});}
+      catch(error){previewError=String(error?.message||error||'无法生成预览');}
+    }
+    paintScheduleGuide({ready:basicsReady,previewPlan,error:previewError});
+    if(scheduleOutcomeEl){
+      if(previewError){
+        scheduleOutcomeEl.dataset.tone='warn';
+        scheduleOutcomeEl.innerHTML=`<div class="nmda-schedule-outcome-mark">!</div><div><span>当前设置还不能生成完整排期</span><strong>${escapeHtml(previewError)}</strong><small>调整上方关键时间项后，这里会立即重新预览；不会修改任何邮件。</small></div>`;
+      }else if(previewPlan){
+        const ps=previewPlan.summary||{},range=schedulePreviewRange(previewPlan,rules),mailboxPending=rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus!=='ok';
+        scheduleOutcomeEl.dataset.tone='ok';
+        scheduleOutcomeEl.innerHTML=`<div class="nmda-schedule-outcome-mark">✓</div><div><span>按当前设置，点击“生成本批时间”后</span><strong>${ps.auto?`将自动安排 ${ps.auto} 封邮件`:'不需要新增自动时间'}${ps.preserved?`，保留 ${ps.preserved} 封已有时间`:''}</strong><small>${ps.scheduleDays?`预计使用 ${ps.scheduleDays} 个发送日${range?` · ${range}`:''}`:'当前邮件已有可用时间'}${mailboxPending?'；正式应用时会先读取网易已有排期，再做最终避让。':'。'} </small></div>`;
+      }else{
+        scheduleOutcomeEl.dataset.tone='neutral';
+        scheduleOutcomeEl.innerHTML=`<div class="nmda-schedule-outcome-mark">→</div><div><span>先完成发送窗口</span><strong>地区、开始日期、工作日和当地时间</strong><small>完成后这里会直接告诉你将安排多少封、覆盖多少个发送日。</small></div>`;
+      }
+    }
     const priorityTasks=selected.filter(task=>Scheduler.priorityRoundForTask?.(task)?.has);
     const prioritySchools=new Set(priorityTasks.map(task=>Scheduler.groupForTask(task).key)).size;
     const prioritySummary=$('nmda-schedule-priority-summary'),priorityButton=$('nmda-schedule-open-priority');
     const prioritySources=typeof rosterPlannerSources==='function'?rosterPlannerSources():[];
     if(prioritySummary)prioritySummary.textContent=priorityTasks.length?`${priorityTasks.length} 封已设置 R1/R2… · ${prioritySchools} 所学校；仅用于同校先后。`:(prioritySources.length?'未设置时按现有名单顺序排期；需要时再补 R1/R2…。':'未导入可编辑总名单；不设置优先级也可正常排期。');
-    if(priorityButton){priorityButton.textContent=priorityTasks.length?'调整优先级':'设置优先级';priorityButton.disabled=!prioritySources.length;priorityButton.title=prioritySources.length?'可选：设置同一学校内联系人先后':'未导入可编辑 XLSX 总名单；这不会阻止时间规划';}
+    if(priorityButton){priorityButton.textContent=priorityTasks.length?'调整优先级':'设置优先级';priorityButton.disabled=!prioritySources.length;priorityButton.title=prioritySources.length?'可选：设置同一学校内联系人先后':'未导入可编辑 XLSX 总名单；这不会阻止时间安排';}
     if(scheduleRulePreviewEl){
       const conflictText=conflictCount?` · ${conflictCount} 个同校时间冲突`:'';const externalText=externalConflictCount?` · ${externalConflictCount} 个与网易已有排期冲突`:'';const holidayText=holidayConflictCount?` · ${holidayConflictCount} 个已有时间不符合当前日历规则`:'';
       scheduleRulePreviewEl.textContent=`${scheduleRuleHumanText(rules)} · ${mailboxInfo}${conflictText}${externalText}${holidayText}`;
@@ -6831,7 +6879,12 @@
       const contextText=rosterCount?`已加入 ${rosterCount} 条参考名单；${schoolKnown} 封已有院校信息${priorityKnown?`，其中 ${priorityKnown} 封有明确顺序`:''}。`:`${schoolKnown} / ${selected.length} 封已有院校信息。`;
       scheduleContextCopy.textContent=`${contextText} 选择地区、工作日与当地时间后应用。`;
     }
-    if(scheduleApplyEl){scheduleApplyEl.disabled=batch.running||!selected.length;scheduleApplyEl.textContent=auto||unscheduled?'应用安排':'重新安排';}
+    if(scheduleApplyEl){
+      scheduleApplyEl.disabled=batch.running||!selected.length||!!previewError;
+      const main=scheduleApplyEl.querySelector('span');
+      if(main)main.textContent=previewPlan?.summary?.auto?`生成 ${previewPlan.summary.auto} 封邮件时间`:(auto||unscheduled?'生成本批时间':'重新计算时间');
+      if(scheduleApplyHintEl)scheduleApplyHintEl.textContent=previewError?'请先修正上方时间设置':previewPlan?`${previewPlan.summary.preserved?`保留 ${previewPlan.summary.preserved} 封 · `:''}${previewPlan.summary.scheduleDays||0} 个发送日`:'按上方规则自动安排';
+    }
     if(scheduleClearEl)scheduleClearEl.disabled=batch.running||!tasks.some(t=>t.scheduleSource==='auto'&&t.scheduleAt);
   }
 
@@ -8097,7 +8150,7 @@
     const executable = queue.filter(task => task.enabled && task.status === 'ready');
     if (!executable.length) { setBatchStatus('没有已选择且可创建的任务。请先在执行池中选择需要创建的草稿。', 'error'); return; }
     const staleScheduled=executable.filter(task=>task.scheduleAt && (Scheduler?.parseLocalDateTime?.(task.scheduleAt)?.getTime()||0) <= Date.now()+60*1000);
-    if(staleScheduled.length){setBatchStatus(`有 ${staleScheduled.length} 封邮件的定时时间已过。请先在“时间规划”中更新或清空。`,'error');return;}
+    if(staleScheduled.length){setBatchStatus(`有 ${staleScheduled.length} 封邮件的定时时间已过。请先在“时间安排”中更新或清空。`,'error');return;}
     const executableKeys = new Set(executable.map(task => task.editKey)); // freeze this dispatch run
     const mailTarget=await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL',focus:true});
     if(!mailTarget?.ok){setBatchStatus('无法打开网易邮箱页面，请先完成登录。','error');return;}

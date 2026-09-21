@@ -1491,3 +1491,220 @@
   #nmda-root .nmda-schedule-dialog .nmda-skip-range-inputs { grid-template-columns:1fr; }
   #nmda-root .nmda-schedule-dialog .nmda-skip-range-inputs > span { text-align:center; }
 }
+
+/* v3.8.83 — time arrangement guidance: make the scheduling decision path unmistakable. */
+#nmda-root .nmda-schedule-entry {
+  min-width:170px;
+  min-height:42px !important;
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  justify-items:start !important;
+  align-content:center !important;
+  gap:1px !important;
+  padding:6px 12px !important;
+  text-align:left !important;
+}
+#nmda-root .nmda-schedule-entry > span { font-size:12.5px; font-weight:760; line-height:1.15; }
+#nmda-root .nmda-schedule-entry > small { color:rgba(255,255,255,.8); font-size:9.5px; font-weight:620; line-height:1.15; }
+
+#nmda-root .nmda-time-plan-prompt {
+  min-height:64px;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:10px;
+  margin-top:8px;
+  padding:10px 11px;
+  border:1px solid #bcd3f2;
+  border-radius:11px;
+  background:linear-gradient(135deg,#f7fbff 0%,#eef6ff 100%);
+  box-shadow:inset 3px 0 0 #1769e0;
+}
+#nmda-root .nmda-time-plan-prompt-step {
+  min-width:48px;
+  min-height:26px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 8px;
+  border-radius:999px;
+  background:#1769e0;
+  color:#fff;
+  font-size:10px;
+  font-weight:780;
+}
+#nmda-root .nmda-time-plan-prompt > div { min-width:0; display:grid; gap:2px; }
+#nmda-root .nmda-time-plan-prompt > div strong { color:#183153; font-size:12.5px; }
+#nmda-root .nmda-time-plan-prompt > div span { color:#617188; font-size:10.8px; line-height:1.45; }
+#nmda-root .nmda-time-plan-prompt button {
+  min-height:34px;
+  padding:0 11px;
+  border:1px solid #1769e0;
+  border-radius:8px;
+  background:#1769e0;
+  color:#fff;
+  font-size:11px;
+  font-weight:740;
+  cursor:pointer;
+  white-space:nowrap;
+}
+#nmda-root .nmda-time-plan-prompt button.is-secondary { border-color:#cbd8e8; background:#fff; color:#53657a; }
+
+#nmda-root .nmda-schedule-dialog { width:min(940px,calc(100vw - 32px)) !important; }
+#nmda-root .nmda-schedule-dialog .nmda-schedule-dialog-body { gap:10px; }
+#nmda-root .nmda-schedule-guide {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);
+  align-items:stretch;
+  gap:7px;
+  margin-bottom:2px;
+}
+#nmda-root .nmda-schedule-guide > i { align-self:center; color:#a5b0bf; font-size:13px; font-style:normal; }
+#nmda-root .nmda-schedule-guide-step {
+  min-width:0;
+  min-height:54px;
+  display:grid;
+  grid-template-columns:28px minmax(0,1fr);
+  align-items:center;
+  gap:8px;
+  padding:8px 9px;
+  border:1px solid #e0e6ed;
+  border-radius:10px;
+  background:#fbfcfe;
+}
+#nmda-root .nmda-schedule-guide-step > b {
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#edf1f5;
+  color:#657286;
+  font-size:11px;
+}
+#nmda-root .nmda-schedule-guide-step > span { min-width:0; display:grid; gap:2px; }
+#nmda-root .nmda-schedule-guide-step strong { color:#334155; font-size:11.5px; }
+#nmda-root .nmda-schedule-guide-step small { color:#7b8796; font-size:9.5px; line-height:1.3; }
+#nmda-root .nmda-schedule-guide-step.is-done { border-color:#c8ddef; background:#f6fbff; }
+#nmda-root .nmda-schedule-guide-step.is-done > b { background:#dceeff; color:#1769e0; }
+#nmda-root .nmda-schedule-guide-step.is-active { border-color:#9fc3f4; background:#eef6ff; box-shadow:0 0 0 1px rgba(23,105,224,.06); }
+#nmda-root .nmda-schedule-guide-step.is-active > b { background:#1769e0; color:#fff; }
+#nmda-root .nmda-schedule-guide-step.is-warning { border-color:#efc78e; background:#fff9ef; }
+#nmda-root .nmda-schedule-guide-step.is-warning > b { background:#f8e7c9; color:#8a5a14; }
+
+#nmda-root .nmda-schedule-dialog-summary {
+  min-height:30px;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:4px;
+  padding:6px 9px;
+  border-radius:8px;
+  background:#f7f9fb;
+  color:#677487;
+}
+#nmda-root .nmda-schedule-dialog-summary strong { color:#26384f; }
+
+#nmda-root .nmda-schedule-outcome {
+  min-height:66px;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  align-items:center;
+  gap:10px;
+  padding:9px 11px;
+  border:1px solid #cbdced;
+  border-radius:11px;
+  background:#f8fbff;
+}
+#nmda-root .nmda-schedule-outcome[data-tone="ok"] { border-color:#b8d9c6; background:#f5fbf7; }
+#nmda-root .nmda-schedule-outcome[data-tone="warn"] { border-color:#e9c48e; background:#fffaf1; }
+#nmda-root .nmda-schedule-outcome-mark {
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+  background:#e6f0fd;
+  color:#1769e0;
+  font-size:15px;
+  font-weight:800;
+}
+#nmda-root .nmda-schedule-outcome[data-tone="ok"] .nmda-schedule-outcome-mark { background:#dff2e7; color:#26724b; }
+#nmda-root .nmda-schedule-outcome[data-tone="warn"] .nmda-schedule-outcome-mark { background:#f9e9cc; color:#956416; }
+#nmda-root .nmda-schedule-outcome > div:last-child { min-width:0; display:grid; gap:2px; }
+#nmda-root .nmda-schedule-outcome span { color:#6b7789; font-size:9.8px; font-weight:700; }
+#nmda-root .nmda-schedule-outcome strong { color:#22344c; font-size:12.5px; line-height:1.35; }
+#nmda-root .nmda-schedule-outcome small { color:#728094; font-size:10.3px; line-height:1.4; }
+
+#nmda-root .nmda-schedule-dialog .nmda-schedule-section-title {
+  grid-column:1 / -1;
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin-top:2px;
+  padding:7px 9px;
+  border-radius:9px;
+  background:#f4f8fd;
+}
+#nmda-root .nmda-schedule-dialog .nmda-schedule-section-title > span {
+  width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  border-radius:50%;
+  background:#1769e0;
+  color:#fff;
+  font-size:10px;
+  font-weight:800;
+}
+#nmda-root .nmda-schedule-dialog .nmda-schedule-section-title > div { min-width:0; display:grid; gap:1px; }
+#nmda-root .nmda-schedule-dialog .nmda-schedule-section-title strong { color:#2a3b52; font-size:11.5px; }
+#nmda-root .nmda-schedule-dialog .nmda-schedule-section-title small { color:#758296; font-size:9.8px; line-height:1.35; }
+#nmda-root .nmda-schedule-dialog .nmda-schedule-section-title-secondary { margin-top:5px; background:#f8f9fb; }
+#nmda-root .nmda-schedule-dialog .nmda-schedule-section-title-secondary > span { background:#69778a; }
+#nmda-root .nmda-schedule-dialog .nmda-label em {
+  display:inline-flex;
+  align-items:center;
+  min-height:17px;
+  margin-left:4px;
+  padding:0 5px;
+  border-radius:999px;
+  background:#e8f2ff;
+  color:#1769e0;
+  font-size:8.5px;
+  font-style:normal;
+  font-weight:760;
+  vertical-align:1px;
+}
+#nmda-root .nmda-schedule-dialog .nmda-check-card > span { display:grid; gap:2px; }
+#nmda-root .nmda-schedule-dialog .nmda-check-card small { color:#7a8797; font-size:9.5px; font-weight:500; line-height:1.35; }
+#nmda-root .nmda-schedule-rule-preview {
+  padding:8px 10px !important;
+  border:1px dashed #c9d6e5;
+  border-radius:9px;
+  background:#fafcff;
+  color:#64748b;
+}
+#nmda-root .nmda-schedule-apply {
+  min-width:190px;
+  min-height:42px !important;
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  justify-items:center !important;
+  align-content:center !important;
+  gap:1px !important;
+  padding:5px 13px !important;
+}
+#nmda-root .nmda-schedule-apply > span { font-size:12px; font-weight:780; line-height:1.15; }
+#nmda-root .nmda-schedule-apply > small { color:rgba(255,255,255,.78); font-size:9px; font-weight:560; line-height:1.15; }
+#nmda-root .nmda-schedule-apply:disabled > small { color:inherit; opacity:.72; }
+
+@media (max-width:820px) {
+  #nmda-root .nmda-time-plan-prompt { grid-template-columns:auto minmax(0,1fr); }
+  #nmda-root .nmda-time-plan-prompt button { grid-column:auto; }
+  #nmda-root .nmda-schedule-guide { grid-template-columns:1fr; }
+  #nmda-root .nmda-schedule-guide > i { display:none; }
+  #nmda-root .nmda-schedule-guide-step { min-height:48px; }
+}
