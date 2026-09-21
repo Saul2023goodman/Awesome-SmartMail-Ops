@@ -465,7 +465,7 @@ async function readDraftDetail(tabId, summary = {}) {
           }
           if (typeof item !== 'object') continue;
           const name = String(item.name || item.fileName || item.filename || item.displayName || '').trim();
-          const attachmentId = String(item.id || item.attachmentId || item.aid || item.partId || item.fileId || '').trim();
+          const attachmentId = String(item.id || item.attachmentId || item.aid || '').trim();
           const url = String(item.url || item.downloadUrl || item.href || '').trim();
           if (!name && !attachmentId) continue;
           const key = `${kind}|${attachmentId}|${name}`.toLowerCase(); if (seen.has(key)) continue; seen.add(key);
@@ -473,8 +473,10 @@ async function readDraftDetail(tabId, summary = {}) {
             name: name || `附件 ${attachmentId}`,
             size: Number(item.size || item.fileSize || item.length || 0) || 0,
             id: attachmentId,
+            partId: String(item.partId ?? item._part ?? '').trim(),
             url,
             contentType: String(item.contentType || item.type || '').trim(),
+            type: String(item.type || '').trim(),
             inlined: !!item.inlined,
             mixed: !!item.mixed,
             kind
@@ -538,7 +540,7 @@ async function readDraftDetail(tabId, summary = {}) {
 
       resolve({
         ok:true, id, subject, recipients, cc, bcc, body, bodyHtml, isHtml,
-        scheduleAt, savedAt, attachments,
+        scheduleAt, restoredScheduleAt:restoredSchedule, savedAt, attachments,
         scheduleEvidence: scheduledByList ? String(summaryArg?.scheduleEvidence || 'mailbox-list') : (restoredSchedule ? 'restoreDraft' : ''),
         account:String(direct.account || '').trim(),
         priority:Number(direct.priority || 0) || 0,
@@ -794,6 +796,36 @@ async function readDraftImport(tabId, requested = 300) {
 }
 
 
+async function scanDraftAttachments(tabId) {
+  const listing = await readMailbox(tabId, 2, -1, 0);
+  if (!listing?.ok) return { ok:false, reason:listing?.reason || '读取草稿箱失败', listing };
+  const summaries = Array.isArray(listing.messages) ? listing.messages : [];
+  const details = new Array(summaries.length);
+  let cursor = 0;
+  const workerCount = Math.min(6, Math.max(1, summaries.length));
+  async function worker() {
+    while (cursor < summaries.length) {
+      const index = cursor++;
+      const summary = summaries[index];
+      try { details[index] = await readDraftDetail(tabId, summary); }
+      catch (error) { details[index] = { ok:false, id:summary?.id || '', reason:error?.message || String(error) }; }
+    }
+  }
+  await Promise.all(Array.from({length:workerCount}, worker));
+  const drafts = summaries.map((summary,index) => ({ ...summary, ...(details[index] || {}), summary }));
+  return {
+    ok:true,
+    uid:listing.uid || '',
+    total:listing.total || summaries.length,
+    read:summaries.length,
+    complete:!!listing.complete,
+    truncated:!!listing.truncated,
+    drafts,
+    failures:details.filter(item => item && item.ok === false).length
+  };
+}
+
+
 const APP_URL = chrome.runtime.getURL('app.html');
 
 const MAIL_URL = 'https://mail.163.com/';
@@ -987,6 +1019,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!tabId) return { ok:false, reason:'mailbox-not-connected' };
 
     if (message?.type === 'NMDA_EXECUTE_DRAFT') {
+      await waitForExecutor(tabId);
+      return chrome.tabs.sendMessage(tabId, message);
+    }
+    if (message?.type === 'NMDA_DRAFT_ATTACHMENT_SEED') {
       await waitForExecutor(tabId);
       return chrome.tabs.sendMessage(tabId, message);
     }
@@ -1239,54 +1275,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         } catch (error) { return {ok:false,reason:error?.message||String(error)}; }
       }, [message.identity || {}]);
     }
-    if (message?.type === 'NMDA_FAST_ATTACHMENT_BIND') {
-      return runMain(tabId, (identityArg, sourcesArg) => new Promise(resolve => {
-        try {
-          const identity=identityArg||{};
-          const targetName=String(identity.name||'');
-          const group=window.$?.JS?.modules?.['compose.ComposeModule']||{};
-          const target=Object.values(group).filter(Boolean).find(mod=>String(mod?.name||'')===targetName)
-            || (String(window.$?.Context?.module?.mtype||'')==='compose.ComposeModule'?window.$.Context.module:null);
-          if(!target)return resolve({ok:false,reason:'compose-module-not-found',accepted:[],rejected:(sourcesArg||[]).map(item=>String(item?.assetKey||''))});
-          if(typeof target.action?.syncAttach!=='function')return resolve({ok:false,reason:'compose-syncAttach-unavailable',accepted:[],rejected:(sourcesArg||[]).map(item=>String(item?.assetKey||''))});
-          if(typeof target.attach?.storageAdd!=='function')return resolve({ok:false,reason:'compose-storageAdd-unavailable',accepted:[],rejected:(sourcesArg||[]).map(item=>String(item?.assetKey||''))});
-          const requested=(Array.isArray(sourcesArg)?sourcesArg:[]).map(item=>({
-            assetKey:String(item?.assetKey||''),name:String(item?.name||''),size:Number(item?.size||0),mid:String(item?.mid||''),part:String(item?.part||'')
-          })).filter(item=>item.assetKey&&item.name&&item.mid&&item.part);
-          if(!requested.length)return resolve({ok:true,accepted:[],rejected:[]});
-          const normalizeId=value=>{const raw=String(value||'');return raw.includes(':')?raw.split(':').pop():raw;};
-          const body=requested.map(item=>({type:'internal',_mid:item.mid,_part:item.part,name:item.name,size:item.size}));
-          let settled=false;
-          const timer=setTimeout(()=>{if(!settled){settled=true;resolve({ok:false,reason:'fast-attachment-bind-timeout',accepted:[],rejected:requested.map(item=>item.assetKey)});}},9000);
-          target.action.syncAttach({attachments:body,callback(response){
-            if(settled)return;
-            settled=true;clearTimeout(timer);
-            try{
-              const success=window.$?.S_OK;
-              if(response?.code!==undefined && success!==undefined && response.code!==success){
-                return resolve({ok:false,reason:`mbox:compose continue code=${String(response.code)}`,accepted:[],rejected:requested.map(item=>item.assetKey)});
-              }
-              const returned=Array.isArray(response?.var?.attachments)?response.var.attachments:[];
-              const acceptedRemote=[];const accepted=[];const rejected=[];
-              for(const req of requested){
-                const hit=returned.find(item=>{
-                  if(!item||item.deleted||String(item.type||'')!=='internal')return false;
-                  if(String(item.name||item.fileName||'')!==req.name)return false;
-                  const remoteMid=normalizeId(item._mid||item.mid||'');
-                  if(remoteMid!==normalizeId(req.mid))return false;
-                  const remoteSize=Number(item.size||0);
-                  return !req.size||!remoteSize||Math.abs(remoteSize-req.size)<100;
-                });
-                if(hit){accepted.push(req.assetKey);acceptedRemote.push(hit);}else rejected.push(req.assetKey);
-              }
-              if(acceptedRemote.length)target.attach.storageAdd(acceptedRemote);
-              return resolve({ok:true,method:'mbox:compose-continue-internal',accepted,rejected,count:accepted.length});
-            }catch(error){return resolve({ok:false,reason:error?.message||String(error),accepted:[],rejected:requested.map(item=>item.assetKey)});}
-          }});
-        }catch(error){resolve({ok:false,reason:error?.message||String(error),accepted:[],rejected:(sourcesArg||[]).map(item=>String(item?.assetKey||''))});}
-      }),[message.identity||{},message.sources||[]]);
-    }
-    if (message?.type === 'NMDA_FAST_ATTACHMENT_EXPORT_SOURCE') {
+    if (message?.type === 'NMDA_DRAFT_ATTACHMENT_EXPORT_SOURCE') {
       return runMain(tabId, (identityArg, expectedArg) => new Promise(resolve => {
         try{
           const identity=identityArg||{};
@@ -1345,6 +1334,122 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }),[message.identity||{},message.expected||[]]);
     }
 
+    if (message?.type === 'NMDA_DRAFT_ATTACHMENT_MUTATE') {
+      const draftId = String(message.draftId || '').trim();
+      const deleteIds = [...new Set((Array.isArray(message.deleteIds) ? message.deleteIds : []).map(value => String(value || '').trim()).filter(Boolean))];
+      const source = message.source || null;
+      if (!draftId) return {ok:false,reason:'draft-id-missing'};
+
+      // Read the draft before mutation so the verification is about preservation of the
+      // actual mailbox object, not merely the attachment delta requested by SmartMail.
+      const baseline = await readDraftDetail(tabId, { ...(message.summary || {}), id:draftId });
+      if (!baseline?.ok) return {ok:false,reason:baseline?.reason || 'draft-baseline-read-failed'};
+
+      const mutation = await runMain(tabId, (draftIdArg, deleteIdsArg, sourceArg) => new Promise(resolve => {
+        try {
+          if (!window.$?.DataAction) return resolve({ok:false,reason:'$.DataAction unavailable'});
+          const attachments = (deleteIdsArg || []).map(id => ({id:String(id),deleted:true}));
+          if (sourceArg?.mid && sourceArg?.part) attachments.push({
+            type:'internal',
+            _mid:String(sourceArg.mid),
+            _part:String(sourceArg.part),
+            name:String(sourceArg.name || ''),
+            size:Number(sourceArg.size || 0)
+          });
+          if (!attachments.length) return resolve({ok:false,reason:'attachment-mutation-empty'});
+          const action = new window.$.DataAction();
+          action.wmsvr({
+            func:'mbox:compose',
+            body:{id:String(draftIdArg),action:'continue',returnInfo:true,attrs:{attachments}},
+            call(response){
+              try {
+                const success=window.$?.S_OK;
+                if(response?.code!==undefined && success!==undefined && response.code!==success){
+                  return resolve({ok:false,reason:`mbox:compose continue code=${String(response.code)}`,code:response.code});
+                }
+                const returned=Array.isArray(response?.var?.attachments)?response.var.attachments:[];
+                resolve({ok:true,code:response?.code,returned,count:returned.length});
+              } catch(error){ resolve({ok:false,reason:error?.message||String(error)}); }
+            },
+            error(error){ resolve({ok:false,reason:error?.message||error?.code||'mbox:compose continue failed'}); },
+            ignoreError:true
+          });
+        } catch(error){ resolve({ok:false,reason:error?.message||String(error)}); }
+      }), [draftId, deleteIds, source]);
+      if (!mutation?.ok) return mutation;
+
+      const normalizeComparable = value => String(value ?? '').replace(/\r\n?/g,'\n').trim();
+      const sameMinute = (a,b) => {
+        const left=String(a||'').trim(), right=String(b||'').trim();
+        if (!left && !right) return true;
+        if (!left || !right) return false;
+        const la=Date.parse(left), rb=Date.parse(right);
+        return Number.isFinite(la)&&Number.isFinite(rb) ? Math.abs(la-rb)<60000 : left===right;
+      };
+      const preserved = detail => {
+        if (!detail?.ok) return {ok:false,fields:['read']};
+        const fields=[];
+        if (normalizeComparable(detail.subject)!==normalizeComparable(baseline.subject)) fields.push('subject');
+        if (normalizeComparable(detail.recipients)!==normalizeComparable(baseline.recipients)) fields.push('recipients');
+        if (normalizeComparable(detail.cc)!==normalizeComparable(baseline.cc)) fields.push('cc');
+        if (normalizeComparable(detail.bcc)!==normalizeComparable(baseline.bcc)) fields.push('bcc');
+        if (!!detail.isHtml!==!!baseline.isHtml) fields.push('isHtml');
+        if (normalizeComparable(detail.bodyHtml)!==normalizeComparable(baseline.bodyHtml)) fields.push('body');
+        // restoreDraft.scheduleDate is the direct compose-model value. For scheduled drafts
+        // the mailbox-list sentDate remains authoritative and is rechecked again after the batch.
+        if (baseline.restoredScheduleAt && !sameMinute(detail.restoredScheduleAt, baseline.restoredScheduleAt)) fields.push('schedule');
+        return {ok:fields.length===0,fields};
+      };
+
+      let detail = null;
+      let preservation = {ok:false,fields:['read']};
+      for (let attempt=0; attempt<4; attempt++) {
+        if (attempt) await new Promise(resolve => setTimeout(resolve, 180 * attempt));
+        detail = await readDraftDetail(tabId, { ...(message.summary || {}), id:draftId });
+        if (!detail?.ok) continue;
+        const attachments = Array.isArray(detail.attachments) ? detail.attachments : [];
+        const oldGone = deleteIds.every(id => !attachments.some(item => String(item?.id || '') === id));
+        const newPresent = !source || attachments.some(item => {
+          const sameName = String(item?.name || '').trim() === String(source.name || '').trim();
+          const a = Number(item?.size || 0), b = Number(source.size || 0);
+          return sameName && (!a || !b || Math.abs(a-b) < 100);
+        });
+        preservation = preserved(detail);
+        if (oldGone && newPresent && preservation.ok) {
+          return { ...mutation, verified:true, preserved:true, preservedFields:['subject','recipients','cc','bcc','body','schedule'], detail };
+        }
+      }
+      return {
+        ...mutation,
+        verified:false,
+        preserved:preservation.ok,
+        preservationFailures:preservation.fields,
+        reason:preservation.ok?'draft-mutation-verification-failed':`draft-content-changed:${preservation.fields.join(',')}`,
+        detail
+      };
+    }
+    if (message?.type === 'NMDA_DELETE_DRAFT') {
+      const draftId = String(message.draftId || '').trim();
+      if (!draftId) return {ok:false,reason:'draft-id-missing'};
+      return runMain(tabId, draftIdArg => new Promise(resolve => {
+        try {
+          if (!window.$?.DataAction) return resolve({ok:false,reason:'$.DataAction unavailable'});
+          const action = new window.$.DataAction();
+          action.wmsvr({
+            func:'mbox:deleteMessages',
+            body:{id:String(draftIdArg)},
+            call(response){
+              const success=window.$?.S_OK;
+              resolve(response?.code===undefined || success===undefined || response.code===success
+                ? {ok:true,code:response?.code}
+                : {ok:false,reason:`mbox:deleteMessages code=${String(response.code)}`,code:response.code});
+            },
+            error(error){resolve({ok:false,reason:error?.message||error?.code||'mbox:deleteMessages failed'});},
+            ignoreError:true
+          });
+        } catch(error){resolve({ok:false,reason:error?.message||String(error)});}
+      }), [draftId]);
+    }
     if (message?.type === 'NMDA_CLOSE_COMPOSE') {
       return runMain(tabId, identityArg => new Promise(resolve => {
         try {
@@ -1444,6 +1549,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_READ_MAILBOX_STATE') return readMailboxState(tabId, message.mode === 'full' ? 'full' : 'quick', message.historyMonths);
     if (message?.type === 'NMDA_READ_DEDUPE_HISTORY') return readDedupeHistory(tabId, message.historyMonths);
     if (message?.type === 'NMDA_READ_SCHEDULED_DRAFTS') return readScheduledDraftAnchors(tabId, message.historyMonths);
+    if (message?.type === 'NMDA_SCAN_DRAFT_ATTACHMENTS') return scanDraftAttachments(tabId);
     if (message?.type === 'NMDA_READ_SENT_DETAILS') return readSentDetails(tabId, message.messageIds || []);
     if (message?.type === 'NMDA_IMPORT_DRAFTS') return readDraftImport(tabId,message.limit ?? 300);
     return {ok:false,reason:'unknown-message'};

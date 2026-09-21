@@ -68,7 +68,7 @@
     return port;
   }
 
-  async function prepareRuntimeFileRefs(files, reuseCounts = null) {
+  async function prepareRuntimeFileRefs(files) {
     const refs = [];
     if ((files || []).length) ensureRuntimeFileSourcePort();
     for (const file of files || []) {
@@ -76,7 +76,7 @@
       const id = crypto.randomUUID();
       const assetKey=String(Importer?.fileIdentity?.(file) || `${file.name}|${file.size}|${file.lastModified}`);
       runtimeExecutionFiles.set(id, file);
-      refs.push({ id, assetKey, reuseCount:Math.max(1,Number(reuseCounts?.get?.(assetKey)||1)), name:String(file.name||'attachment'), size:Number(file.size||0), type:String(file.type||'application/octet-stream'), lastModified:Number(file.lastModified||Date.now()) });
+      refs.push({ id, assetKey, name:String(file.name||'attachment'), size:Number(file.size||0), type:String(file.type||'application/octet-stream'), lastModified:Number(file.lastModified||Date.now()) });
     }
     if (refs.length) await sleep(20);
     return refs;
@@ -87,16 +87,16 @@
   }
 
 
-  async function executeDraftRemotely(task, { fresh = true, pauseEveryTime = false, ensureParagraphSpacing = true, fastCompose = false, fastAttachments = false, attachmentSessionId = '', attachmentUseCounts = null, onProgress = () => {} } = {}) {
+  async function executeDraftRemotely(task, { fresh = true, pauseEveryTime = false, ensureParagraphSpacing = true, fastCompose = false, onProgress = () => {} } = {}) {
     const executionId = crypto.randomUUID();
-    const refs = await prepareRuntimeFileRefs(task.files || [], attachmentUseCounts);
+    const refs = await prepareRuntimeFileRefs(task.files || []);
     executionProgressHandlers.set(executionId, onProgress);
     try {
       const connection = await chrome.runtime.sendMessage({ type: 'NMDA_CONNECTION_STATUS' });
       if (!connection?.connected) throw new Error('没有检测到已打开的网易邮箱。请先点击右上角“打开网易邮箱”并完成登录。');
       if (!connection?.authenticated) throw new Error('网易邮箱页面已打开，但尚未检测到登录账号。请先完成登录。');
       const result = await chrome.runtime.sendMessage({
-        type: 'NMDA_EXECUTE_DRAFT', executionId, fresh, pauseEveryTime: !!pauseEveryTime, fastCompose: !!fastCompose, fastAttachments: !!fastAttachments, attachmentSessionId:String(attachmentSessionId || ''),
+        type: 'NMDA_EXECUTE_DRAFT', executionId, fresh, pauseEveryTime: !!pauseEveryTime, fastCompose: !!fastCompose,
         task: {
           recipients: task.recipients || '', cc: task.cc || '', bcc: task.bcc || '',
           subject: task.subject || '', body: task.body || '',
@@ -908,7 +908,6 @@
                 <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备转到网易邮箱执行</strong><div class="nmda-create-preflight" id="nmda-create-preflight">确认本次范围与排期后，真实创建过程将在网易邮箱页面显示。</div></div></div>
                 <label class="nmda-execution-mode" title="写入真实 163 Compose 时，确保相邻正文段落之间至少保留一个空行；不会改写工作台里的正文源数据"><input id="nmda-compose-paragraph-spacing" type="checkbox" checked><span>段落间留空行</span></label>
                 <label class="nmda-execution-mode nmda-execution-mode-fast" title="实验性高速路径：直接调用网易 Compose 原生 form / editor / schedule / send 内核，跳过逐字段 DOM 操作；能力不满足时自动回退标准模式。"><input id="nmda-fast-compose" type="checkbox"><span>极速 Compose</span></label>
-                <button class="nmda-execution-mode nmda-execution-mode-fast nmda-fast-attachments-dispatch-link" id="nmda-fast-attachments-dispatch-link" type="button" title="在“实用功能 → 极速附件”中管理批量附件替换与服务器复用"><span id="nmda-fast-attachments-dispatch-state">极速附件 · 标准</span></button>
                 <label class="nmda-execution-mode" title="每封邮件填写完成后暂停，人工检查后再保存"><input id="nmda-pause-every-time" type="checkbox"><span>每封填写后暂停</span></label>
                 <button class="nmda-btn nmda-btn-primary nmda-mail-handoff-action" id="nmda-batch-start" type="button">前往网易邮箱并创建所选草稿</button>
                 <button id="nmda-batch-stop" type="button" hidden disabled>当前封后停止</button>
@@ -1059,10 +1058,10 @@
                   <span class="nmda-utility-card-main"><small>MAIL MONITORING</small><strong>邮件监测</strong><span>读取已发送、草稿与回复事实，维护 Follow-up 资格与到期任务。</span></span>
                   <span class="nmda-utility-card-foot"><b id="nmda-utility-monitor-meta">回复 · Follow-up</b><i>打开 →</i></span>
                 </button>
-                <button class="nmda-utility-card is-live is-fast" type="button" data-open-utility="fast-attachments">
+                <button class="nmda-utility-card is-live is-attachment-update" type="button" data-open-utility="draft-attachments">
                   <span class="nmda-utility-card-icon" aria-hidden="true">A</span>
-                  <span class="nmda-utility-card-main"><small>FAST ATTACHMENTS</small><strong>极速附件</strong><span>批量替换当前批次附件；相同资产首次上传后，后续邮件优先服务器侧复用。</span></span>
-                  <span class="nmda-utility-card-foot"><b id="nmda-utility-fast-attachment-meta">等待批次</b><i>打开 →</i></span>
+                  <span class="nmda-utility-card-main"><small>DRAFT ATTACHMENT UPDATE</small><strong>极速附件</strong><span>批量更新网易草稿箱中的旧附件；正文、收件人、主题与原排期保持不变。</span></span>
+                  <span class="nmda-utility-card-foot"><b id="nmda-utility-draft-attachment-meta">读取草稿箱</b><i>打开 →</i></span>
                 </button>
                 <article class="nmda-utility-card is-placeholder" aria-label="待开发功能">
                   <span class="nmda-utility-card-icon" aria-hidden="true">+</span>
@@ -1180,42 +1179,44 @@
               </div>
             </section>
 
-            <section class="nmda-utility-workspace nmda-fast-attachment-workspace" data-utility-workspace="fast-attachments" hidden>
+            <section class="nmda-utility-workspace nmda-draft-attachment-workspace" data-utility-workspace="draft-attachments" hidden>
               <header class="nmda-utility-workspace-head">
                 <button class="nmda-utility-back" type="button" data-utility-back>← 实用功能</button>
-                <div><small>FAST ATTACHMENTS</small><strong>极速附件</strong><span>批量重建当前批次的附件方案，并把重复上传压缩成网易服务器侧复用。</span></div>
-                <label class="nmda-fast-attachment-master-switch"><input id="nmda-fast-attachments" type="checkbox"><span><strong>启用极速复用</strong><small>执行时自动使用 internal attachment；失败仅降级该附件。</small></span></label>
+                <div><small>DRAFT ATTACHMENT UPDATE</small><strong>极速附件</strong><span>直接更新网易草稿箱中的旧附件，不重建邮件，也不改正文、收件人、主题或原排期。</span></div>
+                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-draft-attachment-refresh" type="button">重新读取草稿箱</button>
               </header>
 
-              <div class="nmda-fast-attachment-overview" id="nmda-fast-attachment-overview">
-                <article><small>当前任务</small><strong id="nmda-fast-attachment-task-count">0</strong><span>封邮件</span></article>
-                <article><small>附件资产</small><strong id="nmda-fast-attachment-asset-count">0</strong><span>个文件</span></article>
-                <article><small>可复用</small><strong id="nmda-fast-attachment-reuse-count">0</strong><span>个资产</span></article>
-                <article><small>预计减少</small><strong id="nmda-fast-attachment-save-count">0</strong><span>次重复上传</span></article>
+              <div class="nmda-draft-attachment-overview">
+                <article><small>草稿箱</small><strong id="nmda-draft-attachment-draft-count">0</strong><span>封已读取</span></article>
+                <article><small>含附件</small><strong id="nmda-draft-attachment-mail-count">0</strong><span>封草稿</span></article>
+                <article><small>附件版本</small><strong id="nmda-draft-attachment-version-count">0</strong><span>组旧附件</span></article>
+                <article><small>当前影响</small><strong id="nmda-draft-attachment-target-count">0</strong><span>封待更新</span></article>
               </div>
 
-              <section class="nmda-fast-attachment-replace-card">
-                <div class="nmda-fast-attachment-replace-copy"><small>BATCH REPLACE</small><strong>批量替换附件方案</strong><span>把新文件作为当前批次的共享附件。选择“替换”会清空现有附件方案；不会立刻修改网易中的真实邮件，执行时才写入。</span></div>
-                <input id="nmda-fast-attachment-tool-files" type="file" multiple hidden>
-                <div class="nmda-fast-attachment-drop" id="nmda-fast-attachment-drop" role="button" tabindex="0">
-                  <span class="nmda-fast-attachment-drop-mark" aria-hidden="true">⇧</span>
-                  <span><strong>拖入新的附件</strong><small>或点击选择多个文件；同一文件被多封邮件使用时自动进入极速复用链。</small></span>
-                  <b>选择文件</b>
-                </div>
-                <div class="nmda-fast-attachment-pending" id="nmda-fast-attachment-pending" hidden></div>
-                <div class="nmda-fast-attachment-actions">
-                  <button class="nmda-btn nmda-btn-primary" id="nmda-fast-attachment-replace-all" type="button" disabled>替换当前批次全部附件</button>
-                  <button class="nmda-btn" id="nmda-fast-attachment-add-all" type="button" disabled>追加为共享附件</button>
-                  <button class="nmda-btn nmda-btn-quiet" id="nmda-fast-attachment-clear-pending" type="button" disabled>清除待加入文件</button>
-                </div>
-                <div class="nmda-fast-attachment-result" id="nmda-fast-attachment-result" hidden></div>
-              </section>
+              <div class="nmda-draft-attachment-layout">
+                <section class="nmda-draft-attachment-browser">
+                  <header><div><small>EXISTING ATTACHMENTS</small><strong>草稿箱中的附件</strong><span>按文件名与大小区分版本。选择你要淘汰的旧版本。</span></div><input id="nmda-draft-attachment-search" type="search" placeholder="搜索附件名"></header>
+                  <div class="nmda-draft-attachment-groups" id="nmda-draft-attachment-groups"></div>
+                  <div class="nmda-draft-attachment-empty" id="nmda-draft-attachment-empty">正在读取草稿箱…</div>
+                </section>
 
-              <section class="nmda-fast-attachment-plan-card">
-                <header><div><small>CURRENT PLAN</small><strong>当前附件方案</strong><span>范围仍由 SmartMail 的附件策略控制；需要逐封指定时可进入精确配置。</span></div><button class="nmda-btn nmda-btn-small" id="nmda-fast-attachment-precise" type="button">精确配置范围</button></header>
-                <div class="nmda-fast-attachment-plan-list" id="nmda-fast-attachment-tool-list"></div>
-                <div class="nmda-fast-attachment-plan-empty" id="nmda-fast-attachment-tool-empty">当前批次没有附件。</div>
-              </section>
+                <section class="nmda-draft-attachment-replace">
+                  <header><div><small>REPLACEMENT PLAN</small><strong id="nmda-draft-attachment-plan-title">选择一个旧附件版本</strong><span id="nmda-draft-attachment-plan-copy">系统会列出所有包含该旧附件的草稿。</span></div></header>
+                  <div class="nmda-draft-attachment-targets" id="nmda-draft-attachment-targets"></div>
+                  <input id="nmda-draft-attachment-file" type="file" hidden>
+                  <button class="nmda-draft-attachment-drop" id="nmda-draft-attachment-drop" type="button" disabled>
+                    <span class="nmda-draft-attachment-drop-mark" aria-hidden="true">⇧</span>
+                    <span><strong id="nmda-draft-attachment-new-name">选择新版附件</strong><small id="nmda-draft-attachment-new-meta">只上传一次，随后直接在目标草稿上做服务器侧替换。</small></span>
+                    <b>选择文件</b>
+                  </button>
+                  <div class="nmda-draft-attachment-safety"><strong>原地更新</strong><span>目标草稿只修改附件集合；SmartMail 会逐封回读验证旧附件已删除、新附件已存在，并确认原定时状态没有变化。</span></div>
+                  <div class="nmda-draft-attachment-progress" id="nmda-draft-attachment-progress" hidden></div>
+                  <div class="nmda-draft-attachment-actions">
+                    <button class="nmda-btn nmda-btn-primary" id="nmda-draft-attachment-run" type="button" disabled>更新选中的草稿</button>
+                  </div>
+                  <div class="nmda-draft-attachment-result" id="nmda-draft-attachment-result" hidden></div>
+                </section>
+              </div>
             </section>
           </section>
 
@@ -2253,18 +2254,20 @@
   }
 
   let activeUtilityView = 'home';
-  let fastAttachmentToolPendingFiles = [];
-  let fastAttachmentToolReplaceTarget = '';
+  const draftAttachmentTool = {
+    drafts: [], groups: [], selectedKey: '', selectedDraftIds: new Set(), replacementFile: null,
+    loading: false, running: false, scanned: false, complete: false, truncated: false, search: '', lastScanAt: ''
+  };
 
   function setUtilityView(view='home', options={}) {
-    const normalized=['home','monitor','fast-attachments'].includes(view)?view:'home';
+    const normalized=['home','monitor','draft-attachments'].includes(view)?view:'home';
     activeUtilityView=normalized;
     const pane=ui.querySelector('[data-pane="utilities"]');
     if(pane)pane.dataset.utilityView=normalized;
     const home=$('nmda-utilities-home');if(home)home.hidden=normalized!=='home';
     ui.querySelectorAll('[data-utility-workspace]').forEach(section=>{section.hidden=section.dataset.utilityWorkspace!==normalized;});
     if(normalized==='monitor')requestAnimationFrame(()=>{void loadMonitoring();});
-    if(normalized==='fast-attachments')requestAnimationFrame(()=>renderFastAttachmentUtility());
+    if(normalized==='draft-attachments')requestAnimationFrame(()=>{ if(!draftAttachmentTool.scanned&&!draftAttachmentTool.loading) void scanDraftAttachmentTool(); else renderDraftAttachmentTool(); });
     if(options.syncHash!==false){
       const target=normalized==='home'?'#utilities':`#utilities/${normalized}`;
       if(location.hash!==target)history.replaceState(null,'',target);
@@ -2382,7 +2385,7 @@
     if (name === 'batch' && viewPerf.batchDirty) scheduleBatchRender();
     if (name === 'review') requestAnimationFrame(() => { if(reviewInlineEl)reviewInlineEl.hidden=false; void (async()=>{ await ensureOperationStore(); renderReviewPageOverview(); })(); });
     if (name === 'dispatch') requestAnimationFrame(() => { void (async()=>{ await ensureOperationStore(); scheduleBatchRender({aux:false,force:true}); })(); });
-    if (name === 'utilities') requestAnimationFrame(() => { renderUtilityHubSummary(); if(activeUtilityView==='monitor')void loadMonitoring(); else if(activeUtilityView==='fast-attachments')renderFastAttachmentUtility(); });
+    if (name === 'utilities') requestAnimationFrame(() => { renderUtilityHubSummary(); if(activeUtilityView==='monitor')void loadMonitoring(); else if(activeUtilityView==='draft-attachments'){ if(!draftAttachmentTool.scanned&&!draftAttachmentTool.loading) void scanDraftAttachmentTool(); else renderDraftAttachmentTool(); } });
     if(name==='batch' && batch?.dataset && !mailboxDedupeSnapshotAvailable()) scheduleMailboxAutoSync('history',{source:'batch'});
     else scheduleMailboxAutoSync('quick',{source:`tab:${name}`});
   }
@@ -2412,7 +2415,7 @@
   const batch = {
     dataset: null, collectionIndex: 0, collectionConfigs: new Map(), detection: null, mapping: {}, tasks: [],
     directoryFiles: [], taskFiles: [], routedAttachmentFiles: [], fileIndex: Importer?.buildFileIndex?.([]),
-    attachmentOverrides: new Map(), attachmentPolicies: new Map(), attachmentTargetEditing:'', attachmentTargetSearch:'', taskEdits: new Map(), running: false, stopRequested: false, pauseEveryTime: false, composeParagraphSpacing: true, fastCompose: false, fastAttachments: false, attachmentSessionId:'',
+    attachmentOverrides: new Map(), attachmentPolicies: new Map(), attachmentTargetEditing:'', attachmentTargetSearch:'', taskEdits: new Map(), running: false, stopRequested: false, pauseEveryTime: false, composeParagraphSpacing: true, fastCompose: false,
     importMeta: null,
     sessionId: 0, importBusy: false, schedulePlan: null, existingScheduleAnchors: [], existingScheduleReadAt: '', existingScheduleStatus: 'idle', existingScheduleError: '',
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, weekdays:[4], localTime:'07:30', timeZone:'system', preserveExisting:true, includeMailboxScheduled:true, intraRoundMinutes:10, skipHolidays:true }), startDate: Scheduler?.defaultStartDate?.(new Date(),'system') || '', localTime: Scheduler?.defaultLocalTime?.() || '07:30' },
@@ -2624,7 +2627,7 @@
   const draftImportEl = $('nmda-import-drafts'), preSendMatchFilesEl = $('nmda-pre-send-match-files'), preSendSharedFilesEl = $('nmda-pre-send-shared-files');
   const previewBodyEl = $('nmda-preview-body'), batchSummaryEl = $('nmda-batch-summary'), batchStatusEl = $('nmda-batch-status'), importStatusEl = $('nmda-import-status');
   const planningOverviewEl = $('nmda-planning-overview');
-  const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time'), batchParagraphSpacingEl = $('nmda-compose-paragraph-spacing'), batchFastComposeEl = $('nmda-fast-compose'), batchFastAttachmentsEl = $('nmda-fast-attachments');
+  const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time'), batchParagraphSpacingEl = $('nmda-compose-paragraph-spacing'), batchFastComposeEl = $('nmda-fast-compose');
   const scheduleStartDateEl = $('nmda-rule-start-date'), scheduleLocalTimeEl = $('nmda-rule-local-time'), scheduleTimeZoneEl = $('nmda-rule-time-zone'), scheduleWeekdayEls = [...ui.querySelectorAll('[data-schedule-weekday]')], scheduleSkipStartEl = $('nmda-rule-skip-start'), scheduleSkipEndEl = $('nmda-rule-skip-end'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleMailboxExistingEl = $('nmda-rule-include-mailbox-scheduled'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
   const scheduleApplyEl = $('nmda-apply-schedule'), scheduleApplyHintEl=$('nmda-apply-schedule-hint'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleOutcomeEl=$('nmda-schedule-outcome'), scheduleGuideEl=$('nmda-schedule-guide'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
   const rosterPlannerViewEl=$('nmda-roster-planner-view'), rosterPlannerSourceEl=$('nmda-roster-planner-source'), rosterPlannerSummaryEl=$('nmda-roster-planner-summary'), rosterVisualGroupsEl=$('nmda-roster-visual-groups'), rosterSheetViewportEl=$('nmda-roster-sheet-viewport'), rosterSheetTableEl=$('nmda-roster-sheet-table'), rosterSelectionMiniEl=$('nmda-roster-selection-mini'), rosterColumnFocusEl=$('nmda-roster-column-focus'), rosterColumnToggleEl=$('nmda-roster-column-toggle'), rosterSelectionLabelEl=$('nmda-roster-selection-label'), rosterSelectionDetailEl=$('nmda-roster-selection-detail'), rosterActiveBatchEl=$('nmda-roster-active-batch'), rosterActiveBatchLabelEl=$('nmda-roster-active-batch-label'), rosterBatchAddEl=$('nmda-roster-batch-add'), rosterBatchCreateEl=$('nmda-roster-batch-create'), rosterBatchClearEl=$('nmda-roster-batch-clear'), rosterIntentSummaryEl=$('nmda-roster-intent-summary');
@@ -2656,18 +2659,6 @@
   }
   batch.fastCompose = loadFastComposePref();
   if (batchFastComposeEl) batchFastComposeEl.checked = batch.fastCompose;
-  const FAST_ATTACHMENTS_PREF_KEY = 'nmda.attachments.fastReuse.v1';
-  function loadFastAttachmentsPref() {
-    try { return localStorage.getItem(FAST_ATTACHMENTS_PREF_KEY) === 'true'; }
-    catch (_) { return false; }
-  }
-  function saveFastAttachmentsPref(enabled) {
-    try { localStorage.setItem(FAST_ATTACHMENTS_PREF_KEY, enabled === true ? 'true' : 'false'); }
-    catch (_) {}
-  }
-  batch.fastAttachments = loadFastAttachmentsPref();
-  if (batchFastAttachmentsEl) batchFastAttachmentsEl.checked = batch.fastAttachments;
-  renderFastAttachmentUtility();
 
   const SCHEDULE_PREFS_KEY = 'nmda.schedule.rules.v1';
   function loadScheduleRulePrefs() {
@@ -3631,83 +3622,215 @@
     list?.querySelectorAll('[data-attachment-target-config]').forEach(button=>button.addEventListener('click',()=>{batch.attachmentTargetEditing=decodeURIComponent(button.dataset.attachmentTargetConfig||'');batch.attachmentTargetSearch='';renderAttachmentAssetViews();}));
     req?.querySelectorAll('select[data-attachment-ref]').forEach(select=>select.addEventListener('change',()=>{const file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===select.value);if(file)batch.attachmentOverrides.set(select.dataset.attachmentRef,file);else batch.attachmentOverrides.delete(select.dataset.attachmentRef);rebuildTasks();renderAttachmentAssetViews();}));
     renderAttachmentTargetEditor();
-    renderFastAttachmentUtility();
     renderBatchPrepStrip();
     renderProcessGuide();
     syncModalState();
   }
 
-  function fastAttachmentUtilityStats(){
-    const tasks=(batch.tasks||[]).filter(task=>!task.policyBlocked);
-    const entries=attachmentAssetEntries();
-    const reusable=entries.filter(entry=>Number(entry.used||0)>1);
-    const saved=reusable.reduce((sum,entry)=>sum+Math.max(0,Number(entry.used||0)-1),0);
-    return {tasks:tasks.length,entries,reusable,saved};
+  function draftAttachmentGroupKey(attachment){
+    const name=String(attachment?.name||'').trim().toLowerCase();
+    const size=Number(attachment?.size||0)||0;
+    return `${name}|${size}`;
   }
 
-  function renderUtilityHubSummary(){
-    const stats=fastAttachmentUtilityStats();
-    const fastMeta=$('nmda-utility-fast-attachment-meta');
-    if(fastMeta)fastMeta.textContent=stats.tasks?(stats.entries.length?`${stats.entries.length} 个资产 · ${stats.reusable.length} 个可复用`:`${stats.tasks} 封任务 · 尚无附件`):'等待批次';
-    const dispatchState=$('nmda-fast-attachments-dispatch-state');
-    if(dispatchState)dispatchState.textContent=batch.fastAttachments?'极速附件 · 已开启':'极速附件 · 标准';
-    const dispatchLink=$('nmda-fast-attachments-dispatch-link');
-    if(dispatchLink)dispatchLink.classList.toggle('is-active',!!batch.fastAttachments);
-  }
-
-  function renderFastAttachmentPending(){
-    const wrap=$('nmda-fast-attachment-pending'),replace=$('nmda-fast-attachment-replace-all'),add=$('nmda-fast-attachment-add-all'),clear=$('nmda-fast-attachment-clear-pending');
-    const files=fastAttachmentToolPendingFiles||[];
-    if(wrap){
-      wrap.hidden=!files.length;
-      wrap.innerHTML=files.length?files.map(file=>`<span><strong>${escapeHtml(file.name||'附件')}</strong><small>${escapeHtml(formatAttachmentSize(file))}</small></span>`).join(''):'';
+  function rebuildDraftAttachmentGroups(){
+    const groups=new Map();
+    for(const draft of draftAttachmentTool.drafts||[]){
+      if(!draft?.ok)continue;
+      for(const attachment of draft.attachments||[]){
+        if(!attachment||attachment.kind!=='attachment'||attachment.inlined)continue;
+        const name=String(attachment.name||'').trim();
+        const id=String(attachment.id||'').trim();
+        if(!name||!id)continue;
+        const key=draftAttachmentGroupKey(attachment);
+        if(!groups.has(key))groups.set(key,{key,name,size:Number(attachment.size||0)||0,entries:[],draftIds:new Set(),scheduled:0});
+        const group=groups.get(key);
+        group.entries.push({draft,attachment});
+        if(!group.draftIds.has(String(draft.id||''))){group.draftIds.add(String(draft.id||''));if(draft.scheduleAt)group.scheduled++;}
+      }
     }
-    const canApply=files.length>0&&!!batch.dataset&&!!(batch.tasks||[]).length&&!batch.running;
-    if(replace){replace.disabled=!canApply;replace.textContent=fastAttachmentToolReplaceTarget?'替换选中附件':'替换当前批次全部附件';}
-    if(add)add.disabled=!canApply;
-    if(clear)clear.disabled=!files.length||batch.running;
+    draftAttachmentTool.groups=[...groups.values()].sort((a,b)=>b.draftIds.size-a.draftIds.size||a.name.localeCompare(b.name,'zh-CN'));
+    if(draftAttachmentTool.selectedKey&&!draftAttachmentTool.groups.some(group=>group.key===draftAttachmentTool.selectedKey)){
+      draftAttachmentTool.selectedKey='';draftAttachmentTool.selectedDraftIds.clear();draftAttachmentTool.replacementFile=null;
+    }
   }
 
-  function setFastAttachmentUtilityResult(message,tone='ok'){
-    const el=$('nmda-fast-attachment-result');if(!el)return;
+  function selectedDraftAttachmentGroup(){return draftAttachmentTool.groups.find(group=>group.key===draftAttachmentTool.selectedKey)||null;}
+
+  function draftAttachmentTargets(group=selectedDraftAttachmentGroup()){
+    if(!group)return[];
+    const byDraft=new Map();
+    for(const entry of group.entries){
+      const draft=entry.draft,id=String(draft?.id||'');if(!id)continue;
+      if(!byDraft.has(id))byDraft.set(id,{draft,attachments:[]});
+      byDraft.get(id).attachments.push(entry.attachment);
+    }
+    return [...byDraft.values()];
+  }
+
+  function setDraftAttachmentUtilityResult(message,tone='ok'){
+    const el=$('nmda-draft-attachment-result');if(!el)return;
     el.hidden=!message;el.dataset.tone=tone;el.textContent=message||'';
   }
 
-  function renderFastAttachmentUtility(){
-    const stats=fastAttachmentUtilityStats();
+  function setDraftAttachmentProgress(message,tone=''){
+    const el=$('nmda-draft-attachment-progress');if(!el)return;
+    el.hidden=!message;el.dataset.tone=tone;el.textContent=message||'';
+  }
+
+  function renderUtilityHubSummary(){
+    const meta=$('nmda-utility-draft-attachment-meta');
+    if(meta)meta.textContent=draftAttachmentTool.loading?'正在读取草稿箱':draftAttachmentTool.scanned?`${draftAttachmentTool.drafts.length} 封草稿 · ${draftAttachmentTool.groups.length} 组附件`:'读取草稿箱';
+  }
+
+  async function scanDraftAttachmentTool(options={}){
+    if(draftAttachmentTool.loading||(draftAttachmentTool.running&&!options.allowDuringRun))return false;
+    draftAttachmentTool.loading=true;draftAttachmentTool.scanned=true;
+    setDraftAttachmentUtilityResult('');setDraftAttachmentProgress('正在读取网易草稿箱与附件明细…');
+    renderDraftAttachmentTool();
+    try{
+      const result=await chrome.runtime.sendMessage({type:'NMDA_SCAN_DRAFT_ATTACHMENTS'});
+      if(!result?.ok)throw new Error(result?.reason||'读取草稿箱失败');
+      draftAttachmentTool.drafts=(result.drafts||[]).filter(Boolean);
+      draftAttachmentTool.complete=!!result.complete;draftAttachmentTool.truncated=!!result.truncated;draftAttachmentTool.lastScanAt=new Date().toISOString();
+      rebuildDraftAttachmentGroups();
+      setDraftAttachmentProgress('');
+      if(result.failures)setDraftAttachmentUtilityResult(`已读取 ${result.read||draftAttachmentTool.drafts.length} 封草稿；其中 ${result.failures} 封详情读取失败，未纳入附件替换。`,'warn');
+    }catch(error){
+      draftAttachmentTool.drafts=[];draftAttachmentTool.groups=[];
+      setDraftAttachmentProgress('');setDraftAttachmentUtilityResult(error?.message||String(error),'error');
+    }finally{draftAttachmentTool.loading=false;renderDraftAttachmentTool();}
+    return true;
+  }
+
+  function renderDraftAttachmentTool(){
+    rebuildDraftAttachmentGroups();
+    const groups=draftAttachmentTool.groups||[];
+    const withAttachments=new Set(groups.flatMap(group=>[...group.draftIds])).size;
+    const selected=selectedDraftAttachmentGroup();
+    const targets=draftAttachmentTargets(selected);
+    const selectedCount=targets.filter(item=>draftAttachmentTool.selectedDraftIds.has(String(item.draft.id||''))).length;
     const setText=(id,value)=>{const el=$(id);if(el)el.textContent=String(value);};
-    setText('nmda-fast-attachment-task-count',stats.tasks);
-    setText('nmda-fast-attachment-asset-count',stats.entries.length);
-    setText('nmda-fast-attachment-reuse-count',stats.reusable.length);
-    setText('nmda-fast-attachment-save-count',stats.saved);
-    const list=$('nmda-fast-attachment-tool-list'),empty=$('nmda-fast-attachment-tool-empty');
+    setText('nmda-draft-attachment-draft-count',draftAttachmentTool.drafts.length);
+    setText('nmda-draft-attachment-mail-count',withAttachments);
+    setText('nmda-draft-attachment-version-count',groups.length);
+    setText('nmda-draft-attachment-target-count',selectedCount);
+    const empty=$('nmda-draft-attachment-empty'),list=$('nmda-draft-attachment-groups');
+    const q=String(draftAttachmentTool.search||'').trim().toLowerCase();
+    const visibleGroups=groups.filter(group=>!q||group.name.toLowerCase().includes(q));
     if(list){
-      list.innerHTML=attachmentAssetRowsHtml(stats.entries,{compact:false});
-      list.querySelectorAll('[data-attachment-identity]').forEach(row=>{
-        const id=decodeURIComponent(row.dataset.attachmentIdentity||'');
-        row.classList.toggle('is-replace-target',id===fastAttachmentToolReplaceTarget);
-        const actions=row.querySelector('.nmda-attachment-asset-actions');
-        if(actions){
-          const button=document.createElement('button');button.type='button';button.className='nmda-btn nmda-btn-small nmda-fast-replace-target';button.dataset.fastReplaceTarget=encodeURIComponent(id);button.textContent=id===fastAttachmentToolReplaceTarget?'已选为替换目标':'替换此附件';actions.prepend(button);
-        }
-      });
-      list.querySelectorAll('[data-fast-replace-target]').forEach(button=>button.addEventListener('click',()=>{
-        const id=decodeURIComponent(button.dataset.fastReplaceTarget||'');
-        fastAttachmentToolReplaceTarget=fastAttachmentToolReplaceTarget===id?'':id;
-        const file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===fastAttachmentToolReplaceTarget);
-        setFastAttachmentUtilityResult(file?`已选择“${file.name}”作为替换目标；拖入新版文件后点击“替换选中附件”。`:'');
-        renderFastAttachmentUtility();
+      list.innerHTML=visibleGroups.map(group=>`<button type="button" class="nmda-draft-attachment-group ${group.key===draftAttachmentTool.selectedKey?'is-active':''}" data-draft-attachment-group="${encodeURIComponent(group.key)}"><span><strong>${escapeHtml(group.name)}</strong><small>${escapeHtml(formatAttachmentSize({size:group.size}))}</small></span><span><b>${group.draftIds.size}</b><small>封草稿${group.scheduled?` · ${group.scheduled} 封已定时`:''}</small></span></button>`).join('');
+      list.querySelectorAll('[data-draft-attachment-group]').forEach(button=>button.addEventListener('click',()=>{
+        const key=decodeURIComponent(button.dataset.draftAttachmentGroup||'');
+        draftAttachmentTool.selectedKey=key;draftAttachmentTool.replacementFile=null;draftAttachmentTool.selectedDraftIds=new Set(draftAttachmentTargets(groups.find(group=>group.key===key)).map(item=>String(item.draft.id||'')));
+        setDraftAttachmentUtilityResult('');renderDraftAttachmentTool();
       }));
-      list.querySelectorAll('[data-attachment-policy]').forEach(select=>select.addEventListener('change',()=>{
-        const id=decodeURIComponent(select.dataset.attachmentPolicy||'');setAttachmentPolicy(id,select.value);
-        if(select.value==='selected'){batch.attachmentTargetEditing=id;batch.attachmentTargetSearch='';openAttachmentManager();}
-      }));
-      list.querySelectorAll('[data-attachment-target-config]').forEach(button=>button.addEventListener('click',()=>{batch.attachmentTargetEditing=decodeURIComponent(button.dataset.attachmentTargetConfig||'');batch.attachmentTargetSearch='';openAttachmentManager();}));
     }
-    if(empty)empty.hidden=!!stats.entries.length;
-    const switchEl=$('nmda-fast-attachments');if(switchEl&&switchEl.checked!==!!batch.fastAttachments)switchEl.checked=!!batch.fastAttachments;
-    renderFastAttachmentPending();
+    if(empty){empty.hidden=!!visibleGroups.length||draftAttachmentTool.loading;empty.textContent=draftAttachmentTool.loading?'正在读取草稿箱…':groups.length?'没有符合搜索条件的附件。':'草稿箱中没有可替换的普通附件。';}
+    const title=$('nmda-draft-attachment-plan-title'),copy=$('nmda-draft-attachment-plan-copy');
+    if(title)title.textContent=selected?`替换：${selected.name}`:'选择一个旧附件版本';
+    if(copy)copy.textContent=selected?`${selected.draftIds.size} 封草稿包含这个版本${selected.scheduled?`，其中 ${selected.scheduled} 封已定时；排期会保持不变。`: '。'}`:'系统会列出所有包含该旧附件的草稿。';
+    const targetList=$('nmda-draft-attachment-targets');
+    if(targetList){
+      targetList.innerHTML=selected?`<label class="nmda-draft-attachment-select-all"><input id="nmda-draft-attachment-select-all" type="checkbox" ${selectedCount===targets.length&&targets.length?'checked':''}><span>更新全部 ${targets.length} 封匹配草稿</span></label>`+targets.map(item=>{
+        const draft=item.draft,id=String(draft.id||''),checked=draftAttachmentTool.selectedDraftIds.has(id);
+        const recipient=String(draft.recipients||draft.toRaw||'').trim()||'未识别收件人';
+        return `<label class="nmda-draft-attachment-target"><input type="checkbox" data-draft-attachment-target="${escapeHtml(id)}" ${checked?'checked':''}><span><strong>${escapeHtml(draft.subject||'(无主题)')}</strong><small>${escapeHtml(recipient)}${draft.scheduleAt?` · 已定时 ${escapeHtml(String(draft.scheduleAt).replace('T',' '))}`:''}</small></span><b>${item.attachments.length>1?`${item.attachments.length} 个同版本附件`:'1 个附件'}</b></label>`;
+      }).join(''):'<div class="nmda-draft-attachment-target-empty">选择左侧旧附件后，这里会显示受影响的草稿。</div>';
+      targetList.querySelector('#nmda-draft-attachment-select-all')?.addEventListener('change',event=>{draftAttachmentTool.selectedDraftIds=new Set(event.target.checked?targets.map(item=>String(item.draft.id||'')):[]);renderDraftAttachmentTool();});
+      targetList.querySelectorAll('[data-draft-attachment-target]').forEach(input=>input.addEventListener('change',()=>{const id=String(input.dataset.draftAttachmentTarget||'');if(input.checked)draftAttachmentTool.selectedDraftIds.add(id);else draftAttachmentTool.selectedDraftIds.delete(id);renderDraftAttachmentTool();}));
+    }
+    const drop=$('nmda-draft-attachment-drop'),file=draftAttachmentTool.replacementFile;
+    if(drop)drop.disabled=!selected||draftAttachmentTool.running;
+    setText('nmda-draft-attachment-new-name',file?file.name:'选择新版附件');
+    setText('nmda-draft-attachment-new-meta',file?`${formatAttachmentSize(file)} · 将只上传一次，再服务器侧更新所选草稿。`:'只上传一次，随后直接在目标草稿上做服务器侧替换。');
+    const run=$('nmda-draft-attachment-run');
+    if(run){run.disabled=!selected||!file||!selectedCount||draftAttachmentTool.running;run.textContent=draftAttachmentTool.running?'正在更新草稿…':`更新 ${selectedCount||0} 封草稿`;}
+    const refresh=$('nmda-draft-attachment-refresh');if(refresh)refresh.disabled=draftAttachmentTool.loading||draftAttachmentTool.running;
     renderUtilityHubSummary();
+  }
+
+  async function runDraftAttachmentReplacement(){
+    if(draftAttachmentTool.running)return;
+    const group=selectedDraftAttachmentGroup(),file=draftAttachmentTool.replacementFile;
+    if(!group||!file)return;
+    if(group.name===file.name && Number(group.size||0)===Number(file.size||0)){
+      return setDraftAttachmentUtilityResult('新版附件与旧版同名且大小完全相同，网易侧无法可靠区分两个版本。请临时改名后再替换。','warn');
+    }
+    const targets=draftAttachmentTargets(group).filter(item=>draftAttachmentTool.selectedDraftIds.has(String(item.draft.id||'')));
+    if(!targets.length)return;
+    draftAttachmentTool.running=true;renderDraftAttachmentTool();setDraftAttachmentUtilityResult('');
+    const executionId=crypto.randomUUID();
+    let refs=[],seedDraftId='',seedCleanupWarning='';
+    executionProgressHandlers.set(executionId,message=>setDraftAttachmentProgress(message?.message||''));
+    try{
+      refs=await prepareRuntimeFileRefs([file]);
+      if(!refs[0])throw new Error('新版附件运行时文件准备失败');
+      setDraftAttachmentProgress('正在把新版附件上传到网易一次性临时源…');
+      const seed=await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED',executionId,file:refs[0]});
+      if(!seed?.ok||!seed?.source)throw new Error(seed?.reason||'新版附件源建立失败');
+      seedDraftId=String(seed.seedDraftId||'');
+      const source={...seed.source,name:file.name,size:file.size};
+      let cursor=0,done=0,failed=0;const failures=[],doneIds=new Set();
+      const integrityBaseline=new Map(targets.map(item=>[String(item.draft.id||''),{subject:String(item.draft.subject||''),recipients:String(item.draft.recipients||''),cc:String(item.draft.cc||''),bcc:String(item.draft.bcc||''),bodyHtml:String(item.draft.bodyHtml||''),scheduleAt:String(item.draft.scheduleAt||''),oldAttachmentIds:item.attachments.map(att=>String(att.id||'')).filter(Boolean)}]));
+      const workerCount=Math.min(5,Math.max(1,targets.length));
+      async function worker(){
+        while(cursor<targets.length){
+          const item=targets[cursor++],draft=item.draft,draftId=String(draft.id||'');
+          const deleteIds=item.attachments.map(att=>String(att.id||'')).filter(Boolean);
+          try{
+            const existing=(draft.attachments||[]).some(att=>!deleteIds.includes(String(att.id||''))&&String(att.name||'')===file.name&&(!Number(att.size||0)||Math.abs(Number(att.size||0)-file.size)<100));
+            if(!existing){
+              setDraftAttachmentProgress(`正在挂载新版附件 ${done+failed+1}/${targets.length} · ${draft.subject||draftId}`);
+              const added=await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MUTATE',draftId,deleteIds:[],source,summary:{id:draftId,scheduleAt:draft.scheduleAt||'',savedAt:draft.savedAt||'',subject:draft.subject||'',flags:draft.flags||{},scheduledDraft:!!draft.scheduledDraft}});
+              if(!added?.ok||added.verified!==true)throw new Error(added?.reason||'新版附件挂载验证失败');
+            }
+            const removed=await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MUTATE',draftId,deleteIds,source:null,summary:{id:draftId,scheduleAt:draft.scheduleAt||'',savedAt:draft.savedAt||'',subject:draft.subject||'',flags:draft.flags||{},scheduledDraft:!!draft.scheduledDraft}});
+            if(!removed?.ok||removed.verified!==true)throw new Error(removed?.reason||'旧附件删除验证失败');
+            done++;doneIds.add(draftId);
+          }catch(error){failed++;failures.push(`${draft.subject||draftId}：${error?.message||String(error)}`);}
+          setDraftAttachmentProgress(`草稿附件更新 ${done+failed}/${targets.length} · 成功 ${done}${failed?` · 失败 ${failed}`:''}` , failed?'warn':'');
+        }
+      }
+      await Promise.all(Array.from({length:workerCount},worker));
+      if(seedDraftId){
+        for(let attempt=0;attempt<3&&seedDraftId;attempt++){
+          if(attempt)await new Promise(resolve=>setTimeout(resolve,180*(attempt+1)));
+          const cleanup=await chrome.runtime.sendMessage({type:'NMDA_DELETE_DRAFT',draftId:seedDraftId}).catch(error=>({ok:false,reason:error?.message||String(error)}));
+          if(cleanup?.ok)seedDraftId='';
+          else if(attempt===2)seedCleanupWarning=`临时附件源草稿未能自动删除（${cleanup?.reason||'unknown'}），请在草稿箱手动删除。`;
+        }
+      }
+      await scanDraftAttachmentTool({allowDuringRun:true});
+      const sameMinute=(a,b)=>{const left=String(a||'').trim(),right=String(b||'').trim();if(!left&&!right)return true;if(!left||!right)return false;const la=Date.parse(left),rb=Date.parse(right);return Number.isFinite(la)&&Number.isFinite(rb)?Math.abs(la-rb)<60000:left===right;};
+      const integrityFailures=[];
+      for(const draftId of doneIds){
+        const before=integrityBaseline.get(draftId),after=(draftAttachmentTool.drafts||[]).find(item=>String(item?.id||'')===draftId);
+        if(!before||!after?.ok){integrityFailures.push(`${before?.subject||draftId}：更新后无法回读草稿`);continue;}
+        const changed=[];
+        if(String(after.subject||'')!==before.subject)changed.push('主题');
+        if(String(after.recipients||'')!==before.recipients)changed.push('收件人');
+        if(String(after.cc||'')!==before.cc)changed.push('抄送');
+        if(String(after.bcc||'')!==before.bcc)changed.push('密送');
+        if(String(after.bodyHtml||'')!==before.bodyHtml)changed.push('正文');
+        if(!sameMinute(after.scheduleAt,before.scheduleAt))changed.push('排期');
+        const afterAttachments=Array.isArray(after.attachments)?after.attachments:[];
+        if((before.oldAttachmentIds||[]).some(id=>afterAttachments.some(att=>String(att?.id||'')===id)))changed.push('旧附件仍存在');
+        const replacementPresent=afterAttachments.some(att=>String(att?.name||'')===file.name&&(!Number(att?.size||0)||Math.abs(Number(att?.size||0)-file.size)<100));
+        if(!replacementPresent)changed.push('新版附件缺失');
+        if(changed.length)integrityFailures.push(`${before.subject||draftId}：${changed.join('、')}${changed.some(label=>label.includes('附件'))?'':'发生变化'}`);
+      }
+      if(integrityFailures.length){
+        setDraftAttachmentUtilityResult(`附件更新已执行，但发现 ${integrityFailures.length} 封草稿存在完整性异常，请立即核对：${integrityFailures.slice(0,3).join('；')}${integrityFailures.length>3?'…':''}${seedCleanupWarning?`；${seedCleanupWarning}`:''}`,'error');
+      }else if(failed)setDraftAttachmentUtilityResult(`已更新 ${done} 封，${failed} 封未完成。失败草稿不会先删除旧附件；${failures.slice(0,3).join('；')}${failures.length>3?'…':''}${seedCleanupWarning?`；${seedCleanupWarning}`:''}`,'warn');
+      else if(seedCleanupWarning)setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新并通过完整性核验；${seedCleanupWarning}`,'warn');
+      else setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新，并回读确认正文、收件人、主题与原排期保持不变。`,'ok');
+    }catch(error){
+      setDraftAttachmentUtilityResult(error?.message||String(error),'error');
+    }finally{
+      if(seedDraftId)await chrome.runtime.sendMessage({type:'NMDA_DELETE_DRAFT',draftId:seedDraftId}).catch(()=>null);
+      executionProgressHandlers.delete(executionId);releaseRuntimeFileRefs(refs);draftAttachmentTool.running=false;setDraftAttachmentProgress('');renderDraftAttachmentTool();
+    }
   }
 
   function openAttachmentManager() {
@@ -7687,7 +7810,6 @@
     batch.attachmentPolicies = new Map();
     batch.attachmentTargetEditing = '';
     batch.attachmentTargetSearch = '';
-    fastAttachmentToolPendingFiles=[];fastAttachmentToolReplaceTarget='';
     batch.taskEdits.clear();
     batch.formatGovernanceRules=[];
     batch.formatGovernanceDraftRules=[];
@@ -7747,7 +7869,6 @@
     const rosterSummary=$('nmda-roster-audit-summary'); if(rosterSummary)rosterSummary.innerHTML='';
     const rosterDetails=$('nmda-roster-audit-details'); if(rosterDetails)rosterDetails.innerHTML='';
     setBatchStatus('请先添加资料并检查解析结果。');
-    renderFastAttachmentUtility();
     renderImportLifecycleState();
     if (!keepStatus) setImportStatus(message || '还没有添加资料。');
     scheduleBatchRender({aux:true});
@@ -8411,74 +8532,14 @@
       ? '极速 Compose 已开启：普通新邮件优先走网易原生内核直写；不兼容场景会自动回退标准模式。'
       : '极速 Compose 已关闭：使用标准可视 Compose 执行。', 'ok');
   });
-  batchFastAttachmentsEl?.addEventListener('change', () => {
-    if (batch.running) { batchFastAttachmentsEl.checked = !!batch.fastAttachments; return; }
-    batch.fastAttachments = !!batchFastAttachmentsEl.checked;
-    saveFastAttachmentsPref(batch.fastAttachments);
-    renderFastAttachmentUtility();
-    setBatchStatus(batch.fastAttachments
-      ? '极速附件已开启：同批次相同附件仅首次上传，后续优先走网易服务器侧复用；无法确认来源时自动回退正常上传。'
-      : '极速附件已关闭：每封邮件按标准网易附件上传流程执行。', 'ok');
-  });
-
   ui.querySelectorAll('[data-open-utility]').forEach(entry=>entry.addEventListener('click',()=>openUtilityView(entry.dataset.openUtility||'home')));
   ui.querySelectorAll('[data-utility-back]').forEach(entry=>entry.addEventListener('click',()=>setUtilityView('home')));
-  $('nmda-fast-attachments-dispatch-link')?.addEventListener('click',()=>openUtilityView('fast-attachments'));
-
-  const fastAttachmentToolInput=$('nmda-fast-attachment-tool-files'),fastAttachmentDrop=$('nmda-fast-attachment-drop');
-  const stageFastAttachmentFiles=files=>{
-    fastAttachmentToolPendingFiles=uniqueFiles([...(files||[])]);
-    setFastAttachmentUtilityResult('');
-    renderFastAttachmentPending();
-  };
-  fastAttachmentToolInput?.addEventListener('change',()=>{stageFastAttachmentFiles([...(fastAttachmentToolInput.files||[])]);fastAttachmentToolInput.value='';});
-  fastAttachmentDrop?.addEventListener('click',()=>fastAttachmentToolInput?.click());
-  fastAttachmentDrop?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();fastAttachmentToolInput?.click();}});
-  fastAttachmentDrop?.addEventListener('dragenter',event=>{event.preventDefault();fastAttachmentDrop.classList.add('is-dragging');});
-  fastAttachmentDrop?.addEventListener('dragover',event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='copy';fastAttachmentDrop.classList.add('is-dragging');});
-  fastAttachmentDrop?.addEventListener('dragleave',event=>{if(!fastAttachmentDrop.contains(event.relatedTarget))fastAttachmentDrop.classList.remove('is-dragging');});
-  fastAttachmentDrop?.addEventListener('drop',async event=>{event.preventDefault();fastAttachmentDrop.classList.remove('is-dragging');stageFastAttachmentFiles(await filesFromDrop(event.dataTransfer));});
-  $('nmda-fast-attachment-clear-pending')?.addEventListener('click',()=>{fastAttachmentToolPendingFiles=[];renderFastAttachmentPending();setFastAttachmentUtilityResult('');});
-  $('nmda-fast-attachment-replace-all')?.addEventListener('click',()=>{
-    if(batch.running)return setFastAttachmentUtilityResult('批次正在执行，附件方案暂时锁定。','warn');
-    if(!batch.dataset||!(batch.tasks||[]).length)return setFastAttachmentUtilityResult('当前没有可替换附件的批次，请先导入邮件资料。','warn');
-    if(!fastAttachmentToolPendingFiles.length)return;
-    const files=[...fastAttachmentToolPendingFiles];
-    const targetId=fastAttachmentToolReplaceTarget;
-    if(targetId){
-      const oldFile=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===targetId);
-      if(!oldFile){fastAttachmentToolReplaceTarget='';renderFastAttachmentUtility();return setFastAttachmentUtilityResult('原替换目标已不存在，请重新选择。','warn');}
-      const oldPolicy={...attachmentPolicyForFile(oldFile),targets:[...(attachmentPolicyForFile(oldFile).targets||[])]};
-      removeAttachmentAsset(targetId);
-      const count=addAttachmentFiles(files,{source:`极速附件 · 替换 ${oldFile.name||'附件'}`,mode:oldPolicy.mode||'all'});
-      for(const file of files){const id=Importer.fileIdentity(file),policy=ensureAttachmentPolicy(file,'task',{source:`替换 ${oldFile.name||'附件'}`,mode:oldPolicy.mode||'all'});policy.mode=oldPolicy.mode||'all';policy.targets=[...(oldPolicy.targets||[])];batch.attachmentPolicies.set(id,policy);}
-      batch.fastAttachments=true;if(batchFastAttachmentsEl)batchFastAttachmentsEl.checked=true;saveFastAttachmentsPref(true);
-      fastAttachmentToolPendingFiles=[];fastAttachmentToolReplaceTarget='';refreshFileIndex(false);renderFastAttachmentUtility();
-      setFastAttachmentUtilityResult(`已将“${oldFile.name}”替换为 ${count} 个新附件，并继承原适用范围；执行时优先服务器侧复用。`,'ok');
-      return;
-    }
-    clearAttachmentAssets();
-    const count=addAttachmentFiles(files,{source:'极速附件 · 批量替换',mode:'all'});
-    batch.fastAttachments=true;if(batchFastAttachmentsEl)batchFastAttachmentsEl.checked=true;saveFastAttachmentsPref(true);
-    fastAttachmentToolPendingFiles=[];
-    renderFastAttachmentUtility();
-    setFastAttachmentUtilityResult(`已用 ${count} 个新附件重建当前批次附件方案；执行时将优先使用服务器侧复用。`,'ok');
-  });
-  $('nmda-fast-attachment-add-all')?.addEventListener('click',()=>{
-    if(batch.running)return setFastAttachmentUtilityResult('批次正在执行，附件方案暂时锁定。','warn');
-    if(!batch.dataset||!(batch.tasks||[]).length)return setFastAttachmentUtilityResult('当前没有可追加附件的批次，请先导入邮件资料。','warn');
-    if(!fastAttachmentToolPendingFiles.length)return;
-    const files=[...fastAttachmentToolPendingFiles];
-    const count=addAttachmentFiles(files,{source:'极速附件 · 共享附件',mode:'all'});
-    batch.fastAttachments=true;if(batchFastAttachmentsEl)batchFastAttachmentsEl.checked=true;saveFastAttachmentsPref(true);
-    fastAttachmentToolPendingFiles=[];
-    renderFastAttachmentUtility();
-    setFastAttachmentUtilityResult(`已追加 ${count} 个共享附件；同一附件被多封邮件使用时会自动进入极速复用链。`,'ok');
-  });
-  $('nmda-fast-attachment-precise')?.addEventListener('click',()=>{
-    if(!batch.dataset||!(batch.tasks||[]).length){setFastAttachmentUtilityResult('当前没有批次；先导入邮件资料后再配置精确范围。','warn');return;}
-    openAttachmentManager();
-  });
+  $('nmda-draft-attachment-refresh')?.addEventListener('click',()=>void scanDraftAttachmentTool());
+  $('nmda-draft-attachment-search')?.addEventListener('input',event=>{draftAttachmentTool.search=String(event.target.value||'');renderDraftAttachmentTool();});
+  const draftAttachmentFileEl=$('nmda-draft-attachment-file'),draftAttachmentDropEl=$('nmda-draft-attachment-drop');
+  draftAttachmentDropEl?.addEventListener('click',()=>{if(!draftAttachmentDropEl.disabled)draftAttachmentFileEl?.click();});
+  draftAttachmentFileEl?.addEventListener('change',()=>{draftAttachmentTool.replacementFile=draftAttachmentFileEl.files?.[0]||null;draftAttachmentFileEl.value='';setDraftAttachmentUtilityResult('');renderDraftAttachmentTool();});
+  $('nmda-draft-attachment-run')?.addEventListener('click',()=>void runDraftAttachmentReplacement());
 
   batchStartEl.addEventListener('click', async () => {
     if (batch.running) return;
@@ -8505,28 +8566,15 @@
     }
     const scheduleValidation=await validateMailboxScheduleBeforeExecution(executable);
     if(!scheduleValidation.ok){setBatchStatus(scheduleValidation.reason||'无法核对网易已有排期。','error');return;}
-    batch.running = true; batch.stopRequested = false; batch.pauseEveryTime = !!batchPauseEveryTimeEl?.checked; batch.composeParagraphSpacing = batchParagraphSpacingEl?.checked !== false; batch.fastCompose = !!batchFastComposeEl?.checked; batch.fastAttachments = !!batchFastAttachmentsEl?.checked; batch.attachmentSessionId = batch.fastAttachments ? crypto.randomUUID() : ''; batchStartEl.disabled = true; batchStopEl.disabled = false;
+    batch.running = true; batch.stopRequested = false; batch.pauseEveryTime = !!batchPauseEveryTimeEl?.checked; batch.composeParagraphSpacing = batchParagraphSpacingEl?.checked !== false; batch.fastCompose = !!batchFastComposeEl?.checked; batchStartEl.disabled = true; batchStopEl.disabled = false;
     if (batchPauseEveryTimeEl) batchPauseEveryTimeEl.disabled = true;
     if (batchParagraphSpacingEl) batchParagraphSpacingEl.disabled = true;
     if (batchFastComposeEl) batchFastComposeEl.disabled = true;
-    if (batchFastAttachmentsEl) batchFastAttachmentsEl.disabled = true;
     await updateMailboxBatchMonitor({action:'start',total:executable.length,succeeded:0,failed:0,remaining:executable.length,items:executable.map((task,index)=>({key:task.editKey,id:task.id,index:index+1,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||'',status:'queued'}))});
     importFileEl.disabled = true; if (importDirEl) importDirEl.disabled = true; if (rosterFileEl) rosterFileEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=true;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=true;if(draftImportEl)draftImportEl.disabled=true; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=true; });
     setBatchPlanningLocked(true);
     let succeeded = 0, failed = 0;
     let cleanupStopReason = '';
-    const attachmentUseCounts = new Map();
-    if (batch.fastAttachments) {
-      for (const task of executable) {
-        const seen = new Set();
-        for (const file of task.files || []) {
-          const key=String(Importer?.fileIdentity?.(file) || '');
-          if(!key || seen.has(key)) continue;
-          seen.add(key);
-          attachmentUseCounts.set(key, Number(attachmentUseCounts.get(key) || 0) + 1);
-        }
-      }
-    }
     try {
       for (const frozenTask of executable) {
         if (!executableKeys.has(frozenTask.editKey)) continue;
@@ -8545,9 +8593,6 @@
             pauseEveryTime: batch.pauseEveryTime,
             ensureParagraphSpacing: batch.composeParagraphSpacing !== false,
             fastCompose: !!batch.fastCompose,
-            fastAttachments: !!batch.fastAttachments,
-            attachmentSessionId: batch.attachmentSessionId,
-            attachmentUseCounts,
             onProgress: progress => {
               setBatchStatus(`${kindLabel}：${progress.message || '正在创建草稿…'}`);
               void updateMailboxBatchMonitor({action:'task-progress',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-runIndex),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},executionId:String(progress.executionId||''),phase:progress.phase||'',message:progress.message||'正在创建草稿…'});
@@ -8556,8 +8601,6 @@
           const notes=[];
           if (outcome.fastCompose?.active) notes.push('极速 Compose · 网易原生内核直写');
           else if (outcome.fastCompose?.requested) notes.push('极速 Compose 自动回退标准模式');
-          if (outcome.attachment?.fastReuseCount) notes.push(`极速附件 · 服务器复用 ${outcome.attachment.fastReuseCount} 个`);
-          if (outcome.attachment?.uploadedCount && outcome.attachment?.fastRequested) notes.push(`附件首次上传 ${outcome.attachment.uploadedCount} 个并登记复用源`);
           const upload = outcome.attachment || {};
           if (upload.verified === false && upload.missingNames?.length) notes.push(`附件已提交上传，但页面未确认：${upload.missingNames.join('、')}`);
           if (task.scheduleAt && outcome.actualMinute !== null && outcome.actualMinute !== undefined) {
@@ -8600,7 +8643,7 @@
             setBatchStatus(cleanupStopReason, 'warn');
             break;
           }
-          await sleep((batch.fastCompose || batch.fastAttachments) ? 60 : 300);
+          await sleep(batch.fastCompose ? 60 : 300);
         } catch (error) {
           console.error(`[${APP}] dispatch ${task.editKey}`, error);
           const message=error.message || String(error);
@@ -8633,7 +8676,6 @@
       if (batchPauseEveryTimeEl) batchPauseEveryTimeEl.disabled = false;
       if (batchParagraphSpacingEl) batchParagraphSpacingEl.disabled = false;
       if (batchFastComposeEl) batchFastComposeEl.disabled = false;
-      if (batchFastAttachmentsEl) batchFastAttachmentsEl.disabled = false;
       importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (rosterFileEl) rosterFileEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=false;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=false;if(draftImportEl)draftImportEl.disabled=false; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=false; });
       setBatchPlanningLocked(false);
       scheduleBatchRender({aux:false,force:true});
@@ -8643,7 +8685,7 @@
   function applyDeepLink() {
     const raw = String(location.hash || '').replace(/^#/, '');
     if(raw==='monitor'){setWorkbenchTab('utilities');setUtilityView('monitor',{syncHash:false});return;}
-    const utility=raw.match(/^utilities(?:\/(monitor|fast-attachments))?$/);
+    const utility=raw.match(/^utilities(?:\/(monitor|draft-attachments))?$/);
     if(utility){setWorkbenchTab('utilities');setUtilityView(utility[1]||'home',{syncHash:false});return;}
     const match=raw.match(/^(batch|review|dispatch)$/);
     if(!match)return;

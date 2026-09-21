@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.92",
-  "description": "SmartMail Ops — adds a first-class Utilities workspace: Mail Monitoring and Fast Attachments are peer tools, with batch/targeted attachment replacement, server-side reuse controls, and reserved slots for future utilities.",
+  "version": "3.8.93",
+  "description": "SmartMail Ops — Utilities include Mail Monitoring and Draft Attachment Update for safely replacing obsolete attachments in existing NetEase drafts while preserving message content and schedules.",
   "permissions": [
     "scripting",
     "tabs",
