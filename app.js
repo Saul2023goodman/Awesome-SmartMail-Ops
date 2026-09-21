@@ -1381,7 +1381,6 @@
     try {
       const raw = JSON.parse(localStorage.getItem(FOLLOWUP_PREFS_KEY) || '{}');
       return {
-        enabled: raw.enabled !== false,
         delayDays: Math.max(0, Number(raw.delayDays ?? Operations?.DEFAULT_FOLLOWUP_POLICY?.delayDays ?? 7) || 0),
         maxAttempts: Math.max(0, Math.floor(Number(raw.maxAttempts ?? Operations?.DEFAULT_FOLLOWUP_POLICY?.maxAttempts ?? 2) || 0)),
         composeMode: ['forward','reply','new'].includes(raw.composeMode) ? raw.composeMode : (Operations?.DEFAULT_FOLLOWUP_POLICY?.composeMode || 'forward'),
@@ -1403,7 +1402,7 @@
     if (!policy) return;
     try {
       localStorage.setItem(FOLLOWUP_PREFS_KEY, JSON.stringify({
-        enabled: policy.enabled !== false, delayDays:Number(policy.delayDays||0), maxAttempts:Number(policy.maxAttempts||0),
+        delayDays:Number(policy.delayDays||0), maxAttempts:Number(policy.maxAttempts||0),
         composeMode:String(policy.composeMode||'forward'), templateBody:String(policy.templateBody||''), templateVersion:Number(policy.templateVersion||0)
       }));
     } catch (_) {}
@@ -1492,6 +1491,62 @@
 
   function dispatchTaskByKey(key) {
     return dispatchTasks().find(task => String(task.editKey) === String(key)) || null;
+  }
+
+  function original163MailRef(task) {
+    if (!task || !operationState.loaded || !operationState.store) return { messageId:'', fid:3 };
+    const store=operationState.store;
+    const directId=String(task.parentMessageId||task.providerMessageId||task.mailboxProviderMessageId||'').trim();
+    if(directId)return {messageId:directId,fid:Number(task.parentFid||task.fid||3)||3};
+    const raw=task._rawDerivedTask||null;
+    const parentOutboundId=String(task.parentOutboundId||raw?.parentOutboundId||'').trim();
+    if(parentOutboundId){
+      const parent=store.outboundRecords?.[parentOutboundId];
+      if(parent?.providerMessageId)return {messageId:String(parent.providerMessageId),fid:3};
+    }
+    const derivedId=String(task.derivedTaskId||task._sourceTaskId||'').trim();
+    const derived=derivedId?store.derivedTasks?.[derivedId]:null;
+    if(derived?.parentOutboundId){
+      const parent=store.outboundRecords?.[derived.parentOutboundId];
+      if(parent?.providerMessageId)return {messageId:String(parent.providerMessageId),fid:3};
+    }
+    const keys=new Set([
+      String(task.rootTaskId||raw?.rootTaskId||derived?.rootTaskId||'').trim(),
+      String(task.editKey||'').replace(/^fu-review:/,'').trim(),
+      String(task.id||'').trim()
+    ].filter(Boolean));
+    const candidates=Object.values(store.outboundRecords||{}).filter(record=>record?.status==='sent'&&(
+      keys.has(String(record.taskId||''))||keys.has(String(record.rootTaskId||''))||keys.has(String(record.id||''))
+    )).sort((a,b)=>new Date(a.sentAt||0)-new Date(b.sentAt||0));
+    const record=candidates[0]||null;
+    if(record?.providerMessageId)return {messageId:String(record.providerMessageId).trim(),fid:3};
+    // Imported Initial tasks may predate the mailbox link. Use a unique exact
+    // recipient + thread-subject match only; ambiguity deliberately stays disabled.
+    const recipientSet=new Set((Operations?.parseRecipients?.(task.recipients||'')||[]).map(item=>String(item?.email||'').toLowerCase()).filter(Boolean));
+    const subjectKey=Operations?.subjectThreadKey?.(task.subject||'')||'';
+    if(recipientSet.size&&subjectKey){
+      const exact=Object.values(store.outboundRecords||{}).filter(outbound=>{
+        if(outbound?.status!=='sent'||!outbound?.providerMessageId)return false;
+        if((Operations?.subjectThreadKey?.(outbound.subject||'')||'')!==subjectKey)return false;
+        return (outbound.recipients||[]).some(item=>recipientSet.has(String(item?.email||'').toLowerCase()));
+      });
+      if(exact.length===1)return {messageId:String(exact[0].providerMessageId),fid:3};
+    }
+    return {messageId:'',fid:3};
+  }
+
+  function original163TaskButton(task,{compact=false,label='163 原信件'}={}) {
+    const ref=original163MailRef(task);
+    const base=`nmda-open-original-mail${compact?' is-compact':''}`;
+    if(!ref.messageId)return `<button class="${base} is-unavailable" type="button" disabled title="该任务尚未在 163 中形成或匹配到原信件">${escapeHtml(label)}</button>`;
+    return `<button class="${base}" type="button" data-open-original-mail="${escapeHtml(ref.messageId)}" data-open-original-fid="${ref.fid}" title="在 163 邮箱打开此任务对应的原信件">${escapeHtml(label)}</button>`;
+  }
+
+  async function openOriginal163Message(messageId,fid=3) {
+    const id=String(messageId||'').trim();
+    if(!id)return {ok:false,reason:'original-message-unavailable'};
+    try{return await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL_MESSAGE',messageId:id,fid:Number(fid||3)||3});}
+    catch(error){return {ok:false,reason:error?.message||String(error)};}
   }
 
   async function updateDispatchTask(task, patch = {}) {
@@ -1660,7 +1715,6 @@
       return {key:'waiting',tone:'',label:'还在等待',detail:`预计 ${Operations.formatDisplayTime(group.eligibility.dueAt)} 后可准备第 ${sequence} 次跟进`};
     }
     if(group.eligibility?.reason==='human-managed-conversation')return {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成 Follow-up',observation:group.eligibility.blockingObservation||null,humanManaged:true};
-    if(group.eligibility?.reason==='follow-up-disabled')return {key:'blocked',tone:'',label:'跟进已暂停',detail:'仍会继续检测回复，只暂停新的跟进'};
     if(group.eligibility?.reason==='max-attempts-reached')return {key:'waiting',tone:'',label:'本轮跟进已完成',detail:`已达到最多 ${group.policy.maxAttempts} 次跟进`};
     if(group.eligibility?.reason==='recipient-guard')return {key:'blocked',tone:'blocked',label:'联系规则阻断',detail:(group.eligibility.guard?.reasons||[]).join('；')||'已暂停联系'};
     return {key:'waiting',tone:'',label:'监测中',detail:group.eligibility?.reason||'等待邮箱事实'};
@@ -1750,8 +1804,11 @@
           const last=group.lastOutbound, st=group.viewState, active=st.activeTask;
           const dueAt=st.scheduledDraft?.scheduleAt || group.eligibility?.dueAt || active?.dueAt || '';
           const displaySubject=st.scheduledDraft?.subject || last.subject || '';
-          const enabled=group.policy?.enabled!==false;
           const actions=[];
+          const originalMessageId=String(last?.providerMessageId||'').trim();
+          actions.push(originalMessageId
+            ? `<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-open-original-mail="${escapeHtml(originalMessageId)}" data-open-original-fid="3">163 原信件</button>`
+            : `<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" disabled title="尚未匹配到 163 原信件">163 原信件</button>`);
           if(st.key==='replied' && st.observation){
             const messageId=String(st.observation?.providerMessageId||'').trim();
             actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-open-mail="${escapeHtml(messageId)}">前往邮箱</button>`);
@@ -1763,9 +1820,6 @@
           }
           else if(!group.humanManaged && group.eligibility?.eligible)actions.push(`<button class="nmda-btn nmda-btn-primary nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}">准备跟进</button>`);
           else if(group.eligibility?.reason==='waiting')actions.push(`<button class="nmda-btn nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}" data-manual="1">提前准备</button>`);
-          if(!st.scheduledDraft && !['human-reply','human-managed-conversation','max-attempts-reached','recipient-guard','scheduled-follow-up-exists'].includes(group.eligibility?.reason)){
-            actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-monitor-toggle="${escapeHtml(group.rootTaskId)}" data-enabled="${enabled?'1':'0'}">${enabled?'暂停 Follow-up':'恢复 Follow-up'}</button>`);
-          }
           let evidence='';
           const ambiguous=(group.replies||[]).filter(obs=>obs.kind==='ambiguous').slice(-1)[0];
           if(ambiguous){
@@ -1787,6 +1841,11 @@
 
   async function loadMonitoring() {
     await ensureOperationStore();
+    // Entering Follow-up monitoring always starts from the complete monitored set.
+    monitorState.filter='all';
+    monitorState.search='';
+    const search=$('nmda-monitor-search');if(search)search.value='';
+    ui.querySelectorAll('[data-monitor-filter]').forEach(item=>item.classList.toggle('is-active',(item.dataset.monitorFilter||'all')==='all'));
     renderMonitoring();
   }
 
@@ -2050,7 +2109,6 @@
       const dispatch=event.target.closest('[data-monitor-dispatch]');if(dispatch){setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});return;}
       const review=event.target.closest('[data-monitor-review]');if(review){void openReviewWorkspace({pendingOnly:false,taskKey:`fu-review:${review.dataset.monitorReview}`});return;}
       const cancelFollowUp=event.target.closest('[data-monitor-cancel-followup]');if(cancelFollowUp){void cancelMonitorFollowUp(cancelFollowUp.dataset.monitorCancelFollowup);return;}
-      const toggle=event.target.closest('[data-monitor-toggle]');if(toggle){void (async()=>{await ensureOperationStore();const enabled=toggle.dataset.enabled!=='1';const result=Operations.setFollowUpPolicy(operationState.store,toggle.dataset.monitorToggle,{enabled});operationState.store=result.store;await commitRuntimeOperations();renderMonitoring();setMonitorNotice(enabled?'已恢复 Follow-up；邮件检测始终保持在读取范围内。':'已暂停新的 Follow-up；邮件检测仍会继续记录回复事实。','ok');})();return;}
       const disposition=event.target.closest('[data-reply-disposition]');if(disposition){void (async()=>{await ensureOperationStore();const result=Operations.setReplyObservationDisposition(operationState.store,disposition.dataset.replyId,disposition.dataset.replyDisposition);operationState.store=result.store;await commitRuntimeOperations();renderMonitoring();renderReviewPageOverview();setMonitorNotice('回复状态已更新，并重新计算 Follow-up。','ok');})();}
     });
   }
@@ -2762,6 +2820,19 @@
     batch.existingScheduleReadAt=new Date().toISOString();batch.existingScheduleStatus='ok';batch.existingScheduleError='';renderScheduleCenter();
     return batch.existingScheduleAnchors;
   }
+
+  // Every operational task can jump back to its source message in 163 when a provider id is known.
+  ui?.addEventListener('click',event=>{
+    const trigger=event.target.closest?.('[data-open-original-mail]');if(!trigger)return;
+    event.preventDefault();event.stopPropagation();
+    void (async()=>{
+      const result=await openOriginal163Message(trigger.dataset.openOriginalMail,trigger.dataset.openOriginalFid||3);
+      if(!result?.ok){
+        const message=result?.reason==='original-message-unavailable'?'该任务尚未匹配到 163 原信件。':`无法打开 163 原信件：${result?.reason||'未知错误'}`;
+        if(currentWorkbenchTab()==='monitor')setMonitorNotice(message,'error');else setImportStatus(message,'warn');
+      }
+    })();
+  });
 
   // One delegated handler replaces hundreds of row listeners that used to be
   // destroyed and rebound after every table refresh.
@@ -3829,6 +3900,7 @@
       editKey:`fu-review:${task.id}`, id:`Follow-up #${Math.max(1,Number(task.sequence||1))}`,
       collectionName:'Follow-up', recipients, subject:String(task.subject||parent?.subject||''), body:String(task.body||''), bodyHtml:String(task.bodyHtml||''), bodyIsHtml:task.bodyIsHtml===true,
       composeMode:task.composeMode||'forward', sequence:Number(task.sequence||1), reviewConfirmed:reviewed,
+      rootTaskId:String(task.rootTaskId||''), parentOutboundId:String(task.parentOutboundId||''), parentMessageId:String(parent?.providerMessageId||''), parentFid:3,
       reviewDecision:String(task.reviewDecision||''), reviewDraftPending:false, importExcluded:false, importConfidence:100, importIssues:[], rosterIssues:[], errors:[],
       policyBlocked:task.state==='blocked'||!!task.blocker, attachmentRefs:[], scheduleAt:String(task.dispatch?.scheduleAt||''), tags:['Follow-up'],
       sourceFile:'Follow-up 模板生成',
@@ -5317,7 +5389,7 @@
         : '';
       const sourceBadge=isFollowUpReviewTask(task)?`<em class="nmda-review-source-badge is-followup">Follow-up #${Math.max(1,Number(task.sequence||1))}</em>`:'<em class="nmda-review-source-badge">Initial</em>';
       return `<article class="nmda-mail-review-card ${checked?'is-selected':''} ${task.editKey===activeKey?'is-active':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}" data-review-kind="${isFollowUpReviewTask(task)?'follow_up':'initial'}">
-        <div class="nmda-mail-card-status"><span class="nmda-mail-state-shape" aria-hidden="true">${visual.icon}</span><span><strong>${escapeHtml(visual.label)}</strong>${visual.detail?`<small>${escapeHtml(visual.detail)}</small>`:''}</span>${selectHtml}</div>
+        <div class="nmda-mail-card-status"><span class="nmda-mail-state-shape" aria-hidden="true">${visual.icon}</span><span><strong>${escapeHtml(visual.label)}</strong>${visual.detail?`<small>${escapeHtml(visual.detail)}</small>`:''}</span><div class="nmda-mail-card-tools">${original163TaskButton(task,{compact:true,label:'163 ↗'})}${selectHtml}</div></div>
         <button class="nmda-mail-card-main" type="button" data-review-preview-key="${escapeHtml(task.editKey)}" aria-label="预览 ${escapeHtml(label)}">
           <span class="nmda-mail-card-index">${String(index+1).padStart(2,'0')}</span>
           <span class="nmda-mail-card-copy">${sourceBadge}<strong>${escapeHtml(cardTitle)}</strong><small>${escapeHtml(recipient)}</small><b>${escapeHtml(subject)}</b>${stateLine}</span>
@@ -5423,9 +5495,10 @@
       const editLabel=visual.direct?.length?'补齐':'编辑';
       const confirmable=taskCanBatchConfirm(task);
       const menuLabel=isFollowUpReviewTask(task)?'取消跟进':'排除此封';
+      const originAction=original163TaskButton(task,{compact:true,label:'163 原信件 ↗'});
       const headActions=editing
-        ? `<div class="nmda-review-preview-actions is-editing"><span class="nmda-preview-editing-cue"><i></i>编辑权限已开启</span><button class="nmda-preview-inline-cancel" type="button" data-preview-edit-cancel="${escapeHtml(task.editKey)}">取消</button><button class="nmda-preview-inline-save" type="button" data-preview-edit-save="${escapeHtml(task.editKey)}">保存修改</button></div>`
-        : `<div class="nmda-review-preview-actions">${confirmable?`<button class="nmda-preview-inline-confirm" type="button" data-preview-confirm-key="${escapeHtml(task.editKey)}">确认无误</button>`:''}<button class="nmda-review-preview-edit" type="button" data-preview-edit-key="${escapeHtml(task.editKey)}">${editLabel}</button><details class="nmda-preview-more"><summary aria-label="更多操作">•••</summary><button type="button" data-preview-exclude-key="${escapeHtml(task.editKey)}">${menuLabel}</button></details></div>`;
+        ? `<div class="nmda-review-preview-actions is-editing">${originAction}<span class="nmda-preview-editing-cue"><i></i>编辑权限已开启</span><button class="nmda-preview-inline-cancel" type="button" data-preview-edit-cancel="${escapeHtml(task.editKey)}">取消</button><button class="nmda-preview-inline-save" type="button" data-preview-edit-save="${escapeHtml(task.editKey)}">保存修改</button></div>`
+        : `<div class="nmda-review-preview-actions">${originAction}${confirmable?`<button class="nmda-preview-inline-confirm" type="button" data-preview-confirm-key="${escapeHtml(task.editKey)}">确认无误</button>`:''}<button class="nmda-review-preview-edit" type="button" data-preview-edit-key="${escapeHtml(task.editKey)}">${editLabel}</button><details class="nmda-preview-more"><summary aria-label="更多操作">•••</summary><button type="button" data-preview-exclude-key="${escapeHtml(task.editKey)}">${menuLabel}</button></details></div>`;
       let sheet='';
       if(editing){
         const suggestions=!recipientLooksValid(task.recipients||'')?reviewCandidateEmails(task).slice(0,5):[];
@@ -7041,7 +7114,7 @@
       <label class="nmda-plan-matrix-toggle"><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''} ${batch.running||task.policyBlocked||task.status==='running'||task.status==='done'?'disabled':''}></label>
       <div class="nmda-plan-matrix-taskbody">
         <div class="nmda-plan-matrix-taskline"><strong>${escapeHtml(task.recipients||'—')}</strong><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span></div>
-        <div class="nmda-plan-matrix-taskmeta">${dispatchKindBadge(task)}${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'<span class="nmda-plan-minibadge">已有排期 · 锁定</span>':''}${task.files?.length?`<span class="nmda-plan-minibadge">附件 ${task.files.length}</span>`:''}</div>
+        <div class="nmda-plan-matrix-taskmeta">${dispatchKindBadge(task)}${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'<span class="nmda-plan-minibadge">已有排期 · 锁定</span>':''}${task.files?.length?`<span class="nmda-plan-minibadge">附件 ${task.files.length}</span>`:''}${original163TaskButton(task,{compact:true,label:'163 原信件 ↗'})}</div>
         <div class="nmda-plan-matrix-taskedit"><span class="nmda-smart-temporal is-task"><input type="datetime-local" step="300" data-smart-temporal="datetime" data-smart-role="task-schedule" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(scheduleValueForDisplay(task.scheduleAt,rules))}" ${batch.running||(task.scheduleSource==='mailbox'&&task.mailboxDraftId)?'disabled':''} title="${task.scheduleSource==='mailbox'&&task.mailboxDraftId?`网易已有排期为只读 · ${scheduleZoneText(rules)} 当地时间`:`${scheduleZoneText(rules)} 当地时间`}"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速调整发送时间" title="快速设置" ${batch.running||(task.scheduleSource==='mailbox'&&task.mailboxDraftId)?'disabled':''}>⌄</button></span></div>
       </div>
     </article>`;
@@ -7050,7 +7123,7 @@
   function renderPlanningLooseTask(task){
     const state=compactPlanningState(task), rules=batch.scheduleRules||freshScheduleRules();
     const school=Scheduler?.groupForTask?.(task)?.label||task.school||'未识别学校';
-    return `<article class="nmda-plan-loose-task" data-plan-task-key="${escapeHtml(task.editKey)}" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${dispatchKindBadge(task)} ${escapeHtml(school)}</small></div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><span class="nmda-smart-temporal is-task"><input type="datetime-local" step="300" data-smart-temporal="datetime" data-smart-role="task-schedule" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(scheduleValueForDisplay(task.scheduleAt,rules))}" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?`disabled title="网易已有排期为只读 · ${escapeHtml(scheduleZoneText(rules))} 当地时间"`:`title="${escapeHtml(scheduleZoneText(rules))} 当地时间"`}><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速调整发送时间" title="快速设置" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'disabled':''}>⌄</button></span></article>`;
+    return `<article class="nmda-plan-loose-task" data-plan-task-key="${escapeHtml(task.editKey)}" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${dispatchKindBadge(task)} ${escapeHtml(school)}</small>${original163TaskButton(task,{compact:true,label:'163 原信件 ↗'})}</div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><span class="nmda-smart-temporal is-task"><input type="datetime-local" step="300" data-smart-temporal="datetime" data-smart-role="task-schedule" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(scheduleValueForDisplay(task.scheduleAt,rules))}" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?`disabled title="网易已有排期为只读 · ${escapeHtml(scheduleZoneText(rules))} 当地时间"`:`title="${escapeHtml(scheduleZoneText(rules))} 当地时间"`}><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速调整发送时间" title="快速设置" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'disabled':''}>⌄</button></span></article>`;
   }
 
 

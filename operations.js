@@ -5,7 +5,7 @@
   const REPLY_KINDS = ['human', 'automatic', 'ambiguous', 'bounce', 'system'];
   const GUARD_MODES = ['normal', 'paused', 'do-not-contact'];
   const COMPOSE_MODES = ['forward', 'reply', 'new'];
-  const DEFAULT_FOLLOWUP_POLICY = Object.freeze({ enabled: true, delayDays: 7, maxAttempts: 2, composeMode: 'forward', templateBody: '', templateVersion: 0 });
+  const DEFAULT_FOLLOWUP_POLICY = Object.freeze({ enabled: true, delayDays: 7, maxAttempts: 2, composeMode: 'forward', templateBody: '', templateVersion: 0 }); // enabled is compatibility-only; Follow-up monitoring is always on.
 
   function normalizeEmail(value) {
     return String(value || '').trim().toLowerCase();
@@ -284,7 +284,7 @@
     const composeMode = COMPOSE_MODES.includes(value.composeMode) ? value.composeMode : DEFAULT_FOLLOWUP_POLICY.composeMode;
     const templateBody = String(value.templateBody ?? DEFAULT_FOLLOWUP_POLICY.templateBody).replace(/\r\n?/g, '\n').trim();
     const templateVersion = Math.max(0, Math.floor(Number(value.templateVersion ?? DEFAULT_FOLLOWUP_POLICY.templateVersion) || 0));
-    return { enabled: value.enabled !== false, delayDays, maxAttempts, composeMode, templateBody, templateVersion };
+    return { enabled: true, delayDays, maxAttempts, composeMode, templateBody, templateVersion };
   }
 
   function normalizeStore(raw, account = '') {
@@ -1174,7 +1174,9 @@
     const next = clone(store);
     const key = String(rootTaskId || '');
     const current = key ? policyForRoot(next, key) : normalizePolicy(next.followUpPolicies.default);
-    const candidate = { ...current, ...patch };
+    const candidate = { ...current, ...patch, enabled: true };
+    // Follow-up monitoring is universal. Ignore legacy per-conversation pause flags.
+    delete candidate.paused;
     if (patch.templateBody !== undefined && String(patch.templateBody || '').replace(/\r\n?/g, '\n').trim() !== current.templateBody) {
       candidate.templateVersion = Math.max(1, Number(current.templateVersion || 0) + 1);
     }
@@ -1183,8 +1185,10 @@
     } else {
       const existingOverride = next.followUpPolicies.overrides[key] && typeof next.followUpPolicies.overrides[key] === 'object' ? next.followUpPolicies.overrides[key] : {};
       const overridePatch = { ...patch };
+      delete overridePatch.enabled;
+      delete overridePatch.paused;
       if (patch.templateBody !== undefined) overridePatch.templateVersion = candidate.templateVersion;
-      next.followUpPolicies.overrides[key] = { ...existingOverride, ...overridePatch };
+      next.followUpPolicies.overrides[key] = { ...existingOverride, ...overridePatch, enabled: true };
     }
     next.updatedAt = nowIso();
     return { store: next, policy: policyForRoot(next, key) };
@@ -1293,7 +1297,6 @@
     rootTaskId = String(rootTaskId || '').trim();
     if (!rootTaskId) return { eligible: false, hardBlocked: true, reason: 'missing-root-task' };
     const policy = policyForRoot(store, rootTaskId);
-    if (!policy.enabled) return { eligible: false, hardBlocked: true, reason: 'follow-up-disabled', policy };
 
     // Eligibility is conversation-based, not task-record-based. A second outbound
     // with the same recipient + normalized subject is already Follow-up #1 even

@@ -1661,3 +1661,31 @@
   #nmda-root .nmda-smart-temporal-popover { border-radius:12px; }
   #nmda-root .nmda-smart-temporal-presets { grid-template-columns:1fr 1fr; }
 }
+
+/* v3.8.81 · universal task -> 163 original message affordance */
+#nmda-root .nmda-open-original-mail {
+  min-height:28px;
+  padding:0 9px;
+  border:1px solid #d7dee7;
+  border-radius:7px;
+  background:#fff;
+  color:#465a70;
+  font:inherit;
+  font-size:9px;
+  font-weight:760;
+  line-height:1;
+  white-space:nowrap;
+  cursor:pointer;
+}
+#nmda-root .nmda-open-original-mail:hover:not(:disabled) { border-color:#9ebce0;background:#f5f9ff;color:#245f9f; }
+#nmda-root .nmda-open-original-mail.is-compact { min-height:23px;padding:0 6px;border-radius:6px;font-size:8.2px; }
+#nmda-root .nmda-open-original-mail:disabled,
+#nmda-root .nmda-open-original-mail.is-unavailable { opacity:.46;cursor:not-allowed;background:#f7f8fa;color:#7f8995; }
+#nmda-root .nmda-mail-card-tools { display:flex;align-items:center;justify-content:flex-end;gap:5px;min-width:0; }
+#nmda-root .nmda-mail-card-tools .nmda-mail-card-select { margin:0; }
+#nmda-root .nmda-plan-matrix-taskmeta .nmda-open-original-mail { margin-left:auto; }
+#nmda-root .nmda-plan-loose-task > div > .nmda-open-original-mail { justify-self:start;margin-top:3px; }
+#nmda-root .nmda-review-preview-actions .nmda-open-original-mail { flex:0 0 auto; }
+@media (max-width:820px){
+  #nmda-root .nmda-review-preview-actions .nmda-open-original-mail { max-width:84px;overflow:hidden;text-overflow:ellipsis; }
+}
