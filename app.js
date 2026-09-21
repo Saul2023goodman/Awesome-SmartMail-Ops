@@ -1072,7 +1072,7 @@
                   <span><small>正文模板</small><strong id="nmda-monitor-template-summary">读取中…</strong></span><b id="nmda-monitor-template-badge">未设置</b>
                 </button>
               </div>
-              <label class="nmda-monitor-history-window" title="超过读取范围的邮件不会请求，也不会参与查重、回复识别或 Follow-up 计算。"><span>读取范围</span><select id="nmda-monitor-history-months"><option value="3">最近 3 个月</option><option value="6">最近 6 个月</option><option value="9">最近 9 个月</option><option value="12">最近 12 个月</option><option value="18">最近 18 个月</option><option value="24">最近 24 个月</option><option value="0">全部邮件</option></select></label>
+              <label class="nmda-monitor-history-window" title="超过读取范围的邮件不会请求，也不会参与查重、回复识别或 Follow-up 计算。"><span>读取范围</span><select id="nmda-monitor-history-months"><option value="0">全部邮件</option><option value="3">最近 3 个月</option><option value="6">最近 6 个月</option><option value="9">最近 9 个月</option><option value="12">最近 12 个月</option><option value="18">最近 18 个月</option><option value="24">最近 24 个月</option></select></label>
             </div>
 
             <div class="nmda-monitor-filterbar" id="nmda-monitor-filterbar">
@@ -1396,7 +1396,7 @@
   setTimeout(()=>scheduleMailboxAutoSync('quick',{source:'startup'}),120);
 
   const MAILBOX_HISTORY_MONTHS_KEY = 'nmda.mailbox.historyMonths';
-  const DEFAULT_MAILBOX_HISTORY_MONTHS = 6;
+  const DEFAULT_MAILBOX_HISTORY_MONTHS = 0;
 
   function readMailboxHistoryMonths() {
     try {
