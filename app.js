@@ -1095,8 +1095,8 @@
             <section class="nmda-contact-command-center" aria-label="联系人跟进状态">
               <div class="nmda-contact-status-tree">
                 <header>
-                  <div><small>联系人状态树</small><strong>每个邮箱只看一个运营状态</strong></div>
-                  <span>邮件是证据，联系人状态才是主线</span>
+                  <div><small>联系人进展总览</small><strong>按联系人汇总当前进展</strong></div>
+                  <span>历史邮件都会保留，这里只汇总每位联系人现在所处的阶段</span>
                 </header>
                 <div class="nmda-contact-tree-map">
                   <div class="nmda-contact-tree-root">

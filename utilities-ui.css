@@ -403,3 +403,23 @@
   #nmda-root.nmda-standalone .nmda-contact-decision{grid-template-columns:1fr}
   #nmda-root.nmda-standalone .nmda-contact-tree-outcomes{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+
+/* v3.8.101 · Utilities scrolling ownership
+   ui-system.css intentionally locks generic workspaces. Utilities is a long-form
+   workspace, so the page itself owns vertical scrolling while tool bodies remain
+   content-sized. This prevents the contact monitor from being clipped once the
+   contact list exceeds the viewport. */
+#nmda-root.nmda-standalone .nmda-page.nmda-utilities-page{
+  min-height:0 !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+  overscroll-behavior-y:contain;
+  scrollbar-gutter:stable;
+}
+#nmda-root.nmda-standalone .nmda-utility-workspace{
+  min-height:min-content;
+}
+#nmda-root.nmda-standalone .nmda-utility-monitor-page{
+  overflow:visible !important;
+}
