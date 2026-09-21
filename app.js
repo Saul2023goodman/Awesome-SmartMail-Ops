@@ -1029,68 +1029,98 @@
 
           <section class="nmda-tabpane nmda-page nmda-monitor-page" data-pane="monitor" hidden>
             <div class="nmda-monitor-toolbar">
-              <div class="nmda-monitor-toolbar-copy"><div><strong>邮件监测</strong><small id="nmda-monitor-sync-copy"></small></div></div>
+              <div class="nmda-monitor-toolbar-copy">
+                <div><strong>邮件跟进监测</strong><small id="nmda-monitor-sync-copy"></small></div>
+              </div>
               <div class="nmda-row nmda-wrap nmda-monitor-toolbar-actions">
-                <label class="nmda-monitor-history-window" title="超过读取范围的邮件不会请求，也不会参与查重、回复识别或 Follow-up 计算。"><span>读取范围</span><select id="nmda-monitor-history-months"><option value="3">最近 3 个月</option><option value="6">最近 6 个月</option><option value="9">最近 9 个月</option><option value="12">最近 12 个月</option><option value="18">最近 18 个月</option><option value="24">最近 24 个月</option><option value="0">全部邮件</option></select></label>
-                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-sync" type="button">立即刷新</button>
-                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-full-sync" type="button">重读范围</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-sync" type="button">刷新邮箱</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-full-sync" type="button">重新读取</button>
               </div>
             </div>
 
-            <div class="nmda-monitor-stats" id="nmda-monitor-stats"></div>
+            <section class="nmda-monitor-command-center" aria-label="Follow-up 当前状态">
+              <button class="nmda-monitor-ready-card" id="nmda-monitor-due-summary" type="button">
+                <span class="nmda-monitor-ready-mark" aria-hidden="true">↗</span>
+                <span class="nmda-monitor-ready-copy"><small>当前行动</small><strong id="nmda-monitor-ready-title">正在检查可跟进邮件…</strong><span id="nmda-monitor-ready-copy">系统会结合已发送、回复和网易定时草稿判断下一步。</span></span>
+                <b id="nmda-monitor-ready-action">查看</b>
+              </button>
+              <div class="nmda-monitor-stats" id="nmda-monitor-stats"></div>
+            </section>
 
-            <div class="nmda-monitor-rulebar" id="nmda-monitor-policy">
-              <div class="nmda-monitor-rulebar-title"><strong>Follow-up 规则</strong><small></small></div>
-              <div class="nmda-monitor-rulebar-controls">
-                <label><span>发送后</span><input id="nmda-monitor-delay" type="number" min="0" max="365" step="1"><span>天</span></label>
-                <span class="nmda-monitor-rule-sep">·</span>
-                <label><span>最多</span><input id="nmda-monitor-max" type="number" min="0" max="20" step="1"><span>次</span></label>
-                <span class="nmda-monitor-rule-sep">·</span>
-                <label><span>方式</span><select id="nmda-monitor-compose-mode"><option value="forward">Forward</option><option value="reply">Reply</option><option value="new">New message</option></select></label>
-                <button class="nmda-btn nmda-btn-small" id="nmda-monitor-save-policy" type="button">保存规则</button>
+            <div class="nmda-monitor-controlstrip">
+              <div class="nmda-monitor-setting-launchers" aria-label="Follow-up 设置">
+                <button class="nmda-monitor-setting-launch" id="nmda-monitor-open-policy" type="button">
+                  <span><small>跟进规则</small><strong id="nmda-monitor-policy-summary">读取中…</strong></span><b>设置</b>
+                </button>
+                <button class="nmda-monitor-setting-launch" id="nmda-monitor-open-template" type="button">
+                  <span><small>正文模板</small><strong id="nmda-monitor-template-summary">读取中…</strong></span><b id="nmda-monitor-template-badge">未设置</b>
+                </button>
               </div>
-              <small class="nmda-monitor-rule-note"></small>
+              <label class="nmda-monitor-history-window" title="超过读取范围的邮件不会请求，也不会参与查重、回复识别或 Follow-up 计算。"><span>读取范围</span><select id="nmda-monitor-history-months"><option value="3">最近 3 个月</option><option value="6">最近 6 个月</option><option value="9">最近 9 个月</option><option value="12">最近 12 个月</option><option value="18">最近 18 个月</option><option value="24">最近 24 个月</option><option value="0">全部邮件</option></select></label>
             </div>
 
-            <details class="nmda-monitor-template-panel" id="nmda-monitor-template-panel">
-              <summary>
-                <span><strong>Follow-up 模板</strong><small>称呼与署名继承 Initial，只维护中间正文</small></span>
-                <b id="nmda-monitor-template-badge">未设置</b>
-              </summary>
-              <div class="nmda-monitor-template-body">
-                <label class="nmda-monitor-template-field"><textarea id="nmda-monitor-template-body" rows="4" placeholder="例如：I wanted to follow up on my previous email regarding ..."></textarea></label>
-                <div class="nmda-monitor-template-actions">
-                  <label class="nmda-monitor-template-sync"><input id="nmda-monitor-template-sync" type="checkbox" checked><span>同步刷新尚未发送、且仍由模板管理的 Follow-up</span></label>
-                  <small id="nmda-monitor-template-sync-count">当前无待同步邮件</small>
-                  <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-monitor-save-template" type="button">保存模板</button>
-                </div>
-                <div class="nmda-monitor-template-result" id="nmda-monitor-template-result"><strong>未设置模板</strong><span>设置后，到期邮件可直接在这里生成 Follow-up。</span></div>
-              </div>
-            </details>
-
-            <div class="nmda-monitor-filterbar">
+            <div class="nmda-monitor-filterbar" id="nmda-monitor-filterbar">
               <div class="nmda-monitor-filters" role="group" aria-label="邮件监测筛选">
                 <button type="button" data-monitor-filter="all" class="is-active">全部</button>
-                <button type="button" data-monitor-filter="due">现在可跟进</button>
-                <button type="button" data-monitor-filter="waiting">等待中</button>
+                <button type="button" data-monitor-filter="due">待跟进</button>
+                <button type="button" data-monitor-filter="waiting">等待 / 已安排</button>
                 <button type="button" data-monitor-filter="replied">已回复</button>
                 <button type="button" data-monitor-filter="blocked">需处理</button>
               </div>
-              <input class="nmda-monitor-search" id="nmda-monitor-search" type="search" placeholder="搜索收件人或主题">
+              <input class="nmda-monitor-search" id="nmda-monitor-search" type="search" placeholder="搜索联系人或主题">
             </div>
 
             <div class="nmda-monitor-bulkbar" id="nmda-monitor-bulkbar" hidden>
-              <label class="nmda-monitor-select-all"><input id="nmda-monitor-select-visible" type="checkbox"><span>选择当前可跟进</span></label>
-              <span class="nmda-monitor-selection-copy" id="nmda-monitor-selection-copy">已选择 0</span>
+              <div class="nmda-monitor-bulk-copy"><strong>批量准备 Follow-up</strong><span id="nmda-monitor-selection-copy">当前可跟进 0 · 已选择 0</span></div>
+              <label class="nmda-monitor-select-all"><input id="nmda-monitor-select-visible" type="checkbox"><span>选择当前列表中的可跟进邮件</span></label>
               <div class="nmda-monitor-bulk-actions">
-                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-clear-selection" type="button">清除</button>
-                <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-monitor-batch-create" type="button">批量准备跟进</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-clear-selection" type="button">清除选择</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-monitor-batch-create" type="button">准备已选跟进</button>
               </div>
             </div>
 
             <div class="nmda-monitor-notice" id="nmda-monitor-notice" hidden></div>
             <div class="nmda-monitor-list" id="nmda-monitor-list"></div>
 
+            <div class="nmda-workflow-modal-overlay nmda-monitor-settings-overlay" id="nmda-monitor-settings-overlay" hidden>
+              <section class="nmda-workflow-dialog nmda-monitor-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-monitor-settings-title">
+                <header class="nmda-workflow-dialog-head nmda-monitor-settings-head">
+                  <div><span class="nmda-dialog-eyebrow">MAIL MONITORING</span><h3 id="nmda-monitor-settings-title">Follow-up 设置</h3><p>规则决定何时跟进；模板只负责 Follow-up 的中间正文。</p></div>
+                  <button class="nmda-dialog-close" id="nmda-monitor-settings-close" type="button" aria-label="关闭">×</button>
+                </header>
+                <div class="nmda-monitor-settings-tabs" role="tablist" aria-label="Follow-up 设置类型">
+                  <button type="button" data-monitor-settings-tab="policy" class="is-active">跟进规则</button>
+                  <button type="button" data-monitor-settings-tab="template">正文模板</button>
+                </div>
+                <div class="nmda-monitor-settings-content">
+                  <section class="nmda-monitor-settings-pane" data-monitor-settings-pane="policy">
+                    <div class="nmda-monitor-settings-intro"><strong>什么时候生成下一封跟进？</strong><span>系统只在未检测到有效回复、没有已定时 Follow-up，并且未达到次数上限时生成。</span></div>
+                    <div class="nmda-monitor-policy-editor" id="nmda-monitor-policy">
+                      <label class="nmda-monitor-policy-field"><span>首封 / 上次发送后等待</span><div><input id="nmda-monitor-delay" type="number" min="0" max="365" step="1"><b>天</b></div><small>达到这个间隔后，邮件会进入“待跟进”。</small></label>
+                      <label class="nmda-monitor-policy-field"><span>最多跟进次数</span><div><input id="nmda-monitor-max" type="number" min="0" max="20" step="1"><b>次</b></div><small>达到上限后继续监测回复，但不再生成新跟进。</small></label>
+                      <label class="nmda-monitor-policy-field"><span>跟进写信方式</span><select id="nmda-monitor-compose-mode"><option value="forward">Forward · 转发原邮件</option><option value="reply">Reply · 回复原线程</option><option value="new">New message · 新邮件</option></select><small>决定生成到网易时采用的写信方式。</small></label>
+                    </div>
+                    <div class="nmda-monitor-settings-save-row"><span>保存后立即重新计算当前邮件的跟进资格。</span><button class="nmda-btn nmda-btn-primary" id="nmda-monitor-save-policy" type="button">保存跟进规则</button></div>
+                  </section>
+
+                  <section class="nmda-monitor-settings-pane" data-monitor-settings-pane="template" hidden>
+                    <div class="nmda-monitor-settings-intro"><strong>Follow-up 正文模板</strong><span>称呼和署名从每封 Initial 自动继承，这里只写中间正文；无需重复写 Dear… 或落款。</span></div>
+                    <div class="nmda-monitor-template-editor" id="nmda-monitor-template-panel">
+                      <div class="nmda-monitor-template-body">
+                        <label class="nmda-monitor-template-field"><textarea id="nmda-monitor-template-body" rows="7" placeholder="例如：I wanted to follow up on my previous email regarding ..."></textarea></label>
+                        <div class="nmda-monitor-template-actions">
+                          <label class="nmda-monitor-template-sync"><input id="nmda-monitor-template-sync" type="checkbox" checked><span>同时刷新尚未发送、且仍由模板管理的 Follow-up</span></label>
+                          <small id="nmda-monitor-template-sync-count">当前无待同步邮件</small>
+                          <button class="nmda-btn nmda-btn-primary" id="nmda-monitor-save-template" type="button">保存正文模板</button>
+                        </div>
+                        <div class="nmda-monitor-template-result" id="nmda-monitor-template-result"><strong>未设置模板</strong><span>设置后，符合条件的邮件可直接生成 Follow-up。</span></div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+                <footer class="nmda-workflow-dialog-foot"><span class="nmda-monitor-settings-footnote">邮箱读取与回复监测不会因为 Follow-up 暂停而停止。</span><div class="nmda-dialog-foot-spacer"></div><button class="nmda-btn" id="nmda-monitor-settings-done" type="button">完成</button></footer>
+              </section>
+            </div>
           </section>
 
         </main>
@@ -1401,7 +1431,9 @@
     return {
       stats:$('nmda-monitor-stats'), list:$('nmda-monitor-list'),
       notice:$('nmda-monitor-notice'), syncCopy:$('nmda-monitor-sync-copy'), delay:$('nmda-monitor-delay'), max:$('nmda-monitor-max'), compose:$('nmda-monitor-compose-mode'), historyMonths:$('nmda-monitor-history-months'),
-      bulkbar:$('nmda-monitor-bulkbar'), selectVisible:$('nmda-monitor-select-visible'), selectionCopy:$('nmda-monitor-selection-copy'), batchCreate:$('nmda-monitor-batch-create')
+      bulkbar:$('nmda-monitor-bulkbar'), selectVisible:$('nmda-monitor-select-visible'), selectionCopy:$('nmda-monitor-selection-copy'), batchCreate:$('nmda-monitor-batch-create'),
+      readyCard:$('nmda-monitor-due-summary'), readyTitle:$('nmda-monitor-ready-title'), readyCopy:$('nmda-monitor-ready-copy'), readyAction:$('nmda-monitor-ready-action'),
+      policySummary:$('nmda-monitor-policy-summary'), templateSummary:$('nmda-monitor-template-summary')
     };
   }
 
@@ -1438,8 +1470,9 @@
     if(!dirty&&document.activeElement!==field)field.value=saved;
     field.dataset.initialized='1';
     const state=monitorFollowUpTemplateState();
-    const badge=$('nmda-monitor-template-badge'),sync=$('nmda-monitor-template-sync'),syncCount=$('nmda-monitor-template-sync-count'),result=$('nmda-monitor-template-result'),save=$('nmda-monitor-save-template'),panel=$('nmda-monitor-template-panel');
+    const badge=$('nmda-monitor-template-badge'),summary=$('nmda-monitor-template-summary'),sync=$('nmda-monitor-template-sync'),syncCount=$('nmda-monitor-template-sync-count'),result=$('nmda-monitor-template-result'),save=$('nmda-monitor-save-template'),trigger=$('nmda-monitor-open-template');
     if(badge)badge.textContent=state.changed?'待保存':(saved?'已设置':'未设置');
+    if(summary)summary.textContent=state.changed?'有未保存修改':(saved?'已设置 · 称呼与署名自动继承':'未设置 · 到期前建议配置');
     if(syncCount)syncCount.textContent=state.syncable.length?`${state.syncable.length} 封可同步`:(state.protectedCount?`${state.protectedCount} 封人工正文受保护`:(state.lockedCount?`${state.lockedCount} 封已排期锁定`:'当前无待同步邮件'));
     if(sync){sync.disabled=!state.changed||!state.value||!state.syncable.length;if(sync.disabled&&state.syncable.length===0)sync.checked=true;}
     if(save)save.disabled=!state.changed||!state.validation.valid;
@@ -1450,9 +1483,10 @@
       else if(saved)result.innerHTML='<strong>模板已生效</strong><span>到期后直接在邮件监测中生成；称呼与署名从各自 Initial 继承。</span>';
       else result.innerHTML='<strong>未设置模板</strong><span>设置后，到期邮件可直接在这里生成 Follow-up。</span>';
     }
-    if(panel&&!saved&&panel.dataset.autoOpened!=='1'){
+    if(trigger){
       const due=(Operations?.monitoringRoots?.(operationState.store)||[]).some(group=>group?.eligibility?.eligible===true);
-      if(due){panel.open=true;panel.dataset.autoOpened='1';}
+      trigger.classList.toggle('is-attention',due&&!saved&&!state.changed);
+      trigger.setAttribute('aria-label',due&&!saved?'正文模板未设置；当前已有可跟进邮件':'打开 Follow-up 正文模板设置');
     }
   }
 
@@ -1502,14 +1536,15 @@
     if(activeTask){
       const reviewed=!!activeTask.reviewedAt && Number(activeTask.confirmedVersion)===Number(activeTask.contentVersion);
       const autoReviewed=reviewed && activeTask.reviewDecision==='auto';
-      const label=reviewed?'跟进已准备':'跟进需检查';
+      const label=reviewed?'已生成 · 可排期':'已生成 · 需审阅';
       const sequence=Math.max(1,Number(activeTask.sequence||1));
       const detail=activeTask.draftPreparedAt?`第 ${sequence} 次跟进 · 草稿已创建`:activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`第 ${sequence} 次跟进 · 已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:`第 ${sequence} 次跟进 · ${autoReviewed?'模板检查完整，已进入选择与排期':'已进入选择与排期'}`):(reviewed?`第 ${sequence} 次跟进 · 等待进入选择与排期`:`第 ${sequence} 次跟进 · 生成后发现异常，请到邮件审阅处理`);
       return {key:'due',tone:'due',label,detail,activeTask};
     }
     if(group.eligibility?.eligible){
       const sequence=Math.max(1,Number(group.eligibility.sequence||1));
-      return {key:'due',tone:'due',label:'现在可以跟进',detail:`第 ${sequence} 次跟进 · 已到计划时间`};
+      const delayDays=Math.max(0,Number(group.policy?.delayDays??Operations?.DEFAULT_FOLLOWUP_POLICY?.delayDays??7));
+      return {key:'due',tone:'due',label:'现在可以准备跟进',detail:`距上次发送已达到 ${delayDays} 天 · 可准备第 ${sequence} 次跟进`};
     }
     if(group.eligibility?.reason==='scheduled-follow-up-exists'){
       const sequence=Math.max(1,Number(group.eligibility.sequence||group.eligibility.scheduledDraft?.sequence||1));
@@ -1517,7 +1552,7 @@
     }
     if(group.eligibility?.reason==='waiting'){
       const sequence=Math.max(1,Number(group.eligibility.sequence||1));
-      return {key:'waiting',tone:'',label:'等待跟进时间',detail:`第 ${sequence} 次跟进 · 预计 ${Operations.formatDisplayTime(group.eligibility.dueAt)} 可跟进`};
+      return {key:'waiting',tone:'',label:'还在等待',detail:`预计 ${Operations.formatDisplayTime(group.eligibility.dueAt)} 后可准备第 ${sequence} 次跟进`};
     }
     if(group.eligibility?.reason==='human-managed-conversation')return {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成 Follow-up',observation:group.eligibility.blockingObservation||null,humanManaged:true};
     if(group.eligibility?.reason==='follow-up-disabled')return {key:'blocked',tone:'',label:'跟进已暂停',detail:'仍会继续检测回复，只暂停新的跟进'};
@@ -1547,18 +1582,30 @@
     const groups=Operations.monitoringRoots(operationState.store);
     const enriched=groups.map(group=>({...group,viewState:monitorGroupState(group)}));
     const due=enriched.filter(item=>item.viewState.key==='due').length;
+    const creatable=enriched.filter(monitorCreatable).length;
+    const prepared=enriched.filter(item=>item.viewState.key==='due'&&!!item.viewState.activeTask).length;
     const replied=enriched.filter(item=>item.viewState.key==='replied' && (Operations?.isEffectiveReplyObservation?.(item.viewState.observation) || item.viewState.observation?.kind==='human')).length;
     const blocked=enriched.filter(item=>item.viewState.key==='blocked').length;
-    const waiting=enriched.filter(item=>item.viewState.key==='waiting').length;
+    const scheduled=enriched.filter(item=>item.viewState.tone==='scheduled').length;
+    const waiting=enriched.filter(item=>item.viewState.key==='waiting'&&item.viewState.tone!=='scheduled').length;
     if(els.stats)els.stats.innerHTML=`
-      <div class="nmda-monitor-stat"><strong>${groups.length}</strong><span>已发送线程</span></div>
-      <button class="nmda-monitor-stat is-action" id="nmda-monitor-due-summary" type="button" data-tone="due" ${due===0?'disabled':''} aria-label="${due} 封邮件现在可以跟进，点击查看"><strong>${due}</strong><span>现在可跟进</span><small>${due>0?'点击查看 →':'当前无需处理'}</small></button>
-      <div class="nmda-monitor-stat" data-tone="reply"><strong>${replied}</strong><span>已回复</span></div>
-      <div class="nmda-monitor-stat" data-tone="block"><strong>${blocked}</strong><span>需处理</span></div>`;
+      <div class="nmda-monitor-stat"><span>等待条件</span><strong>${waiting}</strong></div>
+      <div class="nmda-monitor-stat" data-tone="scheduled"><span>已安排发送</span><strong>${scheduled}</strong></div>
+      <div class="nmda-monitor-stat" data-tone="reply"><span>已回复</span><strong>${replied}</strong></div>
+      <div class="nmda-monitor-stat" data-tone="block"><span>需处理</span><strong>${blocked}</strong></div>`;
+    if(els.readyCard){
+      els.readyCard.disabled=creatable===0;
+      els.readyCard.dataset.state=creatable>0?'ready':(prepared>0?'prepared':'clear');
+    }
+    if(els.readyTitle)els.readyTitle.textContent=creatable>0?`${creatable} 封现在可以准备跟进`:(prepared>0?'没有新的待生成跟进':'当前没有需要立即跟进的邮件');
+    if(els.readyCopy)els.readyCopy.textContent=creatable>0?'这些邮件已达到跟进间隔，且未检测到有效回复或已定时的 Follow-up。':(prepared>0?`${prepared} 封 Follow-up 已生成，正在等待审阅或排期。`:'系统会继续监测回复、发送时间和网易草稿箱中的定时 Follow-up。');
+    if(els.readyAction)els.readyAction.textContent=creatable>0?`查看 ${creatable} 封`:(prepared>0?'已准备':'无需操作');
     const policy=operationState.store.followUpPolicies?.default || Operations.DEFAULT_FOLLOWUP_POLICY;
     if(els.delay && document.activeElement!==els.delay)els.delay.value=String(policy.delayDays ?? 7);
     if(els.max && document.activeElement!==els.max)els.max.value=String(policy.maxAttempts ?? 2);
     if(els.compose && document.activeElement!==els.compose)els.compose.value=policy.composeMode || 'forward';
+    const composeLabel=policy.composeMode==='reply'?'Reply':(policy.composeMode==='new'?'New message':'Forward');
+    if(els.policySummary)els.policySummary.textContent=`发送后 ${Math.max(0,Number(policy.delayDays??7))} 天 · 最多 ${Math.max(0,Number(policy.maxAttempts??2))} 次 · ${composeLabel}`;
     renderMonitorFollowUpTemplate();
     const configuredHistoryMonths=readMailboxHistoryMonths();
     if(els.historyMonths && document.activeElement!==els.historyMonths)els.historyMonths.value=String(configuredHistoryMonths);
@@ -1582,7 +1629,7 @@
     const visibleCreatable=visible.filter(monitorCreatable);
     const allCreatable=enriched.filter(monitorCreatable);
     if(els.bulkbar)els.bulkbar.hidden=allCreatable.length===0;
-    if(els.selectionCopy)els.selectionCopy.textContent=`已选择 ${selected.size} · 当前可跟进 ${visibleCreatable.length}`;
+    if(els.selectionCopy)els.selectionCopy.textContent=`当前列表可跟进 ${visibleCreatable.length} · 已选择 ${selected.size}`;
     if(els.batchCreate)els.batchCreate.disabled=selected.size===0;
     if(els.selectVisible){
       const selectedVisible=visibleCreatable.filter(item=>selected.has(item.rootTaskId)).length;
@@ -1797,6 +1844,33 @@
   }
 
 
+  function setMonitorSettingsView(view='policy') {
+    const next=view==='template'?'template':'policy';
+    ui.querySelectorAll('[data-monitor-settings-tab]').forEach(button=>{
+      const active=(button.dataset.monitorSettingsTab||'policy')===next;
+      button.classList.toggle('is-active',active);
+      button.setAttribute('aria-selected',active?'true':'false');
+    });
+    ui.querySelectorAll('[data-monitor-settings-pane]').forEach(pane=>{
+      pane.hidden=(pane.dataset.monitorSettingsPane||'policy')!==next;
+    });
+    const dialog=$('nmda-monitor-settings-overlay');if(dialog)dialog.dataset.view=next;
+  }
+
+  function openMonitorSettings(view='policy') {
+    const overlay=$('nmda-monitor-settings-overlay');if(!overlay)return;
+    setMonitorSettingsView(view);
+    overlay.hidden=false;
+    requestAnimationFrame(()=>{
+      const target=view==='template'?$('nmda-monitor-template-body'):$('nmda-monitor-delay');
+      target?.focus?.({preventScroll:true});
+    });
+  }
+
+  function closeMonitorSettings() {
+    const overlay=$('nmda-monitor-settings-overlay');if(overlay)overlay.hidden=true;
+  }
+
   function setMonitorFilter(filter='all',{clearSearch=false,scrollToList=false}={}) {
     monitorState.filter=filter||'all';
     if(clearSearch){
@@ -1820,10 +1894,17 @@
       setMonitorNotice(months?`读取范围已改为最近 ${months} 个月；正在清理旧范围并重读。`:'读取范围已改为全部邮件；正在重读邮箱历史。');
       try{await syncMonitoringMailbox('full');}catch(_){}
     })();});
+    $('nmda-monitor-open-policy')?.addEventListener('click',()=>openMonitorSettings('policy'));
+    $('nmda-monitor-open-template')?.addEventListener('click',()=>openMonitorSettings('template'));
+    $('nmda-monitor-settings-close')?.addEventListener('click',closeMonitorSettings);
+    $('nmda-monitor-settings-done')?.addEventListener('click',closeMonitorSettings);
+    $('nmda-monitor-settings-overlay')?.addEventListener('click',event=>{if(event.target===event.currentTarget)closeMonitorSettings();});
+    ui.querySelectorAll('[data-monitor-settings-tab]').forEach(button=>button.addEventListener('click',()=>setMonitorSettingsView(button.dataset.monitorSettingsTab||'policy')));
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('nmda-monitor-settings-overlay')?.hidden)closeMonitorSettings();});
     $('nmda-monitor-save-policy')?.addEventListener('click',async()=>{
       await ensureOperationStore();
       const result=Operations.setFollowUpPolicy(operationState.store,'',{delayDays:Number($('nmda-monitor-delay').value||0),maxAttempts:Number($('nmda-monitor-max').value||0),composeMode:$('nmda-monitor-compose-mode').value||'forward'});
-      operationState.store=result.store;writeFollowUpPrefs(result.policy);await commitRuntimeOperations();renderMonitoring();setMonitorNotice('Follow-up 规则已保存。','ok');
+      operationState.store=result.store;writeFollowUpPrefs(result.policy);await commitRuntimeOperations();renderMonitoring();setMonitorNotice('跟进规则已保存，并已重新计算当前邮件。','ok');
     });
     $('nmda-monitor-template-body')?.addEventListener('input',event=>{
       const field=event.currentTarget;const saved=String((operationState.store?.followUpPolicies?.default||Operations.DEFAULT_FOLLOWUP_POLICY)?.templateBody||'').replace(/\r\n?/g,'\n').trim();
@@ -1833,8 +1914,8 @@
     $('nmda-monitor-template-sync')?.addEventListener('change',renderMonitorFollowUpTemplate);
     $('nmda-monitor-save-template')?.addEventListener('click',()=>void saveMonitorFollowUpTemplate());
     ui.querySelectorAll('[data-monitor-filter]').forEach(button=>button.addEventListener('click',()=>setMonitorFilter(button.dataset.monitorFilter||'all')));
-    $('nmda-monitor-stats')?.addEventListener('click',event=>{
-      const summary=event.target.closest('#nmda-monitor-due-summary');if(!summary||summary.disabled)return;
+    $('nmda-monitor-due-summary')?.addEventListener('click',event=>{
+      const summary=event.currentTarget;if(summary.disabled)return;
       setMonitorFilter('due',{clearSearch:true,scrollToList:true});
     });
     $('nmda-monitor-search')?.addEventListener('input',event=>{monitorState.search=event.currentTarget.value||'';renderMonitoring();});
