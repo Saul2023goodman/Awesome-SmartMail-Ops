@@ -65,6 +65,164 @@
     return !!target && (actual === target || actual.includes(target));
   }
 
+  const PROMOTION_SPECS = [
+    {
+      key: 'english-optimize', label: '英文优化', blockingSave: true,
+      markers: ['智能优化您的英文邮件', '一键纠错英文邮件，AI智能润色重写', '英文邮件一键纠错，AI智能润色重写'],
+      roots: ['.Sky-gcmp-common-newdialog'], cancel: ['取消']
+    },
+    {
+      key: 'ai-resume', label: 'AI 简历优化', blockingSave: false,
+      markers: ['简历优化-AI求职小助手', '仅需1分钟，可通过专业的评估了解您的简历水平'],
+      roots: ['.Sky-gCmp-aiprofile-intro-guide-popup'], cancel: ['取消']
+    },
+    {
+      key: 'mailtrace', label: '邮件追踪推广', blockingSave: false,
+      markers: ['新功能体验：邮件追踪', '功能升级：群发追踪', '功能升级：附件追踪', '邮件追踪功能全新升级'],
+      roots: ['.Sky-gCmp-mailtrace-guide-dialog', '.Sky-gCmp-mailtrace-trail-guide-popup'],
+      cancel: ['暂不体验', '暂不需要', '我知道了', '取消', '确定']
+    },
+    {
+      key: 'big-attachment-member', label: '邮箱会员推广', blockingSave: false,
+      markers: ['开通邮箱会员，享邮箱扩容、下载提速、追踪收件人是否已读'],
+      roots: [], cancel: ['我知道了']
+    }
+  ];
+
+  const activeInterruptionGuards = new Map();
+
+  function promotionLayerFromMarker(spec) {
+    const actionSelector = 'button,a,[role="button"],span,.nui-btn,.nui-txt-link';
+    for (const action of document.querySelectorAll(actionSelector)) {
+      if (!visible(action)) continue;
+      const actionText = compactText(action);
+      if (!spec.cancel.some(label => actionText === compactText(label))) continue;
+      let node = action;
+      for (let depth = 0; node && node !== document.body && depth < 10; depth++, node = node.parentElement) {
+        const text = compactText(node);
+        if (spec.markers.some(marker => text.includes(compactText(marker)))) return node;
+      }
+    }
+    return null;
+  }
+
+  function findPromotionLayer(spec, allowMarkerFallback = true) {
+    for (const selector of spec.roots || []) {
+      const root = [...document.querySelectorAll(selector)].find(visible);
+      if (root) return root;
+    }
+    return allowMarkerFallback ? promotionLayerFromMarker(spec) : null;
+  }
+
+  function clickPromotionDismiss(layer, spec) {
+    if (!layer) return false;
+    const candidates = [...layer.querySelectorAll('button,a,[role="button"],span,.nui-btn,.nui-txt-link')].filter(visible);
+    for (const label of spec.cancel) {
+      const wanted = compactText(label);
+      const action = candidates.find(el => compactText(el) === wanted);
+      if (action) { action.click(); return true; }
+    }
+    const close = candidates.find(el => {
+      const aria = compactText(el.getAttribute?.('aria-label') || '');
+      const title = compactText(el.getAttribute?.('title') || '');
+      const cls = String(el.className || '');
+      return aria === '关闭' || title === '关闭' || /closeable|dialog-close|popup-close/i.test(cls);
+    });
+    if (close) { close.click(); return true; }
+    return false;
+  }
+
+  function findSenderNamePrompt() {
+    const roots = [...document.querySelectorAll('[role="dialog"],[class*="msgbox"],[class*="Msgbox"],.nui-msgbox')].filter(visible);
+    const matched = roots.find(root => {
+      const text = compactText(root);
+      return text.includes('您还没设置姓名') || text.includes('为方便对方确认，请填写您的姓名');
+    });
+    if (matched) return matched;
+    const actions = [...document.querySelectorAll('button,a,[role="button"],span,.nui-btn')].filter(visible)
+      .filter(el => compactText(el) === '保存并发送');
+    for (const action of actions) {
+      let node = action;
+      for (let depth = 0; node && node !== document.body && depth < 10; depth++, node = node.parentElement) {
+        const text = compactText(node);
+        if (text.includes('还没设置姓名') || text.includes('填写您的姓名')) return node;
+      }
+    }
+    return null;
+  }
+
+  function startComposeInterruptionGuard(executionId) {
+    const id = String(executionId || '');
+    activeInterruptionGuards.get(id)?.stop?.();
+    const state = {
+      phase: 'open', stopped: false, blockingSaveVersion: 0, dismissed: 0,
+      seenNodes: new WeakSet(), reportedKeys: new Set(), observer: null, timer: null,
+      lastMarkerFallbackAt: 0
+    };
+    const scan = () => {
+      if (state.stopped) return [];
+      const handled = [];
+      const now = Date.now();
+      const allowMarkerFallback = now - state.lastMarkerFallbackAt >= 900;
+      if (allowMarkerFallback) state.lastMarkerFallbackAt = now;
+      for (const spec of PROMOTION_SPECS) {
+        const layer = findPromotionLayer(spec, allowMarkerFallback);
+        if (!layer || state.seenNodes.has(layer)) continue;
+        state.seenNodes.add(layer);
+        if (!clickPromotionDismiss(layer, spec)) continue;
+        state.dismissed++;
+        if (spec.blockingSave) state.blockingSaveVersion++;
+        handled.push({ key:spec.key, label:spec.label, blockingSave:!!spec.blockingSave });
+        if (!state.reportedKeys.has(spec.key)) {
+          state.reportedKeys.add(spec.key);
+          reportProgress(id, state.phase, `已自动处理网易${spec.label}提示，继续执行。`, { interruption:'promotion', promotion:spec.key, autoDismissed:true });
+        }
+      }
+      return handled;
+    };
+    const scheduleScan = () => {
+      if (state.stopped || state.timer) return;
+      state.timer = setTimeout(() => { state.timer = null; scan(); }, 30);
+    };
+    state.observer = new MutationObserver(scheduleScan);
+    state.observer.observe(document.documentElement, { childList:true, subtree:true });
+    const interval = setInterval(scan, 900);
+    state.scan = scan;
+    state.setPhase = phase => { state.phase = String(phase || state.phase || 'open'); scan(); };
+    state.stop = () => {
+      if (state.stopped) return;
+      state.stopped = true;
+      state.observer?.disconnect();
+      if (state.timer) clearTimeout(state.timer);
+      clearInterval(interval);
+      activeInterruptionGuards.delete(id);
+    };
+    activeInterruptionGuards.set(id, state);
+    scan();
+    return state;
+  }
+
+  function stopComposeInterruptionGuard(executionId) {
+    activeInterruptionGuards.get(String(executionId || ''))?.stop?.();
+  }
+
+  async function getComposeSenderState(identity) {
+    try {
+      const result = await chrome.runtime.sendMessage({ type:'NMDA_COMPOSE_SENDER_STATE', identity:identity || {} });
+      return result?.ok ? result : { ok:false, resolved:false, reason:result?.reason || 'sender-state-unavailable' };
+    } catch (error) {
+      return { ok:false, resolved:false, reason:error?.message || String(error) };
+    }
+  }
+
+  async function rearmSenderNamePrompt(identity) {
+    try {
+      return await chrome.runtime.sendMessage({ type:'NMDA_COMPOSE_REARM_SENDER_NAME', identity:identity || {} });
+    } catch (error) {
+      return { ok:false, reason:error?.message || String(error) };
+    }
+  }
+
   function findComposeRoot() {
     const semantic = [...document.querySelectorAll('[role="main"]')]
       .find(el => visible(el) && compactText(el.getAttribute('aria-label') || '').includes('写信'));
@@ -777,31 +935,94 @@
     return regularDraftSuccessSignals().find(el => !before.has(draftSignalFingerprint(el))) || null;
   }
 
-  async function waitForDraftSaveOutcome({ scheduled, baseline }) {
+  async function waitForDraftSaveOutcome({ scheduled, baseline, button, executionId, guard, composeIdentity }) {
     if (scheduled) {
-      const start = Date.now();
+      let deadline = Date.now() + 9000;
       let poll = 0;
-      while (Date.now() - start < 9000) {
-        // Deep compatibility scans are much more expensive on NetEase's large DOM;
-        // run them roughly once per 800 ms instead of every 100 ms.
+      let senderPromptActive = false;
+      let senderPromptLastSeenAt = 0;
+      let senderResolvedReported = false;
+      let rearmAttempts = 0;
+      let blockingPromoVersion = Number(guard?.blockingSaveVersion || 0);
+      let retryAfterPromotionAt = 0;
+
+      while (true) {
+        guard?.scan?.();
         const deep = poll % 8 === 7;
         if (!baseline?.timedSuccessVisible && isTimedDraftSuccessVisible(deep)) {
           return { kind: 'scheduled-result', evidence: '定时发信设置成功' };
         }
+
+        const senderPrompt = findSenderNamePrompt();
+        if (senderPrompt) {
+          senderPromptLastSeenAt = Date.now();
+          if (!senderPromptActive) {
+            senderPromptActive = true;
+            senderResolvedReported = false;
+            reportProgress(executionId, 'identity-required', '网易需要补充发件人姓名。请直接在当前弹窗填写；保存后本封会自动继续，无需重新开始。', { waitingFor:'sender-name', autoResume:true });
+          }
+          await sleep(120);
+          poll++;
+          continue;
+        }
+
+        if (senderPromptActive) {
+          const senderState = await getComposeSenderState(composeIdentity);
+          if (senderState?.resolved) {
+            senderPromptActive = false;
+            deadline = Date.now() + 12000;
+            if (!senderResolvedReported) {
+              senderResolvedReported = true;
+              reportProgress(executionId, 'save', '发件人姓名已补全，网易正在自动继续当前定时任务…', { senderResolved:true, autoResumed:true });
+            }
+          } else if (Date.now() - senderPromptLastSeenAt >= 700) {
+            // NetEase flips ntes_compose.senderName to 1 as soon as the prompt is shown.
+            // If the prompt is closed without a saved name, re-arm that exact guard before
+            // re-submitting so the task can never silently continue with the raw account name.
+            const rearmed = await rearmSenderNamePrompt(composeIdentity);
+            if (rearmed?.ok) {
+              rearmAttempts++;
+              reportProgress(executionId, 'identity-required', '发件人姓名尚未保存，已恢复网易姓名填写步骤；填写完成后会自动继续。', { waitingFor:'sender-name', autoResume:true, rearmAttempts });
+              button?.click?.();
+              senderPromptLastSeenAt = Date.now();
+              await sleep(220);
+              poll++;
+              continue;
+            }
+            // If the private flag cannot be re-armed, keep the same task alive instead of
+            // failing the whole batch. The user can still fill the native dialog if it returns.
+            senderPromptLastSeenAt = Date.now();
+          }
+        }
+
+        const currentBlockingPromoVersion = Number(guard?.blockingSaveVersion || 0);
+        if (currentBlockingPromoVersion > blockingPromoVersion) {
+          blockingPromoVersion = currentBlockingPromoVersion;
+          retryAfterPromotionAt = Date.now() + 220;
+          deadline = Date.now() + 9000;
+        }
+        if (retryAfterPromotionAt && Date.now() >= retryAfterPromotionAt) {
+          retryAfterPromotionAt = 0;
+          button?.click?.();
+        }
+
+        if (!senderPromptActive && Date.now() > deadline) {
+          throw new Error('已点击“存草稿”，但未检测到“定时发信设置成功”。已保留当前 Compose，避免误写下一封。');
+        }
         poll++;
         await sleep(100);
       }
-      throw new Error('已点击“存草稿”，但未检测到“定时发信设置成功”，已停止，避免继续写下一封。');
     }
 
     return waitFor(() => {
+      guard?.scan?.();
       const tip = findFreshRegularDraftSuccess(baseline);
       if (tip) return { kind: 'regular-tip', evidence: textOf(tip) };
       if (!baseline?.routeWasDraft && isDraftRoute()) {
         return { kind: 'draft-route', evidence: 'Compose 路由进入 draft' };
       }
       return null;
-    }, 7000, 100, '已点击“存草稿”，但未检测到网易“成功保存到草稿箱”的新提示，已停止，避免继续写下一封。');
+    }, 7000, 100, '已点击“存草稿”，但未检测到网易“成功保存到草稿箱”的新提示，已保留当前 Compose。');
   }
 
   async function saveDraft(root, options = {}) {
@@ -814,8 +1035,14 @@
     const scheduled = !!options.scheduled;
     const button = await waitFor(() => findSaveDraftButton(root), 5000, 120, '未找到“存草稿”按钮，已停止，避免草稿未保存。');
     const baseline = captureDraftSaveBaseline();
+    options.guard?.scan?.();
     button.click();
-    const outcome = await waitForDraftSaveOutcome({ scheduled, baseline });
+    const outcome = await waitForDraftSaveOutcome({
+      scheduled, baseline, button,
+      executionId: options.executionId || '',
+      guard: options.guard || null,
+      composeIdentity: options.composeIdentity || null
+    });
     await sleep(scheduled ? 350 : 250);
     return outcome;
   }
@@ -902,6 +1129,8 @@
       ? await openContextCompose(composeMode, task.parentMessageId, task.parentFid || 3)
       : (fresh ? await openFreshCompose() : await openCompose());
     const composeIdentity = await captureComposeIdentity();
+    const interruptionGuard = startComposeInterruptionGuard(executionId);
+    interruptionGuard.setPhase('content');
 
     reportProgress(executionId, 'content', contextual ? '正在保留网易原生邮件上下文并插入 Follow-up 正文…' : '正在填写收件人、主题和正文…');
     if (composeMode === 'forward' || composeMode === 'new') await setRecipients(root, task.recipients || '');
@@ -917,6 +1146,7 @@
     let attachmentResult = { verified: true, missing: [], mode: 'none' };
     const refs = Array.isArray(task.attachments) ? task.attachments : [];
     if (refs.length) {
+      interruptionGuard.setPhase('attachments');
       reportProgress(executionId, 'attachments', `正在准备 ${refs.length} 个新增附件…`);
       const files = [];
       for (let i = 0; i < refs.length; i++) {
@@ -936,10 +1166,12 @@
         throw new Error(`附件未全部确认上传：${(attachmentResult.missing || []).map(file => file?.name || '').filter(Boolean).join('、') || '状态未知'}`);
       }
     } else {
+      interruptionGuard.setPhase('attachments');
       reportProgress(executionId, 'attachments', contextual ? '保留网易原生转发 / 回复上下文中的附件状态。' : '没有附件，跳过附件步骤。');
     }
 
     let actualMinute = null;
+    interruptionGuard.setPhase('schedule');
     if (task.scheduleAt) {
       const displaySchedule=String(task.scheduleDisplayAt||task.scheduleAt).replace('T',' '), zoneLabel=String(task.scheduleTimeZoneLabel||'').trim();
       reportProgress(executionId, 'schedule', `正在设置定时 ${displaySchedule}${zoneLabel?` · ${zoneLabel} 当地时间`:''}…`);
@@ -949,15 +1181,19 @@
     }
 
     if (message.pauseEveryTime === true) {
+      interruptionGuard.setPhase('paused');
       reportProgress(executionId, 'paused', '信息已填写完成，等待人工检查后继续保存。', { paused:true });
       await waitForExecutionResume(executionId);
+      interruptionGuard.setPhase('save');
       reportProgress(executionId, 'resume', '已继续，正在提交当前草稿。');
     }
 
+    interruptionGuard.setPhase('save');
     reportProgress(executionId, 'save', `正在点击“存草稿”并确认${task.scheduleAt ? '定时设置' : '草稿保存'}…`);
-    const saveOutcome = await saveDraft(root, { scheduled: !!task.scheduleAt });
+    const saveOutcome = await saveDraft(root, { scheduled: !!task.scheduleAt, executionId, guard: interruptionGuard, composeIdentity });
     const missingNames = (attachmentResult.missing || []).map(file => file?.name || '').filter(Boolean);
 
+    interruptionGuard.setPhase('cleanup');
     reportProgress(executionId, 'cleanup', '草稿已保存，正在关闭本封网易写信标签…', { evidence: saveOutcome.evidence || '' });
     const cleanup = await closeExactCompose(composeIdentity);
     if (!cleanup.ok) {
@@ -965,6 +1201,7 @@
     } else {
       reportProgress(executionId, 'done', '草稿已确认保存，写信标签已关闭。', { evidence: saveOutcome.evidence || '' });
     }
+    stopComposeInterruptionGuard(executionId);
     return {
       ok: true,
       outcome: {
@@ -995,6 +1232,7 @@
     }
     if (message?.type === 'NMDA_EXECUTE_DRAFT') {
       executeDraft(message).then(sendResponse).catch(error => {
+        stopComposeInterruptionGuard(message?.executionId);
         console.error(`[${APP}] remote execution`, error);
         reportProgress(message?.executionId, 'error', error?.message || String(error));
         sendResponse({ ok: false, reason: error?.message || String(error) });

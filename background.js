@@ -1011,6 +1011,49 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         } catch (error) { return {ok:false,reason:error?.message||String(error)}; }
       });
     }
+    if (message?.type === 'NMDA_COMPOSE_SENDER_STATE') {
+      return runMain(tabId, identityArg => {
+        try {
+          const identity = identityArg || {};
+          const targetName = String(identity.name || '');
+          const group = window.$?.JS?.modules?.['compose.ComposeModule'] || {};
+          const modules = Object.values(group).filter(Boolean);
+          const target = modules.find(mod => String(mod?.name || '') === targetName)
+            || (String(window.$?.Context?.module?.mtype || '') === 'compose.ComposeModule' ? window.$.Context.module : null);
+          if (!target) return {ok:false,resolved:false,reason:'compose-module-not-found'};
+          let sender = null;
+          try { sender = target.form?.getSender?.() || null; } catch (_) {}
+          const address = String(sender?.address || '');
+          const name = String(sender?.name || '').trim();
+          const localPart = String(address.split('@')[0] || '').trim();
+          let attrs = null;
+          try { attrs = typeof window.$S === 'function' ? window.$S('attrs') : null; } catch (_) {}
+          const user = attrs?.user || {};
+          const trueName = String(user.true_name || '').trim();
+          const nickName = String(user.nick_name || '').trim();
+          const displaySender = Number(user.displaysender);
+          let promptFlag = '';
+          try { promptFlag = String(window.$?.Ud?.get?.({field:'ntes_compose',flag:'senderName'}) ?? ''); } catch (_) {}
+          const resolved = !!trueName || (!!name && !!localPart && name !== localPart) || (displaySender === 1 && !!nickName);
+          return {ok:true,resolved,address,name,localPart,trueName,nickName,displaySender,promptFlag,identity:{name:String(target.name||'')}};
+        } catch (error) { return {ok:false,resolved:false,reason:error?.message||String(error)}; }
+      }, [message.identity || {}]);
+    }
+    if (message?.type === 'NMDA_COMPOSE_REARM_SENDER_NAME') {
+      return runMain(tabId, identityArg => {
+        try {
+          const identity = identityArg || {};
+          const targetName = String(identity.name || '');
+          const group = window.$?.JS?.modules?.['compose.ComposeModule'] || {};
+          const target = Object.values(group).filter(Boolean).find(mod => String(mod?.name || '') === targetName)
+            || (String(window.$?.Context?.module?.mtype || '') === 'compose.ComposeModule' ? window.$.Context.module : null);
+          if (!target) return {ok:false,reason:'compose-module-not-found'};
+          if (!window.$?.Ud?.set) return {ok:false,reason:'netease-userdata-set-unavailable'};
+          window.$.Ud.set({field:'ntes_compose',flag:'senderName',value:'0'});
+          return {ok:true,rearmed:true,identity:{name:String(target.name||'')}};
+        } catch (error) { return {ok:false,reason:error?.message||String(error)}; }
+      }, [message.identity || {}]);
+    }
     if (message?.type === 'NMDA_COMPOSE_ATTACHMENT_STATE') {
       return runMain(tabId, identityArg => {
         try {

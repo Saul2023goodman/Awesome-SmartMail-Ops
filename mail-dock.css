@@ -491,3 +491,12 @@
   .nmda-dock-current-pulse,
   .nmda-glyph-node { transition:none !important; animation:none !important; }
 }
+
+/* v3.8.88 — recoverable NetEase identity gate. This is a soft wait, not a failed run. */
+#nmda-mail-dock-host[data-execution="waiting-user"] .nmda-dock-live-progress > b { opacity:1; }
+#nmda-mail-dock-host[data-execution="waiting-user"] .nmda-glyph-route,
+#nmda-mail-dock-host[data-execution="waiting-user"] .nmda-glyph-node { stroke:#b78022; }
+#nmda-mail-dock-host[data-execution="waiting-user"] .nmda-dock-current-pulse { background:#b87818; }
+#nmda-mail-dock-host[data-execution="waiting-user"] .nmda-dock-live-progress > i,
+#nmda-mail-dock-host[data-execution="waiting-user"] .nmda-dock-live-progress > b { background:#b87818; }
+.nmda-dock-exec-state[data-state="waiting-user"] { border-color:#edd8a9; background:#fff9e9; color:#996715; }

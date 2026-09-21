@@ -109,6 +109,7 @@
     attachments: '处理附件',
     schedule: '设置排期',
     paused: '等待人工检查',
+    'identity-required': '等待填写发件人姓名',
     resume: '继续执行',
     save: '保存草稿',
     cleanup: '确认并收尾',
@@ -161,7 +162,7 @@
 
   function effectiveStageIndex() {
     const phase = String(execution.phase || '');
-    if (phase === 'cleanup' || phase === 'cleanup-error' || phase === 'done' || phase === 'resume') return 4;
+    if (phase === 'cleanup' || phase === 'cleanup-error' || phase === 'done' || phase === 'resume' || phase === 'identity-required') return 4;
     const index = PHASE_ORDER.indexOf(phase);
     return index >= 0 ? index : -1;
   }
@@ -199,11 +200,12 @@
     const current = Math.min(Math.max(Number(execution.current || done || 0), 0), Math.max(Number(execution.total || 0), 0));
     const finished = ['done', 'error', 'stopped'].includes(execution.status);
     const paused = execution.status === 'paused';
-    const stateLabel = execution.status === 'done' ? '完成' : execution.status === 'error' ? '异常' : execution.status === 'stopped' ? '已停止' : paused ? '待确认' : '运行中';
+    const waitingUser = execution.status === 'waiting-user';
+    const stateLabel = execution.status === 'done' ? '完成' : execution.status === 'error' ? '异常' : execution.status === 'stopped' ? '已停止' : paused ? '待确认' : waitingUser ? '待补全' : '运行中';
     const phaseLabel = PHASE_LABELS[execution.phase] || (finished ? '执行结束' : '正在处理');
     const displayCount = finished ? done : current;
 
-    execLabel.textContent = paused ? '等待人工检查' : execution.status === 'running' ? '执行队列' : '执行结果';
+    execLabel.textContent = paused ? '等待人工检查' : waitingUser ? '等待网易信息' : execution.status === 'running' ? '执行队列' : '执行结果';
     execCount.textContent = `${displayCount} / ${Number(execution.total || 0)}`;
     execSummary.textContent = phaseLabel;
     execState.textContent = stateLabel;
@@ -228,10 +230,10 @@
     const pct = executionPct();
 
     liveCount.textContent = execution.status === 'done' ? `${Number(execution.total || done)} / ${Number(execution.total || done)}` : `${current} / ${Number(execution.total || 0)}`;
-    liveState.textContent = execution.status === 'paused' ? '等待确认' : execution.status === 'done' ? '执行完成' : execution.status === 'error' ? '执行异常' : execution.status === 'stopped' ? '已停止' : (PHASE_LABELS[execution.phase] || '正在执行');
+    liveState.textContent = execution.status === 'paused' ? '等待确认' : execution.status === 'waiting-user' ? '等待填写姓名' : execution.status === 'done' ? '执行完成' : execution.status === 'error' ? '执行异常' : execution.status === 'stopped' ? '已停止' : (PHASE_LABELS[execution.phase] || '正在执行');
     liveProgressBar.style.width = `${pct}%`;
     liveProgressHead.style.left = `${pct}%`;
-    launcher.title = execution.status === 'paused' ? 'SmartMail 等待人工检查 · 点击打开主界面' : execution.status === 'running'
+    launcher.title = execution.status === 'paused' ? 'SmartMail 等待人工检查 · 点击打开主界面' : execution.status === 'waiting-user' ? 'SmartMail 等待填写网易发件人姓名 · 完成后自动继续' : execution.status === 'running'
       ? `SmartMail 正在执行 · ${current}/${Number(execution.total || 0)} · 点击打开主界面`
       : '打开 SmartMail · Alt+M';
 
@@ -268,11 +270,11 @@
         succeeded: Number(payload.succeeded ?? execution.succeeded), failed: Number(payload.failed ?? execution.failed),
         remaining: Number(payload.remaining ?? execution.remaining), task: payload.task || execution.task,
         executionId: String(payload.executionId || execution.executionId || ''),
-        status: phase === 'paused' ? 'paused' : 'running', phase: phase || execution.phase,
+        status: phase === 'paused' ? 'paused' : phase === 'identity-required' ? 'waiting-user' : 'running', phase: phase || execution.phase,
         message: String(payload.message || '正在处理…')
       });
       if (phase && phase !== previousPhase && phase !== 'done') triggerMotion('step');
-      if (phase === 'paused') setOpen(true);
+      if (phase === 'paused' || phase === 'identity-required') setOpen(true);
     } else if (action === 'task-done') {
       Object.assign(execution, {
         current: Number(payload.current || execution.current), succeeded: Number(payload.succeeded || execution.succeeded),
