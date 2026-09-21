@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.90",
-  "description": "SmartMail Ops — adds optional native-direct Fast Compose with automatic fallback while preserving NetEase-native formatting, scheduling, validation, and save evidence.",
+  "version": "3.8.91",
+  "description": "SmartMail Ops — adds optional Fast Compose and batch Fast Attachment reuse: identical batch assets upload once, then reuse NetEase internal server-side attachment binding with safe fallback.",
   "permissions": [
     "scripting",
     "tabs",

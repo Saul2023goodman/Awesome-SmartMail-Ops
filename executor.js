@@ -91,6 +91,23 @@
 
   const activeInterruptionGuards = new Map();
 
+  let fastAttachmentSessionId = '';
+  const fastAttachmentSourceCache = new Map();
+
+  function ensureFastAttachmentSession(sessionId) {
+    const next = String(sessionId || '');
+    if (!next) return false;
+    if (fastAttachmentSessionId !== next) {
+      fastAttachmentSessionId = next;
+      fastAttachmentSourceCache.clear();
+    }
+    return true;
+  }
+
+  function fastAttachmentAssetKey(ref) {
+    return String(ref?.assetKey || `${ref?.name || ''}|${Number(ref?.size || 0)}|${Number(ref?.lastModified || 0)}`);
+  }
+
   function promotionLayerFromMarker(spec) {
     const actionSelector = 'button,a,[role="button"],span,.nui-btn,.nui-txt-link';
     for (const action of document.querySelectorAll(actionSelector)) {
@@ -844,6 +861,145 @@
     return waitForAttachmentsCommitted(composeIdentity, selected, onProgress);
   }
 
+
+  function findAttachmentModelItemAny(state, expected, options = {}) {
+    const items = Array.isArray(state?.items) ? state.items : [];
+    const allowStorage = options.allowStorage === true;
+    const allowed = allowStorage ? new Set(['native','form','plugin','storage']) : new Set(['native','form','plugin']);
+    return items.find(item => allowed.has(String(item.type || '')) && attachmentModelMatchesFile(item, expected)) || null;
+  }
+
+  async function waitForFastBoundAttachments(identity, refs, timeout = 7000) {
+    const expected = refs || [];
+    const started = Date.now();
+    let lastState = null;
+    while (Date.now() - started < timeout) {
+      lastState = await readComposeAttachmentState(identity);
+      const missing = expected.filter(ref => !findAttachmentModelItemAny(lastState, ref, {allowStorage:true}));
+      if (!missing.length) return {verified:true,state:lastState};
+      await sleep(100);
+    }
+    return {verified:false,state:lastState,missing:expected.filter(ref => !findAttachmentModelItemAny(lastState, ref, {allowStorage:true}))};
+  }
+
+  async function bindFastAttachmentSources(composeIdentity, entries) {
+    if (!entries.length) return {ok:true,accepted:[],rejected:[]};
+    try {
+      return await chrome.runtime.sendMessage({
+        type:'NMDA_FAST_ATTACHMENT_BIND',
+        identity:composeIdentity || {},
+        sources:entries.map(entry => ({
+          assetKey:fastAttachmentAssetKey(entry.ref),
+          name:String(entry.ref?.name || entry.source?.name || ''),
+          size:Number(entry.ref?.size || entry.source?.size || 0),
+          mid:String(entry.source?.mid || entry.source?._mid || ''),
+          part:String(entry.source?.part || entry.source?._part || '')
+        }))
+      });
+    } catch (error) {
+      return {ok:false,reason:error?.message || String(error),accepted:[],rejected:entries.map(entry=>fastAttachmentAssetKey(entry.ref))};
+    }
+  }
+
+  async function exportFastAttachmentSources(composeIdentity, refs) {
+    const expected = (refs || []).filter(ref => Number(ref?.reuseCount || 1) > 1);
+    if (!expected.length) return {ok:true,sources:[]};
+    try {
+      return await chrome.runtime.sendMessage({
+        type:'NMDA_FAST_ATTACHMENT_EXPORT_SOURCE',
+        identity:composeIdentity || {},
+        expected:expected.map(ref => ({assetKey:fastAttachmentAssetKey(ref),name:String(ref?.name||''),size:Number(ref?.size||0)}))
+      });
+    } catch (error) {
+      return {ok:false,reason:error?.message || String(error),sources:[]};
+    }
+  }
+
+  function registerFastAttachmentSources(result) {
+    let count = 0;
+    for (const source of result?.sources || []) {
+      const key = String(source?.assetKey || '');
+      if (!key || !source?.mid || !source?.part) continue;
+      fastAttachmentSourceCache.set(key, {
+        mid:String(source.mid), part:String(source.part), name:String(source.name||''), size:Number(source.size||0), draftId:String(source.draftId||source.mid||'')
+      });
+      count++;
+    }
+    return count;
+  }
+
+  async function addAttachmentsWithFastReuse(root, refs, composeIdentity, options = {}) {
+    const fastRequested = options.fastRequested === true && ensureFastAttachmentSession(options.sessionId);
+    const contextual = options.contextual === true;
+    const onProgress = typeof options.onProgress === 'function' ? options.onProgress : () => {};
+    if (!refs.length) return {verified:true,missing:[],mode:'none',states:[],fastRequested,fastReuseCount:0,uploadedCount:0,uploadedRefs:[]};
+    if (!fastRequested || contextual) {
+      const files=[];
+      for (let i=0;i<refs.length;i++) {
+        files.push(await readRuntimeFile(refs[i]));
+        onProgress({kind:'read',index:i+1,total:refs.length,name:refs[i]?.name||''});
+      }
+      const standard=await addAttachments(root,files,composeIdentity,(done,total,name,detail)=>onProgress({kind:'upload',done,total,name,detail}));
+      return {...standard,fastRequested,fastReuseCount:0,uploadedCount:files.length,uploadedRefs:[...refs]};
+    }
+
+    const cachedEntries=[];
+    const uploadRefs=[];
+    for (const ref of refs) {
+      const key=fastAttachmentAssetKey(ref);
+      const source=fastAttachmentSourceCache.get(key);
+      if (source) cachedEntries.push({ref,source});
+      else uploadRefs.push(ref);
+    }
+
+    let fastReuseCount=0;
+    let fastFallbackCount=0;
+    if (cachedEntries.length) {
+      onProgress({kind:'fast-bind-start',count:cachedEntries.length,total:refs.length});
+      const bound=await bindFastAttachmentSources(composeIdentity,cachedEntries);
+      const acceptedKeys=new Set((bound?.accepted||[]).map(String));
+      const acceptedRefs=cachedEntries.filter(entry=>acceptedKeys.has(fastAttachmentAssetKey(entry.ref))).map(entry=>entry.ref);
+      if (acceptedRefs.length) {
+        const verified=await waitForFastBoundAttachments(composeIdentity,acceptedRefs);
+        // The native continue response is the authoritative server receipt. Never
+        // upload the same file again after NetEase has already returned it as an
+        // accepted internal attachment; doing so could create duplicates. Model
+        // visibility is retained as secondary evidence for telemetry only.
+        fastReuseCount+=acceptedRefs.length;
+        onProgress({kind:'fast-bound',count:acceptedRefs.length,total:refs.length,modelVerified:!!verified.verified});
+      }
+      for (const entry of cachedEntries) {
+        const key=fastAttachmentAssetKey(entry.ref);
+        if (acceptedKeys.has(key)) continue;
+        fastAttachmentSourceCache.delete(key);
+        uploadRefs.push(entry.ref);
+        fastFallbackCount++;
+      }
+    }
+
+    const uniqueUploadRefs=[]; const seenUpload=new Set();
+    for(const ref of uploadRefs){const key=fastAttachmentAssetKey(ref);if(seenUpload.has(key))continue;seenUpload.add(key);uniqueUploadRefs.push(ref);}
+    let uploadResult={verified:true,missing:[],mode:'none',states:[]};
+    const uploadedFiles=[];
+    if (uniqueUploadRefs.length) {
+      for (let i=0;i<uniqueUploadRefs.length;i++) {
+        uploadedFiles.push(await readRuntimeFile(uniqueUploadRefs[i]));
+        onProgress({kind:'read',index:i+1,total:uniqueUploadRefs.length,name:uniqueUploadRefs[i]?.name||''});
+      }
+      uploadResult=await addAttachments(root,uploadedFiles,composeIdentity,(done,total,name,detail)=>onProgress({kind:'upload',done,total,name,detail}));
+    }
+    return {
+      ...uploadResult,
+      mode:fastReuseCount && uniqueUploadRefs.length ? 'fast-reuse+native-upload' : fastReuseCount ? 'fast-reuse' : uploadResult.mode,
+      fastRequested:true,
+      fastReuseCount,
+      fastFallbackCount,
+      uploadedCount:uniqueUploadRefs.length,
+      uploadedRefs:uniqueUploadRefs,
+      uploadedFiles
+    };
+  }
+
   function findMoreSendOptions(root) {
     return [...root.querySelectorAll('a,[role="link"],button,[role="button"]')].filter(visible).find(el => hasUiText(el, '更多发送选项')) || null;
   }
@@ -1202,10 +1358,10 @@
     const composeMode = ['forward','reply','new'].includes(task.composeMode) ? task.composeMode : 'new';
     const contextual = composeMode === 'forward' || composeMode === 'reply';
     reportProgress(executionId, 'open', contextual ? `正在打开原邮件并进入${composeMode === 'forward' ? '转发' : '回复'}…` : '正在打开新的写信页…');
-    const root = contextual
+    let root = contextual
       ? await openContextCompose(composeMode, task.parentMessageId, task.parentFid || 3)
       : (fresh ? await openFreshCompose() : await openCompose());
-    const composeIdentity = await captureComposeIdentity();
+    let composeIdentity = await captureComposeIdentity();
     const interruptionGuard = startComposeInterruptionGuard(executionId);
     interruptionGuard.setPhase('content');
 
@@ -1277,31 +1433,77 @@
       if (task.requestReadReceipt) await enableComposeOption(root, '已读回执', true);
     }
 
-    let attachmentResult = { verified: true, missing: [], mode: 'none' };
+    let attachmentResult = { verified: true, missing: [], mode: 'none', fastRequested:message.fastAttachments === true, fastReuseCount:0, uploadedCount:0, uploadedRefs:[] };
     const refs = Array.isArray(task.attachments) ? task.attachments : [];
+    const fastAttachmentRequested = message.fastAttachments === true && composeMode === 'new';
     if (refs.length) {
       interruptionGuard.setPhase('attachments');
-      reportProgress(executionId, 'attachments', `正在准备 ${refs.length} 个新增附件…`);
-      const files = [];
-      for (let i = 0; i < refs.length; i++) {
-        files.push(await readRuntimeFile(refs[i]));
-        reportProgress(executionId, 'attachments', `正在读取附件 ${i + 1}/${refs.length} · ${refs[i]?.name || ''}`);
-      }
-      attachmentResult = await addAttachments(root, files, composeIdentity, (done, total, name, detail = {}) => {
-        const registered = Number(detail.registered || 0);
-        const committed = Number(detail.committed ?? done ?? 0);
-        const state = String(detail.state || '');
-        const message = state === 'registered'
-          ? `附件已加入网易队列 ${registered}/${total} · ${name}`
-          : `正在确认附件上传 ${committed}/${total}${name ? ` · ${name}` : ''}${state ? ` · ${attachmentStateLabel(state)}` : ''}`;
-        reportProgress(executionId, 'attachments', message, { done:committed, total, name, ...detail });
+      reportProgress(executionId, 'attachments', fastAttachmentRequested
+        ? `极速附件：正在解析 ${refs.length} 个附件的本批次复用源…`
+        : `正在准备 ${refs.length} 个新增附件…`, {fastAttachments:fastAttachmentRequested});
+      attachmentResult = await addAttachmentsWithFastReuse(root, refs, composeIdentity, {
+        fastRequested:fastAttachmentRequested,
+        sessionId:String(message.attachmentSessionId || ''),
+        contextual,
+        onProgress:event=>{
+          if(event.kind==='read'){
+            reportProgress(executionId,'attachments',`正在读取附件 ${event.index}/${event.total} · ${event.name}`,{fastAttachments:fastAttachmentRequested});
+            return;
+          }
+          if(event.kind==='fast-bind-start'){
+            reportProgress(executionId,'attachments',`极速附件：正在服务器侧挂载 ${event.count} 个已复用附件…`,{fastAttachments:true,fastBind:true,count:event.count});
+            return;
+          }
+          if(event.kind==='fast-bound'){
+            reportProgress(executionId,'attachments',`极速附件：已服务器侧复用 ${event.count} 个附件，无需重新上传${event.modelVerified===false?' · 服务器已确认，界面模型稍后同步':''}。`,{fastAttachments:true,fastBound:true,count:event.count,modelVerified:event.modelVerified!==false});
+            return;
+          }
+          if(event.kind==='upload'){
+            const detail=event.detail||{};
+            const registered=Number(detail.registered||0), committed=Number(detail.committed ?? event.done ?? 0), state=String(detail.state||'');
+            const text=state==='registered'
+              ? `附件已加入网易队列 ${registered}/${event.total} · ${event.name}`
+              : `正在确认附件上传 ${committed}/${event.total}${event.name?` · ${event.name}`:''}${state?` · ${attachmentStateLabel(state)}`:''}`;
+            reportProgress(executionId,'attachments',text,{done:committed,total:event.total,name:event.name,...detail,fastAttachments:fastAttachmentRequested});
+          }
+        }
       });
       if (attachmentResult.verified !== true) {
         throw new Error(`附件未全部确认上传：${(attachmentResult.missing || []).map(file => file?.name || '').filter(Boolean).join('、') || '状态未知'}`);
       }
+      if (attachmentResult.fastFallbackCount) {
+        reportProgress(executionId,'attachments',`极速附件有 ${attachmentResult.fastFallbackCount} 个复用源失效，已自动回退正常上传。`,{fastAttachments:true,fallback:true,count:attachmentResult.fastFallbackCount});
+      }
     } else {
       interruptionGuard.setPhase('attachments');
       reportProgress(executionId, 'attachments', contextual ? '保留网易原生转发 / 回复上下文中的附件状态。' : '没有附件，跳过附件步骤。');
+    }
+
+    // Scheduled messages normally leave Compose through the schedule result path,
+    // which does not retain a draft id on ComposeInfo. If a newly uploaded attachment
+    // will be reused later in this batch, make one native draft checkpoint first so
+    // NetEase assigns a stable messageId + partId. The final schedule submission then
+    // updates that same Compose; no extra local upload is required afterwards.
+    const reusableUploadedRefs=(attachmentResult.uploadedRefs||[]).filter(ref=>Number(ref?.reuseCount||1)>1);
+    if (fastAttachmentRequested && task.scheduleAt && reusableUploadedRefs.length) {
+      interruptionGuard.setPhase('attachment-seed');
+      reportProgress(executionId,'attachment-seed',`极速附件：首次附件已上传，正在建立 ${reusableUploadedRefs.length} 个服务器复用源…`,{fastAttachments:true,seed:true,count:reusableUploadedRefs.length});
+      await saveDraft(root, {
+        scheduled:false,
+        executionId,
+        guard:interruptionGuard,
+        composeIdentity,
+        nativeSubmit:fastNativeActive ? (()=>submitFastNativeCompose(composeIdentity,false)) : null
+      });
+      try {
+        const refreshedRoot=findComposeRoot(); if(refreshedRoot) root=refreshedRoot;
+        const refreshedIdentity=await captureComposeIdentity();
+        if(refreshedIdentity?.name) composeIdentity=refreshedIdentity;
+      } catch (_) {}
+      const exported=await exportFastAttachmentSources(composeIdentity,reusableUploadedRefs);
+      const seeded=registerFastAttachmentSources(exported);
+      if(seeded) reportProgress(executionId,'attachment-seed',`极速附件：已登记 ${seeded} 个本批次服务器复用源，后续邮件无需重新上传。`,{fastAttachments:true,seeded});
+      else reportProgress(executionId,'attachment-seed','极速附件：本次未能确认服务器复用源；本封继续，后续同附件将自动回退正常上传。',{fastAttachments:true,seeded:0,reason:exported?.reason||''});
     }
 
     let actualMinute = null;
@@ -1343,6 +1545,14 @@
       composeIdentity,
       nativeSubmit: fastNativeActive ? (() => submitFastNativeCompose(composeIdentity, !!task.scheduleAt)) : null
     });
+    if (fastAttachmentRequested && !task.scheduleAt) {
+      const reusable=(attachmentResult.uploadedRefs||[]).filter(ref=>Number(ref?.reuseCount||1)>1);
+      if(reusable.length){
+        const exported=await exportFastAttachmentSources(composeIdentity,reusable);
+        const seeded=registerFastAttachmentSources(exported);
+        if(seeded) reportProgress(executionId,'attachments',`极速附件：已从本封草稿登记 ${seeded} 个服务器复用源。`,{fastAttachments:true,seeded});
+      }
+    }
     const missingNames = (attachmentResult.missing || []).map(file => file?.name || '').filter(Boolean);
 
     interruptionGuard.setPhase('cleanup');
@@ -1363,7 +1573,7 @@
         fastCompose: { requested:message.fastCompose === true, active:fastNativeActive, engine:fastNativeActive ? 'netease-native-direct' : 'standard-dom', detail:fastNativeDetail || null },
         cleanup,
         parentMessageId: contextual ? String(task.parentMessageId || '') : '',
-        attachment: { verified: !!attachmentResult.verified, mode: attachmentResult.mode || 'none', missingNames }
+        attachment: { verified: !!attachmentResult.verified, mode: attachmentResult.mode || 'none', missingNames, fastRequested:!!attachmentResult.fastRequested, fastReuseCount:Number(attachmentResult.fastReuseCount||0), fastFallbackCount:Number(attachmentResult.fastFallbackCount||0), uploadedCount:Number(attachmentResult.uploadedCount||0), cachedSources:fastAttachmentSourceCache.size }
       }
     };
   }

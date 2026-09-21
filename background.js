@@ -1222,6 +1222,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               percent:Number.isFinite(Number(file?.percent)) ? Number(file.percent) : null,
               sid:String(file?.sid || ''),
               fid:String(file?.fid || ''),
+              mid:String(file?.mid || ''),
               err:String(file?.err || ''),
               cloud:!!file?.cloud,
               context:!!file?.context,
@@ -1238,6 +1239,112 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         } catch (error) { return {ok:false,reason:error?.message||String(error)}; }
       }, [message.identity || {}]);
     }
+    if (message?.type === 'NMDA_FAST_ATTACHMENT_BIND') {
+      return runMain(tabId, (identityArg, sourcesArg) => new Promise(resolve => {
+        try {
+          const identity=identityArg||{};
+          const targetName=String(identity.name||'');
+          const group=window.$?.JS?.modules?.['compose.ComposeModule']||{};
+          const target=Object.values(group).filter(Boolean).find(mod=>String(mod?.name||'')===targetName)
+            || (String(window.$?.Context?.module?.mtype||'')==='compose.ComposeModule'?window.$.Context.module:null);
+          if(!target)return resolve({ok:false,reason:'compose-module-not-found',accepted:[],rejected:(sourcesArg||[]).map(item=>String(item?.assetKey||''))});
+          if(typeof target.action?.syncAttach!=='function')return resolve({ok:false,reason:'compose-syncAttach-unavailable',accepted:[],rejected:(sourcesArg||[]).map(item=>String(item?.assetKey||''))});
+          if(typeof target.attach?.storageAdd!=='function')return resolve({ok:false,reason:'compose-storageAdd-unavailable',accepted:[],rejected:(sourcesArg||[]).map(item=>String(item?.assetKey||''))});
+          const requested=(Array.isArray(sourcesArg)?sourcesArg:[]).map(item=>({
+            assetKey:String(item?.assetKey||''),name:String(item?.name||''),size:Number(item?.size||0),mid:String(item?.mid||''),part:String(item?.part||'')
+          })).filter(item=>item.assetKey&&item.name&&item.mid&&item.part);
+          if(!requested.length)return resolve({ok:true,accepted:[],rejected:[]});
+          const normalizeId=value=>{const raw=String(value||'');return raw.includes(':')?raw.split(':').pop():raw;};
+          const body=requested.map(item=>({type:'internal',_mid:item.mid,_part:item.part,name:item.name,size:item.size}));
+          let settled=false;
+          const timer=setTimeout(()=>{if(!settled){settled=true;resolve({ok:false,reason:'fast-attachment-bind-timeout',accepted:[],rejected:requested.map(item=>item.assetKey)});}},9000);
+          target.action.syncAttach({attachments:body,callback(response){
+            if(settled)return;
+            settled=true;clearTimeout(timer);
+            try{
+              const success=window.$?.S_OK;
+              if(response?.code!==undefined && success!==undefined && response.code!==success){
+                return resolve({ok:false,reason:`mbox:compose continue code=${String(response.code)}`,accepted:[],rejected:requested.map(item=>item.assetKey)});
+              }
+              const returned=Array.isArray(response?.var?.attachments)?response.var.attachments:[];
+              const acceptedRemote=[];const accepted=[];const rejected=[];
+              for(const req of requested){
+                const hit=returned.find(item=>{
+                  if(!item||item.deleted||String(item.type||'')!=='internal')return false;
+                  if(String(item.name||item.fileName||'')!==req.name)return false;
+                  const remoteMid=normalizeId(item._mid||item.mid||'');
+                  if(remoteMid!==normalizeId(req.mid))return false;
+                  const remoteSize=Number(item.size||0);
+                  return !req.size||!remoteSize||Math.abs(remoteSize-req.size)<100;
+                });
+                if(hit){accepted.push(req.assetKey);acceptedRemote.push(hit);}else rejected.push(req.assetKey);
+              }
+              if(acceptedRemote.length)target.attach.storageAdd(acceptedRemote);
+              return resolve({ok:true,method:'mbox:compose-continue-internal',accepted,rejected,count:accepted.length});
+            }catch(error){return resolve({ok:false,reason:error?.message||String(error),accepted:[],rejected:requested.map(item=>item.assetKey)});}
+          }});
+        }catch(error){resolve({ok:false,reason:error?.message||String(error),accepted:[],rejected:(sourcesArg||[]).map(item=>String(item?.assetKey||''))});}
+      }),[message.identity||{},message.sources||[]]);
+    }
+    if (message?.type === 'NMDA_FAST_ATTACHMENT_EXPORT_SOURCE') {
+      return runMain(tabId, (identityArg, expectedArg) => new Promise(resolve => {
+        try{
+          const identity=identityArg||{};
+          const targetName=String(identity.name||'');
+          const group=window.$?.JS?.modules?.['compose.ComposeModule']||{};
+          const target=Object.values(group).filter(Boolean).find(mod=>String(mod?.name||'')===targetName)
+            || (String(window.$?.Context?.module?.mtype||'')==='compose.ComposeModule'?window.$.Context.module:null);
+          if(!target)return resolve({ok:false,reason:'compose-module-not-found',sources:[]});
+          if(!window.$?.DataAction)return resolve({ok:false,reason:'$.DataAction unavailable',sources:[]});
+          let draftId='';
+          try{draftId=String(target.info?.get?.({did:true})||'');}catch(_){}
+          if(!draftId){
+            try{const cid=String(target.info?.get?.({cid:true})||'');if(cid&&!cid.startsWith('c:'))draftId=cid;}catch(_){}
+          }
+          if(!draftId)return resolve({ok:false,reason:'saved-draft-id-unavailable',sources:[]});
+          const expected=(Array.isArray(expectedArg)?expectedArg:[]).map(item=>({assetKey:String(item?.assetKey||''),name:String(item?.name||''),size:Number(item?.size||0)})).filter(item=>item.assetKey&&item.name);
+          if(!expected.length)return resolve({ok:true,draftId,sources:[]});
+          const signature=item=>`${String(item?.name||'').toLowerCase()}|${Number(item?.size||0)}`;
+          const duplicateSigs=new Set();const seenSigs=new Set();
+          for(const item of expected){const sig=signature(item);if(seenSigs.has(sig))duplicateSigs.add(sig);else seenSigs.add(sig);}
+          const normalizeId=value=>{const raw=String(value||'');return raw.includes(':')?raw.split(':').pop():raw;};
+          const sameId=(a,b)=>String(a||'')===String(b||'')||normalizeId(a)===normalizeId(b);
+          const started=Date.now();
+          const request=()=>{
+            const action=new window.$.DataAction();
+            action.wmsvr({
+              func:'mbox:listAttachments',
+              body:{order:'date',limit:200,desc:true,skipLockedFolders:true},
+              ignoreError:true,
+              call(response){
+                try{
+                  const values=Array.isArray(response?.var)?response.var:(response?.var&&typeof response.var==='object'?Object.values(response.var):[]);
+                  const draftItems=values.filter(item=>sameId(item?.id,draftId));
+                  const sources=[];const used=new Set();
+                  for(const exp of expected){
+                    const sig=signature(exp);if(duplicateSigs.has(sig))continue;
+                    const index=draftItems.findIndex((item,idx)=>!used.has(idx)&&String(item?.attn||item?.name||'')===exp.name&&(!exp.size||!Number(item?.attsize||item?.size||0)||Math.abs(Number(item?.attsize||item?.size||0)-exp.size)<100)&&String(item?.partId??item?._part??'')!=='');
+                    if(index<0)continue;
+                    used.add(index);const item=draftItems[index];
+                    sources.push({assetKey:exp.assetKey,name:exp.name,size:exp.size,mid:String(item.id||draftId),part:String(item.partId??item._part??''),draftId});
+                  }
+                  if(sources.length===expected.filter(item=>!duplicateSigs.has(signature(item))).length || Date.now()-started>=5500){
+                    return resolve({ok:sources.length>0,draftId,sources,reason:sources.length?'':'attachment-source-not-indexed'});
+                  }
+                  setTimeout(request,250);
+                }catch(error){resolve({ok:false,draftId,sources:[],reason:error?.message||String(error)});}
+              },
+              error(error){
+                if(Date.now()-started<5500)return setTimeout(request,300);
+                resolve({ok:false,draftId,sources:[],reason:error?.message||error?.code||'mbox:listAttachments failed'});
+              }
+            });
+          };
+          request();
+        }catch(error){resolve({ok:false,reason:error?.message||String(error),sources:[]});}
+      }),[message.identity||{},message.expected||[]]);
+    }
+
     if (message?.type === 'NMDA_CLOSE_COMPOSE') {
       return runMain(tabId, identityArg => new Promise(resolve => {
         try {

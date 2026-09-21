@@ -68,14 +68,15 @@
     return port;
   }
 
-  async function prepareRuntimeFileRefs(files) {
+  async function prepareRuntimeFileRefs(files, reuseCounts = null) {
     const refs = [];
     if ((files || []).length) ensureRuntimeFileSourcePort();
     for (const file of files || []) {
       if (!file) continue;
       const id = crypto.randomUUID();
+      const assetKey=String(Importer?.fileIdentity?.(file) || `${file.name}|${file.size}|${file.lastModified}`);
       runtimeExecutionFiles.set(id, file);
-      refs.push({ id, name:String(file.name||'attachment'), size:Number(file.size||0), type:String(file.type||'application/octet-stream'), lastModified:Number(file.lastModified||Date.now()) });
+      refs.push({ id, assetKey, reuseCount:Math.max(1,Number(reuseCounts?.get?.(assetKey)||1)), name:String(file.name||'attachment'), size:Number(file.size||0), type:String(file.type||'application/octet-stream'), lastModified:Number(file.lastModified||Date.now()) });
     }
     if (refs.length) await sleep(20);
     return refs;
@@ -86,16 +87,16 @@
   }
 
 
-  async function executeDraftRemotely(task, { fresh = true, pauseEveryTime = false, ensureParagraphSpacing = true, fastCompose = false, onProgress = () => {} } = {}) {
+  async function executeDraftRemotely(task, { fresh = true, pauseEveryTime = false, ensureParagraphSpacing = true, fastCompose = false, fastAttachments = false, attachmentSessionId = '', attachmentUseCounts = null, onProgress = () => {} } = {}) {
     const executionId = crypto.randomUUID();
-    const refs = await prepareRuntimeFileRefs(task.files || []);
+    const refs = await prepareRuntimeFileRefs(task.files || [], attachmentUseCounts);
     executionProgressHandlers.set(executionId, onProgress);
     try {
       const connection = await chrome.runtime.sendMessage({ type: 'NMDA_CONNECTION_STATUS' });
       if (!connection?.connected) throw new Error('没有检测到已打开的网易邮箱。请先点击右上角“打开网易邮箱”并完成登录。');
       if (!connection?.authenticated) throw new Error('网易邮箱页面已打开，但尚未检测到登录账号。请先完成登录。');
       const result = await chrome.runtime.sendMessage({
-        type: 'NMDA_EXECUTE_DRAFT', executionId, fresh, pauseEveryTime: !!pauseEveryTime, fastCompose: !!fastCompose,
+        type: 'NMDA_EXECUTE_DRAFT', executionId, fresh, pauseEveryTime: !!pauseEveryTime, fastCompose: !!fastCompose, fastAttachments: !!fastAttachments, attachmentSessionId:String(attachmentSessionId || ''),
         task: {
           recipients: task.recipients || '', cc: task.cc || '', bcc: task.bcc || '',
           subject: task.subject || '', body: task.body || '',
@@ -907,6 +908,7 @@
                 <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备转到网易邮箱执行</strong><div class="nmda-create-preflight" id="nmda-create-preflight">确认本次范围与排期后，真实创建过程将在网易邮箱页面显示。</div></div></div>
                 <label class="nmda-execution-mode" title="写入真实 163 Compose 时，确保相邻正文段落之间至少保留一个空行；不会改写工作台里的正文源数据"><input id="nmda-compose-paragraph-spacing" type="checkbox" checked><span>段落间留空行</span></label>
                 <label class="nmda-execution-mode nmda-execution-mode-fast" title="实验性高速路径：直接调用网易 Compose 原生 form / editor / schedule / send 内核，跳过逐字段 DOM 操作；能力不满足时自动回退标准模式。"><input id="nmda-fast-compose" type="checkbox"><span>极速 Compose</span></label>
+                <label class="nmda-execution-mode nmda-execution-mode-fast" title="批量附件加速：同一附件在本批次首次真实上传并保存后，后续邮件通过网易原生 internal attachment 服务器侧复用；无法确认来源时自动回退正常上传。"><input id="nmda-fast-attachments" type="checkbox"><span>极速附件</span></label>
                 <label class="nmda-execution-mode" title="每封邮件填写完成后暂停，人工检查后再保存"><input id="nmda-pause-every-time" type="checkbox"><span>每封填写后暂停</span></label>
                 <button class="nmda-btn nmda-btn-primary nmda-mail-handoff-action" id="nmda-batch-start" type="button">前往网易邮箱并创建所选草稿</button>
                 <button id="nmda-batch-stop" type="button" hidden disabled>当前封后停止</button>
@@ -2307,7 +2309,7 @@
   const batch = {
     dataset: null, collectionIndex: 0, collectionConfigs: new Map(), detection: null, mapping: {}, tasks: [],
     directoryFiles: [], taskFiles: [], routedAttachmentFiles: [], fileIndex: Importer?.buildFileIndex?.([]),
-    attachmentOverrides: new Map(), attachmentPolicies: new Map(), attachmentTargetEditing:'', attachmentTargetSearch:'', taskEdits: new Map(), running: false, stopRequested: false, pauseEveryTime: false, composeParagraphSpacing: true, fastCompose: false,
+    attachmentOverrides: new Map(), attachmentPolicies: new Map(), attachmentTargetEditing:'', attachmentTargetSearch:'', taskEdits: new Map(), running: false, stopRequested: false, pauseEveryTime: false, composeParagraphSpacing: true, fastCompose: false, fastAttachments: false, attachmentSessionId:'',
     importMeta: null,
     sessionId: 0, importBusy: false, schedulePlan: null, existingScheduleAnchors: [], existingScheduleReadAt: '', existingScheduleStatus: 'idle', existingScheduleError: '',
     scheduleRules: { ...(Scheduler?.DEFAULT_RULES || { maxPerGroupPerRound:1, weekdays:[4], localTime:'07:30', timeZone:'system', preserveExisting:true, includeMailboxScheduled:true, intraRoundMinutes:10, skipHolidays:true }), startDate: Scheduler?.defaultStartDate?.(new Date(),'system') || '', localTime: Scheduler?.defaultLocalTime?.() || '07:30' },
@@ -2519,7 +2521,7 @@
   const draftImportEl = $('nmda-import-drafts'), preSendMatchFilesEl = $('nmda-pre-send-match-files'), preSendSharedFilesEl = $('nmda-pre-send-shared-files');
   const previewBodyEl = $('nmda-preview-body'), batchSummaryEl = $('nmda-batch-summary'), batchStatusEl = $('nmda-batch-status'), importStatusEl = $('nmda-import-status');
   const planningOverviewEl = $('nmda-planning-overview');
-  const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time'), batchParagraphSpacingEl = $('nmda-compose-paragraph-spacing'), batchFastComposeEl = $('nmda-fast-compose');
+  const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time'), batchParagraphSpacingEl = $('nmda-compose-paragraph-spacing'), batchFastComposeEl = $('nmda-fast-compose'), batchFastAttachmentsEl = $('nmda-fast-attachments');
   const scheduleStartDateEl = $('nmda-rule-start-date'), scheduleLocalTimeEl = $('nmda-rule-local-time'), scheduleTimeZoneEl = $('nmda-rule-time-zone'), scheduleWeekdayEls = [...ui.querySelectorAll('[data-schedule-weekday]')], scheduleSkipStartEl = $('nmda-rule-skip-start'), scheduleSkipEndEl = $('nmda-rule-skip-end'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleMailboxExistingEl = $('nmda-rule-include-mailbox-scheduled'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
   const scheduleApplyEl = $('nmda-apply-schedule'), scheduleApplyHintEl=$('nmda-apply-schedule-hint'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleOutcomeEl=$('nmda-schedule-outcome'), scheduleGuideEl=$('nmda-schedule-guide'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
   const rosterPlannerViewEl=$('nmda-roster-planner-view'), rosterPlannerSourceEl=$('nmda-roster-planner-source'), rosterPlannerSummaryEl=$('nmda-roster-planner-summary'), rosterVisualGroupsEl=$('nmda-roster-visual-groups'), rosterSheetViewportEl=$('nmda-roster-sheet-viewport'), rosterSheetTableEl=$('nmda-roster-sheet-table'), rosterSelectionMiniEl=$('nmda-roster-selection-mini'), rosterColumnFocusEl=$('nmda-roster-column-focus'), rosterColumnToggleEl=$('nmda-roster-column-toggle'), rosterSelectionLabelEl=$('nmda-roster-selection-label'), rosterSelectionDetailEl=$('nmda-roster-selection-detail'), rosterActiveBatchEl=$('nmda-roster-active-batch'), rosterActiveBatchLabelEl=$('nmda-roster-active-batch-label'), rosterBatchAddEl=$('nmda-roster-batch-add'), rosterBatchCreateEl=$('nmda-roster-batch-create'), rosterBatchClearEl=$('nmda-roster-batch-clear'), rosterIntentSummaryEl=$('nmda-roster-intent-summary');
@@ -2551,6 +2553,17 @@
   }
   batch.fastCompose = loadFastComposePref();
   if (batchFastComposeEl) batchFastComposeEl.checked = batch.fastCompose;
+  const FAST_ATTACHMENTS_PREF_KEY = 'nmda.attachments.fastReuse.v1';
+  function loadFastAttachmentsPref() {
+    try { return localStorage.getItem(FAST_ATTACHMENTS_PREF_KEY) === 'true'; }
+    catch (_) { return false; }
+  }
+  function saveFastAttachmentsPref(enabled) {
+    try { localStorage.setItem(FAST_ATTACHMENTS_PREF_KEY, enabled === true ? 'true' : 'false'); }
+    catch (_) {}
+  }
+  batch.fastAttachments = loadFastAttachmentsPref();
+  if (batchFastAttachmentsEl) batchFastAttachmentsEl.checked = batch.fastAttachments;
 
   const SCHEDULE_PREFS_KEY = 'nmda.schedule.rules.v1';
   function loadScheduleRulePrefs() {
@@ -8219,6 +8232,14 @@
       ? '极速 Compose 已开启：普通新邮件优先走网易原生内核直写；不兼容场景会自动回退标准模式。'
       : '极速 Compose 已关闭：使用标准可视 Compose 执行。', 'ok');
   });
+  batchFastAttachmentsEl?.addEventListener('change', () => {
+    if (batch.running) { batchFastAttachmentsEl.checked = !!batch.fastAttachments; return; }
+    batch.fastAttachments = !!batchFastAttachmentsEl.checked;
+    saveFastAttachmentsPref(batch.fastAttachments);
+    setBatchStatus(batch.fastAttachments
+      ? '极速附件已开启：同批次相同附件仅首次上传，后续优先走网易服务器侧复用；无法确认来源时自动回退正常上传。'
+      : '极速附件已关闭：每封邮件按标准网易附件上传流程执行。', 'ok');
+  });
 
   batchStartEl.addEventListener('click', async () => {
     if (batch.running) return;
@@ -8245,15 +8266,28 @@
     }
     const scheduleValidation=await validateMailboxScheduleBeforeExecution(executable);
     if(!scheduleValidation.ok){setBatchStatus(scheduleValidation.reason||'无法核对网易已有排期。','error');return;}
-    batch.running = true; batch.stopRequested = false; batch.pauseEveryTime = !!batchPauseEveryTimeEl?.checked; batch.composeParagraphSpacing = batchParagraphSpacingEl?.checked !== false; batch.fastCompose = !!batchFastComposeEl?.checked; batchStartEl.disabled = true; batchStopEl.disabled = false;
+    batch.running = true; batch.stopRequested = false; batch.pauseEveryTime = !!batchPauseEveryTimeEl?.checked; batch.composeParagraphSpacing = batchParagraphSpacingEl?.checked !== false; batch.fastCompose = !!batchFastComposeEl?.checked; batch.fastAttachments = !!batchFastAttachmentsEl?.checked; batch.attachmentSessionId = batch.fastAttachments ? crypto.randomUUID() : ''; batchStartEl.disabled = true; batchStopEl.disabled = false;
     if (batchPauseEveryTimeEl) batchPauseEveryTimeEl.disabled = true;
     if (batchParagraphSpacingEl) batchParagraphSpacingEl.disabled = true;
     if (batchFastComposeEl) batchFastComposeEl.disabled = true;
+    if (batchFastAttachmentsEl) batchFastAttachmentsEl.disabled = true;
     await updateMailboxBatchMonitor({action:'start',total:executable.length,succeeded:0,failed:0,remaining:executable.length,items:executable.map((task,index)=>({key:task.editKey,id:task.id,index:index+1,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||'',status:'queued'}))});
     importFileEl.disabled = true; if (importDirEl) importDirEl.disabled = true; if (rosterFileEl) rosterFileEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=true;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=true;if(draftImportEl)draftImportEl.disabled=true; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=true; });
     setBatchPlanningLocked(true);
     let succeeded = 0, failed = 0;
     let cleanupStopReason = '';
+    const attachmentUseCounts = new Map();
+    if (batch.fastAttachments) {
+      for (const task of executable) {
+        const seen = new Set();
+        for (const file of task.files || []) {
+          const key=String(Importer?.fileIdentity?.(file) || '');
+          if(!key || seen.has(key)) continue;
+          seen.add(key);
+          attachmentUseCounts.set(key, Number(attachmentUseCounts.get(key) || 0) + 1);
+        }
+      }
+    }
     try {
       for (const frozenTask of executable) {
         if (!executableKeys.has(frozenTask.editKey)) continue;
@@ -8272,6 +8306,9 @@
             pauseEveryTime: batch.pauseEveryTime,
             ensureParagraphSpacing: batch.composeParagraphSpacing !== false,
             fastCompose: !!batch.fastCompose,
+            fastAttachments: !!batch.fastAttachments,
+            attachmentSessionId: batch.attachmentSessionId,
+            attachmentUseCounts,
             onProgress: progress => {
               setBatchStatus(`${kindLabel}：${progress.message || '正在创建草稿…'}`);
               void updateMailboxBatchMonitor({action:'task-progress',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-runIndex),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},executionId:String(progress.executionId||''),phase:progress.phase||'',message:progress.message||'正在创建草稿…'});
@@ -8280,6 +8317,8 @@
           const notes=[];
           if (outcome.fastCompose?.active) notes.push('极速 Compose · 网易原生内核直写');
           else if (outcome.fastCompose?.requested) notes.push('极速 Compose 自动回退标准模式');
+          if (outcome.attachment?.fastReuseCount) notes.push(`极速附件 · 服务器复用 ${outcome.attachment.fastReuseCount} 个`);
+          if (outcome.attachment?.uploadedCount && outcome.attachment?.fastRequested) notes.push(`附件首次上传 ${outcome.attachment.uploadedCount} 个并登记复用源`);
           const upload = outcome.attachment || {};
           if (upload.verified === false && upload.missingNames?.length) notes.push(`附件已提交上传，但页面未确认：${upload.missingNames.join('、')}`);
           if (task.scheduleAt && outcome.actualMinute !== null && outcome.actualMinute !== undefined) {
@@ -8322,7 +8361,7 @@
             setBatchStatus(cleanupStopReason, 'warn');
             break;
           }
-          await sleep(batch.fastCompose ? 60 : 300);
+          await sleep((batch.fastCompose || batch.fastAttachments) ? 60 : 300);
         } catch (error) {
           console.error(`[${APP}] dispatch ${task.editKey}`, error);
           const message=error.message || String(error);
@@ -8355,6 +8394,7 @@
       if (batchPauseEveryTimeEl) batchPauseEveryTimeEl.disabled = false;
       if (batchParagraphSpacingEl) batchParagraphSpacingEl.disabled = false;
       if (batchFastComposeEl) batchFastComposeEl.disabled = false;
+      if (batchFastAttachmentsEl) batchFastAttachmentsEl.disabled = false;
       importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (rosterFileEl) rosterFileEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=false;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=false;if(draftImportEl)draftImportEl.disabled=false; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=false; });
       setBatchPlanningLocked(false);
       scheduleBatchRender({aux:false,force:true});
