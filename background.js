@@ -1059,6 +1059,144 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         } catch (error) { return {ok:false,reason:error?.message||String(error)}; }
       }, [message.identity || {}]);
     }
+
+    if (message?.type === 'NMDA_FAST_COMPOSE_APPLY') {
+      return runMain(tabId, (identityArg, payloadArg) => new Promise(resolve => {
+        const identity = identityArg || {};
+        const payload = payloadArg || {};
+        const targetName = String(identity.name || '');
+        const started = Date.now();
+
+        const findTarget = () => {
+          const group = window.$?.JS?.modules?.['compose.ComposeModule'] || {};
+          return Object.values(group).filter(Boolean).find(mod => String(mod?.name || '') === targetName)
+            || (String(window.$?.Context?.module?.mtype || '') === 'compose.ComposeModule' ? window.$.Context.module : null);
+        };
+
+        const parseRecipients = raw => {
+          const result = [];
+          const seen = new Set();
+          const chunks = String(raw || '').split(/[;,，；\n]+/).map(value => value.trim()).filter(Boolean);
+          for (const chunk of chunks) {
+            let matches = [];
+            try { matches = window.$?.Uri?.getEmails?.(chunk)?.match || []; } catch (_) {}
+            if (!matches.length) {
+              const address = chunk.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || '';
+              if (address) matches = [{address,name:''}];
+            }
+            for (const match of matches) {
+              const address = String(match?.address || '').trim();
+              if (!address || seen.has(address.toLowerCase())) continue;
+              seen.add(address.toLowerCase());
+              try { result.push(new window.$.Email(address, String(match?.name || '').trim())); }
+              catch (_) { result.push(address); }
+            }
+          }
+          return result;
+        };
+
+        const attempt = () => {
+          try {
+            const target = findTarget();
+            if (!target) {
+              if (Date.now() - started < 6000) return setTimeout(attempt, 60);
+              return resolve({ok:false,reason:'compose-module-not-found'});
+            }
+            const fromEntry = String(target.data?.get?.({status:'fromEntry'}) || '');
+            if (fromEntry && fromEntry !== 'compose') {
+              return resolve({ok:false,reason:`fast-compose-context-not-supported:${fromEntry}`});
+            }
+            const ready = !!(
+              target.form?.setContact &&
+              target.form?.setSubject &&
+              target.editor?.set &&
+              target.editor?.editorCmpt?.rendered &&
+              target.base?.sendBuild &&
+              target.base?.send
+            );
+            if (!ready) {
+              if (Date.now() - started < 6000) return setTimeout(attempt, 60);
+              return resolve({ok:false,reason:'native-compose-core-not-ready'});
+            }
+
+            const to = parseRecipients(payload.recipients);
+            const cc = parseRecipients(payload.cc);
+            const bcc = parseRecipients(payload.bcc);
+            if (!to.length) return resolve({ok:false,reason:'fast-compose-recipient-empty'});
+
+            target.form.setContact(to, 'to');
+            target.form.setContact(cc.length ? cc : null, 'cc');
+            target.form.setContact(bcc.length ? bcc : null, 'bcc');
+            target.form.setSubject(String(payload.subject || ''));
+            target.editor.set({html:String(payload.bodyHtml || '')});
+
+            if (Number(payload.priority || 0) === 1) {
+              if (typeof target.form.setCheckbox !== 'function') return resolve({ok:false,reason:'native-priority-option-unavailable'});
+              target.form.setCheckbox('priority', true, true);
+            }
+            if (payload.requestReadReceipt) {
+              if (typeof target.form.setCheckbox !== 'function') return resolve({ok:false,reason:'native-receipt-option-unavailable'});
+              target.form.setCheckbox('receipt', true, true);
+            }
+
+            const scheduled = !!String(payload.scheduleAt || '').trim();
+            if (scheduled) {
+              const date = new Date(String(payload.scheduleAt || ''));
+              if (Number.isNaN(date.getTime())) return resolve({ok:false,reason:'fast-compose-schedule-invalid'});
+              if (!target.schedule?.set) return resolve({ok:false,reason:'native-schedule-model-unavailable'});
+              // sendBuild(schedule) reads schedule.status.date and applies NetEase's
+              // own getWithTimeZoneFixed() conversion. We deliberately avoid the UI selects.
+              target.schedule.set({status:'date', value:date});
+            }
+
+            // Compile through NetEase's own editor.getFinal()/sendBuild() now. This is
+            // both a capability probe and a structural preflight for the final native send.
+            const action = scheduled ? 'schedule' : 'save';
+            const compiled = target.base.sendBuild({action}) || {};
+            const scheduleDate = compiled.scheduleDate instanceof Date
+              ? compiled.scheduleDate.toISOString()
+              : String(compiled.scheduleDate || '');
+            return resolve({
+              ok:true,
+              method:'compose-native-direct',
+              identity:{name:String(target.name || '')},
+              fromEntry,
+              nativeContentLength:String(compiled.content || '').length,
+              compiled:{
+                toCount:Array.isArray(compiled.to) ? compiled.to.length : 0,
+                ccCount:Array.isArray(compiled.cc) ? compiled.cc.length : 0,
+                bccCount:Array.isArray(compiled.bcc) ? compiled.bcc.length : 0,
+                subject:String(compiled.subject || ''),
+                isHtml:compiled.isHtml !== false,
+                priority:Number(compiled.priority || 3),
+                requestReadReceipt:!!compiled.requestReadReceipt,
+                charset:String(compiled.charset || ''),
+                scheduleDate
+              }
+            });
+          } catch (error) {
+            resolve({ok:false,reason:error?.message || String(error)});
+          }
+        };
+        attempt();
+      }), [message.identity || {}, message.payload || {}]);
+    }
+    if (message?.type === 'NMDA_FAST_COMPOSE_SUBMIT') {
+      return runMain(tabId, (identityArg, scheduledArg) => {
+        try {
+          const identity = identityArg || {};
+          const targetName = String(identity.name || '');
+          const group = window.$?.JS?.modules?.['compose.ComposeModule'] || {};
+          const target = Object.values(group).filter(Boolean).find(mod => String(mod?.name || '') === targetName)
+            || (String(window.$?.Context?.module?.mtype || '') === 'compose.ComposeModule' ? window.$.Context.module : null);
+          if (!target) return {ok:false,reason:'compose-module-not-found'};
+          if (typeof target.base?.send !== 'function') return {ok:false,reason:'native-compose-send-unavailable'};
+          const action = scheduledArg ? 'schedule' : 'save';
+          target.base.send({action,source:'nmda-fast-compose'});
+          return {ok:true,method:'compose.base.send',action,identity:{name:String(target.name || '')}};
+        } catch (error) { return {ok:false,reason:error?.message || String(error)}; }
+      }, [message.identity || {}, !!message.scheduled]);
+    }
     if (message?.type === 'NMDA_COMPOSE_ATTACHMENT_STATE') {
       return runMain(tabId, identityArg => {
         try {

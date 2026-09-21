@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.89",
-  "description": "SmartMail Ops — Local-first outreach workflow for import, mail review, batch normalization, scheduling, mailbox monitoring, and Follow-up operations.",
+  "version": "3.8.90",
+  "description": "SmartMail Ops — adds optional native-direct Fast Compose with automatic fallback while preserving NetEase-native formatting, scheduling, validation, and save evidence.",
   "permissions": [
     "scripting",
     "tabs",

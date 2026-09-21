@@ -561,6 +561,53 @@
     return plainTextToHtml(bodyText || '');
   }
 
+  function composeBodyHtmlForFastNative(bodyText, bodyHtml = '', bodyIsHtml = false, ensureParagraphSpacing = true) {
+    // In fast-native mode NetEase's own editor.set()/getFinal() performs the HTML
+    // filtering and native root wrapping. Preserve rich source HTML here instead of
+    // pre-flattening it with SmartMail's conservative DOM sanitizer.
+    if (bodyIsHtml && String(bodyHtml || '').trim()) {
+      const nativeSource = String(bodyHtml || '');
+      return ensureParagraphSpacing === false ? nativeSource : ensureComposeParagraphSpacing(nativeSource);
+    }
+    return plainTextToHtml(bodyText || '');
+  }
+
+  async function applyFastNativeCompose(composeIdentity, task) {
+    try {
+      return await chrome.runtime.sendMessage({
+        type:'NMDA_FAST_COMPOSE_APPLY',
+        identity:composeIdentity || {},
+        payload:{
+          recipients:String(task.recipients || ''),
+          cc:String(task.cc || ''),
+          bcc:String(task.bcc || ''),
+          subject:String(task.subject || ''),
+          bodyHtml:composeBodyHtmlForFastNative(
+            task.body || '',
+            task.bodyHtml || '',
+            !!task.bodyIsHtml,
+            task.ensureParagraphSpacing !== false
+          ),
+          priority:Number(task.priority || 0) || 0,
+          requestReadReceipt:!!task.requestReadReceipt,
+          scheduleAt:String(task.scheduleAt || '')
+        }
+      });
+    } catch (error) {
+      return {ok:false,reason:error?.message || String(error)};
+    }
+  }
+
+  async function submitFastNativeCompose(composeIdentity, scheduled) {
+    const result = await chrome.runtime.sendMessage({
+      type:'NMDA_FAST_COMPOSE_SUBMIT',
+      identity:composeIdentity || {},
+      scheduled:!!scheduled
+    });
+    if (!result?.ok) throw new Error(`极速 Compose 原生提交失败：${result?.reason || 'unknown'}`);
+    return result;
+  }
+
   async function setBody(root, bodyText, bodyHtml = '', bodyIsHtml = false, ensureParagraphSpacing = true) {
     const iframe = await waitFor(() => findEditorIframe(root), 8000, 120, '未找到正文编辑器 iframe。');
     const body = await waitFor(() => {
@@ -957,7 +1004,7 @@
     return regularDraftSuccessSignals().find(el => !before.has(draftSignalFingerprint(el))) || null;
   }
 
-  async function waitForDraftSaveOutcome({ scheduled, baseline, button, executionId, guard, composeIdentity }) {
+  async function waitForDraftSaveOutcome({ scheduled, baseline, retrySubmit, executionId, guard, composeIdentity }) {
     if (scheduled) {
       let deadline = Date.now() + 9000;
       let poll = 0;
@@ -1005,7 +1052,7 @@
             if (rearmed?.ok) {
               rearmAttempts++;
               reportProgress(executionId, 'identity-required', '发件人姓名尚未保存，已恢复网易姓名填写步骤；填写完成后会自动继续。', { waitingFor:'sender-name', autoResume:true, rearmAttempts });
-              button?.click?.();
+              if (typeof retrySubmit === 'function') await retrySubmit();
               senderPromptLastSeenAt = Date.now();
               await sleep(220);
               poll++;
@@ -1025,7 +1072,7 @@
         }
         if (retryAfterPromotionAt && Date.now() >= retryAfterPromotionAt) {
           retryAfterPromotionAt = 0;
-          button?.click?.();
+          if (typeof retrySubmit === 'function') await retrySubmit();
         }
 
         if (!senderPromptActive && Date.now() > deadline) {
@@ -1052,23 +1099,31 @@
     // state machines:
     //   normal draft    -> editor remains open + transient success tip
     //   scheduled draft -> dedicated “定时发信设置成功” result page
-    // Never infer success solely from navigation. Require fresh business evidence
-    // produced after this click before the next batch task is allowed to start.
+    // Fast-native mode calls ComposeBase.send() directly; standard mode clicks the
+    // visible button. Both share the same success evidence and interruption recovery.
     const scheduled = !!options.scheduled;
-    const button = await waitFor(() => findSaveDraftButton(root), 5000, 120, '未找到“存草稿”按钮，已停止，避免草稿未保存。');
+    const nativeSubmit = typeof options.nativeSubmit === 'function' ? options.nativeSubmit : null;
+    let button = null;
+    if (!nativeSubmit) {
+      button = await waitFor(() => findSaveDraftButton(root), 5000, 120, '未找到“存草稿”按钮，已停止，避免草稿未保存。');
+    }
     const baseline = captureDraftSaveBaseline();
     options.guard?.scan?.();
-    button.click();
+    const retrySubmit = async () => {
+      if (nativeSubmit) return nativeSubmit();
+      button?.click?.();
+      return {ok:true,method:'dom-save-button'};
+    };
+    await retrySubmit();
     const outcome = await waitForDraftSaveOutcome({
-      scheduled, baseline, button,
+      scheduled, baseline, retrySubmit,
       executionId: options.executionId || '',
       guard: options.guard || null,
       composeIdentity: options.composeIdentity || null
     });
-    await sleep(scheduled ? 350 : 250);
+    await sleep(scheduled ? 220 : 140);
     return outcome;
   }
-
 
 
   function bytesFromBase64(value) {
@@ -1182,15 +1237,45 @@
       );
     }
 
-    reportProgress(executionId, 'content', contextual ? '正在保留网易原生邮件上下文并插入 Follow-up 正文…' : '正在填写收件人、主题和正文…');
-    if (composeMode === 'forward' || composeMode === 'new') await setRecipients(root, task.recipients || '');
-    await setAuxRecipients(root, task.cc || '', '抄送');
-    await setAuxRecipients(root, task.bcc || '', '密送');
-    if (composeMode === 'new') await setSubject(root, task.subject || '');
-    if (contextual) await prependBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml, task.ensureParagraphSpacing !== false);
-    else await setBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml, task.ensureParagraphSpacing !== false);
-    if (Number(task.priority || 0) === 1) await enableComposeOption(root, '紧急', true);
-    if (task.requestReadReceipt) await enableComposeOption(root, '已读回执', true);
+    let fastNativeActive = false;
+    let fastNativeDetail = null;
+    const fastNativeRequested = message.fastCompose === true && composeMode === 'new';
+    if (fastNativeRequested) {
+      interruptionGuard.setPhase('fast-compose');
+      reportProgress(executionId, 'fast-compose', '极速 Compose：正在通过网易原生 Compose 内核直写收件人、主题、正文与定时数据…', {fastCompose:true});
+      const applied = await applyFastNativeCompose(composeIdentity, task);
+      if (applied?.ok) {
+        fastNativeActive = true;
+        fastNativeDetail = applied;
+        reportProgress(
+          executionId,
+          'fast-compose',
+          `极速 Compose 已就绪 · 原生格式编译${task.scheduleAt ? ' · 原生定时' : ''}${applied.nativeContentLength ? ` · HTML ${applied.nativeContentLength} 字符` : ''}`,
+          {fastCompose:true,nativeDirect:true,compiled:applied.compiled || null}
+        );
+      } else {
+        reportProgress(
+          executionId,
+          'content',
+          `极速 Compose 当前不可用，已自动回退标准模式：${applied?.reason || 'native-capability-unavailable'}`,
+          {fastCompose:true,fallback:true,reason:applied?.reason || ''}
+        );
+      }
+    } else if (message.fastCompose === true && contextual) {
+      reportProgress(executionId, 'content', '当前为 Reply / Forward，上下文优先保真；本封自动使用标准原生 Compose。', {fastCompose:true,fallback:true,reason:'contextual-compose'});
+    }
+
+    if (!fastNativeActive) {
+      reportProgress(executionId, 'content', contextual ? '正在保留网易原生邮件上下文并插入 Follow-up 正文…' : '正在填写收件人、主题和正文…');
+      if (composeMode === 'forward' || composeMode === 'new') await setRecipients(root, task.recipients || '');
+      await setAuxRecipients(root, task.cc || '', '抄送');
+      await setAuxRecipients(root, task.bcc || '', '密送');
+      if (composeMode === 'new') await setSubject(root, task.subject || '');
+      if (contextual) await prependBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml, task.ensureParagraphSpacing !== false);
+      else await setBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml, task.ensureParagraphSpacing !== false);
+      if (Number(task.priority || 0) === 1) await enableComposeOption(root, '紧急', true);
+      if (task.requestReadReceipt) await enableComposeOption(root, '已读回执', true);
+    }
 
     let attachmentResult = { verified: true, missing: [], mode: 'none' };
     const refs = Array.isArray(task.attachments) ? task.attachments : [];
@@ -1223,10 +1308,15 @@
     interruptionGuard.setPhase('schedule');
     if (task.scheduleAt) {
       const displaySchedule=String(task.scheduleDisplayAt||task.scheduleAt).replace('T',' '), zoneLabel=String(task.scheduleTimeZoneLabel||'').trim();
-      reportProgress(executionId, 'schedule', `正在设置定时 ${displaySchedule}${zoneLabel?` · ${zoneLabel} 当地时间`:''}…`);
-      actualMinute = await setSchedule(root, task.scheduleAt);
+      if (fastNativeActive) {
+        actualMinute = new Date(task.scheduleAt).getMinutes();
+        reportProgress(executionId, 'schedule', `极速 Compose 已把定时 ${displaySchedule}${zoneLabel?` · ${zoneLabel} 当地时间`:''} 写入网易原生 Schedule 模型。`, {fastCompose:true,nativeSchedule:true});
+      } else {
+        reportProgress(executionId, 'schedule', `正在设置定时 ${displaySchedule}${zoneLabel?` · ${zoneLabel} 当地时间`:''}…`);
+        actualMinute = await setSchedule(root, task.scheduleAt);
+      }
     } else {
-      reportProgress(executionId, 'schedule', '未设置定时，将保存普通草稿。');
+      reportProgress(executionId, 'schedule', fastNativeActive ? '极速 Compose：普通草稿无需定时步骤。' : '未设置定时，将保存普通草稿。');
     }
 
     if (message.pauseEveryTime === true) {
@@ -1238,8 +1328,21 @@
     }
 
     interruptionGuard.setPhase('save');
-    reportProgress(executionId, 'save', `正在点击“存草稿”并确认${task.scheduleAt ? '定时设置' : '草稿保存'}…`);
-    const saveOutcome = await saveDraft(root, { scheduled: !!task.scheduleAt, executionId, guard: interruptionGuard, composeIdentity });
+    reportProgress(
+      executionId,
+      'save',
+      fastNativeActive
+        ? `极速 Compose：正在通过网易原生 send() 提交并确认${task.scheduleAt ? '定时设置' : '草稿保存'}…`
+        : `正在点击“存草稿”并确认${task.scheduleAt ? '定时设置' : '草稿保存'}…`,
+      {fastCompose:fastNativeActive}
+    );
+    const saveOutcome = await saveDraft(root, {
+      scheduled: !!task.scheduleAt,
+      executionId,
+      guard: interruptionGuard,
+      composeIdentity,
+      nativeSubmit: fastNativeActive ? (() => submitFastNativeCompose(composeIdentity, !!task.scheduleAt)) : null
+    });
     const missingNames = (attachmentResult.missing || []).map(file => file?.name || '').filter(Boolean);
 
     interruptionGuard.setPhase('cleanup');
@@ -1257,6 +1360,7 @@
         saveOutcome,
         actualMinute,
         composeMode,
+        fastCompose: { requested:message.fastCompose === true, active:fastNativeActive, engine:fastNativeActive ? 'netease-native-direct' : 'standard-dom', detail:fastNativeDetail || null },
         cleanup,
         parentMessageId: contextual ? String(task.parentMessageId || '') : '',
         attachment: { verified: !!attachmentResult.verified, mode: attachmentResult.mode || 'none', missingNames }
