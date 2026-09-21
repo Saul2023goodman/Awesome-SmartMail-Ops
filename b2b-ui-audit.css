@@ -1201,3 +1201,45 @@
     max-width:none !important;
   }
 }
+
+/* Follow-up monitor: make the actionable total an explicit navigation control. */
+#nmda-root.nmda-standalone .nmda-monitor-stat.is-action {
+  appearance:none;
+  -webkit-appearance:none;
+  font:inherit;
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+  position:relative;
+  padding-right:78px !important;
+  transition:border-color .16s ease, box-shadow .16s ease, transform .16s ease, background .16s ease;
+}
+#nmda-root.nmda-standalone .nmda-monitor-stat.is-action:hover:not(:disabled) {
+  border-color:#e8b865 !important;
+  background:#fffaf1 !important;
+  box-shadow:0 4px 14px rgba(180,83,9,.08) !important;
+  transform:translateY(-1px);
+}
+#nmda-root.nmda-standalone .nmda-monitor-stat.is-action:focus-visible {
+  outline:2px solid rgba(180,83,9,.28);
+  outline-offset:2px;
+}
+#nmda-root.nmda-standalone .nmda-monitor-stat.is-action small {
+  display:block !important;
+  position:absolute;
+  right:11px;
+  top:50%;
+  transform:translateY(-50%);
+  margin:0 !important;
+  font-size:10.5px !important;
+  font-weight:700;
+  color:#9a6106 !important;
+  white-space:nowrap;
+}
+#nmda-root.nmda-standalone .nmda-monitor-stat.is-action:disabled {
+  cursor:default;
+  opacity:.72;
+}
+#nmda-root.nmda-standalone .nmda-monitor-stat.is-action:disabled small {
+  color:#8a94a3 !important;
+}

@@ -1071,7 +1071,7 @@
             <div class="nmda-monitor-filterbar">
               <div class="nmda-monitor-filters" role="group" aria-label="邮件监测筛选">
                 <button type="button" data-monitor-filter="all" class="is-active">全部</button>
-                <button type="button" data-monitor-filter="due">待跟进</button>
+                <button type="button" data-monitor-filter="due">现在可跟进</button>
                 <button type="button" data-monitor-filter="waiting">等待中</button>
                 <button type="button" data-monitor-filter="replied">已回复</button>
                 <button type="button" data-monitor-filter="blocked">需处理</button>
@@ -1080,11 +1080,11 @@
             </div>
 
             <div class="nmda-monitor-bulkbar" id="nmda-monitor-bulkbar" hidden>
-              <label class="nmda-monitor-select-all"><input id="nmda-monitor-select-visible" type="checkbox"><span>选择当前可生成</span></label>
+              <label class="nmda-monitor-select-all"><input id="nmda-monitor-select-visible" type="checkbox"><span>选择当前可跟进</span></label>
               <span class="nmda-monitor-selection-copy" id="nmda-monitor-selection-copy">已选择 0</span>
               <div class="nmda-monitor-bulk-actions">
                 <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-monitor-clear-selection" type="button">清除</button>
-                <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-monitor-batch-create" type="button">批量生成 Follow-up</button>
+                <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-monitor-batch-create" type="button">批量准备跟进</button>
               </div>
             </div>
 
@@ -1496,23 +1496,32 @@
     if(scheduledDraft){
       const sequence=Math.max(1,Number(scheduledDraft.sequence||scheduledDraft.observedSequence||group.eligibility?.sequence||1));
       const maxAttempts=Math.max(0,Number(group.policy?.maxAttempts||0));
-      if(sequence>maxAttempts)return {key:'blocked',tone:'blocked',label:`Follow-up #${sequence} 已定时 · 超出上限`,detail:`网易草稿箱 · ${Operations.formatDisplayTime(scheduledDraft.scheduleAt)}；当前规则最多 ${maxAttempts} 次`,scheduledDraft,activeTask:null};
-      return {key:'waiting',tone:'scheduled',label:`Follow-up #${sequence} 已定时`,detail:`网易草稿箱 · ${Operations.formatDisplayTime(scheduledDraft.scheduleAt)}`,scheduledDraft,activeTask:null};
+      if(sequence>maxAttempts)return {key:'blocked',tone:'blocked',label:'已安排发送 · 超出规则',detail:`第 ${sequence} 次跟进 · ${Operations.formatDisplayTime(scheduledDraft.scheduleAt)}；当前最多允许 ${maxAttempts} 次`,scheduledDraft,activeTask:null};
+      return {key:'waiting',tone:'scheduled',label:'已安排发送',detail:`第 ${sequence} 次跟进 · ${Operations.formatDisplayTime(scheduledDraft.scheduleAt)}`,scheduledDraft,activeTask:null};
     }
     if(activeTask){
       const reviewed=!!activeTask.reviewedAt && Number(activeTask.confirmedVersion)===Number(activeTask.contentVersion);
       const autoReviewed=reviewed && activeTask.reviewDecision==='auto';
-      const reviewLabel=autoReviewed?'自动通过':reviewed?'已确认':'需处理';
-      const label=`Follow-up #${activeTask.sequence} · ${reviewLabel}`;
-      const detail=activeTask.draftPreparedAt?'草稿已创建':activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:(autoReviewed?'模板检查完整，已进入选择与排期':'已进入选择与排期')):(reviewed?'等待进入选择与排期':'模板生成后检测到异常，请到邮件审阅处理');
+      const label=reviewed?'跟进已准备':'跟进需检查';
+      const sequence=Math.max(1,Number(activeTask.sequence||1));
+      const detail=activeTask.draftPreparedAt?`第 ${sequence} 次跟进 · 草稿已创建`:activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`第 ${sequence} 次跟进 · 已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:`第 ${sequence} 次跟进 · ${autoReviewed?'模板检查完整，已进入选择与排期':'已进入选择与排期'}`):(reviewed?`第 ${sequence} 次跟进 · 等待进入选择与排期`:`第 ${sequence} 次跟进 · 生成后发现异常，请到邮件审阅处理`);
       return {key:'due',tone:'due',label,detail,activeTask};
     }
-    if(group.eligibility?.eligible)return {key:'due',tone:'due',label:`Follow-up #${group.eligibility.sequence} 到期`,detail:'可以创建跟进任务'};
-    if(group.eligibility?.reason==='scheduled-follow-up-exists')return {key:'waiting',tone:'scheduled',label:`Follow-up #${group.eligibility.sequence||1} 已定时`,detail:`网易草稿箱 · ${Operations.formatDisplayTime(group.eligibility.scheduledDraft?.scheduleAt||group.eligibility.dueAt)}`,scheduledDraft:group.eligibility.scheduledDraft||null,activeTask:null};
-    if(group.eligibility?.reason==='waiting')return {key:'waiting',tone:'',label:'等待中',detail:`到期 ${Operations.formatDisplayTime(group.eligibility.dueAt)}`};
+    if(group.eligibility?.eligible){
+      const sequence=Math.max(1,Number(group.eligibility.sequence||1));
+      return {key:'due',tone:'due',label:'现在可以跟进',detail:`第 ${sequence} 次跟进 · 已到计划时间`};
+    }
+    if(group.eligibility?.reason==='scheduled-follow-up-exists'){
+      const sequence=Math.max(1,Number(group.eligibility.sequence||group.eligibility.scheduledDraft?.sequence||1));
+      return {key:'waiting',tone:'scheduled',label:'已安排发送',detail:`第 ${sequence} 次跟进 · ${Operations.formatDisplayTime(group.eligibility.scheduledDraft?.scheduleAt||group.eligibility.dueAt)}`,scheduledDraft:group.eligibility.scheduledDraft||null,activeTask:null};
+    }
+    if(group.eligibility?.reason==='waiting'){
+      const sequence=Math.max(1,Number(group.eligibility.sequence||1));
+      return {key:'waiting',tone:'',label:'等待跟进时间',detail:`第 ${sequence} 次跟进 · 预计 ${Operations.formatDisplayTime(group.eligibility.dueAt)} 可跟进`};
+    }
     if(group.eligibility?.reason==='human-managed-conversation')return {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成 Follow-up',observation:group.eligibility.blockingObservation||null,humanManaged:true};
-    if(group.eligibility?.reason==='follow-up-disabled')return {key:'blocked',tone:'',label:'Follow-up 已暂停',detail:'仍检测回复，只暂停生成新的 Follow-up'};
-    if(group.eligibility?.reason==='max-attempts-reached')return {key:'waiting',tone:'',label:'已达跟进上限',detail:`最多 ${group.policy.maxAttempts} 次 Follow-up`};
+    if(group.eligibility?.reason==='follow-up-disabled')return {key:'blocked',tone:'',label:'跟进已暂停',detail:'仍会继续检测回复，只暂停新的跟进'};
+    if(group.eligibility?.reason==='max-attempts-reached')return {key:'waiting',tone:'',label:'本轮跟进已完成',detail:`已达到最多 ${group.policy.maxAttempts} 次跟进`};
     if(group.eligibility?.reason==='recipient-guard')return {key:'blocked',tone:'blocked',label:'联系规则阻断',detail:(group.eligibility.guard?.reasons||[]).join('；')||'已暂停联系'};
     return {key:'waiting',tone:'',label:'监测中',detail:group.eligibility?.reason||'等待邮箱事实'};
   }
@@ -1543,7 +1552,7 @@
     const waiting=enriched.filter(item=>item.viewState.key==='waiting').length;
     if(els.stats)els.stats.innerHTML=`
       <div class="nmda-monitor-stat"><strong>${groups.length}</strong><span>已发送线程</span></div>
-      <div class="nmda-monitor-stat" data-tone="due"><strong>${due}</strong><span>待跟进</span></div>
+      <button class="nmda-monitor-stat is-action" id="nmda-monitor-due-summary" type="button" data-tone="due" ${due===0?'disabled':''} aria-label="${due} 封邮件现在可以跟进，点击查看"><strong>${due}</strong><span>现在可跟进</span><small>${due>0?'点击查看 →':'当前无需处理'}</small></button>
       <div class="nmda-monitor-stat" data-tone="reply"><strong>${replied}</strong><span>已回复</span></div>
       <div class="nmda-monitor-stat" data-tone="block"><strong>${blocked}</strong><span>需处理</span></div>`;
     const policy=operationState.store.followUpPolicies?.default || Operations.DEFAULT_FOLLOWUP_POLICY;
@@ -1573,7 +1582,7 @@
     const visibleCreatable=visible.filter(monitorCreatable);
     const allCreatable=enriched.filter(monitorCreatable);
     if(els.bulkbar)els.bulkbar.hidden=allCreatable.length===0;
-    if(els.selectionCopy)els.selectionCopy.textContent=`已选择 ${selected.size} · 当前可生成 ${visibleCreatable.length}`;
+    if(els.selectionCopy)els.selectionCopy.textContent=`已选择 ${selected.size} · 当前可跟进 ${visibleCreatable.length}`;
     if(els.batchCreate)els.batchCreate.disabled=selected.size===0;
     if(els.selectVisible){
       const selectedVisible=visibleCreatable.filter(item=>selected.has(item.rootTaskId)).length;
@@ -1600,8 +1609,8 @@
             else actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-review="${escapeHtml(active.id)}">去审阅</button>`);
             if(!['sent','cancelled'].includes(active.state))actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-monitor-cancel-followup="${escapeHtml(active.id)}">取消跟进</button>`);
           }
-          else if(!group.humanManaged && group.eligibility?.eligible)actions.push(`<button class="nmda-btn nmda-btn-primary nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}">模板生成</button>`);
-          else if(group.eligibility?.reason==='waiting')actions.push(`<button class="nmda-btn nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}" data-manual="1">模板提前生成</button>`);
+          else if(!group.humanManaged && group.eligibility?.eligible)actions.push(`<button class="nmda-btn nmda-btn-primary nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}">准备跟进</button>`);
+          else if(group.eligibility?.reason==='waiting')actions.push(`<button class="nmda-btn nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}" data-manual="1">提前准备</button>`);
           if(!st.scheduledDraft && !['human-reply','human-managed-conversation','max-attempts-reached','recipient-guard','scheduled-follow-up-exists'].includes(group.eligibility?.reason)){
             actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-monitor-toggle="${escapeHtml(group.rootTaskId)}" data-enabled="${enabled?'1':'0'}">${enabled?'暂停 Follow-up':'恢复 Follow-up'}</button>`);
           }
@@ -1614,9 +1623,9 @@
           const selectionCell=selectable?`<label class="nmda-monitor-row-select" title="选择生成 Follow-up"><input type="checkbox" data-monitor-select="${escapeHtml(group.rootTaskId)}" ${selected.has(group.rootTaskId)?'checked':''}><span class="sr-only">选择此邮件</span></label>`:`<span class="nmda-monitor-row-select-placeholder" aria-hidden="true"></span>`;
           return `<article class="nmda-monitor-row${selectable?' is-selectable':''}" data-tone="${escapeHtml(st.tone||'')}">
             ${selectionCell}
-            <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(st.scheduledDraft?`草稿箱已识别定时 Follow-up #${Math.max(1,Number(st.scheduledDraft.sequence||st.scheduledDraft.observedSequence||1))}`:(st.key==='replied'?'有效回复 · 待人工回复':(last.kind==='follow_up'?`最近发送 Follow-up #${last.sequence}${last.sequenceSource==='mailbox-history'?' · 邮箱历史识别':''}`:'初始 outreach')))}</small><div class="nmda-monitor-subject" title="${escapeHtml(displaySubject)}">${escapeHtml(displaySubject||'(无主题)')}</div></div>
+            <div class="nmda-monitor-row-main"><strong>${escapeHtml(monitorRecipientText(last)||'未知收件人')}</strong><small>${escapeHtml(st.scheduledDraft?`已识别网易定时草稿 · 第 ${Math.max(1,Number(st.scheduledDraft.sequence||st.scheduledDraft.observedSequence||1))} 次跟进`:(st.key==='replied'?'已收到有效回复 · 待人工处理':(last.kind==='follow_up'?`最近发送：第 ${Math.max(1,Number(last.sequence||1))} 次跟进${last.sequenceSource==='mailbox-history'?' · 邮箱历史识别':''}`:'首封邮件')))}</small><div class="nmda-monitor-subject" title="${escapeHtml(displaySubject)}">${escapeHtml(displaySubject||'(无主题)')}</div></div>
             <div class="nmda-monitor-row-state"><span class="nmda-monitor-badge" data-tone="${escapeHtml(st.tone||'')}">${escapeHtml(st.label)}</span><small>${escapeHtml(st.detail||'')}</small></div>
-            <div class="nmda-monitor-row-time"><div><span>最近发送</span><strong>${escapeHtml(Operations.formatDisplayTime(last.sentAt))}</strong></div><div><span>下一节点</span><strong>${dueAt?escapeHtml(Operations.formatDisplayTime(dueAt)):'—'}</strong></div></div>
+            <div class="nmda-monitor-row-time"><div><span>最近发送</span><strong>${escapeHtml(Operations.formatDisplayTime(last.sentAt))}</strong></div><div><span>${st.scheduledDraft?'计划发送':(st.key==='due'?'可跟进时间':(group.eligibility?.reason==='waiting'?'预计可跟进':'下一步'))}</span><strong>${dueAt?escapeHtml(Operations.formatDisplayTime(dueAt)):'—'}</strong></div></div>
             <div class="nmda-monitor-row-actions">${actions.join('')}</div>${evidence}</article>`;
         }).join('');
       }
@@ -1752,7 +1761,7 @@
   async function batchCreateMonitorFollowUps() {
     await ensureOperationStore();
     const selected=[...monitorSelectedIds()];
-    if(!selected.length){setMonitorNotice('请先选择已经到期、可生成 Follow-up 的邮件。','warn');return;}
+    if(!selected.length){setMonitorNotice('请先选择“现在可跟进”的邮件。','warn');return;}
     const policy=operationState.store.followUpPolicies?.default || Operations.DEFAULT_FOLLOWUP_POLICY;
     if(!String(policy.templateBody||'').trim()){setMonitorNotice('请先在“邮件监测”中设置 Follow-up 正文模板，再批量生成。','warn');return;}
     try{
@@ -1788,6 +1797,19 @@
   }
 
 
+  function setMonitorFilter(filter='all',{clearSearch=false,scrollToList=false}={}) {
+    monitorState.filter=filter||'all';
+    if(clearSearch){
+      monitorState.search='';
+      const search=$('nmda-monitor-search');if(search)search.value='';
+    }
+    ui.querySelectorAll('[data-monitor-filter]').forEach(item=>item.classList.toggle('is-active',(item.dataset.monitorFilter||'all')===monitorState.filter));
+    renderMonitoring();
+    if(scrollToList){
+      requestAnimationFrame(()=>($('nmda-monitor-filterbar')||$('nmda-monitor-list'))?.scrollIntoView?.({behavior:'smooth',block:'start'}));
+    }
+  }
+
   function bindMonitoringUI() {
     $('nmda-monitor-sync')?.addEventListener('click',()=>void syncMonitoringMailbox('quick'));
     $('nmda-monitor-full-sync')?.addEventListener('click',()=>{const months=readMailboxHistoryMonths();const range=months?`最近 ${months} 个月`:'全部邮件';if(confirm(`将按“${range}”重新读取已发送、草稿和收件箱，并用该范围重建邮箱历史，继续吗？`))void syncMonitoringMailbox('full');});
@@ -1810,7 +1832,11 @@
     });
     $('nmda-monitor-template-sync')?.addEventListener('change',renderMonitorFollowUpTemplate);
     $('nmda-monitor-save-template')?.addEventListener('click',()=>void saveMonitorFollowUpTemplate());
-    ui.querySelectorAll('[data-monitor-filter]').forEach(button=>button.addEventListener('click',()=>{monitorState.filter=button.dataset.monitorFilter||'all';ui.querySelectorAll('[data-monitor-filter]').forEach(item=>item.classList.toggle('is-active',item===button));renderMonitoring();}));
+    ui.querySelectorAll('[data-monitor-filter]').forEach(button=>button.addEventListener('click',()=>setMonitorFilter(button.dataset.monitorFilter||'all')));
+    $('nmda-monitor-stats')?.addEventListener('click',event=>{
+      const summary=event.target.closest('#nmda-monitor-due-summary');if(!summary||summary.disabled)return;
+      setMonitorFilter('due',{clearSearch:true,scrollToList:true});
+    });
     $('nmda-monitor-search')?.addEventListener('input',event=>{monitorState.search=event.currentTarget.value||'';renderMonitoring();});
     $('nmda-monitor-select-visible')?.addEventListener('change',event=>{
       const selected=monitorSelectedIds();
