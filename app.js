@@ -3925,13 +3925,12 @@
       || /未定位收件人|主题为空|正文过短/.test(text);
   }
 
-  function effectiveImportConfidence(task) {
-    let score=Number(task?.importConfidence||0);
-    const issues=(task?.importIssues||[]).map(issue=>String(issue||''));
-    if(String(task?.subject||'').trim() && issues.some(issue=>/主题为空|未找到 Subject/.test(issue))) score+=30;
-    if(recipientLooksValid(task?.recipients||'') && issues.some(issue=>/未定位收件人|无收件人/.test(issue))) score+=15;
-    if(String(task?.body||'').trim().length>=80 && issues.some(issue=>/正文过短/.test(issue))) score+=6;
-    return Math.max(0,Math.min(100,score));
+  // Mail-boundary signals are parser diagnostics, not operator decisions.
+  // Keep them on source metadata for traceability, but never block Review when
+  // recipient / subject / body are already usable.
+  function isNonBlockingBoundaryDiagnostic(issue) {
+    const text=String(issue||'');
+    return /邮件边界识别置信度较低|未找到邮件称呼|未找到邮件落款|未找到标准邮件落款|邮件落款后存在未归类内容/.test(text);
   }
 
   function isFollowUpReviewTask(task) {
@@ -3998,21 +3997,19 @@
       if(!task?.reviewConfirmed && !out.includes('请检查 Follow-up 内容'))out.push('请检查 Follow-up 内容');
       return out;
     }
-    const effectiveConfidence=effectiveImportConfidence(task);
     if (!String(task?.recipients||'').trim()) out.push('缺少收件人');
     else if (!recipientLooksValid(task.recipients)) out.push('收件人邮箱格式无效');
     if (!String(task?.subject||'').trim()) out.push('缺少主题');
     if (!String(task?.body||'').trim()) out.push('缺少正文');
-    // Human confirmation is scoped: deterministic missing fields disappear as soon as they are fixed.
-    // Only ambiguous parsing / manual edits / roster conflicts require an explicit confirmation.
+    // Human confirmation is scoped to actionable ambiguity. Missing fields disappear
+    // as soon as they are fixed. Parser-only body-boundary diagnostics stay in source
+    // metadata but never create a manual Review gate by themselves.
     if (!task?.reviewConfirmed) {
-      if (effectiveConfidence && effectiveConfidence < 70) out.push('请检查邮件内容');
       for (const issue of task?.importIssues || []) {
+        if (isNonBlockingBoundaryDiagnostic(issue)) continue;
         if (/未定位收件人/.test(issue) && task.recipients) continue;
         if (/主题为空|未找到 Subject/.test(issue) && task.subject) continue;
         if (/正文过短/.test(issue) && String(task.body||'').length>=40) continue;
-        if (/置信度/.test(issue) && effectiveConfidence>=70) continue;
-        if (/未找到邮件落款|未找到邮件称呼/.test(issue) && effectiveConfidence >= 80) continue;
         if (!out.includes(issue)) out.push(issue);
       }
     }
@@ -5001,7 +4998,6 @@
     if(/缺少正文|正文过短/.test(text))return '正文缺失';
     if(/请检查 Follow-up 内容/.test(text))return 'Follow-up 需确认';
     if(/Follow-up 已阻断/.test(text))return 'Follow-up 已阻断';
-    if(/邮件落款后|邮件边界|称呼|落款|置信度|请检查/.test(text))return '正文边界待核对';
     if(/总名单|联系人|院校/.test(text))return '联系人待核对';
     return text==='修改待确认'?'修改待确认':text;
   }
@@ -6567,8 +6563,8 @@
         else if (!recipientLooksValid(recipients)) errors.push('收件人邮箱格式无效');
         if (!subject) errors.push('缺少主题');
         if (!String(body||'').trim()) errors.push('缺少正文');
-        if (collection.meta?.mailFrames && importConfidence && importConfidence < 70) warnings.push('请检查邮件内容');
         for (const issue of importIssues) {
+          if (isNonBlockingBoundaryDiagnostic(issue)) continue;
           if (/未定位收件人/.test(issue) && recipients) continue;
           if (/主题为空/.test(issue) && subject) continue;
           if (/正文过短/.test(issue) && body.length >= 40) continue;
