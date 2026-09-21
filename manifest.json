@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.99",
-  "description": "SmartMail Ops — Mail Monitoring now explains Follow-up decisions as a user-facing logic tree, while preserving mailbox reconciliation and execution behavior.",
+  "version": "3.8.100",
+  "description": "SmartMail Ops — Contact-centric mail monitoring: one operational state per recipient email, with contact counts, replies, follow-up history, due actions, and user-facing decision paths.",
   "permissions": [
     "scripting",
     "tabs",

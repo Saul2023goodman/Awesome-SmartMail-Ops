@@ -287,3 +287,119 @@
   #nmda-root.nmda-standalone .nmda-monitor-tree-actions>div{justify-content:flex-start}
   #nmda-root.nmda-standalone .nmda-monitor-tree-body{grid-template-columns:1fr;gap:7px}
 }
+
+/* v3.8.100 · Contact-centric Monitoring
+   Mailbox reads stay implementation detail; recipient email is the operational object. */
+#nmda-root.nmda-standalone .nmda-contact-command-center{
+  display:grid;grid-template-columns:minmax(0,1.42fr) minmax(330px,.76fr);gap:10px;align-items:stretch;min-width:0;
+}
+#nmda-root.nmda-standalone .nmda-contact-status-tree{
+  min-width:0;padding:13px 14px;border:1px solid #dce4ed;border-radius:15px;background:rgba(255,255,255,.95);box-shadow:0 4px 18px rgba(27,39,55,.035);
+}
+#nmda-root.nmda-standalone .nmda-contact-status-tree>header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:11px}
+#nmda-root.nmda-standalone .nmda-contact-status-tree>header>div{display:grid;gap:2px}
+#nmda-root.nmda-standalone .nmda-contact-status-tree>header small{font-size:9px;font-weight:760;letter-spacing:.06em;color:#8290a1}
+#nmda-root.nmda-standalone .nmda-contact-status-tree>header strong{font-size:14px;letter-spacing:-.015em;color:#263447}
+#nmda-root.nmda-standalone .nmda-contact-status-tree>header>span{font-size:9px;color:#8a96a5}
+#nmda-root.nmda-standalone .nmda-contact-tree-map{display:grid;grid-template-columns:124px 34px minmax(0,1fr);align-items:stretch;min-width:0}
+#nmda-root.nmda-standalone .nmda-contact-tree-root{display:grid;align-content:center;justify-items:start;gap:0;padding:11px 12px;border:1px solid #dce4ed;border-radius:12px;background:#f8fafc}
+#nmda-root.nmda-standalone .nmda-contact-tree-root span{font-size:8.5px;font-weight:720;color:#728094}
+#nmda-root.nmda-standalone .nmda-contact-tree-root strong{font-size:28px;line-height:1.05;letter-spacing:-.04em;color:#27364a}
+#nmda-root.nmda-standalone .nmda-contact-tree-root small{font-size:8px;color:#98a2b0}
+#nmda-root.nmda-standalone .nmda-contact-tree-link{position:relative;display:block!important}
+#nmda-root.nmda-standalone .nmda-contact-tree-link::before{content:"";position:absolute;left:4px;right:3px;top:50%;height:1px;background:#cbd5df}
+#nmda-root.nmda-standalone .nmda-contact-tree-link::after{content:"";position:absolute;right:2px;top:calc(50% - 3px);width:5px;height:5px;border-top:1px solid #aab6c3;border-right:1px solid #aab6c3;transform:rotate(45deg)}
+#nmda-root.nmda-standalone .nmda-contact-tree-branches{display:grid;grid-template-columns:minmax(150px,.6fr) minmax(0,1.5fr);gap:8px;min-width:0}
+#nmda-root.nmda-standalone .nmda-contact-tree-branch,#nmda-root.nmda-standalone .nmda-contact-tree-unreplied{min-width:0;border:1px solid #dfe6ed;border-radius:12px;background:#fff}
+#nmda-root.nmda-standalone button.nmda-contact-tree-branch{appearance:none;padding:10px 11px;text-align:left;cursor:pointer;display:grid;align-content:center;gap:2px;color:#344054;transition:border-color .15s ease,background .15s ease,transform .15s ease}
+#nmda-root.nmda-standalone button.nmda-contact-tree-branch:hover{transform:translateY(-1px);border-color:#bfd2c4;background:#f8fcf9}
+#nmda-root.nmda-standalone .nmda-contact-tree-branch span{font-size:9px;font-weight:720;color:#667586}
+#nmda-root.nmda-standalone .nmda-contact-tree-branch strong{font-size:24px;line-height:1;color:#2d7748}
+#nmda-root.nmda-standalone .nmda-contact-tree-branch small{font-size:8px;color:#8c9a8f}
+#nmda-root.nmda-standalone .nmda-contact-tree-branch.is-replied{border-color:#d2e4d6;background:#f9fcfa}
+#nmda-root.nmda-standalone .nmda-contact-tree-unreplied{padding:9px 10px;display:grid;gap:8px;background:#fbfcfd}
+#nmda-root.nmda-standalone .nmda-contact-tree-unreplied-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#nmda-root.nmda-standalone .nmda-contact-tree-unreplied-head span{font-size:9px;font-weight:720;color:#667586}
+#nmda-root.nmda-standalone .nmda-contact-tree-unreplied-head strong{font-size:17px;color:#344054}
+#nmda-root.nmda-standalone .nmda-contact-tree-outcomes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+#nmda-root.nmda-standalone .nmda-contact-tree-outcomes>*{min-width:0;min-height:45px;display:grid;align-content:center;gap:2px;padding:6px 7px;border:1px solid #e3e8ee;border-radius:9px;background:#fff;color:#445164;text-align:left}
+#nmda-root.nmda-standalone .nmda-contact-tree-outcomes button{appearance:none;cursor:pointer;transition:border-color .15s ease,background .15s ease}
+#nmda-root.nmda-standalone .nmda-contact-tree-outcomes button:hover{border-color:#cbd7e4;background:#f8fbff}
+#nmda-root.nmda-standalone .nmda-contact-tree-outcomes small{font-size:7.6px;color:#8591a0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-contact-tree-outcomes strong{font-size:15px;line-height:1;color:#394657}
+#nmda-root.nmda-standalone .nmda-contact-tree-outcomes button:first-child{border-color:#ead2a9;background:#fffaf1}
+#nmda-root.nmda-standalone .nmda-contact-tree-outcomes button:first-child strong{color:#a86814}
+#nmda-root.nmda-standalone .nmda-contact-action-summary{grid-template-rows:auto 1fr!important}
+#nmda-root.nmda-standalone .nmda-contact-action-summary .nmda-monitor-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+#nmda-root.nmda-standalone .nmda-contact-action-summary .nmda-monitor-stat{min-height:48px!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto;align-content:center!important;gap:1px 9px!important}
+#nmda-root.nmda-standalone .nmda-contact-action-summary .nmda-monitor-stat span{font-size:8.5px!important;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-contact-action-summary .nmda-monitor-stat strong{grid-row:1/3;grid-column:2;font-size:18px!important;align-self:center}
+#nmda-root.nmda-standalone .nmda-contact-action-summary .nmda-monitor-stat small{grid-column:1;font-size:7.5px!important;color:#9aa3ae!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#nmda-root.nmda-standalone .nmda-monitor-list{gap:9px!important}
+#nmda-root.nmda-standalone .nmda-contact-card{position:relative;min-width:0;overflow:hidden;border:1px solid #dfe5ec;border-radius:15px;background:rgba(255,255,255,.97);box-shadow:0 2px 9px rgba(24,36,52,.028);transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}
+#nmda-root.nmda-standalone .nmda-contact-card:hover{border-color:#ccd7e2;box-shadow:0 7px 20px rgba(24,36,52,.055)}
+#nmda-root.nmda-standalone .nmda-contact-card[data-tone="due"]{border-color:#e4cda7;background:#fffdfa}
+#nmda-root.nmda-standalone .nmda-contact-card[data-tone="replied"]{border-color:#cfe1d2}
+#nmda-root.nmda-standalone .nmda-contact-card[data-tone="scheduled"]{border-color:#ccdced;background:#fbfdff}
+#nmda-root.nmda-standalone .nmda-contact-card[data-tone="blocked"]{border-color:#ead0cc;background:#fffdfd}
+#nmda-root.nmda-standalone .nmda-contact-card-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;padding:11px 12px;border-bottom:1px solid #edf1f4}
+#nmda-root.nmda-standalone .nmda-contact-identity{min-width:0;display:flex;align-items:center;gap:9px}
+#nmda-root.nmda-standalone .nmda-contact-avatar{flex:0 0 34px;width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#edf2f7;color:#5d6d7f;font-size:13px;font-weight:780}
+#nmda-root.nmda-standalone .nmda-contact-identity>div{min-width:0;display:grid;gap:2px}
+#nmda-root.nmda-standalone .nmda-contact-title{display:flex;align-items:center;gap:7px;min-width:0}
+#nmda-root.nmda-standalone .nmda-contact-title>strong{min-width:0;font-size:12px;line-height:1.2;color:#263447;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-contact-identity>div>small{font-size:8.6px;color:#8a96a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-contact-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0}
+#nmda-root.nmda-standalone .nmda-contact-actions>div{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+#nmda-root.nmda-standalone .nmda-contact-card-grid{display:grid;grid-template-columns:310px minmax(0,1fr);gap:12px;align-items:stretch;padding:10px 12px}
+#nmda-root.nmda-standalone .nmda-contact-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;min-width:0}
+#nmda-root.nmda-standalone .nmda-contact-metrics>div{min-width:0;display:grid;align-content:center;gap:1px;padding:7px 8px;border:1px solid #e6eaef;border-radius:10px;background:#fafbfd}
+#nmda-root.nmda-standalone .nmda-contact-metrics small{font-size:7.4px;color:#8c97a4;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-contact-metrics strong{font-size:13px;line-height:1.1;color:#344054;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-contact-metrics span{font-size:7px;color:#a0a9b4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-contact-decision{min-width:0;display:grid;grid-template-columns:122px minmax(0,1fr);align-items:center;gap:9px}
+#nmda-root.nmda-standalone .nmda-contact-decision-head{min-width:0;display:grid;gap:3px}
+#nmda-root.nmda-standalone .nmda-contact-decision-head span{font-size:8.4px;font-weight:760;color:#758294}
+#nmda-root.nmda-standalone .nmda-contact-decision-head small{font-size:8px;line-height:1.35;color:#919ba8;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#nmda-root.nmda-standalone .nmda-contact-decision .nmda-monitor-decision-path{padding-bottom:2px}
+#nmda-root.nmda-standalone .nmda-contact-decision .nmda-monitor-path-node{min-width:105px;max-width:150px;padding:6px 7px}
+#nmda-root.nmda-standalone .nmda-contact-decision .nmda-monitor-path-node small{font-size:7.2px}
+#nmda-root.nmda-standalone .nmda-contact-decision .nmda-monitor-path-node strong{font-size:8.8px}
+#nmda-root.nmda-standalone .nmda-contact-decision .nmda-monitor-path-link{flex-basis:18px}
+#nmda-root.nmda-standalone .nmda-contact-evidence-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 12px;border-top:1px solid #edf1f4;background:#fbfcfd}
+#nmda-root.nmda-standalone .nmda-contact-evidence-bar>span{min-width:0;display:flex;align-items:center;gap:7px}
+#nmda-root.nmda-standalone .nmda-contact-evidence-bar>span small{font-size:7.5px;color:#98a2ae;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-contact-evidence-bar>span strong{min-width:0;max-width:520px;font-size:8.5px;font-weight:620;color:#687587;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-contact-history{position:relative;flex:0 0 auto}
+#nmda-root.nmda-standalone .nmda-contact-history>summary{list-style:none;cursor:pointer;padding:3px 7px;border:1px solid #dde4eb;border-radius:7px;background:#fff;font-size:7.8px;color:#647286;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-contact-history>summary::-webkit-details-marker{display:none}
+#nmda-root.nmda-standalone .nmda-contact-history>summary b{font-size:8px;color:#3f4c5d}
+#nmda-root.nmda-standalone .nmda-contact-history[open]>summary{border-color:#bfd0e2;background:#f6f9fd;color:#426487}
+#nmda-root.nmda-standalone .nmda-contact-history>div{position:absolute;right:0;bottom:calc(100% + 6px);z-index:30;width:min(520px,70vw);max-height:240px;overflow:auto;padding:6px;border:1px solid #dbe3ec;border-radius:11px;background:#fff;box-shadow:0 14px 36px rgba(29,42,59,.14)}
+#nmda-root.nmda-standalone .nmda-contact-history-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:7px 8px;border-radius:8px}
+#nmda-root.nmda-standalone .nmda-contact-history-row:hover{background:#f6f8fb}
+#nmda-root.nmda-standalone .nmda-contact-history-row>span{min-width:0;display:grid;gap:1px}
+#nmda-root.nmda-standalone .nmda-contact-history-row b{font-size:8px;color:#455365}
+#nmda-root.nmda-standalone .nmda-contact-history-row small{font-size:7.7px;color:#8793a2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-contact-history-row time{font-size:7.5px;color:#99a3af;white-space:nowrap}
+
+@media(max-width:1180px){
+  #nmda-root.nmda-standalone .nmda-contact-command-center{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-contact-action-summary{grid-template-columns:minmax(0,1fr) minmax(360px,.9fr);grid-template-rows:auto!important}
+  #nmda-root.nmda-standalone .nmda-contact-card-grid{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-contact-decision{grid-template-columns:130px minmax(0,1fr)}
+}
+@media(max-width:820px){
+  #nmda-root.nmda-standalone .nmda-contact-status-tree>header{align-items:flex-start;flex-direction:column}
+  #nmda-root.nmda-standalone .nmda-contact-tree-map{grid-template-columns:1fr;gap:7px}
+  #nmda-root.nmda-standalone .nmda-contact-tree-link{display:none!important}
+  #nmda-root.nmda-standalone .nmda-contact-tree-branches{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-contact-action-summary{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-contact-card-head{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-contact-actions{justify-content:flex-start}
+  #nmda-root.nmda-standalone .nmda-contact-actions>div{justify-content:flex-start}
+  #nmda-root.nmda-standalone .nmda-contact-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #nmda-root.nmda-standalone .nmda-contact-decision{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-contact-tree-outcomes{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
