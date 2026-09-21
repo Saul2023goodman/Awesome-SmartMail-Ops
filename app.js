@@ -1003,8 +1003,8 @@
                       <option value="America/Toronto">加拿大 · Toronto</option>
                       <option value="America/Vancouver">加拿大 · Vancouver</option>
                     </select><small class="nmda-field-hint">按所选地区当地时间规划，执行时自动换算到网易当前时区。</small></label>
-                    <label class="nmda-field"><span class="nmda-label">开始日期</span><input id="nmda-rule-start-date" type="date"></label>
-                    <label class="nmda-field"><span class="nmda-label">当地发送时间</span><input id="nmda-rule-local-time" type="time" step="300" value="07:30"></label>
+                    <label class="nmda-field"><span class="nmda-label">开始日期</span><span class="nmda-smart-temporal"><input id="nmda-rule-start-date" type="date" data-smart-temporal="date" data-smart-role="schedule-start"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置开始日期" title="快速设置">⌄</button></span></label>
+                    <label class="nmda-field"><span class="nmda-label">当地发送时间</span><span class="nmda-smart-temporal"><input id="nmda-rule-local-time" type="time" step="300" value="07:30" data-smart-temporal="time" data-smart-role="schedule-time"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置发送时间" title="快速设置">⌄</button></span></label>
                     <label class="nmda-field"><span class="nmda-label">每校每个发送日最多</span><input id="nmda-rule-max-school" type="number" min="1" max="20" step="1" value="1"></label>
                     <div class="nmda-field nmda-workday-field"><span class="nmda-label">发送工作日</span><div class="nmda-workday-picker" role="group" aria-label="选择发送工作日">
                       <label><input type="checkbox" data-schedule-weekday value="1"><span>周一</span></label>
@@ -1013,7 +1013,7 @@
                       <label><input type="checkbox" data-schedule-weekday value="4" checked><span>周四</span></label>
                       <label><input type="checkbox" data-schedule-weekday value="5"><span>周五</span></label>
                     </div><small class="nmda-field-hint">取代固定“+7 天”；只在勾选的工作日安排新邮件。</small></div>
-                    <div class="nmda-field nmda-skip-range-field"><span class="nmda-label">跳过时间段 · 可选</span><div class="nmda-skip-range-inputs"><input id="nmda-rule-skip-start" type="date" aria-label="跳过开始日期"><span>至</span><input id="nmda-rule-skip-end" type="date" aria-label="跳过结束日期"></div><small class="nmda-field-hint">例如假期、申请季间隔；区间内不安排新邮件。</small></div>
+                    <div class="nmda-field nmda-skip-range-field"><span class="nmda-label">跳过时间段 · 可选</span><div class="nmda-skip-range-inputs"><span class="nmda-smart-temporal"><input id="nmda-rule-skip-start" type="date" aria-label="跳过开始日期" data-smart-temporal="date" data-smart-role="skip-start"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置跳过开始日期" title="快速设置">⌄</button></span><span>至</span><span class="nmda-smart-temporal"><input id="nmda-rule-skip-end" type="date" aria-label="跳过结束日期" data-smart-temporal="date" data-smart-role="skip-end"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置跳过结束日期" title="快速设置">⌄</button></span></div><small class="nmda-field-hint">例如假期、申请季间隔；区间内不安排新邮件。</small></div>
                     <label class="nmda-check-card"><input id="nmda-rule-preserve-existing" type="checkbox" checked><span><strong>保留本批已有时间</strong></span></label>
                     <label class="nmda-check-card"><input id="nmda-rule-include-mailbox-scheduled" type="checkbox" checked><span><strong>纳入网易已有排期</strong></span></label>
                     <label class="nmda-check-card nmda-schedule-wide-check"><input id="nmda-rule-skip-holidays" type="checkbox" checked><span><strong>避开可识别的当地节假日</strong></span></label>
@@ -1101,7 +1101,7 @@
                   <section class="nmda-monitor-settings-pane" data-monitor-settings-pane="policy">
                     <div class="nmda-monitor-settings-intro"><strong>什么时候生成下一封跟进？</strong><span>系统只在未检测到有效回复、没有已定时 Follow-up，并且未达到次数上限时生成。</span></div>
                     <div class="nmda-monitor-policy-editor" id="nmda-monitor-policy">
-                      <label class="nmda-monitor-policy-field"><span>首封 / 上次发送后等待</span><div><input id="nmda-monitor-delay" type="number" min="0" max="365" step="1"><b>天</b></div><small>达到这个间隔后，邮件会进入“待跟进”。</small></label>
+                      <label class="nmda-monitor-policy-field"><span>首封 / 上次发送后等待</span><div class="nmda-smart-duration"><input id="nmda-monitor-delay" type="number" min="0" max="365" step="1" data-smart-temporal="duration-days" data-smart-role="followup-delay"><b>天</b><button class="nmda-smart-temporal-trigger is-inline" type="button" data-smart-temporal-open aria-label="快速设置等待天数" title="常用间隔">⌄</button></div><small>达到这个间隔后，邮件会进入“待跟进”。</small></label>
                       <label class="nmda-monitor-policy-field"><span>最多跟进次数</span><div><input id="nmda-monitor-max" type="number" min="0" max="20" step="1"><b>次</b></div><small>达到上限后继续监测回复，但不再生成新跟进。</small></label>
                       <label class="nmda-monitor-policy-field"><span>跟进写信方式</span><select id="nmda-monitor-compose-mode"><option value="forward">Forward · 转发原邮件</option><option value="reply">Reply · 回复原线程</option><option value="new">New message · 新邮件</option></select><small>决定生成到网易时采用的写信方式。</small></label>
                     </div>
@@ -1202,6 +1202,106 @@
     panel.classList.toggle('has-modal',modalOpen);
   }
   function setPanelOpen(open){panel.hidden=!open;setHostScrollLocked(open);if(open)syncModalState();}
+
+  // v3.8.80 · Smart Time Field
+  // Keep native date/time inputs for reliability, but add one compact quick-set surface
+  // everywhere a user has to choose a date, local time, datetime, or waiting interval.
+  let smartTemporalTarget=null, smartTemporalTrigger=null, smartTemporalPopover=null;
+  const smartPad=n=>String(n).padStart(2,'0');
+  function smartDateAdd(dayKey,days){
+    const m=String(dayKey||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return'';
+    const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]+Number(days||0)));
+    return `${d.getUTCFullYear()}-${smartPad(d.getUTCMonth()+1)}-${smartPad(d.getUTCDate())}`;
+  }
+  function smartDateWeekday(dayKey){
+    const m=String(dayKey||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return NaN;
+    return new Date(Date.UTC(+m[1],+m[2]-1,+m[3])).getUTCDay();
+  }
+  function smartTodayKey(){
+    const zone=$('nmda-rule-time-zone')?.value||'system';
+    return Scheduler?.defaultStartDate?.(new Date(),zone)||new Date().toISOString().slice(0,10);
+  }
+  function smartRuleTime(){return $('nmda-rule-local-time')?.value||batch?.scheduleRules?.localTime||'07:30';}
+  function smartSelectedWeekdays(){
+    const chosen=[...ui.querySelectorAll('[data-schedule-weekday]:checked')].map(el=>Number(el.value)).filter(n=>n>=1&&n<=5);
+    return chosen.length?chosen:[4];
+  }
+  function smartNextSendDate(fromKey,strict=true){
+    let key=String(fromKey||smartTodayKey()),guard=0;const allowed=new Set(smartSelectedWeekdays());
+    if(strict)key=smartDateAdd(key,1);
+    while(key&&guard++<14){if(allowed.has(smartDateWeekday(key)))return key;key=smartDateAdd(key,1);}
+    return key||fromKey;
+  }
+  function smartTemporalTitle(input){
+    return ({
+      'schedule-start':'开始日期','schedule-time':'当地发送时间','skip-start':'跳过区间 · 开始','skip-end':'跳过区间 · 结束',
+      'task-schedule':'单封发送时间','followup-delay':'Follow-up 等待间隔'
+    })[input?.dataset?.smartRole]||'快速设置时间';
+  }
+  function smartTemporalPresets(input){
+    const mode=input?.dataset?.smartTemporal||input?.type||'',role=input?.dataset?.smartRole||'',today=smartTodayKey(),ruleTime=smartRuleTime();
+    if(mode==='duration-days')return [
+      {label:'3 天',value:'3'},{label:'5 天',value:'5'},{label:'7 天',value:'7',accent:true},{label:'10 天',value:'10'},{label:'14 天',value:'14'}
+    ];
+    if(mode==='time')return [
+      {label:'07:30',value:'07:30',accent:ruleTime==='07:30'},{label:'08:00',value:'08:00'},{label:'09:00',value:'09:00'},{label:'10:00',value:'10:00'},{label:'13:30',value:'13:30'}
+    ];
+    if(mode==='date'){
+      if(role==='skip-end'){
+        const start=$('nmda-rule-skip-start')?.value||today;
+        return [{label:'与开始同日',value:start},{label:'开始 + 7 天',value:smartDateAdd(start,7),accent:true},{label:'开始 + 14 天',value:smartDateAdd(start,14)},{label:'清除',value:'',clear:true}];
+      }
+      if(role==='skip-start')return [{label:'今天',value:today},{label:'明天',value:smartDateAdd(today,1)},{label:'+ 7 天',value:smartDateAdd(today,7)},{label:'+ 14 天',value:smartDateAdd(today,14)},{label:'清除',value:'',clear:true}];
+      return [{label:'今天',value:today},{label:'明天',value:smartDateAdd(today,1)},{label:'下个发送日',value:smartNextSendDate(today,true),accent:true},{label:'+ 1 周',value:smartDateAdd(today,7)}];
+    }
+    if(mode==='datetime'){
+      const raw=String(input.value||''),m=raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/),baseDate=m?.[1]||($('nmda-rule-start-date')?.value||today),baseTime=m?.[2]||ruleTime;
+      const presets=m?
+        [{label:'后移 1 天',value:`${smartDateAdd(baseDate,1)}T${baseTime}`},{label:'下个发送日',value:`${smartNextSendDate(baseDate,true)}T${baseTime}`,accent:true},{label:'后移 1 周',value:`${smartDateAdd(baseDate,7)}T${baseTime}`},{label:`改为 ${ruleTime}`,value:`${baseDate}T${ruleTime}`},{label:'清除',value:'',clear:true}]:
+        [{label:`今天 · ${ruleTime}`,value:`${today}T${ruleTime}`},{label:`明天 · ${ruleTime}`,value:`${smartDateAdd(today,1)}T${ruleTime}`},{label:'下个发送日',value:`${smartNextSendDate(today,true)}T${ruleTime}`,accent:true},{label:'+ 1 周',value:`${smartDateAdd(today,7)}T${ruleTime}`},{label:'清除',value:'',clear:true}];
+      return presets;
+    }
+    return [];
+  }
+  function ensureSmartTemporalPopover(){
+    if(smartTemporalPopover)return smartTemporalPopover;
+    const pop=document.createElement('div');pop.id='nmda-smart-temporal-popover';pop.className='nmda-smart-temporal-popover';pop.hidden=true;
+    pop.innerHTML='<div class="nmda-smart-temporal-pophead"><div><small>QUICK SET</small><strong data-smart-temporal-title>快速设置时间</strong></div><button type="button" data-smart-temporal-close aria-label="关闭">×</button></div><div class="nmda-smart-temporal-presets" data-smart-temporal-presets></div><div class="nmda-smart-temporal-popfoot"><span>可直接键盘输入，也可使用系统选择器</span><button type="button" data-smart-temporal-native>打开选择器</button></div>';
+    ui.appendChild(pop);smartTemporalPopover=pop;
+    return pop;
+  }
+  function closeSmartTemporal(){if(smartTemporalPopover)smartTemporalPopover.hidden=true;smartTemporalTarget=null;smartTemporalTrigger=null;}
+  function positionSmartTemporal(){
+    if(!smartTemporalPopover||smartTemporalPopover.hidden||!smartTemporalTrigger)return;
+    const r=smartTemporalTrigger.getBoundingClientRect(),w=Math.min(330,window.innerWidth-24),h=smartTemporalPopover.offsetHeight||180;
+    let left=Math.min(Math.max(12,r.right-w),window.innerWidth-w-12),top=r.bottom+7;
+    if(top+h>window.innerHeight-12)top=Math.max(12,r.top-h-7);
+    smartTemporalPopover.style.width=`${w}px`;smartTemporalPopover.style.left=`${left}px`;smartTemporalPopover.style.top=`${top}px`;
+  }
+  function openSmartTemporal(input,trigger){
+    if(!input||input.disabled||input.readOnly)return;const pop=ensureSmartTemporalPopover();smartTemporalTarget=input;smartTemporalTrigger=trigger;
+    pop.querySelector('[data-smart-temporal-title]').textContent=smartTemporalTitle(input);
+    const list=pop.querySelector('[data-smart-temporal-presets]');list.innerHTML='';
+    for(const preset of smartTemporalPresets(input)){
+      const btn=document.createElement('button');btn.type='button';btn.dataset.smartTemporalValue=preset.value;btn.textContent=preset.label;if(preset.accent)btn.classList.add('is-accent');if(preset.clear)btn.classList.add('is-clear');list.appendChild(btn);
+    }
+    const native=pop.querySelector('[data-smart-temporal-native]');native.hidden=input.dataset.smartTemporal==='duration-days';
+    pop.hidden=false;requestAnimationFrame(positionSmartTemporal);
+  }
+  function applySmartTemporalValue(value){
+    const input=smartTemporalTarget;if(!input)return;input.value=String(value??'');input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));closeSmartTemporal();input.focus({preventScroll:true});
+  }
+  ui.addEventListener('click',event=>{
+    const opener=event.target.closest?.('[data-smart-temporal-open]');
+    if(opener){event.preventDefault();event.stopPropagation();const host=opener.closest('.nmda-smart-temporal,.nmda-smart-duration')||opener.parentElement;const input=host?.querySelector?.('[data-smart-temporal]');if(smartTemporalTarget===input&&!ensureSmartTemporalPopover().hidden)closeSmartTemporal();else openSmartTemporal(input,opener);return;}
+    const preset=event.target.closest?.('[data-smart-temporal-value]');if(preset&&smartTemporalPopover?.contains(preset)){event.preventDefault();applySmartTemporalValue(preset.dataset.smartTemporalValue);return;}
+    if(event.target.closest?.('[data-smart-temporal-close]')){event.preventDefault();closeSmartTemporal();return;}
+    const native=event.target.closest?.('[data-smart-temporal-native]');if(native&&smartTemporalTarget){event.preventDefault();const input=smartTemporalTarget;closeSmartTemporal();requestAnimationFrame(()=>{try{input.showPicker?.();}catch(_){input.focus();}});return;}
+  });
+  document.addEventListener('pointerdown',event=>{if(smartTemporalPopover&&!smartTemporalPopover.hidden&&!smartTemporalPopover.contains(event.target)&&!event.target.closest?.('[data-smart-temporal-open]'))closeSmartTemporal();},true);
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&smartTemporalPopover&&!smartTemporalPopover.hidden)closeSmartTemporal();});
+  window.addEventListener('resize',()=>{if(smartTemporalPopover&&!smartTemporalPopover.hidden)positionSmartTemporal();},{passive:true});
+  panel.addEventListener('scroll',()=>{if(smartTemporalPopover&&!smartTemporalPopover.hidden)closeSmartTemporal();},{passive:true,capture:true});
 
   const connectionEl=$('nmda-mail-connection'), connectionTitleEl=$('nmda-mail-connection-title'), connectionDetailEl=$('nmda-mail-connection-detail'), openMailEl=$('nmda-open-mail');
   const mailboxAutoSyncEl=$('nmda-mail-auto-sync'), mailboxAutoSyncTitleEl=$('nmda-mail-auto-sync-title'), mailboxAutoSyncDetailEl=$('nmda-mail-auto-sync-detail');
@@ -6942,7 +7042,7 @@
       <div class="nmda-plan-matrix-taskbody">
         <div class="nmda-plan-matrix-taskline"><strong>${escapeHtml(task.recipients||'—')}</strong><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span></div>
         <div class="nmda-plan-matrix-taskmeta">${dispatchKindBadge(task)}${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'<span class="nmda-plan-minibadge">已有排期 · 锁定</span>':''}${task.files?.length?`<span class="nmda-plan-minibadge">附件 ${task.files.length}</span>`:''}</div>
-        <div class="nmda-plan-matrix-taskedit"><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(scheduleValueForDisplay(task.scheduleAt,rules))}" ${batch.running||(task.scheduleSource==='mailbox'&&task.mailboxDraftId)?'disabled':''} title="${task.scheduleSource==='mailbox'&&task.mailboxDraftId?`网易已有排期为只读 · ${scheduleZoneText(rules)} 当地时间`:`${scheduleZoneText(rules)} 当地时间`}"></div>
+        <div class="nmda-plan-matrix-taskedit"><span class="nmda-smart-temporal is-task"><input type="datetime-local" step="300" data-smart-temporal="datetime" data-smart-role="task-schedule" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(scheduleValueForDisplay(task.scheduleAt,rules))}" ${batch.running||(task.scheduleSource==='mailbox'&&task.mailboxDraftId)?'disabled':''} title="${task.scheduleSource==='mailbox'&&task.mailboxDraftId?`网易已有排期为只读 · ${scheduleZoneText(rules)} 当地时间`:`${scheduleZoneText(rules)} 当地时间`}"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速调整发送时间" title="快速设置" ${batch.running||(task.scheduleSource==='mailbox'&&task.mailboxDraftId)?'disabled':''}>⌄</button></span></div>
       </div>
     </article>`;
   }
@@ -6950,7 +7050,7 @@
   function renderPlanningLooseTask(task){
     const state=compactPlanningState(task), rules=batch.scheduleRules||freshScheduleRules();
     const school=Scheduler?.groupForTask?.(task)?.label||task.school||'未识别学校';
-    return `<article class="nmda-plan-loose-task" data-plan-task-key="${escapeHtml(task.editKey)}" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${dispatchKindBadge(task)} ${escapeHtml(school)}</small></div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><input type="datetime-local" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(scheduleValueForDisplay(task.scheduleAt,rules))}" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?`disabled title="网易已有排期为只读 · ${escapeHtml(scheduleZoneText(rules))} 当地时间"`:`title="${escapeHtml(scheduleZoneText(rules))} 当地时间"`}></article>`;
+    return `<article class="nmda-plan-loose-task" data-plan-task-key="${escapeHtml(task.editKey)}" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${dispatchKindBadge(task)} ${escapeHtml(school)}</small></div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><span class="nmda-smart-temporal is-task"><input type="datetime-local" step="300" data-smart-temporal="datetime" data-smart-role="task-schedule" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(scheduleValueForDisplay(task.scheduleAt,rules))}" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?`disabled title="网易已有排期为只读 · ${escapeHtml(scheduleZoneText(rules))} 当地时间"`:`title="${escapeHtml(scheduleZoneText(rules))} 当地时间"`}><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速调整发送时间" title="快速设置" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'disabled':''}>⌄</button></span></article>`;
   }
 
 
@@ -7804,6 +7904,8 @@
       const el = $(id); if (el) el.disabled = !!locked;
     });
     scheduleWeekdayEls.forEach(el=>{el.disabled=!!locked;});
+    ['nmda-rule-start-date','nmda-rule-local-time','nmda-rule-skip-start','nmda-rule-skip-end'].forEach(id=>{const input=$(id),trigger=input?.closest('.nmda-smart-temporal')?.querySelector('[data-smart-temporal-open]');if(trigger)trigger.disabled=!!locked;});
+    if(locked)closeSmartTemporal();
   }
 
   batchPauseEveryTimeEl?.addEventListener('change', () => {
