@@ -90,6 +90,19 @@
   ];
 
   const activeInterruptionGuards = new Map();
+  const cancelledDraftAttachmentExecutions = new Set();
+  const activeDraftAttachmentSeedIdentities = new Map();
+
+  function isDraftAttachmentCancelled(executionId) {
+    return cancelledDraftAttachmentExecutions.has(String(executionId || ''));
+  }
+
+  function assertDraftAttachmentActive(executionId) {
+    if (!isDraftAttachmentCancelled(executionId)) return;
+    const error = new Error('已停止本次附件更新。');
+    error.code = 'NMDA_DRAFT_ATTACHMENT_CANCELLED';
+    throw error;
+  }
 
   function promotionLayerFromMarker(spec) {
     const actionSelector = 'button,a,[role="button"],span,.nui-btn,.nui-txt-link';
@@ -743,11 +756,13 @@
     fire(input, 'change');
   }
 
-  async function waitForAttachmentRegistration(identity, file, timeout = 6500) {
+  async function waitForAttachmentRegistration(identity, file, timeout = 6500, executionId = '') {
     const started = Date.now();
     let lastState = null;
     while (Date.now() - started < timeout) {
+      assertDraftAttachmentActive(executionId);
       lastState = await readComposeAttachmentState(identity);
+      assertDraftAttachmentActive(executionId);
       const item = findAttachmentModelItem(lastState, file);
       if (item) return { state:lastState, item };
       await sleep(120);
@@ -755,7 +770,7 @@
     throw new Error(`网易没有把附件加入上传队列：${file.name}`);
   }
 
-  async function waitForAttachmentsCommitted(identity, files, onProgress = () => {}) {
+  async function waitForAttachmentsCommitted(identity, files, onProgress = () => {}, executionId = '') {
     const expected = uniqueFiles(files);
     if (!expected.length) return { verified:true, missing:[], mode:'none', states:[] };
     const started = Date.now();
@@ -766,7 +781,9 @@
     let lastState = null;
 
     while (Date.now() - started < absoluteLimit) {
+      assertDraftAttachmentActive(executionId);
       const state = await readComposeAttachmentState(identity);
+      assertDraftAttachmentActive(executionId);
       lastState = state;
       const matched = expected.map(file => ({ file, item:findAttachmentModelItem(state, file) }));
       const missing = matched.filter(entry => !entry.item).map(entry => entry.file);
@@ -812,6 +829,7 @@
         size:Number(active?.item?.size || active?.file?.size || 0)
       });
       await sleep(180);
+      assertDraftAttachmentActive(executionId);
     }
 
     const pending = expected.map(file => ({ file, item:findAttachmentModelItem(lastState, file) }))
@@ -820,20 +838,23 @@
     throw new Error(`附件上传未完成：${pending.join('；') || '超过安全上限'}`);
   }
 
-  async function addAttachments(root, files, composeIdentity, onProgress = () => {}) {
+  async function addAttachments(root, files, composeIdentity, onProgress = () => {}, executionId = '') {
     const selected = uniqueFiles(files);
+    assertDraftAttachmentActive(executionId);
     if (!selected.length) return { verified:true, missing:[], mode:'none', states:[] };
 
     // Do not inject a whole FileList and infer success from visible filenames.
     // NetEase maintains its own upload queue, so register each file explicitly and
     // wait for an acknowledgement from the Compose attachment model before adding the next.
     for (let i = 0; i < selected.length; i++) {
+      assertDraftAttachmentActive(executionId);
       const file = selected[i];
       const before = await readComposeAttachmentState(composeIdentity);
+      assertDraftAttachmentActive(executionId);
       if (!findAttachmentModelItem(before, file)) {
         const input = await waitFor(() => findAttachmentInput(root), 8000, 120, '附件上传过程中网易附件控件消失。');
         await injectFileIntoInput(input, file);
-        const registered = await waitForAttachmentRegistration(composeIdentity, file);
+        const registered = await waitForAttachmentRegistration(composeIdentity, file, 6500, executionId);
         if (registered.item?.state === 'error') {
           throw new Error(`附件加入队列后立即失败：${file.name}${registered.item.err ? `（${registered.item.err}）` : ''}`);
         }
@@ -841,7 +862,7 @@
       onProgress(0, selected.length, file.name, { registered:i + 1, committed:0, state:'registered' });
     }
 
-    return waitForAttachmentsCommitted(composeIdentity, selected, onProgress);
+    return waitForAttachmentsCommitted(composeIdentity, selected, onProgress, executionId);
   }
 
 
@@ -1017,6 +1038,7 @@
       let retryAfterPromotionAt = 0;
 
       while (true) {
+        assertDraftAttachmentActive(executionId);
         guard?.scan?.();
         const deep = poll % 8 === 7;
         if (!baseline?.timedSuccessVisible && isTimedDraftSuccessVisible(deep)) {
@@ -1084,15 +1106,17 @@
       }
     }
 
-    return waitFor(() => {
+    const regularStarted=Date.now();
+    while(Date.now()-regularStarted<7000){
+      assertDraftAttachmentActive(executionId);
       guard?.scan?.();
-      const tip = findFreshRegularDraftSuccess(baseline);
-      if (tip) return { kind: 'regular-tip', evidence: textOf(tip) };
-      if (!baseline?.routeWasDraft && isDraftRoute()) {
-        return { kind: 'draft-route', evidence: 'Compose 路由进入 draft' };
-      }
-      return null;
-    }, 7000, 100, '已点击“存草稿”，但未检测到网易“成功保存到草稿箱”的新提示，已保留当前 Compose。');
+      const tip=findFreshRegularDraftSuccess(baseline);
+      if(tip)return {kind:'regular-tip',evidence:textOf(tip)};
+      if(!baseline?.routeWasDraft&&isDraftRoute())return {kind:'draft-route',evidence:'Compose 路由进入 draft'};
+      await sleep(100);
+    }
+    assertDraftAttachmentActive(executionId);
+    throw new Error('已点击“存草稿”，但未检测到网易“成功保存到草稿箱”的新提示，已保留当前 Compose。');
   }
 
   async function saveDraft(root, options = {}) {
@@ -1134,17 +1158,21 @@
     return bytes;
   }
 
-  async function readRuntimeFile(ref) {
+  async function readRuntimeFile(ref, executionId = '') {
     const id = String(ref?.id || '');
     if (!id) throw new Error('附件运行时引用缺少 id。');
+    assertDraftAttachmentActive(executionId);
     const meta = await chrome.runtime.sendMessage({ type: 'NMDA_RUNTIME_FILE_META', id });
+    assertDraftAttachmentActive(executionId);
     if (!meta?.ok) throw new Error(`无法读取附件 ${ref?.name || id}：${meta?.reason || '运行时文件不存在'}`);
     const chunkSize = 256 * 1024;
     const parts = [];
     let received = 0;
     for (let offset = 0; offset < meta.size; offset += chunkSize) {
+      assertDraftAttachmentActive(executionId);
       const requested = Math.min(chunkSize, meta.size - offset);
       const chunk = await chrome.runtime.sendMessage({ type: 'NMDA_RUNTIME_FILE_CHUNK', id, offset, length: requested });
+      assertDraftAttachmentActive(executionId);
       if (!chunk?.ok) throw new Error(`读取附件 ${meta.name} 失败：${chunk?.reason || 'chunk-error'}`);
       const bytes = bytesFromBase64(chunk.base64);
       if (bytes.length !== requested) throw new Error(`附件传输块长度不一致：${meta.name} · ${offset} · 期望 ${requested}，实际 ${bytes.length}`);
@@ -1200,29 +1228,40 @@
     const executionId = String(message.executionId || '');
     const ref = message.file || null;
     if (!ref?.id) throw new Error('缺少新版附件运行时文件。');
-    const file = await readRuntimeFile(ref);
+    assertDraftAttachmentActive(executionId);
+    const file = await readRuntimeFile(ref, executionId);
+    assertDraftAttachmentActive(executionId);
     reportProgress(executionId,'attachment-seed','正在建立一次性网易附件源…',{name:file.name,size:file.size});
     let root = await openFreshCompose();
+    assertDraftAttachmentActive(executionId);
     let composeIdentity = await captureComposeIdentity();
+    activeDraftAttachmentSeedIdentities.set(executionId, composeIdentity);
     const guard = startComposeInterruptionGuard(executionId);
     guard.setPhase('attachment-seed');
     try {
+      assertDraftAttachmentActive(executionId);
       await setSubject(root, `[SmartMail 附件更新临时源] ${file.name}`);
+      assertDraftAttachmentActive(executionId);
       await setBody(root, 'SmartMail temporary attachment source. This draft will be removed automatically.', '', false, false);
+      assertDraftAttachmentActive(executionId);
       await addAttachments(root,[file],composeIdentity,(done,total,name,detail)=>{
         reportProgress(executionId,'attachment-seed',`正在上传新版附件 ${done}/${total}${name?` · ${name}`:''}`,{done,total,name,...(detail||{})});
-      });
+      },executionId);
+      assertDraftAttachmentActive(executionId);
       reportProgress(executionId,'attachment-seed','新版附件已上传，正在保存临时源草稿…',{name:file.name});
       await saveDraft(root,{scheduled:false,executionId,guard,composeIdentity});
+      assertDraftAttachmentActive(executionId);
       try {
         const refreshed = await captureComposeIdentity();
-        if (refreshed?.name) composeIdentity = refreshed;
+        if (refreshed?.name) { composeIdentity = refreshed; activeDraftAttachmentSeedIdentities.set(executionId, composeIdentity); }
       } catch (_) {}
+      assertDraftAttachmentActive(executionId);
       const exported = await chrome.runtime.sendMessage({
         type:'NMDA_DRAFT_ATTACHMENT_EXPORT_SOURCE',
         identity:composeIdentity,
         expected:[{assetKey:'replacement',name:file.name,size:file.size}]
       });
+      assertDraftAttachmentActive(executionId);
       const source = exported?.sources?.[0] || null;
       if (!source?.mid || !source?.part || !exported?.draftId) {
         throw new Error(exported?.reason || '网易未能建立可复用的附件源。');
@@ -1242,6 +1281,7 @@
       };
     } catch (error) {
       try { await closeExactCompose(composeIdentity); } catch (_) {}
+      activeDraftAttachmentSeedIdentities.delete(executionId);
       stopComposeInterruptionGuard(executionId);
       throw error;
     }
@@ -1249,6 +1289,7 @@
 
 
   async function cleanupDraftAttachmentSeed(message) {
+    const executionId = String(message?.executionId || '');
     const identity = message?.identity || {};
     const targetName = String(identity.name || '');
     if (!targetName) return {ok:false,reason:'seed-compose-identity-missing'};
@@ -1257,6 +1298,7 @@
       identity
     });
     if (!result?.ok) return result || {ok:false,reason:'seed-native-delete-failed'};
+    if (executionId) activeDraftAttachmentSeedIdentities.delete(executionId);
     return result;
   }
 
@@ -1458,6 +1500,20 @@
       if (!resume) { sendResponse({ ok:false, reason:'execution-not-paused' }); return; }
       resume();
       sendResponse({ ok:true, resumed:true });
+      return;
+    }
+    if (message?.type === 'NMDA_DRAFT_ATTACHMENT_CANCEL') {
+      const executionId = String(message.executionId || '');
+      if (executionId) cancelledDraftAttachmentExecutions.add(executionId);
+      stopComposeInterruptionGuard(executionId);
+      const identity = activeDraftAttachmentSeedIdentities.get(executionId) || null;
+      if (identity) {
+        void cleanupDraftAttachmentSeed({executionId,identity}).catch(async () => {
+          try { await closeExactCompose(identity); } catch (_) {}
+          activeDraftAttachmentSeedIdentities.delete(executionId);
+        });
+      }
+      sendResponse({ok:true,stopping:true});
       return;
     }
     if (message?.type === 'NMDA_DRAFT_ATTACHMENT_SEED') {

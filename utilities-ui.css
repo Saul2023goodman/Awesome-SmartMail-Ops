@@ -514,3 +514,9 @@
   #nmda-root.nmda-standalone .nmda-monitor-attempt-filter{flex:1}
   #nmda-root.nmda-standalone .nmda-monitor-subfilters{align-items:flex-start;flex-direction:column}
 }
+
+/* v3.8.103 — attachment replacement must always expose a real escape hatch. */
+#nmda-root #nmda-draft-attachment-cancel[hidden]{display:none!important;}
+#nmda-root #nmda-draft-attachment-cancel:not([hidden]){border-color:#e5c7c3;background:#fff8f7;color:#9a4438;}
+#nmda-root #nmda-draft-attachment-cancel:not([hidden]):hover:not(:disabled){border-color:#d7aaa4;background:#fff2f0;}
+#nmda-root #nmda-draft-attachment-cancel:disabled{opacity:.68;cursor:wait;}

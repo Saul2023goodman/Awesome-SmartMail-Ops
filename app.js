@@ -1278,6 +1278,7 @@
                   </section>
                   <div class="nmda-draft-attachment-progress" id="nmda-draft-attachment-progress" hidden></div>
                   <div class="nmda-draft-attachment-actions">
+                    <button class="nmda-btn nmda-btn-quiet" id="nmda-draft-attachment-cancel" type="button" hidden>停止本次更新</button>
                     <button class="nmda-btn nmda-btn-primary" id="nmda-draft-attachment-run" type="button" disabled>更新选中的草稿</button>
                   </div>
                   <div class="nmda-draft-attachment-result" id="nmda-draft-attachment-result" hidden></div>
@@ -1530,6 +1531,16 @@
     if(message?.type==='NMDA_CONNECTION_CHANGED') refreshMailboxConnection();
     if(message?.type==='NMDA_EXECUTION_PROGRESS_BROADCAST'||message?.type==='NMDA_DRAFT_ATTACHMENT_PROGRESS_BROADCAST'){
       const handler=executionProgressHandlers.get(String(message.executionId||'')); if(handler) handler(message);
+    }
+    if(message?.type==='NMDA_DRAFT_ATTACHMENT_CANCEL_BROADCAST' && draftAttachmentTool?.running){
+      const executionId=String(message.executionId||'');
+      if(!executionId||executionId===String(draftAttachmentTool.executionId||'')){
+        draftAttachmentTool.cancelRequested=true;
+        draftAttachmentTool.stopping=true;
+        setDraftAttachmentProgress('正在停止：当前安全步骤会尽快收尾，后续草稿不会继续执行…','warn');
+        notifyDraftAttachmentCancelled(String(draftAttachmentTool.executionId||executionId));
+        renderDraftAttachmentTool();
+      }
     }
     if(message?.type==='NMDA_BATCH_STOP_BROADCAST' && batch?.running){
       batch.stopRequested=true;
@@ -2578,8 +2589,65 @@
   let activeUtilityView = 'home';
   const draftAttachmentTool = {
     drafts: [], groups: [], selectedKey: '', selectedDraftIds: new Set(), replacementFile: null,
-    loading: false, running: false, scanned: false, complete: false, truncated: false, search: '', lastScanAt: ''
+    loading: false, running: false, stopping: false, cancelRequested: false, executionId: '',
+    scanned: false, complete: false, truncated: false, search: '', lastScanAt: ''
   };
+  const draftAttachmentCancelListeners = new Map();
+
+  function draftAttachmentCancelledError(message='已停止本次附件更新。') {
+    const error = new Error(message);
+    error.code = 'NMDA_DRAFT_ATTACHMENT_CANCELLED';
+    return error;
+  }
+
+  function notifyDraftAttachmentCancelled(executionId) {
+    const id = String(executionId || '');
+    const listeners = draftAttachmentCancelListeners.get(id);
+    if (!listeners) return;
+    for (const listener of [...listeners]) { try { listener(); } catch (_) {} }
+  }
+
+  function awaitDraftAttachmentStep(promise, executionId, timeoutMs, label='当前步骤') {
+    const id = String(executionId || '');
+    return new Promise((resolve,reject) => {
+      let settled = false;
+      const listeners = draftAttachmentCancelListeners.get(id) || new Set();
+      draftAttachmentCancelListeners.set(id, listeners);
+      const finish = (fn, value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        listeners.delete(onCancel);
+        if (!listeners.size) draftAttachmentCancelListeners.delete(id);
+        fn(value);
+      };
+      const onCancel = () => finish(reject, draftAttachmentCancelledError());
+      listeners.add(onCancel);
+      const timer = setTimeout(() => finish(reject, new Error(`${label}长时间没有返回，已停止等待并请求安全中断。`)), Math.max(1000, Number(timeoutMs || 0)));
+      Promise.resolve(promise).then(value => finish(resolve, value), error => finish(reject, error));
+    });
+  }
+
+  function throwIfDraftAttachmentCancelled() {
+    if (draftAttachmentTool.cancelRequested) throw draftAttachmentCancelledError();
+  }
+
+  async function cancelDraftAttachmentReplacement() {
+    if (!draftAttachmentTool.running || draftAttachmentTool.cancelRequested) return;
+    const executionId = String(draftAttachmentTool.executionId || '');
+    draftAttachmentTool.cancelRequested = true;
+    draftAttachmentTool.stopping = true;
+    setDraftAttachmentProgress('正在停止：当前安全步骤会尽快收尾，后续草稿不会继续执行…','warn');
+    setDraftAttachmentMotion({phase:'error',message:'已请求停止，正在结束当前安全步骤。'});
+    renderDraftAttachmentTool();
+    notifyDraftAttachmentCancelled(executionId);
+    try {
+      await Promise.race([
+        chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_CANCEL',executionId}),
+        new Promise(resolve => setTimeout(() => resolve({ok:false,reason:'cancel-timeout'}), 5000))
+      ]);
+    } catch (_) {}
+  }
 
   function setUtilityView(view='home', options={}) {
     const normalized=['home','monitor','draft-attachments'].includes(view)?view:'home';
@@ -4001,7 +4069,7 @@
   }
 
   const DRAFT_ATTACHMENT_MOTION_ORDER=['read','clone','attachments','verify','swap'];
-  const DRAFT_ATTACHMENT_MOTION_LABELS={seed:'准备新版附件源',read:'读取旧草稿',clone:'构建等价新草稿',attachments:'服务器迁移附件',verify:'回读完整性验证',swap:'安全切换草稿',done:'附件更新完成',error:'附件更新异常'};
+  const DRAFT_ATTACHMENT_MOTION_LABELS={seed:'准备新版附件源',read:'读取旧草稿',clone:'构建等价新草稿',attachments:'服务器迁移附件',verify:'回读完整性验证',swap:'安全切换草稿',done:'附件更新完成',stopped:'已停止更新',error:'附件更新异常'};
 
   function normalizeDraftAttachmentMotionPhase(phase=''){
     const raw=String(phase||'');
@@ -4012,6 +4080,7 @@
     if(raw==='verify'||raw==='clone-verify')return 'verify';
     if(raw==='swap'||raw==='swap-delete-original'||raw==='swap-verify')return 'swap';
     if(raw==='done'||raw==='finish')return 'done';
+    if(raw==='stopped'||raw==='cancelled'||raw==='canceled')return 'stopped';
     if(raw==='error'||raw.includes('error')||raw.includes('rollback'))return 'error';
     return raw||'read';
   }
@@ -4106,7 +4175,12 @@
     setText('nmda-draft-attachment-new-name',file?file.name:'选择新版附件');
     setText('nmda-draft-attachment-new-meta',file?`${formatAttachmentSize(file)} · 将只上传一次；每封先生成并验证替代草稿，再安全替换旧草稿。`:'只上传一次；系统先创建并验证等价新草稿，确认无误后再替换旧草稿。');
     const run=$('nmda-draft-attachment-run');
-    if(run){run.disabled=!selected||!file||!selectedCount||draftAttachmentTool.running;run.textContent=draftAttachmentTool.running?'正在更新草稿…':`更新 ${selectedCount||0} 封草稿`;}
+    if(run){
+      run.disabled=!selected||!file||!selectedCount||draftAttachmentTool.running;
+      run.textContent=draftAttachmentTool.running?(draftAttachmentTool.stopping?'正在停止…':'正在更新草稿…'):`更新 ${selectedCount||0} 封草稿`;
+    }
+    const cancel=$('nmda-draft-attachment-cancel');
+    if(cancel){cancel.hidden=!draftAttachmentTool.running;cancel.disabled=!draftAttachmentTool.running||draftAttachmentTool.cancelRequested;cancel.textContent=draftAttachmentTool.cancelRequested?'正在停止…':'停止本次更新';}
     const refresh=$('nmda-draft-attachment-refresh');if(refresh)refresh.disabled=draftAttachmentTool.loading||draftAttachmentTool.running;
     renderUtilityHubSummary();
   }
@@ -4120,46 +4194,82 @@
     }
     const targets=draftAttachmentTargets(group).filter(item=>draftAttachmentTool.selectedDraftIds.has(String(item.draft.id||'')));
     if(!targets.length)return;
-    draftAttachmentTool.running=true;renderDraftAttachmentTool();setDraftAttachmentUtilityResult('');
+
     const executionId=crypto.randomUUID();
+    draftAttachmentTool.running=true;
+    draftAttachmentTool.stopping=false;
+    draftAttachmentTool.cancelRequested=false;
+    draftAttachmentTool.executionId=executionId;
+    renderDraftAttachmentTool();
+    setDraftAttachmentUtilityResult('');
+
     let refs=[],seedDraftId='',seedIdentity=null,seedCleanupWarning='';
-    setDraftAttachmentMotion({phase:'seed',current:0,total:targets.length,oldName:group.name,newName:file.name,subject:'准备批量附件更新',message:'正在切换到 163 邮箱并建立新版附件源…'});
+    let done=0,failed=0;
+    const failures=[];
+    const doneIds=new Set();
+    setDraftAttachmentMotion({phase:'seed',current:0,total:targets.length,oldName:group.name,newName:file.name,subject:'准备批量附件更新',message:'正在确认网易邮箱连接…'});
     executionProgressHandlers.set(executionId,message=>{
+      if(draftAttachmentTool.cancelRequested)return;
       setDraftAttachmentProgress(message?.message||'');
       setDraftAttachmentMotion({phase:message?.phase||'read',current:message?.current,total:message?.total,oldName:group.name,newName:file.name,subject:message?.subject||message?.detail?.subject,message:message?.message||''});
     });
+
+    const stopRemote=async()=>{
+      try{
+        await Promise.race([
+          chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_CANCEL',executionId}),
+          new Promise(resolve=>setTimeout(()=>resolve(null),5000))
+        ]);
+      }catch(_){}
+    };
+
     try{
-      await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:true,payload:{action:'start',executionId,total:targets.length,current:0,oldName:group.name,newName:file.name,message:'正在建立新版附件源…'}});
+      const connection=await awaitDraftAttachmentStep(chrome.runtime.sendMessage({type:'NMDA_CONNECTION_STATUS'}),executionId,8000,'连接网易邮箱');
+      throwIfDraftAttachmentCancelled();
+      if(!connection?.connected)throw new Error('没有检测到已打开的网易邮箱。请先打开并登录 163 邮箱后再执行附件更新。');
+      if(!connection?.authenticated)throw new Error('网易邮箱已打开，但尚未检测到登录账号。请完成登录后再执行附件更新。');
+
+      setDraftAttachmentMotion({phase:'seed',current:0,total:targets.length,oldName:group.name,newName:file.name,subject:'准备批量附件更新',message:'正在切换到 163 邮箱并建立新版附件源…'});
+      await awaitDraftAttachmentStep(chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:true,payload:{action:'start',executionId,total:targets.length,current:0,oldName:group.name,newName:file.name,message:'正在建立新版附件源…'}}),executionId,15000,'打开邮箱执行视图');
+      throwIfDraftAttachmentCancelled();
+
       refs=await prepareRuntimeFileRefs([file]);
       if(!refs[0])throw new Error('新版附件运行时文件准备失败');
-      setDraftAttachmentProgress('正在把新版附件上传到网易一次性临时源…');
-      const seed=await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED',executionId,file:refs[0]});
+      setDraftAttachmentProgress('正在上传新版附件；如果网易上传队列停止响应，系统会自动退出而不是无限等待…');
+      const seed=await awaitDraftAttachmentStep(
+        chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED',executionId,file:refs[0]}),
+        executionId,120000,'上传新版附件'
+      );
+      throwIfDraftAttachmentCancelled();
       if(!seed?.ok||!seed?.source)throw new Error(seed?.reason||'新版附件源建立失败');
       seedDraftId=String(seed.seedDraftId||'');
       seedIdentity=seed.seedIdentity||null;
       const source={...seed.source,name:file.name,size:file.size};
-      let cursor=0,done=0,failed=0;const failures=[],doneIds=new Set();
+      let cursor=0;
       const integrityBaseline=new Map(targets.map(item=>[String(item.draft.id||''),{subject:String(item.draft.subject||''),recipients:String(item.draft.recipients||''),cc:String(item.draft.cc||''),bcc:String(item.draft.bcc||''),bodyHtml:String(item.draft.bodyHtml||''),scheduleAt:String(item.draft.scheduleAt||''),oldAttachments:item.attachments.map(att=>({name:String(att.name||''),size:Number(att.size||0)||0}))}]));
-      // Clone-and-swap uses one transaction at a time so a newly scheduled replacement
-      // can be identified unambiguously before the original draft is removed.
-      const workerCount=Math.min(1,Math.max(1,targets.length));
+
+      // Clone-and-swap deliberately keeps a single transaction in flight. Stopping therefore
+      // means: finish/rollback the current safe transaction, then do not start another draft.
       async function worker(){
         while(cursor<targets.length){
+          throwIfDraftAttachmentCancelled();
           const item=targets[cursor++],draft=item.draft,draftId=String(draft.id||'');
           const deleteAttachments=item.attachments.map(att=>({id:String(att.id||''),name:String(att.name||''),size:Number(att.size||0)||0,partId:String(att.partId||'')}));
           const targetAttachmentIds=new Set(deleteAttachments.map(att=>att.id).filter(Boolean));
           try{
             const existing=(draft.attachments||[]).some(att=>!targetAttachmentIds.has(String(att.id||''))&&String(att.name||'')===file.name&&(!Number(att.size||0)||Math.abs(Number(att.size||0)-file.size)<100));
-            setDraftAttachmentProgress(`正在安全重建并替换附件 ${done+failed+1}/${targets.length} · ${draft.subject||draftId}`);
             const currentIndex=done+failed+1;
-            const mutated=await chrome.runtime.sendMessage({
+            setDraftAttachmentProgress(`正在安全重建并替换附件 ${currentIndex}/${targets.length} · ${draft.subject||draftId}`);
+            const mutated=await awaitDraftAttachmentStep(chrome.runtime.sendMessage({
               type:'NMDA_DRAFT_ATTACHMENT_MUTATE',
               executionId,current:currentIndex,total:targets.length,
               draftId,
               deleteAttachments,
               source:existing?null:source,
               summary:{id:draftId,scheduleAt:draft.scheduleAt||'',savedAt:draft.savedAt||'',subject:draft.subject||'',flags:draft.flags||{},scheduledDraft:!!draft.scheduledDraft}
-            });
+            }),executionId,90000,`更新草稿 ${currentIndex}/${targets.length}`);
+            throwIfDraftAttachmentCancelled();
+            if(mutated?.cancelled)throw draftAttachmentCancelledError();
             if(!mutated?.ok||mutated.verified!==true)throw new Error(mutated?.reason||'草稿附件事务提交或回读验证失败');
             const committedId=String(mutated.draftId||draftId);
             if(committedId!==draftId){
@@ -4168,23 +4278,38 @@
             }
             done++;doneIds.add(committedId);
           }catch(error){
+            if(error?.code==='NMDA_DRAFT_ATTACHMENT_CANCELLED')throw error;
             failed++;failures.push(`${draft.subject||draftId}：${error?.message||String(error)}`);
             setDraftAttachmentMotion({phase:'error',current:done+failed,total:targets.length,oldName:group.name,newName:file.name,subject:draft.subject||draftId,message:error?.message||String(error)});
-            await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'progress',executionId,phase:'error',current:done+failed,total:targets.length,subject:draft.subject||draftId,oldName:group.name,newName:file.name,message:error?.message||String(error)}}).catch(()=>null);
+            await Promise.race([
+              chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'progress',executionId,phase:'error',current:done+failed,total:targets.length,subject:draft.subject||draftId,oldName:group.name,newName:file.name,message:error?.message||String(error)}}).catch(()=>null),
+              new Promise(resolve=>setTimeout(resolve,5000))
+            ]);
           }
-          setDraftAttachmentProgress(`草稿附件更新 ${done+failed}/${targets.length} · 成功 ${done}${failed?` · 失败 ${failed}`:''}` , failed?'warn':'');
+          setDraftAttachmentProgress(`草稿附件更新 ${done+failed}/${targets.length} · 成功 ${done}${failed?` · 失败 ${failed}`:''}`,failed?'warn':'');
         }
       }
-      await Promise.all(Array.from({length:workerCount},worker));
+      await worker();
+      throwIfDraftAttachmentCancelled();
+
       if(seedIdentity){
         for(let attempt=0;attempt<3&&seedIdentity;attempt++){
           if(attempt)await new Promise(resolve=>setTimeout(resolve,180*(attempt+1)));
-          const cleanup=await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',identity:seedIdentity}).catch(error=>({ok:false,reason:error?.message||String(error)}));
+          throwIfDraftAttachmentCancelled();
+          const cleanup=await awaitDraftAttachmentStep(
+            chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',executionId,identity:seedIdentity}).catch(error=>({ok:false,reason:error?.message||String(error)})),
+            executionId,15000,'清理临时附件源'
+          );
           if(cleanup?.ok){seedIdentity=null;seedDraftId='';}
-          else if(attempt===2)seedCleanupWarning=`临时附件源未能通过网易原生 Compose 清理（${cleanup?.reason||'unknown'}），请在草稿箱手动删除。`;
+          else if(attempt===2)seedCleanupWarning=`临时附件源未能自动清理（${cleanup?.reason||'unknown'}），请在草稿箱手动删除。`;
         }
       }
-      await scanDraftAttachmentTool({allowDuringRun:true});
+      throwIfDraftAttachmentCancelled();
+
+      setDraftAttachmentProgress('更新已完成，正在快速回读核对草稿箱…');
+      await awaitDraftAttachmentStep(scanDraftAttachmentTool({allowDuringRun:true}),executionId,60000,'回读草稿箱');
+      throwIfDraftAttachmentCancelled();
+
       const sameMinute=(a,b)=>{const left=String(a||'').trim(),right=String(b||'').trim();if(!left&&!right)return true;if(!left||!right)return false;const la=Date.parse(left),rb=Date.parse(right);return Number.isFinite(la)&&Number.isFinite(rb)?Math.abs(la-rb)<60000:left===right;};
       const integrityFailures=[];
       for(const draftId of doneIds){
@@ -4208,27 +4333,49 @@
         if(!replacementPresent)changed.push('新版附件缺失');
         if(changed.length)integrityFailures.push(`${before.subject||draftId}：${changed.join('、')}${changed.some(label=>label.includes('附件'))?'':'发生变化'}`);
       }
+
       if(integrityFailures.length){
         setDraftAttachmentMotion({phase:'error',current:done+failed,total:targets.length,oldName:group.name,newName:file.name,subject:'完整性核验异常',message:`发现 ${integrityFailures.length} 封草稿需要核对。`});
-        await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'error',total:targets.length,current:done+failed,succeeded:done,failed,message:`完整性异常 ${integrityFailures.length} 封`}}).catch(()=>null);
+        await Promise.race([chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'error',total:targets.length,current:done+failed,succeeded:done,failed,message:`完整性异常 ${integrityFailures.length} 封`}}).catch(()=>null),new Promise(resolve=>setTimeout(resolve,5000))]);
         setDraftAttachmentUtilityResult(`附件更新已执行，但发现 ${integrityFailures.length} 封草稿存在完整性异常，请立即核对：${integrityFailures.slice(0,3).join('；')}${integrityFailures.length>3?'…':''}${seedCleanupWarning?`；${seedCleanupWarning}`:''}`,'error');
       }else if(failed){
         setDraftAttachmentMotion({phase:'error',current:done+failed,total:targets.length,oldName:group.name,newName:file.name,subject:'部分草稿未完成',message:`成功 ${done} · 失败 ${failed}`});
-        await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'error',total:targets.length,current:done+failed,succeeded:done,failed,message:`成功 ${done} · 失败 ${failed}`}}).catch(()=>null);
+        await Promise.race([chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'error',total:targets.length,current:done+failed,succeeded:done,failed,message:`成功 ${done} · 失败 ${failed}`}}).catch(()=>null),new Promise(resolve=>setTimeout(resolve,5000))]);
         setDraftAttachmentUtilityResult(`已更新 ${done} 封，${failed} 封未完成。失败草稿会保留原草稿；${failures.slice(0,3).join('；')}${failures.length>3?'…':''}${seedCleanupWarning?`；${seedCleanupWarning}`:''}`,'warn');
       }else{
         setDraftAttachmentMotion({phase:'done',current:done,total:targets.length,oldName:group.name,newName:file.name,subject:'全部草稿已安全切换',message:seedCleanupWarning?'附件更新完成；临时源需要人工清理。':'新版附件已接管，旧草稿已在验证后安全移除。'});
-        await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'done',total:targets.length,current:done,succeeded:done,failed:0,message:'附件更新完成'}}).catch(()=>null);
+        await Promise.race([chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'done',total:targets.length,current:done,succeeded:done,failed:0,message:'附件更新完成'}}).catch(()=>null),new Promise(resolve=>setTimeout(resolve,5000))]);
         if(seedCleanupWarning)setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新并通过完整性核验；${seedCleanupWarning}`,'warn');
         else setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新，并回读确认正文、收件人、主题与原排期保持不变。`,'ok');
       }
     }catch(error){
-      setDraftAttachmentMotion({phase:'error',current:0,total:targets.length,oldName:group.name,newName:file.name,subject:'执行中断',message:error?.message||String(error)});
-      await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'error',total:targets.length,current:0,succeeded:0,failed:targets.length,message:error?.message||String(error)}}).catch(()=>null);
-      setDraftAttachmentUtilityResult(error?.message||String(error),'error');
+      const cancelled=error?.code==='NMDA_DRAFT_ATTACHMENT_CANCELLED'||draftAttachmentTool.cancelRequested;
+      if(!cancelled)await stopRemote();
+      if(cancelled){
+        setDraftAttachmentMotion({phase:'stopped',current:done+failed,total:targets.length,oldName:group.name,newName:file.name,subject:'本次更新已停止',message:done?`已完成 ${done} 封；后续草稿未继续执行。`:'没有继续执行后续草稿。'});
+        await Promise.race([chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'stopped',total:targets.length,current:done+failed,succeeded:done,failed,message:'用户已停止本次附件更新'}}).catch(()=>null),new Promise(resolve=>setTimeout(resolve,3500))]);
+        setDraftAttachmentUtilityResult(done?`已停止。本次已安全完成 ${done} 封，剩余草稿没有继续执行。`:'已停止本次附件更新，未继续处理后续草稿。','warn');
+      }else{
+        setDraftAttachmentMotion({phase:'error',current:done+failed,total:targets.length,oldName:group.name,newName:file.name,subject:'执行中断',message:error?.message||String(error)});
+        await Promise.race([chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'error',total:targets.length,current:done+failed,succeeded:done,failed:Math.max(failed,targets.length-done),message:error?.message||String(error)}}).catch(()=>null),new Promise(resolve=>setTimeout(resolve,3500))]);
+        setDraftAttachmentUtilityResult(`${error?.message||String(error)} 已请求停止后台执行；可以重新检查草稿状态后再试。`,'error');
+      }
     }finally{
-      if(seedIdentity)await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',identity:seedIdentity}).catch(()=>null);
-      executionProgressHandlers.delete(executionId);releaseRuntimeFileRefs(refs);draftAttachmentTool.running=false;setDraftAttachmentProgress('');renderDraftAttachmentTool();
+      if(seedIdentity){
+        await Promise.race([
+          chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',executionId,identity:seedIdentity}).catch(()=>null),
+          new Promise(resolve=>setTimeout(()=>resolve(null),5000))
+        ]);
+      }
+      executionProgressHandlers.delete(executionId);
+      releaseRuntimeFileRefs(refs);
+      draftAttachmentCancelListeners.delete(executionId);
+      draftAttachmentTool.running=false;
+      draftAttachmentTool.stopping=false;
+      draftAttachmentTool.cancelRequested=false;
+      draftAttachmentTool.executionId='';
+      setDraftAttachmentProgress('');
+      renderDraftAttachmentTool();
     }
   }
 
@@ -8963,6 +9110,7 @@
   draftAttachmentDropEl?.addEventListener('click',()=>{if(!draftAttachmentDropEl.disabled)draftAttachmentFileEl?.click();});
   draftAttachmentFileEl?.addEventListener('change',()=>{draftAttachmentTool.replacementFile=draftAttachmentFileEl.files?.[0]||null;draftAttachmentFileEl.value='';setDraftAttachmentUtilityResult('');setDraftAttachmentMotion({hidden:true});renderDraftAttachmentTool();});
   $('nmda-draft-attachment-run')?.addEventListener('click',()=>void runDraftAttachmentReplacement());
+  $('nmda-draft-attachment-cancel')?.addEventListener('click',()=>void cancelDraftAttachmentReplacement());
 
   batchStartEl.addEventListener('click', async () => {
     if (batch.running) return;

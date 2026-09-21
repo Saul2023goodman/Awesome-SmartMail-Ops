@@ -840,6 +840,7 @@ const MAIL_URL = 'https://mail.163.com/';
 
 let runtimeFileSourcePort = null;
 const runtimeFileRequests = new Map();
+const cancelledDraftAttachmentExecutions = new Set();
 
 function rejectRuntimeFileRequests(reason = 'runtime-file-source-disconnected') {
   for (const [requestId, pending] of runtimeFileRequests.entries()) {
@@ -1022,6 +1023,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_BATCH_STOP_REQUEST') {
       chrome.runtime.sendMessage({type:'NMDA_BATCH_STOP_BROADCAST'}).catch(()=>{});
       return {ok:true};
+    }
+
+    if (message?.type === 'NMDA_DRAFT_ATTACHMENT_CANCEL') {
+      const executionId = String(message.executionId || '');
+      if (executionId) cancelledDraftAttachmentExecutions.add(executionId);
+      chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_CANCEL_BROADCAST',executionId}).catch(()=>{});
+      const cancelTab = await resolveMailTab(sender,{create:false,focus:false});
+      if (cancelTab?.id) {
+        await runMain(cancelTab.id, idArg => {
+          try {
+            window.__nmdaDraftAttachmentCancelled = window.__nmdaDraftAttachmentCancelled || {};
+            window.__nmdaDraftAttachmentCancelled[String(idArg || '')] = true;
+            return {ok:true};
+          } catch (error) { return {ok:false,reason:error?.message||String(error)}; }
+        }, [executionId]).catch(()=>null);
+        await chrome.tabs.sendMessage(cancelTab.id,{type:'NMDA_DRAFT_ATTACHMENT_CANCEL',executionId}).catch(()=>null);
+      }
+      return {ok:true,stopping:true};
     }
 
     if (message?.type === 'NMDA_RUNTIME_FILE_META') {
@@ -1427,6 +1446,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message?.type === 'NMDA_DRAFT_ATTACHMENT_MUTATE') {
       const executionId=String(message.executionId||'');
+      if(cancelledDraftAttachmentExecutions.has(executionId))return {ok:false,cancelled:true,reason:'operation-cancelled'};
       const current=Number(message.current||0)||0;
       const total=Number(message.total||0)||0;
       const draftId = String(message.draftId || '').trim();
@@ -1443,6 +1463,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // step, not a general-purpose Draft mutation API; detached continue(delete)
       // requests returned FS_UNKNOWN in real 163 even when their XML matched the bundle.
       const baseline = await readDraftDetail(tabId, { ...summary, id:draftId });
+      if(cancelledDraftAttachmentExecutions.has(executionId))return {ok:false,cancelled:true,reason:'operation-cancelled'};
       if (!baseline?.ok) return {ok:false,reason:baseline?.reason || 'draft-baseline-read-failed'};
       emitDraftAttachmentProgress(tabId,{executionId,phase:'clone',current,total,subject:String(baseline.subject||summary?.subject||draftId),message:'旧草稿已锁定，正在构建等价新草稿…'});
       if ((baseline.attachments || []).some(item => item?.kind === 'cloud-link')) {
@@ -1461,12 +1482,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const values=value=>Array.isArray(value)?value:(value&&typeof value==='object'?Object.values(value):[]);
         const normalizeId=value=>{const raw=String(value||'');return raw.includes(':')?raw.split(':').pop():raw;};
         const sameId=(a,b)=>String(a||'')===String(b||'')||normalizeId(a)===normalizeId(b);
-        const request=(func,body,ignoreError=true)=>new Promise(res=>{
+        const cancelled=()=>!!window.__nmdaDraftAttachmentCancelled?.[String(executionIdArg||'')];
+        const request=(func,body,ignoreError=true,timeoutMs=30000)=>new Promise(res=>{
+          let settled=false;
+          const done=value=>{if(settled)return;settled=true;clearTimeout(timer);res(value);};
+          const timer=setTimeout(()=>done({__error:true,reason:`${func} timeout`,code:'NMDA_TIMEOUT'}),Math.max(3000,Number(timeoutMs||0)));
           try{
-            if(!window.$?.DataAction)return res({__error:true,reason:'$.DataAction unavailable'});
+            if(cancelled())return done({__error:true,cancelled:true,reason:'operation-cancelled'});
+            if(!window.$?.DataAction)return done({__error:true,reason:'$.DataAction unavailable'});
             const action=new window.$.DataAction();
-            action.wmsvr({func,body,ignoreError,call(response){res(response||{});},error(error){res({__error:true,reason:error?.message||error?.code||`${func} failed`,code:error?.code});}});
-          }catch(error){res({__error:true,reason:error?.message||String(error)});}
+            action.wmsvr({func,body,ignoreError,call(response){done(response||{});},error(error){done({__error:true,reason:error?.message||error?.code||`${func} failed`,code:error?.code});}});
+          }catch(error){done({__error:true,reason:error?.message||String(error)});}
         });
         const isOk=response=>!response?.__error&&(response?.code===undefined||successCode===undefined||response.code===successCode);
         const cancelCid=async (cid,deleteDraft=false)=>{
@@ -1495,7 +1521,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return out;
         };
         try{
+          if(cancelled())return resolve({ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled'});
           const restoredResponse=await request('mbox:restoreDraft',{id:String(draftIdArg)},false);
+          if(cancelled()){await cancelCid(originalCid,false);return resolve({ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled'});}
           if(!isOk(restoredResponse))return resolve({ok:false,stage:'restore-original',reason:restoredResponse?.reason||`mbox:restoreDraft code=${String(restoredResponse?.code)}`,code:restoredResponse?.code});
           const restored=restoredResponse?.var;
           if(!restored||typeof restored!=='object'||Array.isArray(restored))return resolve({ok:false,stage:'restore-original',reason:'mbox:restoreDraft returned invalid compose object'});
@@ -1505,6 +1533,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           // Resolve every attachment that must survive the replacement to a provider
           // mailbox source (_mid + _part). This uses the same listAttachments source
           // contract already used by the one-time replacement seed.
+          if(cancelled()){await cancelCid(originalCid,false);return resolve({ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled'});}
           const listed=await request('mbox:listAttachments',{order:'date',limit:200,desc:true,skipLockedFolders:true},true);
           if(!isOk(listed)){
             await cancelCid(originalCid,false);
@@ -1544,6 +1573,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             await cancelCid(originalCid,false);
             return resolve({ok:false,stage:'build-clone',reason:'replacement-clone-has-no-attachments'});
           }
+          if(cancelled()){await cancelCid(originalCid,false);await cancelCid(newCid,true);return resolve({ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled'});}
           nativeProgress('attachments',`正在服务器侧迁移 ${descriptors.length} 个附件…`,{cid:newCid,count:descriptors.length});
           const attached=await request('mbox:compose',{id:newCid,action:'continue',returnInfo:true,attrs:{attachments:descriptors}},true);
           if(!isOk(attached)){
@@ -1551,6 +1581,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return resolve({ok:false,stage:'clone-attachments',reason:attached?.reason||`mbox:compose continue(clone) code=${String(attached?.code)}`,code:attached?.code});
           }
 
+          if(cancelled()){await cancelCid(originalCid,false);await cancelCid(newCid,true);return resolve({ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled'});}
           const attrs={};
           for(const key of ['account','accountSettings','showOneRcpt','to','cc','bcc','subject','content','isHtml','priority','requestReadReceipt','saveSentCopy','charset','ctrls']){
             if(Object.prototype.hasOwnProperty.call(restored,key))attrs[key]=restored[key];
@@ -1583,12 +1614,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
           const body={id:newCid,action,returnInfo:!scheduled,attrs};
           if(scheduled){try{if(String(window.$?.Ud?.get?.({field:'ntes_option',flag:'schedule_notify'}))==='0')body.notifyEML=true;}catch(_){}}
+          if(cancelled()){await cancelCid(originalCid,false);await cancelCid(newCid,true);return resolve({ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled'});}
           nativeProgress('clone',scheduled?'附件已迁移，正在按原排期保存新草稿…':'附件已迁移，正在保存新草稿…',{cid:newCid,scheduled});
           const committed=await request('mbox:compose',body,true);
           if(!isOk(committed)){
             await cancelCid(originalCid,false);await cancelCid(newCid,true);
             return resolve({ok:false,stage:'clone-commit',reason:committed?.reason||`mbox:compose ${action} code=${String(committed?.code)}`,code:committed?.code});
           }
+          if(cancelled()){await cancelCid(originalCid,false);await cancelCid(newCid,true);return resolve({ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled'});}
           nativeProgress('verify','新草稿已提交，正在等待草稿箱回读验证…',{cid:newCid});
           // The old draft is still untouched. Release its temporary restore session;
           // deletion happens only after the new draft is independently read back.
@@ -1604,6 +1637,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       }),[draftId,deleteAttachments,source,summary,baseline,executionId,current,total]);
       if(!clone?.ok)return clone;
+      if(cancelledDraftAttachmentExecutions.has(executionId)){
+        if(clone.newCid)await runMain(tabId,(cidArg)=>new Promise(resolve=>{
+          let settled=false;const done=value=>{if(settled)return;settled=true;clearTimeout(timer);resolve(value);};
+          const timer=setTimeout(()=>done({ok:false,reason:'cancel-rollback-timeout'}),15000);
+          try{const action=new window.$.DataAction();action.wmsvr({func:'mbox:cancelComposes',body:{ids:[String(cidArg)],deleteDraft:true},ignoreError:true,call(){done({ok:true});},error(e){done({ok:false,reason:e?.message||e?.code||'cancel rollback failed'});}});}catch(e){done({ok:false,reason:e?.message||String(e)});}
+        }),[String(clone.newCid)]).catch(()=>null);
+        return {...clone,ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled'};
+      }
 
       const normalizeId=value=>{const raw=String(value||'');return raw.includes(':')?raw.split(':').pop():raw;};
       const sameId=(a,b)=>String(a||'')===String(b||'')||normalizeId(a)===normalizeId(b);
@@ -1622,8 +1663,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const candidateIds=(Array.isArray(clone.candidateIds)?clone.candidateIds:[]).filter(Boolean);
       let replacementSummary=null;
       for(let attempt=0;attempt<8&&!replacementSummary;attempt++){
+        if(cancelledDraftAttachmentExecutions.has(executionId))break;
         if(attempt)await new Promise(resolve=>setTimeout(resolve,160*attempt));
-        const listing=await readMailbox(tabId,2,-1,0);
+        const listing=await readMailbox(tabId,2,300,0);
         if(!listing?.ok)continue;
         const messages=Array.isArray(listing.messages)?listing.messages:[];
         replacementSummary=messages.find(item=>String(item?.id||'')!==draftId&&candidateIds.some(id=>sameId(item?.id,id)))||null;
@@ -1649,7 +1691,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const replacementId=String(replacementSummary?.id||'');
         return runMain(tabId,(idArg,cidArg)=>new Promise(async resolve=>{
           const successCode=window.$?.S_OK;
-          const request=(func,body)=>new Promise(res=>{try{const action=new window.$.DataAction();action.wmsvr({func,body,ignoreError:true,call(r){res(r||{});},error(e){res({__error:true,reason:e?.message||e?.code||`${func} failed`,code:e?.code});}});}catch(e){res({__error:true,reason:e?.message||String(e)});}});
+          const request=(func,body)=>new Promise(res=>{let settled=false;const done=v=>{if(settled)return;settled=true;clearTimeout(timer);res(v);};const timer=setTimeout(()=>done({__error:true,reason:`${func} timeout`,code:'NMDA_TIMEOUT'}),20000);try{const action=new window.$.DataAction();action.wmsvr({func,body,ignoreError:true,call(r){done(r||{});},error(e){done({__error:true,reason:e?.message||e?.code||`${func} failed`,code:e?.code});}});}catch(e){done({__error:true,reason:e?.message||String(e)});}});
           const ok=r=>!r?.__error&&(r?.code===undefined||successCode===undefined||r.code===successCode);
           if(cidArg){
             const direct=await request('mbox:cancelComposes',{ids:[String(cidArg)],deleteDraft:true});
@@ -1663,6 +1705,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }),[replacementId,String(clone.newCid||'')]);
       };
 
+      if(cancelledDraftAttachmentExecutions.has(executionId)){
+        const rollback=await rollbackClone('cancelled-rollback');
+        return {...clone,ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled',rollback};
+      }
       if(!replacementSummary?.id){
         const rollback=await rollbackClone('discovery-failed-rollback');
         return {...clone,ok:false,stage:'clone-discovery',reason:'replacement-draft-not-found-after-clone; original draft was not changed',rollback};
@@ -1716,10 +1762,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       // Swap only after the replacement is independently proven good. Deleting a draft
       // uses the official Compose cancel contract, not security-gated deleteMessages.
+      if(cancelledDraftAttachmentExecutions.has(executionId)){
+        const rollback=await rollbackClone('cancelled-before-swap');
+        return {...clone,ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled',rollback};
+      }
       emitDraftAttachmentProgress(tabId,{executionId,phase:'swap',current,total,subject:String(baseline.subject||summary?.subject||draftId),message:'完整性验证通过，正在安全切换并移除旧草稿…'});
       const removeOriginal=await runMain(tabId,(idArg)=>new Promise(async resolve=>{
         const successCode=window.$?.S_OK;
-        const request=(func,body)=>new Promise(res=>{try{const action=new window.$.DataAction();action.wmsvr({func,body,ignoreError:true,call(r){res(r||{});},error(e){res({__error:true,reason:e?.message||e?.code||`${func} failed`,code:e?.code});}});}catch(e){res({__error:true,reason:e?.message||String(e)});}});
+          const request=(func,body)=>new Promise(res=>{let settled=false;const done=v=>{if(settled)return;settled=true;clearTimeout(timer);res(v);};const timer=setTimeout(()=>done({__error:true,reason:`${func} timeout`,code:'NMDA_TIMEOUT'}),20000);try{const action=new window.$.DataAction();action.wmsvr({func,body,ignoreError:true,call(r){done(r||{});},error(e){done({__error:true,reason:e?.message||e?.code||`${func} failed`,code:e?.code});}});}catch(e){done({__error:true,reason:e?.message||String(e)});}});
         const ok=r=>!r?.__error&&(r?.code===undefined||successCode===undefined||r.code===successCode);
         const restored=await request('mbox:restoreDraft',{id:String(idArg)});
         if(!ok(restored)||!restored?.var?.id)return resolve({ok:false,stage:'swap-restore-original',reason:restored?.reason||`mbox:restoreDraft code=${String(restored?.code)}`,code:restored?.code});
@@ -1734,7 +1784,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       let oldGone=false;
       for(let attempt=0;attempt<6;attempt++){
         if(attempt)await new Promise(resolve=>setTimeout(resolve,140*attempt));
-        const listing=await readMailbox(tabId,2,-1,0);
+        const listing=await readMailbox(tabId,2,300,0);
         if(listing?.ok&&!((listing.messages||[]).some(item=>sameId(item?.id,draftId)))){oldGone=true;break;}
       }
       if(!oldGone){
@@ -1743,7 +1793,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return {...clone,ok:false,stage:'swap-verify',draftId:replacementId,replacementDraftId:replacementId,reason:'original-draft-delete-not-yet-visible; replacement was verified and retained'};
       }
       if(clone.newCid){
-        await runMain(tabId,(cidArg)=>new Promise(resolve=>{try{const action=new window.$.DataAction();action.wmsvr({func:'mbox:cancelComposes',body:{ids:[String(cidArg)]},ignoreError:true,call(){resolve({ok:true});},error(){resolve({ok:false});}});}catch(_){resolve({ok:false});}}),[String(clone.newCid)]).catch(()=>null);
+        await runMain(tabId,(cidArg)=>new Promise(resolve=>{let settled=false;const done=value=>{if(settled)return;settled=true;clearTimeout(timer);resolve(value);};const timer=setTimeout(()=>done({ok:false,reason:'compose-close-timeout'}),12000);try{const action=new window.$.DataAction();action.wmsvr({func:'mbox:cancelComposes',body:{ids:[String(cidArg)]},ignoreError:true,call(){done({ok:true});},error(){done({ok:false});}});}catch(_){done({ok:false});}}),[String(clone.newCid)]).catch(()=>null);
       }
       emitDraftAttachmentProgress(tabId,{executionId,phase:'done',current,total,subject:String(baseline.subject||summary?.subject||draftId),message:`第 ${current}/${total} 封已完成安全切换。`});
       return {...clone,ok:true,verified:true,preserved:true,mode:'clone-swap',originalDraftId:draftId,draftId:replacementId,replacementDraftId:replacementId,detail:replacement};

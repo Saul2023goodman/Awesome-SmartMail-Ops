@@ -126,7 +126,7 @@
     'cleanup-error': '收尾异常',
     done: '本封已完成',
     read:'读取旧草稿',clone:'构建等价新草稿',verify:'回读完整性验证',swap:'安全切换草稿',
-    seed:'准备新版附件源'
+    seed:'准备新版附件源',stopped:'已停止'
   };
 
   let lastStatus = { connected: false, account: '' };
@@ -245,9 +245,9 @@
     resumeButton.hidden = attachmentRun || !paused;
     resumeButton.disabled = false;
     resumeButton.textContent = '继续保存';
-    stopButton.hidden = attachmentRun || finished;
+    stopButton.hidden = finished;
     stopButton.disabled = false;
-    stopButton.textContent = '当前封后停止';
+    stopButton.textContent = attachmentRun ? '停止本次更新' : '当前封后停止';
     const openButton=host.querySelector('#nmda-dock-open-dispatch');if(openButton)openButton.textContent=attachmentRun?'返回极速附件':'查看调度';
     renderPhaseTrack();
   }
@@ -351,7 +351,8 @@
       Object.assign(execution,{kind:'draft-attachment',total:Number(payload.total||0),current:0,succeeded:0,failed:0,remaining:Number(payload.total||0),status:'running',executionId:String(payload.executionId||''),phase:'seed',task:{subject:'准备附件更新',oldName:String(payload.oldName||'旧附件'),newName:String(payload.newName||'新版附件')},message:String(payload.message||'正在建立新版附件源…')});
       setOpen(true);triggerMotion('step');
     }else if(action==='finish'){
-      Object.assign(execution,{kind:'draft-attachment',total:Number(payload.total||execution.total),current:Number(payload.current||execution.current),succeeded:Number(payload.succeeded||0),failed:Number(payload.failed||0),remaining:0,status:String(payload.status||'done'),phase:String(payload.status||'done')==='done'?'done':'error',message:String(payload.message||'附件更新结束')});
+      const finishStatus=String(payload.status||'done');
+      Object.assign(execution,{kind:'draft-attachment',total:Number(payload.total||execution.total),current:Number(payload.current||execution.current),succeeded:Number(payload.succeeded||0),failed:Number(payload.failed||0),remaining:0,status:finishStatus,phase:finishStatus==='done'?'done':finishStatus==='stopped'?'stopped':'error',message:String(payload.message||'附件更新结束')});
       setOpen(execution.status!=='done');triggerMotion('commit');
       executionResetTimer=setTimeout(()=>{execution.status='idle';execution.phase='idle';execution.kind='mail';execution.task=null;execution.message='';executionResetTimer=null;syncExecutionChrome();},7000);
     }else{
@@ -411,7 +412,14 @@
 
   stopButton?.addEventListener('click', async event => {
     event.currentTarget.disabled = true;
-    event.currentTarget.textContent = '已请求停止';
+    event.currentTarget.textContent = '正在停止…';
+    if (execution.kind === 'draft-attachment') {
+      const executionId=String(execution.executionId||'');
+      if(executionId)await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_CANCEL',executionId}).catch(()=>{});
+      execution.message='已请求停止：当前安全步骤收尾后不会继续下一封草稿。';
+      syncExecutionChrome();
+      return;
+    }
     await chrome.runtime.sendMessage({ type: 'NMDA_BATCH_STOP_REQUEST' }).catch(() => {});
     if (execution.status === 'paused' && execution.executionId) {
       await chrome.runtime.sendMessage({ type:'NMDA_EXECUTION_RESUME_REQUEST', executionId:String(execution.executionId) }).catch(() => {});
