@@ -999,12 +999,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const readInfo = key => {
             try { return String(info?.get?.({ [key]: true }) || ''); } catch (_) { return ''; }
           };
+          let fromEntry = '', fromEntryDetail = '';
+          try { fromEntry = String(mod.data?.get?.({status:'fromEntry'}) || ''); } catch (_) {}
+          try { fromEntryDetail = String(mod.data?.get?.({status:'fromEntryDetail'}) || ''); } catch (_) {}
           const identity = {
             name: String(mod.name || ''),
             mtype: String(mod.mtype || ''),
             cid: readInfo('cid'),
             did: readInfo('did'),
-            containerId: String(mod.container?.id || mod.container?.dom?.id || '')
+            containerId: String(mod.container?.id || mod.container?.dom?.id || ''),
+            fromEntry,
+            fromEntryDetail
           };
           if (!identity.name) return {ok:false,reason:'compose-module-name-unavailable'};
           return {ok:true,identity};
@@ -1120,6 +1125,67 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           setTimeout(check, 60);
         } catch (error) { resolve({ok:false,reason:error?.message||String(error)}); }
       }), [message.identity || {}]);
+    }
+    if (message?.type === 'NMDA_OPEN_REPLY_ALL_WITH_ATTACHMENTS') {
+      return runMain(tabId, (messageIdArg, fidArg) => new Promise(resolve => {
+        const messageId = String(messageIdArg || '').trim();
+        const fid = Number(fidArg || 3) || 3;
+        const started = Date.now();
+        if (!messageId) return resolve({ok:false,reason:'reply-parent-message-id-missing'});
+
+        const moduleMessageId = mod => String(
+          mod?.reader?.mid || mod?.mid || mod?.reader?.data?.id || mod?.reader?.data?.mid || mod?.folderData?.id || ''
+        ).trim();
+        const collectReadModules = () => {
+          const out = [];
+          const context = window.$?.Context?.module || window.$?.Context?.getModule?.() || null;
+          if (context && /^read\.(?:Read|Thread)Module$/.test(String(context.mtype || ''))) out.push(context);
+          for (const type of ['read.ReadModule','read.ThreadModule']) {
+            const group = window.$?.JS?.modules?.[type] || {};
+            for (const mod of Object.values(group)) if (mod && !out.includes(mod)) out.push(mod);
+          }
+          return out;
+        };
+        const findTarget = () => {
+          const modules = collectReadModules();
+          return modules.find(mod => moduleMessageId(mod) === messageId)
+            || modules.find(mod => String(mod?.reader?.folderData?.fid || mod?.folderData?.fid || '') === String(fid) && decodeURIComponent(String(location.hash || '')).includes(messageId))
+            || null;
+        };
+        const attempt = () => {
+          try {
+            const target = findTarget();
+            const assistant = target?.reader?.assistant || null;
+            if (target && assistant && typeof assistant.fullReply === 'function') {
+              assistant.fullReply({ withAttachments:true });
+              return resolve({
+                ok:true,
+                method:'reader.assistant.fullReply',
+                nativeAction:'reply_all_ach',
+                withAttachments:true,
+                replyAll:true,
+                messageId,
+                fid,
+                readModuleName:String(target.name || ''),
+                readModuleType:String(target.mtype || '')
+              });
+            }
+            if (Date.now() - started >= 10000) {
+              return resolve({
+                ok:false,
+                reason: target ? 'native-read-assistant-fullReply-unavailable' : 'native-read-module-not-ready',
+                messageId,
+                fid,
+                contextType:String(window.$?.Context?.module?.mtype || '')
+              });
+            }
+            setTimeout(attempt, 100);
+          } catch (error) {
+            resolve({ok:false,reason:error?.message || String(error),messageId,fid});
+          }
+        };
+        attempt();
+      }), [message.messageId || '', message.fid || 3]);
     }
     if (message?.type === 'NMDA_OPEN_COMPOSE') {
       return runMain(tabId, () => {

@@ -1115,7 +1115,7 @@
                     <div class="nmda-monitor-policy-editor" id="nmda-monitor-policy">
                       <label class="nmda-monitor-policy-field"><span>首封 / 上次发送后等待</span><div class="nmda-smart-duration"><input id="nmda-monitor-delay" type="number" min="0" max="365" step="1" data-smart-temporal="duration-days" data-smart-role="followup-delay"><b>天</b><button class="nmda-smart-temporal-trigger is-inline" type="button" data-smart-temporal-open aria-label="快速设置等待天数" title="常用间隔">⌄</button></div><small>达到这个间隔后，邮件会进入“待跟进”。</small></label>
                       <label class="nmda-monitor-policy-field"><span>最多跟进次数</span><div><input id="nmda-monitor-max" type="number" min="0" max="20" step="1"><b>次</b></div><small>达到上限后继续监测回复，但不再生成新跟进。</small></label>
-                      <label class="nmda-monitor-policy-field"><span>跟进写信方式</span><select id="nmda-monitor-compose-mode"><option value="forward">Forward · 转发原邮件</option><option value="reply">Reply · 回复原线程</option><option value="new">New message · 新邮件</option></select><small>决定生成到网易时采用的写信方式。</small></label>
+                      <label class="nmda-monitor-policy-field"><span>跟进写信方式</span><select id="nmda-monitor-compose-mode"><option value="forward">Forward · 转发原邮件</option><option value="reply">Reply All · 回复全部（带附件）</option><option value="new">New message · 新邮件</option></select><small>决定生成到网易时采用的写信方式。</small></label>
                     </div>
                     <div class="nmda-monitor-settings-save-row"><span>保存后立即重新计算当前邮件的跟进资格。</span><button class="nmda-btn nmda-btn-primary" id="nmda-monitor-save-policy" type="button">保存跟进规则</button></div>
                   </section>
@@ -1802,7 +1802,7 @@
     if(els.delay && document.activeElement!==els.delay)els.delay.value=String(policy.delayDays ?? 7);
     if(els.max && document.activeElement!==els.max)els.max.value=String(policy.maxAttempts ?? 2);
     if(els.compose && document.activeElement!==els.compose)els.compose.value=policy.composeMode || 'forward';
-    const composeLabel=policy.composeMode==='reply'?'Reply':(policy.composeMode==='new'?'New message':'Forward');
+    const composeLabel=policy.composeMode==='reply'?'Reply All · 带附件':(policy.composeMode==='new'?'New message':'Forward');
     if(els.policySummary)els.policySummary.textContent=`发送后 ${Math.max(0,Number(policy.delayDays??7))} 天 · 最多 ${Math.max(0,Number(policy.maxAttempts??2))} 次 · ${composeLabel}`;
     renderMonitorFollowUpTemplate();
     const configuredHistoryMonths=readMailboxHistoryMonths();

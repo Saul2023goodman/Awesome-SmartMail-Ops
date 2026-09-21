@@ -340,7 +340,29 @@
     const beforeRoot = findComposeRoot();
     const before = composeFingerprint(beforeRoot);
     await openNativeMessageContext(messageId, fid);
-    const labels = mode === 'reply' ? ['回复'] : ['转发'];
+
+    // Follow-up reply must use NetEase's native "回复全部(带附件)" path. On Sent
+    // messages (fid=3) the ordinary "回复" toolbar button is not present, so the old
+    // DOM-text click path could never reliably start a reply job. The native assistant
+    // path preserves thread metadata and asks ComposeManager for reply_all_ach, which in
+    // turn uses replyallattach and carries the original attachment context server-side.
+    if (mode === 'reply') {
+      const native = await chrome.runtime.sendMessage({
+        type:'NMDA_OPEN_REPLY_ALL_WITH_ATTACHMENTS',
+        messageId:String(messageId || ''),
+        fid:Number(fid || 3) || 3
+      });
+      if (!native?.ok) throw new Error(`已打开原邮件，但网易原生“回复全部（带附件）”入口不可用：${native?.reason || 'unknown'}`);
+      return waitFor(() => {
+        const root = findComposeRoot();
+        if (!root) return null;
+        const now = composeFingerprint(root);
+        if (!beforeRoot || !before || (now && now !== before)) return root;
+        return null;
+      }, 14000, 120, '已调用网易原生“回复全部（带附件）”，但没有检测到新的回复 Compose。');
+    }
+
+    const labels = ['转发'];
     const action = await waitFor(() => findReadAction(labels), 10000, 120, `已打开原邮件，但没有找到“${labels[0]}”按钮。`);
     action.click();
     return waitFor(() => {
@@ -348,7 +370,7 @@
       if (!root) return null;
       const now = composeFingerprint(root);
       if (!beforeRoot || !before || (now && now !== before)) return root;
-      return root;
+      return null;
     }, 12000, 120, `点击“${labels[0]}”后没有检测到网易原生写信窗口。`);
   }
 
@@ -1132,9 +1154,36 @@
     const interruptionGuard = startComposeInterruptionGuard(executionId);
     interruptionGuard.setPhase('content');
 
+    if (composeMode === 'reply') {
+      // Compose shell can become visible before replyMessage() has finished filling the
+      // provider-native reply data. Wait for NetEase to populate the expected recipients
+      // before touching the editor, otherwise our Follow-up body can race the native fill.
+      await waitFor(
+        () => composeHasExpectedRecipient(root, task.recipients || '') ? true : null,
+        12000,
+        120,
+        '网易原生“回复全部（带附件）”已打开，但收件人上下文没有完成回填。已停止以避免把 Follow-up 写成普通新邮件。'
+      );
+      const entry = String(composeIdentity?.fromEntry || '');
+      const detail = String(composeIdentity?.fromEntryDetail || '');
+      const nativeReplyAllAttach = entry === 'reply' && /reply_all_ach/i.test(detail);
+      let inheritedCount = null;
+      try {
+        const attachmentState = await readComposeAttachmentState(composeIdentity);
+        inheritedCount = (attachmentState.items || []).filter(item => !item?.inlined).length;
+      } catch (_) {}
+      reportProgress(
+        executionId,
+        'content',
+        nativeReplyAllAttach
+          ? `已进入网易原生“回复全部（带附件）”${Number.isFinite(inheritedCount) ? ` · 原生附件上下文 ${inheritedCount} 项` : ''}。`
+          : '网易原生回复 Compose 已打开，正在保留线程与附件上下文。',
+        { nativeReplyAllAttach, fromEntry:entry, fromEntryDetail:detail, inheritedAttachmentCount:inheritedCount }
+      );
+    }
+
     reportProgress(executionId, 'content', contextual ? '正在保留网易原生邮件上下文并插入 Follow-up 正文…' : '正在填写收件人、主题和正文…');
     if (composeMode === 'forward' || composeMode === 'new') await setRecipients(root, task.recipients || '');
-    else if (composeMode === 'reply' && !composeHasExpectedRecipient(root, task.recipients || '')) await setRecipients(root, task.recipients || '');
     await setAuxRecipients(root, task.cc || '', '抄送');
     await setAuxRecipients(root, task.bcc || '', '密送');
     if (composeMode === 'new') await setSubject(root, task.subject || '');
