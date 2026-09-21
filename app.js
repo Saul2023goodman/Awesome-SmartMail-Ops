@@ -483,6 +483,7 @@
               </span>
               <button class="nmda-btn nmda-btn-small nmda-mail-open-button" id="nmda-open-mail" type="button">连接邮箱</button>
             </div>
+            <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-reset-all-entry" id="nmda-reset-all-data" type="button" title="清空 SmartMail 的全部本地数据">清空全部</button>
             <button class="nmda-icon-btn" id="nmda-expand" type="button" title="全屏 / 还原">⛶</button>
             <button class="nmda-icon-btn nmda-close" id="nmda-close" type="button" title="关闭">×</button>
           </div>
@@ -1136,6 +1137,33 @@
   }
 
   const ui = buildUI();
+
+  // v3.8.82 · Global SmartMail data reset. Kept outside any single workflow page so a
+  // stuck batch can be abandoned from Review / Dispatch / Monitoring without excluding
+  // tasks one by one. This only clears SmartMail-owned local state; it never deletes
+  // messages or drafts in the real 163 mailbox.
+  {
+    const resetDialog=document.createElement('div');
+    resetDialog.id='nmda-reset-all-overlay';
+    resetDialog.className='nmda-workflow-modal-overlay nmda-reset-all-overlay';
+    resetDialog.hidden=true;
+    resetDialog.innerHTML=`
+      <section class="nmda-workflow-dialog nmda-reset-all-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-reset-all-title">
+        <header class="nmda-workflow-dialog-head">
+          <div><span class="nmda-dialog-eyebrow">RESET SMARTMAIL</span><h3 id="nmda-reset-all-title">清空一切 SmartMail 数据？</h3><p>用于直接放弃当前工作进程并从零开始，不需要逐封排除。</p></div>
+          <button class="nmda-dialog-close" id="nmda-reset-all-close" type="button" aria-label="关闭">×</button>
+        </header>
+        <div class="nmda-reset-all-body">
+          <div class="nmda-reset-all-warning"><strong>将清空</strong><span>当前导入与全部任务、审阅状态、附件映射、排期、Follow-up 本地状态与模板/规则、读取范围和本地工作区缓存。</span></div>
+          <div class="nmda-reset-all-safe"><strong>不会删除</strong><span>网易 163 邮箱中的真实已发送邮件、收件、草稿或定时邮件。重新进入邮件监测时仍可再次读取这些外部事实。</span></div>
+          <label class="nmda-reset-all-confirm"><input id="nmda-reset-all-confirm" type="checkbox"><span>我确认清空全部 SmartMail 本地数据并重新开始</span></label>
+          <div class="nmda-reset-all-status" id="nmda-reset-all-status" hidden></div>
+        </div>
+        <footer class="nmda-workflow-dialog-foot"><button class="nmda-btn nmda-btn-quiet" id="nmda-reset-all-cancel" type="button">取消</button><div class="nmda-dialog-foot-spacer"></div><button class="nmda-btn nmda-btn-danger" id="nmda-reset-all-confirm-button" type="button" disabled>清空全部数据</button></footer>
+      </section>`;
+    ui.querySelector('#nmda-panel')?.appendChild(resetDialog);
+  }
+
   let unifiedIconRefreshQueued = false;
   const queueUnifiedIconRefresh = () => {
     if (unifiedIconRefreshQueued) return;
@@ -1198,7 +1226,7 @@
     }
   }
   function syncModalState(){
-    const modalOpen=[$('nmda-supplement-preflight'),$('nmda-schedule-modal')].some(el=>el&&!el.hidden);
+    const modalOpen=[$('nmda-supplement-preflight'),$('nmda-schedule-modal'),$('nmda-reset-all-overlay')].some(el=>el&&!el.hidden);
     panel.classList.toggle('has-modal',modalOpen);
   }
   function setPanelOpen(open){panel.hidden=!open;setHostScrollLocked(open);if(open)syncModalState();}
@@ -7609,6 +7637,75 @@
     if (batch.running) { setImportStatus('正在创建草稿，暂时不能开始新批次。', 'warn'); return; }
     resetImportWorkspace({ message: '当前批次已彻底清空，可以载入新的来源。' });
   });
+
+  function setResetAllDialog(open){
+    const overlay=$('nmda-reset-all-overlay'),confirm=$('nmda-reset-all-confirm'),action=$('nmda-reset-all-confirm-button'),status=$('nmda-reset-all-status');
+    if(!overlay)return;
+    overlay.hidden=!open;
+    if(open){
+      if(confirm)confirm.checked=false;
+      if(action){action.disabled=true;action.textContent='清空全部数据';}
+      if(status){status.hidden=true;status.textContent='';delete status.dataset.tone;}
+    }
+    syncModalState();
+  }
+
+  async function resetAllSmartMailData(){
+    if(batch.running){
+      const status=$('nmda-reset-all-status');if(status){status.hidden=false;status.dataset.tone='warn';status.textContent='正在创建草稿，不能在执行过程中重置。请先停止当前执行。';}
+      return false;
+    }
+    const action=$('nmda-reset-all-confirm-button'),status=$('nmda-reset-all-status');
+    if(action){action.disabled=true;action.textContent='正在清空…';}
+    if(status){status.hidden=false;status.dataset.tone='';status.textContent='正在清空 SmartMail 本地数据…';}
+    try{
+      // Let any in-flight mailbox read finish first, then discard its result. This avoids
+      // a late async response repopulating the freshly reset operation store.
+      mailboxAutoSyncState.generation+=1;
+      if(mailboxAutoSyncState.running){try{await mailboxAutoSyncState.running;}catch(_){}}
+      mailboxAutoSyncState.generation+=1;
+      mailboxAutoSyncState.lastQuickAt=0;mailboxAutoSyncState.lastHistoryAt=0;mailboxAutoSyncState.lastFullAt=0;
+      if(workspaceSaveTimer){clearTimeout(workspaceSaveTimer);workspaceSaveTimer=0;}
+      if(chrome?.storage?.local)await chrome.storage.local.remove(WORKSPACE_STORAGE_KEY);
+      try{localStorage.removeItem(MAILBOX_HISTORY_MONTHS_KEY);localStorage.removeItem(FOLLOWUP_PREFS_KEY);localStorage.removeItem(SCHEDULE_PREFS_KEY);}catch(_){}
+
+      dispatchRuntime?.clear?.();
+      monitorSelectedIds().clear();monitorState.filter='all';monitorState.search='';monitorState.syncing=false;monitorState.lastRenderAt=0;
+      const monitorSearch=$('nmda-monitor-search');if(monitorSearch)monitorSearch.value='';
+      const template=$('nmda-monitor-template-body');if(template){template.value='';template.dataset.dirty='0';template.dataset.initialized='0';}
+      const syncTemplate=$('nmda-monitor-template-sync');if(syncTemplate)syncTemplate.checked=true;
+      const settingsOverlay=$('nmda-monitor-settings-overlay');if(settingsOverlay)settingsOverlay.hidden=true;
+
+      operationState.account=operationState.account||await detectAccount();
+      operationState.store=Operations?applyFollowUpPrefs(Operations.createStore(operationState.account||'default')):null;
+      operationState.loaded=!!Operations;
+      resetImportWorkspace({message:'SmartMail 已完全重置。可直接导入新的资料重新开始。'});
+      syncScheduleRuleControls();
+      renderMonitorFollowUpTemplate();
+      renderMonitoring();
+      renderReviewPageOverview();
+      setMailboxAutoSyncCue('idle','本地数据已清空；进入邮件监测时可重新读取 163 邮箱');
+      setWorkbenchTab('batch');history.replaceState(null,'','#batch');
+      if(status){status.dataset.tone='ok';status.textContent='已清空全部 SmartMail 本地数据。';}
+      setTimeout(()=>setResetAllDialog(false),350);
+      return true;
+    }catch(error){
+      console.error(`[${APP}] reset all data`,error);
+      if(status){status.hidden=false;status.dataset.tone='error';status.textContent=`清空失败：${error?.message||String(error)}`;}
+      if(action){action.disabled=false;action.textContent='重新尝试清空';}
+      return false;
+    }
+  }
+
+  $('nmda-reset-all-data')?.addEventListener('click',()=>{
+    if(batch.running){setBatchStatus('正在创建草稿，请先停止执行后再重置 SmartMail。','warn');return;}
+    setResetAllDialog(true);
+  });
+  $('nmda-reset-all-close')?.addEventListener('click',()=>setResetAllDialog(false));
+  $('nmda-reset-all-cancel')?.addEventListener('click',()=>setResetAllDialog(false));
+  $('nmda-reset-all-overlay')?.addEventListener('click',event=>{if(event.target===event.currentTarget)setResetAllDialog(false);});
+  $('nmda-reset-all-confirm')?.addEventListener('change',event=>{const action=$('nmda-reset-all-confirm-button');if(action)action.disabled=!event.currentTarget.checked;});
+  $('nmda-reset-all-confirm-button')?.addEventListener('click',()=>{if($('nmda-reset-all-confirm')?.checked)void resetAllSmartMailData();});
 
 
   $('nmda-go-batch')?.addEventListener('click',()=>void openReviewWorkspace({pendingOnly:false,fromImport:true}));

@@ -5305,3 +5305,20 @@
 @media (max-width:760px){
   .nmda-review-trash-popover { right:-92px; width:min(360px,calc(100vw - 24px)); }
 }
+
+/* v3.8.82 · Global reset: escape hatch for abandoning an entire stuck workflow. */
+.nmda-reset-all-entry{white-space:nowrap;color:#7f1d1d;border-color:rgba(185,28,28,.18);background:rgba(254,242,242,.72)}
+.nmda-reset-all-entry:hover{background:rgba(254,226,226,.9);border-color:rgba(185,28,28,.28)}
+.nmda-reset-all-overlay{z-index:2147483646}
+.nmda-reset-all-dialog{width:min(620px,calc(100vw - 36px));max-width:620px}
+.nmda-reset-all-body{display:grid;gap:12px;padding:18px 20px 4px}
+.nmda-reset-all-warning,.nmda-reset-all-safe{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px;align-items:start;padding:14px 15px;border-radius:15px;border:1px solid rgba(15,23,42,.08);background:rgba(248,250,252,.82);line-height:1.55}
+.nmda-reset-all-warning{border-color:rgba(185,28,28,.16);background:rgba(254,242,242,.72)}
+.nmda-reset-all-warning strong{color:#991b1b}.nmda-reset-all-safe strong{color:#166534}
+.nmda-reset-all-warning span,.nmda-reset-all-safe span{color:#475569;font-size:13px}
+.nmda-reset-all-confirm{display:flex;gap:10px;align-items:flex-start;padding:14px 15px;border-radius:15px;background:#fff;border:1px solid rgba(15,23,42,.1);font-weight:650;color:#0f172a;cursor:pointer}
+.nmda-reset-all-confirm input{margin-top:2px;width:16px;height:16px;accent-color:#b91c1c}
+.nmda-reset-all-status{padding:10px 12px;border-radius:10px;background:#f8fafc;color:#475569;font-size:12px}
+.nmda-reset-all-status[data-tone="warn"]{background:#fff7ed;color:#9a3412}.nmda-reset-all-status[data-tone="error"]{background:#fef2f2;color:#991b1b}.nmda-reset-all-status[data-tone="ok"]{background:#f0fdf4;color:#166534}
+.nmda-btn-danger{background:#b91c1c!important;border-color:#b91c1c!important;color:#fff!important}.nmda-btn-danger:hover{background:#991b1b!important;border-color:#991b1b!important}.nmda-btn-danger:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:760px){.nmda-reset-all-entry{padding-inline:9px}.nmda-reset-all-warning,.nmda-reset-all-safe{grid-template-columns:1fr;gap:4px}}
