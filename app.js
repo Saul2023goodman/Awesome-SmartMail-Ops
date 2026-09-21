@@ -833,7 +833,12 @@
                   <div><strong id="nmda-review-selected-count">已选 0 封</strong></div>
                   <div class="nmda-row"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-confirm-selected" type="button">确认所选</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-clear-selected" type="button">取消</button></div>
                 </div>
-                <div class="nmda-review-page-empty" id="nmda-review-page-empty">添加资料后，这里会显示每封邮件的识别状态。</div>
+                <div class="nmda-review-page-empty" id="nmda-review-page-empty">
+                  <div class="nmda-review-empty-visual" aria-hidden="true"><span></span><i></i><b></b></div>
+                  <div class="nmda-review-empty-copy"><span class="nmda-review-empty-kicker">REVIEW QUEUE</span><strong>当前没有需要审阅的邮件</strong><small id="nmda-review-empty-hint">导入 Initial 邮件，或从邮件监测生成 Follow-up 后，会自动出现在这里。</small></div>
+                  <div class="nmda-review-empty-actions"><button class="nmda-btn nmda-btn-primary" id="nmda-review-empty-import" type="button">去导入资料</button><button class="nmda-btn nmda-btn-quiet" id="nmda-review-empty-monitor" type="button">查看邮件监测</button></div>
+                  <div class="nmda-review-empty-foot"><span>Initial</span><i>→</i><span>审阅</span><i>→</i><span>选择与排期</span><b>·</b><span>Follow-up 从邮件监测进入同一审阅队列</span></div>
+                </div>
                 <div class="nmda-review-preview-toolbar" id="nmda-review-preview-toolbar" hidden>
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-preview-back" id="nmda-review-preview-back" type="button">← 返回邮件列表</button>
                   <div class="nmda-review-preview-toolbar-copy"><strong>邮件 Preview</strong><small id="nmda-review-preview-meta">只读预览 · 当前邮件可原位编辑</small></div>
@@ -4915,7 +4920,7 @@
     }
     const pendingCount=actionCount;
     if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='邮件审阅';
-    if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=tasks.length?`${tasks.length} 封 · ${pendingCount} 需处理`:'';
+    if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=tasks.length?`${tasks.length} 封 · ${pendingCount} 需处理`:'暂无审阅任务';
     if(reviewInlineEl)reviewInlineEl.dataset.reviewState=tasks.length&&pendingCount===0?'complete':pendingCount?'pending':'empty';
     if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
     const reviewCounts={all:tasks.length,auto:autoPassed,pending:actionCount,confirmed:checked};
@@ -4925,7 +4930,11 @@
       const countEl=button.querySelector('strong');
       if(countEl)countEl.textContent=String(value);
     });
-    if(reviewPageEmptyEl){reviewPageEmptyEl.hidden=!!tasks.length;reviewPageEmptyEl.textContent='导入 Initial 邮件，或在“邮件监测”生成 Follow-up 后，这里会统一显示自动通过与需处理邮件。';}
+    if(reviewPageEmptyEl){
+      reviewPageEmptyEl.hidden=!!tasks.length;
+      const hint=$('nmda-review-empty-hint');
+      if(hint)hint.textContent=batch.dataset?'当前批次还没有形成可审阅邮件。可以返回导入资料继续补充，或到邮件监测查看 Follow-up。':'导入 Initial 邮件，或从邮件监测生成 Follow-up 后，会自动出现在这里。';
+    }
     if(!formatGovernanceEl?.hidden)renderBatchFollowUpTemplate();
     const nextPendingBtn=$('nmda-review-next-pending');
     if(nextPendingBtn){
@@ -7438,6 +7447,12 @@
   $('nmda-review-next-pending')?.addEventListener('click',event=>{
     if(event.currentTarget?.dataset?.mode==='dispatch'){void (async()=>{const ready=await enterSelectionAndSchedule('邮件审阅已完成');if(!ready)return;setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});})();return;}
     openNextReviewTask();
+  });
+  $('nmda-review-empty-import')?.addEventListener('click',()=>{
+    setWorkbenchTab('batch');batch.uiStep=1;renderProcessGuide();renderRosterAudit();renderImportHandoff();history.replaceState(null,'','#batch');
+  });
+  $('nmda-review-empty-monitor')?.addEventListener('click',()=>{
+    setWorkbenchTab('monitor');history.replaceState(null,'','#monitor');
   });
   $('nmda-review-preview-back')?.addEventListener('click',closeReviewPreview);
   ui.querySelectorAll('[data-review-filter]').forEach(button=>button.addEventListener('click',()=>{
