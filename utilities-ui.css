@@ -125,3 +125,58 @@
   #nmda-root .nmda-utility-card{grid-template-columns:42px minmax(0,1fr);min-height:170px;padding:16px;}
   #nmda-root .nmda-utility-card-icon{width:42px;height:42px;}
 }
+
+/* v3.8.98 · Draft Attachment Clone-and-Swap motion */
+#nmda-root .nmda-draft-attachment-motion{position:relative;overflow:hidden;padding:13px 14px 12px;border:1px solid #dde4e8;border-radius:14px;background:linear-gradient(180deg,#fbfcfd 0%,#f7f9fa 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.92);}
+#nmda-root .nmda-draft-attachment-motion[hidden]{display:none!important;}
+#nmda-root .nmda-draft-motion-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:11px;}
+#nmda-root .nmda-draft-motion-head>span{display:flex;min-width:0;flex-direction:column;gap:3px;}
+#nmda-root .nmda-draft-motion-head small{font:650 8px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;color:#98a2ab;}
+#nmda-root .nmda-draft-motion-head strong{font-size:12px;color:#283640;}
+#nmda-root .nmda-draft-motion-head>b{font:720 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#66737e;}
+#nmda-root .nmda-draft-motion-scene{position:relative;height:82px;display:grid;grid-template-columns:minmax(102px,1fr) minmax(92px,.72fr) minmax(102px,1fr);align-items:center;gap:8px;padding:0 4px;}
+#nmda-root .nmda-draft-motion-mail{position:relative;z-index:2;min-width:0;height:56px;padding:9px 10px 8px 36px;border:1px solid #dce3e8;border-radius:11px;background:#fff;box-shadow:0 4px 12px rgba(27,40,52,.045);transition:opacity .35s ease,transform .45s cubic-bezier(.22,.8,.22,1),border-color .25s ease,box-shadow .25s ease;}
+#nmda-root .nmda-draft-motion-mail>i{position:absolute;left:10px;top:11px;width:17px;height:13px;border:1.5px solid #8795a1;border-radius:3px;background:#fff;}
+#nmda-root .nmda-draft-motion-mail>i:after{content:"";position:absolute;left:2px;right:2px;top:3px;height:1px;background:#aab4bd;box-shadow:0 4px 0 #c4ccd2;}
+#nmda-root .nmda-draft-motion-mail>span,#nmda-root .nmda-draft-motion-mail>em{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#nmda-root .nmda-draft-motion-mail>span{font-size:9px;font-weight:720;color:#52616d;}
+#nmda-root .nmda-draft-motion-mail>em{margin-top:4px;font-size:8px;font-style:normal;color:#8b969f;}
+#nmda-root .nmda-draft-motion-mail.is-new{opacity:.64;transform:translateX(2px);}
+#nmda-root .nmda-draft-motion-route{position:relative;height:2px;background:#dce3e8;border-radius:99px;}
+#nmda-root .nmda-draft-motion-route>i{position:absolute;inset:0 auto 0 0;width:0;background:#b78a43;border-radius:99px;transition:width .48s cubic-bezier(.2,.76,.2,1);}
+#nmda-root .nmda-draft-motion-packet{position:absolute;z-index:3;left:0;top:50%;display:grid;place-items:center;width:24px;height:24px;border:1px solid #e1d1ae;border-radius:8px;background:#fff9eb;color:#9b6f28;font-size:12px;box-shadow:0 5px 12px rgba(89,64,24,.09);transform:translate(-50%,-50%);opacity:.1;transition:left .58s cubic-bezier(.2,.78,.2,1),opacity .24s ease,transform .35s ease;}
+#nmda-root .nmda-draft-motion-verify{position:absolute;right:8px;bottom:1px;display:flex;align-items:center;gap:4px;opacity:.22;transform:translateY(4px);transition:opacity .25s ease,transform .35s ease;}
+#nmda-root .nmda-draft-motion-verify>span{display:grid;place-items:center;width:18px;height:18px;border:1px solid #b7d6c5;border-radius:50%;background:#f4fbf7;color:#2d7a53;font-size:10px;font-weight:800;}
+#nmda-root .nmda-draft-motion-verify>small{font:650 7px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;color:#74877c;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="seed"] .nmda-draft-motion-packet,#nmda-root .nmda-draft-attachment-motion[data-phase="read"] .nmda-draft-motion-packet{left:8%;opacity:.55;animation:nmdaDraftPacketBreath 1.4s ease-in-out infinite;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="clone"] .nmda-draft-motion-mail.is-new{opacity:1;transform:translateX(0);border-color:#d6c39b;box-shadow:0 5px 15px rgba(117,87,37,.08);}
+#nmda-root .nmda-draft-attachment-motion[data-phase="clone"] .nmda-draft-motion-packet{left:36%;opacity:1;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="clone"] .nmda-draft-motion-route>i{width:38%;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="attachments"] .nmda-draft-motion-mail.is-new{opacity:1;transform:translateX(0);border-color:#d4b773;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="attachments"] .nmda-draft-motion-packet{left:78%;opacity:1;animation:nmdaDraftPacketTravel .9s ease-in-out infinite alternate;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="attachments"] .nmda-draft-motion-route>i{width:82%;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="verify"] .nmda-draft-motion-mail.is-new,#nmda-root .nmda-draft-attachment-motion[data-phase="swap"] .nmda-draft-motion-mail.is-new,#nmda-root .nmda-draft-attachment-motion[data-phase="done"] .nmda-draft-motion-mail.is-new{opacity:1;transform:none;border-color:#b9d5c5;box-shadow:0 5px 15px rgba(48,111,79,.07);}
+#nmda-root .nmda-draft-attachment-motion[data-phase="verify"] .nmda-draft-motion-packet,#nmda-root .nmda-draft-attachment-motion[data-phase="swap"] .nmda-draft-motion-packet,#nmda-root .nmda-draft-attachment-motion[data-phase="done"] .nmda-draft-motion-packet{left:100%;opacity:.18;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="verify"] .nmda-draft-motion-route>i,#nmda-root .nmda-draft-attachment-motion[data-phase="swap"] .nmda-draft-motion-route>i,#nmda-root .nmda-draft-attachment-motion[data-phase="done"] .nmda-draft-motion-route>i{width:100%;background:#7cad91;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="verify"] .nmda-draft-motion-verify,#nmda-root .nmda-draft-attachment-motion[data-phase="swap"] .nmda-draft-motion-verify,#nmda-root .nmda-draft-attachment-motion[data-phase="done"] .nmda-draft-motion-verify{opacity:1;transform:none;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="swap"] .nmda-draft-motion-mail.is-old,#nmda-root .nmda-draft-attachment-motion[data-phase="done"] .nmda-draft-motion-mail.is-old{opacity:.24;transform:translateX(-8px) scale(.97);}
+#nmda-root .nmda-draft-attachment-motion[data-phase="error"]{border-color:#ebd6d6;background:#fffafa;}
+#nmda-root .nmda-draft-attachment-motion[data-phase="error"] .nmda-draft-motion-packet{opacity:0;}
+#nmda-root .nmda-draft-motion-stages{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin-top:3px;padding-top:2px;}
+#nmda-root .nmda-draft-motion-stages:before{content:"";position:absolute;left:9%;right:9%;top:8px;height:1px;background:#e0e5e8;}
+#nmda-root .nmda-draft-motion-stages>span{position:relative;z-index:1;display:flex;min-width:0;flex-direction:column;align-items:center;gap:5px;text-align:center;}
+#nmda-root .nmda-draft-motion-stages i{width:9px;height:9px;border:2px solid #c8d0d6;border-radius:50%;background:#fafbfc;box-shadow:0 0 0 4px #fafbfc;transition:all .24s ease;}
+#nmda-root .nmda-draft-motion-stages b{font-size:7.5px;font-weight:650;color:#9aa3aa;white-space:nowrap;transition:color .24s ease;}
+#nmda-root .nmda-draft-motion-stages .is-complete i{border-color:#6c9b80;background:#6c9b80;}
+#nmda-root .nmda-draft-motion-stages .is-complete b{color:#668173;}
+#nmda-root .nmda-draft-motion-stages .is-active i{border-color:#af7b2b;background:#fff;box-shadow:0 0 0 4px #fafbfc,0 0 0 7px rgba(175,123,43,.1);animation:nmdaDraftNodePulse 1.35s ease-in-out infinite;}
+#nmda-root .nmda-draft-motion-stages .is-active b{color:#80591c;}
+#nmda-root .nmda-draft-motion-stages .is-error i{border-color:#b65a5a;background:#fff4f4;}
+#nmda-root .nmda-draft-motion-stages .is-error b{color:#9b5353;}
+#nmda-root .nmda-draft-motion-current{margin-top:11px;padding-top:10px;border-top:1px solid #e6eaed;display:grid;gap:3px;}
+#nmda-root .nmda-draft-motion-current strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#485660;}
+#nmda-root .nmda-draft-motion-current span{font-size:8.5px;line-height:1.45;color:#7d8992;}
+@keyframes nmdaDraftPacketBreath{0%,100%{transform:translate(-50%,-50%) scale(.92)}50%{transform:translate(-50%,-50%) scale(1.06)}}
+@keyframes nmdaDraftPacketTravel{0%{transform:translate(-50%,-50%) translateX(-5px)}100%{transform:translate(-50%,-50%) translateX(5px)}}
+@keyframes nmdaDraftNodePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
+@media (prefers-reduced-motion:reduce){#nmda-root .nmda-draft-attachment-motion *{animation:none!important;transition:none!important;}}

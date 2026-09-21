@@ -1435,6 +1435,18 @@
 
 
 
+  window.addEventListener('message', event => {
+    if(event.source!==window)return;
+    const data=event.data;
+    if(!data||data.type!=='NMDA_DRAFT_ATTACHMENT_NATIVE_PROGRESS')return;
+    chrome.runtime.sendMessage({
+      type:'NMDA_DRAFT_ATTACHMENT_NATIVE_PROGRESS',
+      executionId:String(data.executionId||''),phase:String(data.phase||''),
+      current:Number(data.current||0)||0,total:Number(data.total||0)||0,
+      subject:String(data.subject||''),message:String(data.message||''),detail:data.detail||{}
+    }).catch(()=>{});
+  });
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'NMDA_PING') {
       sendResponse({ ok: true, role: 'netease-mail-executor', composeOpen: !!findComposeRoot() });

@@ -1182,7 +1182,7 @@
             <section class="nmda-utility-workspace nmda-draft-attachment-workspace" data-utility-workspace="draft-attachments" hidden>
               <header class="nmda-utility-workspace-head">
                 <button class="nmda-utility-back" type="button" data-utility-back>← 实用功能</button>
-                <div><small>DRAFT ATTACHMENT UPDATE</small><strong>极速附件</strong><span>直接更新网易草稿箱中的旧附件，不重建邮件，也不改正文、收件人、主题或原排期。</span></div>
+                <div><small>DRAFT ATTACHMENT UPDATE</small><strong>极速附件</strong><span>通过等价新草稿重建、回读验证与安全切换更新旧附件；正文、收件人、主题和原排期保持不变。</span></div>
                 <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-draft-attachment-refresh" type="button">重新读取草稿箱</button>
               </header>
 
@@ -1210,6 +1210,29 @@
                     <b>选择文件</b>
                   </button>
                   <div class="nmda-draft-attachment-safety"><strong>安全替换</strong><span>先生成等价新草稿并回读验证正文、收件人、主题、排期和附件；全部正确后才删除旧草稿，失败则保留旧草稿。</span></div>
+                  <section class="nmda-draft-attachment-motion" id="nmda-draft-attachment-motion" data-phase="idle" hidden aria-live="polite">
+                    <div class="nmda-draft-motion-head">
+                      <span><small>LIVE CLONE · VERIFY · SWAP</small><strong id="nmda-draft-motion-title">准备附件更新</strong></span>
+                      <b id="nmda-draft-motion-count">0 / 0</b>
+                    </div>
+                    <div class="nmda-draft-motion-scene" aria-hidden="true">
+                      <div class="nmda-draft-motion-mail is-old"><i></i><span>旧草稿</span><em id="nmda-draft-motion-old-file">旧附件</em></div>
+                      <div class="nmda-draft-motion-route"><span class="nmda-draft-motion-packet">↗</span><i></i></div>
+                      <div class="nmda-draft-motion-mail is-new"><i></i><span>新草稿</span><em id="nmda-draft-motion-new-file">新版附件</em></div>
+                      <div class="nmda-draft-motion-verify"><span>✓</span><small>VERIFY</small></div>
+                    </div>
+                    <div class="nmda-draft-motion-stages" id="nmda-draft-motion-stages">
+                      <span data-draft-motion-stage="read"><i></i><b>读取旧稿</b></span>
+                      <span data-draft-motion-stage="clone"><i></i><b>构建新稿</b></span>
+                      <span data-draft-motion-stage="attachments"><i></i><b>迁移附件</b></span>
+                      <span data-draft-motion-stage="verify"><i></i><b>回读验证</b></span>
+                      <span data-draft-motion-stage="swap"><i></i><b>安全切换</b></span>
+                    </div>
+                    <div class="nmda-draft-motion-current">
+                      <strong id="nmda-draft-motion-subject">等待开始</strong>
+                      <span id="nmda-draft-motion-message">执行后会自动切换到 163 邮箱页面，并在邮箱侧同步显示真实执行阶段。</span>
+                    </div>
+                  </section>
                   <div class="nmda-draft-attachment-progress" id="nmda-draft-attachment-progress" hidden></div>
                   <div class="nmda-draft-attachment-actions">
                     <button class="nmda-btn nmda-btn-primary" id="nmda-draft-attachment-run" type="button" disabled>更新选中的草稿</button>
@@ -1462,7 +1485,7 @@
   openMailEl?.addEventListener('click',async()=>{openMailEl.disabled=true;try{await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL',focus:true});}finally{openMailEl.disabled=false;setTimeout(refreshMailboxConnection,500);}});
   chrome.runtime.onMessage.addListener(message=>{
     if(message?.type==='NMDA_CONNECTION_CHANGED') refreshMailboxConnection();
-    if(message?.type==='NMDA_EXECUTION_PROGRESS_BROADCAST'){
+    if(message?.type==='NMDA_EXECUTION_PROGRESS_BROADCAST'||message?.type==='NMDA_DRAFT_ATTACHMENT_PROGRESS_BROADCAST'){
       const handler=executionProgressHandlers.get(String(message.executionId||'')); if(handler) handler(message);
     }
     if(message?.type==='NMDA_BATCH_STOP_BROADCAST' && batch?.running){
@@ -3683,6 +3706,45 @@
     el.hidden=!message;el.dataset.tone=tone;el.textContent=message||'';
   }
 
+  const DRAFT_ATTACHMENT_MOTION_ORDER=['read','clone','attachments','verify','swap'];
+  const DRAFT_ATTACHMENT_MOTION_LABELS={seed:'准备新版附件源',read:'读取旧草稿',clone:'构建等价新草稿',attachments:'服务器迁移附件',verify:'回读完整性验证',swap:'安全切换草稿',done:'附件更新完成',error:'附件更新异常'};
+
+  function normalizeDraftAttachmentMotionPhase(phase=''){
+    const raw=String(phase||'');
+    if(raw==='attachment-seed'||raw==='seed')return 'seed';
+    if(raw==='restore'||raw==='baseline'||raw==='read')return 'read';
+    if(raw==='build'||raw==='clone'||raw==='clone-commit'||raw==='clone-discovery')return 'clone';
+    if(raw==='attachments'||raw==='clone-attachments'||raw==='copy-attachments')return 'attachments';
+    if(raw==='verify'||raw==='clone-verify')return 'verify';
+    if(raw==='swap'||raw==='swap-delete-original'||raw==='swap-verify')return 'swap';
+    if(raw==='done'||raw==='finish')return 'done';
+    if(raw==='error'||raw.includes('error')||raw.includes('rollback'))return 'error';
+    return raw||'read';
+  }
+
+  function setDraftAttachmentMotion(payload={}){
+    const root=$('nmda-draft-attachment-motion');if(!root)return;
+    const phase=normalizeDraftAttachmentMotionPhase(payload.phase||'read');
+    root.hidden=payload.hidden===true;
+    root.dataset.phase=phase;
+    if(payload.oldName!=null)setText('nmda-draft-motion-old-file',payload.oldName||'旧附件');
+    if(payload.newName!=null)setText('nmda-draft-motion-new-file',payload.newName||'新版附件');
+    if(payload.subject!=null)setText('nmda-draft-motion-subject',payload.subject||'当前草稿');
+    if(payload.message!=null)setText('nmda-draft-motion-message',payload.message||'');
+    if(payload.current!=null||payload.total!=null){
+      const current=Number(payload.current||0),total=Number(payload.total||0);
+      setText('nmda-draft-motion-count',`${Math.max(0,current)} / ${Math.max(0,total)}`);
+    }
+    setText('nmda-draft-motion-title',DRAFT_ATTACHMENT_MOTION_LABELS[phase]||'附件更新');
+    const stagePhase=phase==='seed'?'read':phase==='done'?'swap':phase;
+    const activeIndex=DRAFT_ATTACHMENT_MOTION_ORDER.indexOf(stagePhase);
+    root.querySelectorAll('[data-draft-motion-stage]').forEach((node,index)=>{
+      node.classList.toggle('is-active',phase!=='done'&&phase!=='error'&&index===activeIndex);
+      node.classList.toggle('is-complete',phase==='done'||index<activeIndex);
+      node.classList.toggle('is-error',phase==='error'&&index===Math.max(0,activeIndex));
+    });
+  }
+
   function renderUtilityHubSummary(){
     const meta=$('nmda-utility-draft-attachment-meta');
     if(meta)meta.textContent=draftAttachmentTool.loading?'正在读取草稿箱':draftAttachmentTool.scanned?`${draftAttachmentTool.drafts.length} 封草稿 · ${draftAttachmentTool.groups.length} 组附件`:'读取草稿箱';
@@ -3728,7 +3790,7 @@
       list.querySelectorAll('[data-draft-attachment-group]').forEach(button=>button.addEventListener('click',()=>{
         const key=decodeURIComponent(button.dataset.draftAttachmentGroup||'');
         draftAttachmentTool.selectedKey=key;draftAttachmentTool.replacementFile=null;draftAttachmentTool.selectedDraftIds=new Set(draftAttachmentTargets(groups.find(group=>group.key===key)).map(item=>String(item.draft.id||'')));
-        setDraftAttachmentUtilityResult('');renderDraftAttachmentTool();
+        setDraftAttachmentUtilityResult('');setDraftAttachmentMotion({hidden:true});renderDraftAttachmentTool();
       }));
     }
     if(empty){empty.hidden=!!visibleGroups.length||draftAttachmentTool.loading;empty.textContent=draftAttachmentTool.loading?'正在读取草稿箱…':groups.length?'没有符合搜索条件的附件。':'草稿箱中没有可替换的普通附件。';}
@@ -3767,8 +3829,13 @@
     draftAttachmentTool.running=true;renderDraftAttachmentTool();setDraftAttachmentUtilityResult('');
     const executionId=crypto.randomUUID();
     let refs=[],seedDraftId='',seedIdentity=null,seedCleanupWarning='';
-    executionProgressHandlers.set(executionId,message=>setDraftAttachmentProgress(message?.message||''));
+    setDraftAttachmentMotion({phase:'seed',current:0,total:targets.length,oldName:group.name,newName:file.name,subject:'准备批量附件更新',message:'正在切换到 163 邮箱并建立新版附件源…'});
+    executionProgressHandlers.set(executionId,message=>{
+      setDraftAttachmentProgress(message?.message||'');
+      setDraftAttachmentMotion({phase:message?.phase||'read',current:message?.current,total:message?.total,oldName:group.name,newName:file.name,subject:message?.subject||message?.detail?.subject,message:message?.message||''});
+    });
     try{
+      await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:true,payload:{action:'start',executionId,total:targets.length,current:0,oldName:group.name,newName:file.name,message:'正在建立新版附件源…'}});
       refs=await prepareRuntimeFileRefs([file]);
       if(!refs[0])throw new Error('新版附件运行时文件准备失败');
       setDraftAttachmentProgress('正在把新版附件上传到网易一次性临时源…');
@@ -3790,8 +3857,10 @@
           try{
             const existing=(draft.attachments||[]).some(att=>!targetAttachmentIds.has(String(att.id||''))&&String(att.name||'')===file.name&&(!Number(att.size||0)||Math.abs(Number(att.size||0)-file.size)<100));
             setDraftAttachmentProgress(`正在安全重建并替换附件 ${done+failed+1}/${targets.length} · ${draft.subject||draftId}`);
+            const currentIndex=done+failed+1;
             const mutated=await chrome.runtime.sendMessage({
               type:'NMDA_DRAFT_ATTACHMENT_MUTATE',
+              executionId,current:currentIndex,total:targets.length,
               draftId,
               deleteAttachments,
               source:existing?null:source,
@@ -3804,7 +3873,11 @@
               if(before){integrityBaseline.set(committedId,before);integrityBaseline.delete(draftId);}
             }
             done++;doneIds.add(committedId);
-          }catch(error){failed++;failures.push(`${draft.subject||draftId}：${error?.message||String(error)}`);}
+          }catch(error){
+            failed++;failures.push(`${draft.subject||draftId}：${error?.message||String(error)}`);
+            setDraftAttachmentMotion({phase:'error',current:done+failed,total:targets.length,oldName:group.name,newName:file.name,subject:draft.subject||draftId,message:error?.message||String(error)});
+            await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'progress',executionId,phase:'error',current:done+failed,total:targets.length,subject:draft.subject||draftId,oldName:group.name,newName:file.name,message:error?.message||String(error)}}).catch(()=>null);
+          }
           setDraftAttachmentProgress(`草稿附件更新 ${done+failed}/${targets.length} · 成功 ${done}${failed?` · 失败 ${failed}`:''}` , failed?'warn':'');
         }
       }
@@ -3842,11 +3915,22 @@
         if(changed.length)integrityFailures.push(`${before.subject||draftId}：${changed.join('、')}${changed.some(label=>label.includes('附件'))?'':'发生变化'}`);
       }
       if(integrityFailures.length){
+        setDraftAttachmentMotion({phase:'error',current:done+failed,total:targets.length,oldName:group.name,newName:file.name,subject:'完整性核验异常',message:`发现 ${integrityFailures.length} 封草稿需要核对。`});
+        await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'error',total:targets.length,current:done+failed,succeeded:done,failed,message:`完整性异常 ${integrityFailures.length} 封`}}).catch(()=>null);
         setDraftAttachmentUtilityResult(`附件更新已执行，但发现 ${integrityFailures.length} 封草稿存在完整性异常，请立即核对：${integrityFailures.slice(0,3).join('；')}${integrityFailures.length>3?'…':''}${seedCleanupWarning?`；${seedCleanupWarning}`:''}`,'error');
-      }else if(failed)setDraftAttachmentUtilityResult(`已更新 ${done} 封，${failed} 封未完成。失败草稿会保留原草稿；${failures.slice(0,3).join('；')}${failures.length>3?'…':''}${seedCleanupWarning?`；${seedCleanupWarning}`:''}`,'warn');
-      else if(seedCleanupWarning)setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新并通过完整性核验；${seedCleanupWarning}`,'warn');
-      else setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新，并回读确认正文、收件人、主题与原排期保持不变。`,'ok');
+      }else if(failed){
+        setDraftAttachmentMotion({phase:'error',current:done+failed,total:targets.length,oldName:group.name,newName:file.name,subject:'部分草稿未完成',message:`成功 ${done} · 失败 ${failed}`});
+        await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'error',total:targets.length,current:done+failed,succeeded:done,failed,message:`成功 ${done} · 失败 ${failed}`}}).catch(()=>null);
+        setDraftAttachmentUtilityResult(`已更新 ${done} 封，${failed} 封未完成。失败草稿会保留原草稿；${failures.slice(0,3).join('；')}${failures.length>3?'…':''}${seedCleanupWarning?`；${seedCleanupWarning}`:''}`,'warn');
+      }else{
+        setDraftAttachmentMotion({phase:'done',current:done,total:targets.length,oldName:group.name,newName:file.name,subject:'全部草稿已安全切换',message:seedCleanupWarning?'附件更新完成；临时源需要人工清理。':'新版附件已接管，旧草稿已在验证后安全移除。'});
+        await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'done',total:targets.length,current:done,succeeded:done,failed:0,message:'附件更新完成'}}).catch(()=>null);
+        if(seedCleanupWarning)setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新并通过完整性核验；${seedCleanupWarning}`,'warn');
+        else setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新，并回读确认正文、收件人、主题与原排期保持不变。`,'ok');
+      }
     }catch(error){
+      setDraftAttachmentMotion({phase:'error',current:0,total:targets.length,oldName:group.name,newName:file.name,subject:'执行中断',message:error?.message||String(error)});
+      await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'error',total:targets.length,current:0,succeeded:0,failed:targets.length,message:error?.message||String(error)}}).catch(()=>null);
       setDraftAttachmentUtilityResult(error?.message||String(error),'error');
     }finally{
       if(seedIdentity)await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',identity:seedIdentity}).catch(()=>null);
@@ -8583,7 +8667,7 @@
   $('nmda-draft-attachment-search')?.addEventListener('input',event=>{draftAttachmentTool.search=String(event.target.value||'');renderDraftAttachmentTool();});
   const draftAttachmentFileEl=$('nmda-draft-attachment-file'),draftAttachmentDropEl=$('nmda-draft-attachment-drop');
   draftAttachmentDropEl?.addEventListener('click',()=>{if(!draftAttachmentDropEl.disabled)draftAttachmentFileEl?.click();});
-  draftAttachmentFileEl?.addEventListener('change',()=>{draftAttachmentTool.replacementFile=draftAttachmentFileEl.files?.[0]||null;draftAttachmentFileEl.value='';setDraftAttachmentUtilityResult('');renderDraftAttachmentTool();});
+  draftAttachmentFileEl?.addEventListener('change',()=>{draftAttachmentTool.replacementFile=draftAttachmentFileEl.files?.[0]||null;draftAttachmentFileEl.value='';setDraftAttachmentUtilityResult('');setDraftAttachmentMotion({hidden:true});renderDraftAttachmentTool();});
   $('nmda-draft-attachment-run')?.addEventListener('click',()=>void runDraftAttachmentReplacement());
 
   batchStartEl.addEventListener('click', async () => {

@@ -34,6 +34,13 @@
           <span data-stage="save" title="保存并收尾"><i></i></span>
         </div>
 
+        <div class="nmda-dock-attachment-motion" id="nmda-dock-attachment-motion" hidden aria-hidden="true">
+          <span class="is-old"><i></i><small>OLD DRAFT</small></span>
+          <b class="nmda-dock-attachment-route"><em>↗</em></b>
+          <span class="is-new"><i></i><small>NEW DRAFT</small></span>
+          <strong class="nmda-dock-attachment-verify">✓</strong>
+        </div>
+
         <div class="nmda-dock-exec-current">
           <div class="nmda-dock-current-line">
             <span class="nmda-dock-current-pulse" aria-hidden="true"></span>
@@ -99,10 +106,13 @@
   const execSubject = host.querySelector('#nmda-dock-exec-subject');
   const execMessage = host.querySelector('#nmda-dock-exec-message');
   const phaseTrack = host.querySelector('#nmda-dock-phase-track');
+  const attachmentMotion = host.querySelector('#nmda-dock-attachment-motion');
   const stopButton = host.querySelector('#nmda-dock-stop');
   const resumeButton = host.querySelector('#nmda-dock-resume');
 
   const PHASE_ORDER = ['open', 'content', 'attachments', 'schedule', 'save'];
+  const DRAFT_ATTACHMENT_PHASE_ORDER = ['read','clone','attachments','verify','swap'];
+  const DRAFT_ATTACHMENT_STAGE_LABELS = ['读取旧稿','构建新稿','迁移附件','回读验证','安全切换'];
   const PHASE_LABELS = {
     open: '打开写信页',
     content: '写入邮件内容',
@@ -114,7 +124,9 @@
     save: '保存草稿',
     cleanup: '确认并收尾',
     'cleanup-error': '收尾异常',
-    done: '本封已完成'
+    done: '本封已完成',
+    read:'读取旧草稿',clone:'构建等价新草稿',verify:'回读完整性验证',swap:'安全切换草稿',
+    seed:'准备新版附件源'
   };
 
   let lastStatus = { connected: false, account: '' };
@@ -127,6 +139,7 @@
     failed: 0,
     remaining: 0,
     status: 'idle',
+    kind: 'mail',
     executionId: '',
     phase: 'idle',
     task: null,
@@ -151,8 +164,14 @@
 
   function executionPct() {
     if (!execution.total) return 0;
-    const done = Math.max(0, Number(execution.succeeded || 0) + Number(execution.failed || 0));
     if (execution.status === 'done') return 100;
+    if(execution.kind==='draft-attachment'){
+      const stage=Math.max(0,effectiveStageIndex());
+      const current=Math.max(1,Number(execution.current||1));
+      const fraction=Math.min(1,Math.max(0,(stage+1)/DRAFT_ATTACHMENT_PHASE_ORDER.length));
+      return Math.min(99,Math.max(0,(((current-1)+fraction)/Number(execution.total))*100));
+    }
+    const done = Math.max(0, Number(execution.succeeded || 0) + Number(execution.failed || 0));
     return Math.min(100, Math.max(0, (done / Number(execution.total)) * 100));
   }
 
@@ -162,6 +181,12 @@
 
   function effectiveStageIndex() {
     const phase = String(execution.phase || '');
+    if(execution.kind==='draft-attachment'){
+      if(phase==='seed')return 0;
+      if(phase==='done')return 4;
+      const index=DRAFT_ATTACHMENT_PHASE_ORDER.indexOf(phase);
+      return index>=0?index:-1;
+    }
     if (phase === 'cleanup' || phase === 'cleanup-error' || phase === 'done' || phase === 'resume' || phase === 'identity-required') return 4;
     const index = PHASE_ORDER.indexOf(phase);
     return index >= 0 ? index : -1;
@@ -179,7 +204,8 @@
   function renderPhaseTrack() {
     const activeIndex = effectiveStageIndex();
     const taskFinished = execution.phase === 'done';
-    phaseTrack?.querySelectorAll('[data-stage]').forEach((node, index) => {
+    phaseTrack?.querySelectorAll('span').forEach((node, index) => {
+      if(execution.kind==='draft-attachment')node.title=DRAFT_ATTACHMENT_STAGE_LABELS[index]||'';
       node.classList.toggle('is-active', !taskFinished && index === activeIndex);
       node.classList.toggle('is-complete', taskFinished || index < activeIndex);
     });
@@ -190,6 +216,7 @@
     executionEl.hidden = !visible;
     host.dataset.execution = execution.status || 'idle';
     host.dataset.phase = execution.phase || 'idle';
+    host.dataset.kind = execution.kind || 'mail';
     detailToggle.hidden = !visible;
     if (!visible) {
       setOpen(false);
@@ -205,20 +232,23 @@
     const phaseLabel = PHASE_LABELS[execution.phase] || (finished ? '执行结束' : '正在处理');
     const displayCount = finished ? done : current;
 
-    execLabel.textContent = paused ? '等待人工检查' : waitingUser ? '等待网易信息' : execution.status === 'running' ? '执行队列' : '执行结果';
+    const attachmentRun=execution.kind==='draft-attachment';
+    execLabel.textContent = attachmentRun ? '草稿附件安全替换' : (paused ? '等待人工检查' : waitingUser ? '等待网易信息' : execution.status === 'running' ? '执行队列' : '执行结果');
     execCount.textContent = `${displayCount} / ${Number(execution.total || 0)}`;
     execSummary.textContent = phaseLabel;
     execState.textContent = stateLabel;
     execState.dataset.state = execution.status;
-    execRecipient.textContent = execution.task?.recipient || (finished ? '本次执行已结束' : '准备下一封邮件…');
-    execSubject.textContent = execution.task?.subject || '';
+    execRecipient.textContent = attachmentRun ? (execution.task?.subject || (finished?'附件更新已结束':'准备草稿附件更新…')) : (execution.task?.recipient || (finished ? '本次执行已结束' : '准备下一封邮件…'));
+    execSubject.textContent = attachmentRun ? `${execution.task?.oldName||'旧附件'}  →  ${execution.task?.newName||'新版附件'}` : (execution.task?.subject || '');
     execMessage.textContent = execution.message || (finished ? `成功 ${Number(execution.succeeded || 0)} · 失败 ${Number(execution.failed || 0)}` : '正在处理…');
-    resumeButton.hidden = !paused;
+    attachmentMotion.hidden=!attachmentRun;
+    resumeButton.hidden = attachmentRun || !paused;
     resumeButton.disabled = false;
     resumeButton.textContent = '继续保存';
-    stopButton.hidden = finished;
+    stopButton.hidden = attachmentRun || finished;
     stopButton.disabled = false;
     stopButton.textContent = '当前封后停止';
+    const openButton=host.querySelector('#nmda-dock-open-dispatch');if(openButton)openButton.textContent=attachmentRun?'返回极速附件':'查看调度';
     renderPhaseTrack();
   }
 
@@ -249,7 +279,7 @@
       if (executionResetTimer) { clearTimeout(executionResetTimer); executionResetTimer = null; }
       Object.assign(execution, {
         total: Number(payload.total || 0), current: 0, succeeded: 0, failed: 0,
-        remaining: Number(payload.remaining ?? payload.total ?? 0), status: 'running', executionId: '', phase: 'open',
+        remaining: Number(payload.remaining ?? payload.total ?? 0), status: 'running', kind:'mail', executionId: '', phase: 'open',
         task: null, message: '正在准备第一封邮件。'
       });
       setOpen(false);
@@ -314,6 +344,27 @@
     return { ok: true };
   }
 
+  function updateDraftAttachmentExecution(payload={}) {
+    const action=String(payload.action||'progress');
+    if(executionResetTimer){clearTimeout(executionResetTimer);executionResetTimer=null;}
+    if(action==='start'){
+      Object.assign(execution,{kind:'draft-attachment',total:Number(payload.total||0),current:0,succeeded:0,failed:0,remaining:Number(payload.total||0),status:'running',executionId:String(payload.executionId||''),phase:'seed',task:{subject:'准备附件更新',oldName:String(payload.oldName||'旧附件'),newName:String(payload.newName||'新版附件')},message:String(payload.message||'正在建立新版附件源…')});
+      setOpen(true);triggerMotion('step');
+    }else if(action==='finish'){
+      Object.assign(execution,{kind:'draft-attachment',total:Number(payload.total||execution.total),current:Number(payload.current||execution.current),succeeded:Number(payload.succeeded||0),failed:Number(payload.failed||0),remaining:0,status:String(payload.status||'done'),phase:String(payload.status||'done')==='done'?'done':'error',message:String(payload.message||'附件更新结束')});
+      setOpen(execution.status!=='done');triggerMotion('commit');
+      executionResetTimer=setTimeout(()=>{execution.status='idle';execution.phase='idle';execution.kind='mail';execution.task=null;execution.message='';executionResetTimer=null;syncExecutionChrome();},7000);
+    }else{
+      const phase=String(payload.phase||execution.phase||'read');
+      const previous=execution.phase;
+      Object.assign(execution,{kind:'draft-attachment',executionId:String(payload.executionId||execution.executionId||''),total:Number(payload.total||execution.total),current:Number(payload.current||execution.current),status:phase==='error'?'error':'running',phase,message:String(payload.message||'正在处理…'),task:{...(execution.task||{}),subject:String(payload.subject||execution.task?.subject||'当前草稿'),oldName:String(payload.oldName||execution.task?.oldName||'旧附件'),newName:String(payload.newName||execution.task?.newName||'新版附件')}});
+      if(phase!==previous)triggerMotion(phase==='done'?'commit':'step');
+      if(phase==='error')setOpen(true);
+    }
+    syncExecutionChrome();
+    return {ok:true};
+  }
+
   async function refreshStatus() {
     try {
       const status = await chrome.runtime.sendMessage({ type: 'NMDA_CONNECTION_STATUS' });
@@ -330,7 +381,7 @@
   // Primary interaction: one click on the Dock always opens SmartMail's main workspace.
   launcher.addEventListener('click', event => {
     event.stopPropagation();
-    openWorkspace('batch');
+    openWorkspace(execution.kind==='draft-attachment'?'utilities/draft-attachments':'batch');
   });
 
   detailToggle?.addEventListener('click', event => {
@@ -343,7 +394,7 @@
     }
   });
 
-  host.querySelector('#nmda-dock-open-dispatch')?.addEventListener('click', () => openWorkspace('dispatch'));
+  host.querySelector('#nmda-dock-open-dispatch')?.addEventListener('click', () => openWorkspace(execution.kind==='draft-attachment'?'utilities/draft-attachments':'dispatch'));
 
   resumeButton?.addEventListener('click', async event => {
     const executionId = String(execution.executionId || '');
@@ -388,6 +439,11 @@
     if (message?.type === 'NMDA_BATCH_MONITOR') {
       try { sendResponse(updateExecution(message.payload || {})); }
       catch (error) { sendResponse({ ok: false, reason: error?.message || String(error) }); }
+      return;
+    }
+    if (message?.type === 'NMDA_DRAFT_ATTACHMENT_MONITOR') {
+      try { sendResponse(updateDraftAttachmentExecution(message.payload || {})); }
+      catch (error) { sendResponse({ ok:false, reason:error?.message||String(error) }); }
     }
   });
 

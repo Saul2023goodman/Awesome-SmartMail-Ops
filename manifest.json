@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.97",
-  "description": "SmartMail Ops — Utilities include Mail Monitoring and Draft Attachment Update for safely replacing obsolete attachments in existing NetEase drafts while preserving message content and schedules.",
+  "version": "3.8.98",
+  "description": "SmartMail Ops — Draft Attachment Update now provides a live Clone-and-Swap motion workflow, focuses the real NetEase mailbox during execution, and mirrors verified stages in the mailbox Dock.",
   "permissions": [
     "scripting",
     "tabs",

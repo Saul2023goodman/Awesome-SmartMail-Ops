@@ -500,3 +500,36 @@
 #nmda-mail-dock-host[data-execution="waiting-user"] .nmda-dock-live-progress > i,
 #nmda-mail-dock-host[data-execution="waiting-user"] .nmda-dock-live-progress > b { background:#b87818; }
 .nmda-dock-exec-state[data-state="waiting-user"] { border-color:#edd8a9; background:#fff9e9; color:#996715; }
+
+/* v3.8.98 · Dedicated Draft Attachment clone-and-swap motion in NetEase page */
+.nmda-dock-attachment-motion{position:relative;height:58px;margin-top:10px;display:grid;grid-template-columns:62px 1fr 62px;align-items:center;gap:7px;padding:0 2px;}
+.nmda-dock-attachment-motion[hidden]{display:none!important;}
+.nmda-dock-attachment-motion>span{position:relative;z-index:2;height:42px;padding:7px 6px;border:1px solid #dce3eb;border-radius:9px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:opacity .3s ease,transform .35s cubic-bezier(.2,.78,.2,1),border-color .22s ease;}
+.nmda-dock-attachment-motion>span i{width:18px;height:12px;border:1.3px solid #8391a1;border-radius:3px;position:relative;}
+.nmda-dock-attachment-motion>span i:after{content:"";position:absolute;left:2px;right:2px;top:3px;height:1px;background:#b1bbc6;box-shadow:0 4px 0 #ccd3da;}
+.nmda-dock-attachment-motion>span small{font:650 6.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;color:#8d98a5;}
+.nmda-dock-attachment-route{position:relative;height:1px;background:#dfe5ec;border-radius:99px;}
+.nmda-dock-attachment-route>em{position:absolute;left:0;top:50%;width:20px;height:20px;display:grid;place-items:center;border:1px solid #e0d0ad;border-radius:7px;background:#fff9eb;color:#976b24;font-style:normal;font-size:10px;box-shadow:0 4px 10px rgba(91,65,25,.08);transform:translate(-50%,-50%);transition:left .52s cubic-bezier(.2,.78,.2,1),opacity .2s ease;}
+.nmda-dock-attachment-verify{position:absolute;right:47px;bottom:-1px;width:17px;height:17px;display:grid;place-items:center;border:1px solid #b8d7c6;border-radius:50%;background:#f4fbf7;color:#29734f;font-size:9px;opacity:.15;transform:scale(.8);transition:opacity .22s ease,transform .28s ease;}
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="seed"] .nmda-dock-attachment-route>em,
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="read"] .nmda-dock-attachment-route>em{left:8%;animation:nmdaDockAttachmentBreath 1.4s ease-in-out infinite;}
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="clone"] .nmda-dock-attachment-route>em{left:36%;}
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="clone"] .nmda-dock-attachment-motion>span.is-new{border-color:#dac699;}
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="attachments"] .nmda-dock-attachment-route>em{left:78%;animation:nmdaDockAttachmentTravel .85s ease-in-out infinite alternate;}
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="attachments"] .nmda-dock-attachment-motion>span.is-new{border-color:#d0ae62;}
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="verify"] .nmda-dock-attachment-route>em,
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="swap"] .nmda-dock-attachment-route>em,
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="done"] .nmda-dock-attachment-route>em{left:100%;opacity:.25;}
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="verify"] .nmda-dock-attachment-verify,
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="swap"] .nmda-dock-attachment-verify,
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="done"] .nmda-dock-attachment-verify{opacity:1;transform:scale(1);}
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="verify"] .nmda-dock-attachment-motion>span.is-new,
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="swap"] .nmda-dock-attachment-motion>span.is-new,
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="done"] .nmda-dock-attachment-motion>span.is-new{border-color:#b9d7c7;}
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="swap"] .nmda-dock-attachment-motion>span.is-old,
+#nmda-mail-dock-host[data-kind="draft-attachment"][data-phase="done"] .nmda-dock-attachment-motion>span.is-old{opacity:.25;transform:translateX(-5px) scale(.96);}
+#nmda-mail-dock-host[data-kind="draft-attachment"] .nmda-dock-phase-track span.is-complete i{border-color:#739b84;background:#739b84;}
+#nmda-mail-dock-host[data-kind="draft-attachment"] .nmda-dock-phase-track span.is-active i{border-color:#ad792a;box-shadow:0 0 0 4px #fcfdff,0 0 0 7px rgba(173,121,42,.10);}
+@keyframes nmdaDockAttachmentBreath{0%,100%{transform:translate(-50%,-50%) scale(.9)}50%{transform:translate(-50%,-50%) scale(1.08)}}
+@keyframes nmdaDockAttachmentTravel{0%{transform:translate(-50%,-50%) translateX(-4px)}100%{transform:translate(-50%,-50%) translateX(4px)}}
+@media (prefers-reduced-motion:reduce){.nmda-dock-attachment-motion *{animation:none!important;transition:none!important;}}

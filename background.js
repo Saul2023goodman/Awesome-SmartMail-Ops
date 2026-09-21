@@ -940,7 +940,7 @@ async function connectionStatus(sender) {
 
 function normalizeAppTarget(target = '') {
   const value = String(target || '').trim().replace(/^#+/, '');
-  return /^(batch(?:\/[12])?|review|dispatch|monitor)$/.test(value) ? value : 'batch';
+  return /^(batch(?:\/[12])?|review|dispatch|monitor|utilities(?:\/(?:monitor|draft-attachments))?)$/.test(value) ? value : 'batch';
 }
 
 async function openApp(target = 'batch') {
@@ -961,15 +961,36 @@ chrome.action.onClicked.addListener(() => { openApp('batch').catch(console.error
 function broadcastConnectionChange() {
   chrome.runtime.sendMessage({ type:'NMDA_CONNECTION_CHANGED' }).catch(()=>{});
 }
+
+function emitDraftAttachmentProgress(tabId,payload={}) {
+  const message={type:'NMDA_DRAFT_ATTACHMENT_PROGRESS_BROADCAST',...payload};
+  chrome.runtime.sendMessage(message).catch(()=>{});
+  if(tabId)chrome.tabs.sendMessage(tabId,{type:'NMDA_DRAFT_ATTACHMENT_MONITOR',payload}).catch(()=>{});
+}
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => { if (String(tab?.url||'').startsWith('https://mail.163.com/') || String(changeInfo.url||'').startsWith('https://mail.163.com/')) broadcastConnectionChange(); });
 chrome.tabs.onRemoved.addListener(() => { broadcastConnectionChange(); });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     if (message?.type === 'NMDA_CONNECTION_STATUS') return connectionStatus(sender);
+    if (message?.type === 'NMDA_DRAFT_ATTACHMENT_NATIVE_PROGRESS') {
+      emitDraftAttachmentProgress(sender?.tab?.id||null,{
+        executionId:String(message.executionId||''),phase:String(message.phase||''),
+        current:Number(message.current||0)||0,total:Number(message.total||0)||0,
+        subject:String(message.subject||''),message:String(message.message||''),detail:message.detail||{}
+      });
+      return {ok:true};
+    }
     if (message?.type === 'NMDA_OPEN_MAIL') {
       const tab = await resolveMailTab(sender, { create:true, focus:message.focus !== false });
       return { ok:!!tab?.id, tabId:tab?.id || null };
+    }
+    if (message?.type === 'NMDA_DRAFT_ATTACHMENT_MONITOR') {
+      const tab = await resolveMailTab(sender, { create:true, focus:message.focus !== false });
+      if(!tab?.id)return {ok:false,reason:'mailbox-tab-unavailable'};
+      await waitForExecutor(tab.id).catch(()=>null);
+      await chrome.tabs.sendMessage(tab.id,{type:'NMDA_DRAFT_ATTACHMENT_MONITOR',payload:message.payload||{}}).catch(()=>null);
+      return {ok:true,tabId:tab.id};
     }
     if (message?.type === 'NMDA_OPEN_MAIL_MESSAGE') {
       const id = String(message.messageId || '').trim();
@@ -1012,6 +1033,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message?.type === 'NMDA_EXECUTION_PROGRESS') {
       chrome.runtime.sendMessage({ ...message, type:'NMDA_EXECUTION_PROGRESS_BROADCAST', tabId:sender.tab?.id || null }).catch(()=>{});
+      if(String(message.phase||'')==='attachment-seed'&&sender.tab?.id){
+        chrome.tabs.sendMessage(sender.tab.id,{type:'NMDA_DRAFT_ATTACHMENT_MONITOR',payload:{action:'progress',executionId:String(message.executionId||''),phase:'seed',message:String(message.message||'正在建立新版附件源…')}}).catch(()=>{});
+      }
       return {ok:true};
     }
     if (message?.type === 'NMDA_EXECUTION_RESUME_REQUEST') {
@@ -1402,6 +1426,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message?.type === 'NMDA_DRAFT_ATTACHMENT_MUTATE') {
+      const executionId=String(message.executionId||'');
+      const current=Number(message.current||0)||0;
+      const total=Number(message.total||0)||0;
       const draftId = String(message.draftId || '').trim();
       const deleteAttachments = (Array.isArray(message.deleteAttachments) ? message.deleteAttachments : []).map(item=>({
         id:String(item?.id||'').trim(), name:String(item?.name||'').trim(), size:Number(item?.size||0)||0, partId:String(item?.partId||'').trim()
@@ -1410,12 +1437,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const summary = message.summary || {};
       if (!draftId) return {ok:false,reason:'draft-id-missing'};
 
+      emitDraftAttachmentProgress(tabId,{executionId,phase:'read',current,total,subject:String(summary?.subject||draftId),message:`正在读取旧草稿 ${current}/${total}…`});
       // Read the untouched original first. v3.8.97 intentionally no longer mutates
       // its CID in place. NetEase's deleteAttach() is an internal ComposeAttach.remove()
       // step, not a general-purpose Draft mutation API; detached continue(delete)
       // requests returned FS_UNKNOWN in real 163 even when their XML matched the bundle.
       const baseline = await readDraftDetail(tabId, { ...summary, id:draftId });
       if (!baseline?.ok) return {ok:false,reason:baseline?.reason || 'draft-baseline-read-failed'};
+      emitDraftAttachmentProgress(tabId,{executionId,phase:'clone',current,total,subject:String(baseline.subject||summary?.subject||draftId),message:'旧草稿已锁定，正在构建等价新草稿…'});
       if ((baseline.attachments || []).some(item => item?.kind === 'cloud-link')) {
         return {ok:false,reason:'draft-has-cloud-link-attachment'};
       }
@@ -1424,9 +1453,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       const createdAt = Date.now();
-      const clone = await runMain(tabId, (draftIdArg, deleteAttachmentsArg, sourceArg, summaryArg, baselineArg) => new Promise(async resolve => {
+      const clone = await runMain(tabId, (draftIdArg, deleteAttachmentsArg, sourceArg, summaryArg, baselineArg, executionIdArg, currentArg, totalArg) => new Promise(async resolve => {
         let originalCid='';
         let newCid='';
+        const nativeProgress=(phase,message,detail={})=>{try{window.postMessage({type:'NMDA_DRAFT_ATTACHMENT_NATIVE_PROGRESS',executionId:String(executionIdArg||''),phase,current:Number(currentArg||0),total:Number(totalArg||0),subject:String(summaryArg?.subject||draftIdArg||''),message:String(message||''),detail},'*');}catch(_){}};
         const successCode=window.$?.S_OK;
         const values=value=>Array.isArray(value)?value:(value&&typeof value==='object'?Object.values(value):[]);
         const normalizeId=value=>{const raw=String(value||'');return raw.includes(':')?raw.split(':').pop():raw;};
@@ -1514,6 +1544,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             await cancelCid(originalCid,false);
             return resolve({ok:false,stage:'build-clone',reason:'replacement-clone-has-no-attachments'});
           }
+          nativeProgress('attachments',`正在服务器侧迁移 ${descriptors.length} 个附件…`,{cid:newCid,count:descriptors.length});
           const attached=await request('mbox:compose',{id:newCid,action:'continue',returnInfo:true,attrs:{attachments:descriptors}},true);
           if(!isOk(attached)){
             await cancelCid(originalCid,false);await cancelCid(newCid,true);
@@ -1552,11 +1583,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
           const body={id:newCid,action,returnInfo:!scheduled,attrs};
           if(scheduled){try{if(String(window.$?.Ud?.get?.({field:'ntes_option',flag:'schedule_notify'}))==='0')body.notifyEML=true;}catch(_){}}
+          nativeProgress('clone',scheduled?'附件已迁移，正在按原排期保存新草稿…':'附件已迁移，正在保存新草稿…',{cid:newCid,scheduled});
           const committed=await request('mbox:compose',body,true);
           if(!isOk(committed)){
             await cancelCid(originalCid,false);await cancelCid(newCid,true);
             return resolve({ok:false,stage:'clone-commit',reason:committed?.reason||`mbox:compose ${action} code=${String(committed?.code)}`,code:committed?.code});
           }
+          nativeProgress('verify','新草稿已提交，正在等待草稿箱回读验证…',{cid:newCid});
           // The old draft is still untouched. Release its temporary restore session;
           // deletion happens only after the new draft is independently read back.
           await cancelCid(originalCid,false);
@@ -1569,7 +1602,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           try{await cancelCid(newCid,true);}catch(_){}
           resolve({ok:false,stage:'clone-exception',reason:error?.message||String(error)});
         }
-      }),[draftId,deleteAttachments,source,summary,baseline]);
+      }),[draftId,deleteAttachments,source,summary,baseline,executionId,current,total]);
       if(!clone?.ok)return clone;
 
       const normalizeId=value=>{const raw=String(value||'');return raw.includes(':')?raw.split(':').pop():raw;};
@@ -1683,6 +1716,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       // Swap only after the replacement is independently proven good. Deleting a draft
       // uses the official Compose cancel contract, not security-gated deleteMessages.
+      emitDraftAttachmentProgress(tabId,{executionId,phase:'swap',current,total,subject:String(baseline.subject||summary?.subject||draftId),message:'完整性验证通过，正在安全切换并移除旧草稿…'});
       const removeOriginal=await runMain(tabId,(idArg)=>new Promise(async resolve=>{
         const successCode=window.$?.S_OK;
         const request=(func,body)=>new Promise(res=>{try{const action=new window.$.DataAction();action.wmsvr({func,body,ignoreError:true,call(r){res(r||{});},error(e){res({__error:true,reason:e?.message||e?.code||`${func} failed`,code:e?.code});}});}catch(e){res({__error:true,reason:e?.message||String(e)});}});
@@ -1711,6 +1745,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if(clone.newCid){
         await runMain(tabId,(cidArg)=>new Promise(resolve=>{try{const action=new window.$.DataAction();action.wmsvr({func:'mbox:cancelComposes',body:{ids:[String(cidArg)]},ignoreError:true,call(){resolve({ok:true});},error(){resolve({ok:false});}});}catch(_){resolve({ok:false});}}),[String(clone.newCid)]).catch(()=>null);
       }
+      emitDraftAttachmentProgress(tabId,{executionId,phase:'done',current,total,subject:String(baseline.subject||summary?.subject||draftId),message:`第 ${current}/${total} 封已完成安全切换。`});
       return {...clone,ok:true,verified:true,preserved:true,mode:'clone-swap',originalDraftId:draftId,draftId:replacementId,replacementDraftId:replacementId,detail:replacement};
     }
     if (message?.type === 'NMDA_CLOSE_COMPOSE') {
