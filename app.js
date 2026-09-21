@@ -1558,9 +1558,14 @@
     return !panel.hidden && ['batch','dispatch'].includes(currentWorkbenchTab());
   }
 
-  function scheduleBatchRender({ aux = false, force = false } = {}) {
+  function scheduleBatchRender({ aux = false, force = false, persist = true } = {}) {
     invalidateBatchView(aux);
-    if (typeof scheduleWorkspacePersist === 'function') scheduleWorkspacePersist();
+    // Runtime execution state is intentionally ephemeral. Persisting the whole workspace
+    // for every running/done transition serializes the complete imported dataset and, on
+    // large batches, blocks the main thread exactly between two mails. During execution
+    // all editable planning controls are locked, so there is nothing durable to save.
+    // The batch-final render runs after batch.running becomes false and persists once.
+    if (persist && !batch.running && typeof scheduleWorkspacePersist === 'function') scheduleWorkspacePersist();
     if (!force && !batchPaneVisible()) return;
     if (viewPerf.batchFrame) cancelAnimationFrame(viewPerf.batchFrame);
     viewPerf.batchFrame = requestAnimationFrame(() => {
@@ -7073,6 +7078,25 @@
     return {label:'可创建', tone:'ok'};
   }
 
+  function patchPlanningTaskRuntime(task) {
+    const key=String(task?.editKey||'');
+    if(!key||!previewBodyEl)return;
+    const state=compactPlanningState(task);
+    for(const row of previewBodyEl.querySelectorAll('[data-plan-task-key]')){
+      if(String(row.dataset.planTaskKey||'')!==key)continue;
+      row.dataset.stateTone=state.tone;
+      const flag=row.querySelector('.nmda-inline-flag');
+      if(flag){
+        for(const cls of [...flag.classList])if(cls.startsWith('nmda-inline-flag-'))flag.classList.remove(cls);
+        flag.classList.add(`nmda-inline-flag-${state.tone}`);
+        flag.textContent=state.label;
+      }
+      const enabled=row.querySelector('[data-task-enabled]');
+      if(enabled)enabled.disabled=!!batch.running||!!task.policyBlocked||task.status==='running'||task.status==='done';
+      for(const control of row.querySelectorAll('[data-task-schedule],[data-smart-temporal-open]'))control.disabled=!!batch.running||!!(task.scheduleSource==='mailbox'&&task.mailboxDraftId);
+    }
+  }
+
   function derivePlanningGroups(tasks=[]) {
     const rules=batch.scheduleRules||freshScheduleRules();
     const visible=[...(tasks||[])].sort((a,b)=>{
@@ -8510,7 +8534,12 @@
     });
     scheduleWeekdayEls.forEach(el=>{el.disabled=!!locked;});
     ['nmda-rule-start-date','nmda-rule-local-time','nmda-rule-skip-start','nmda-rule-skip-end'].forEach(id=>{const input=$(id),trigger=input?.closest('.nmda-smart-temporal')?.querySelector('[data-smart-temporal-open]');if(trigger)trigger.disabled=!!locked;});
-    if(locked)closeSmartTemporal();
+    if(locked){
+      closeSmartTemporal();
+      // Do not force a complete planning-matrix rebuild just to lock runtime controls.
+      // Full renders are expensive with hundreds of tasks; patch the existing DOM instead.
+      previewBodyEl?.querySelectorAll?.('[data-task-enabled],[data-task-schedule],[data-smart-temporal-open]')?.forEach?.(el=>{el.disabled=true;});
+    }
   }
 
   batchPauseEveryTimeEl?.addEventListener('change', () => {
@@ -8582,7 +8611,7 @@
         const task = dispatchTaskByKey(frozenTask.editKey) || frozenTask;
         if (task.status !== 'ready' || !task.enabled) continue;
         setDispatchRuntime(task,{status:'running',runtimeError:''});
-        scheduleBatchRender({aux:false,force:true});
+        patchPlanningTaskRuntime({...task,status:'running',runtimeError:''});
         const runIndex=succeeded+failed+1;
         const kindLabel=task.dispatchKind==='follow_up'?`Follow-up #${Math.max(1,Number(task.sequence||1))}`:'初始邮件';
         setBatchStatus(`正在处理 ${runIndex}/${executable.length} · ${kindLabel} · ${task.subject || '(无主题)'}${task.scheduleAt ? ` · 定时 ${scheduleValueForDisplay(task.scheduleAt,batch.scheduleRules||freshScheduleRules()).replace('T',' ')} · ${scheduleZoneText(batch.scheduleRules||freshScheduleRules())} 当地时间` : ' · 未定时'}`);
@@ -8636,14 +8665,17 @@
           succeeded++;
           const cleanupFailed = outcome.cleanup?.ok === false;
           await updateMailboxBatchMonitor({action:'task-done',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-succeeded-failed),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},message:cleanupFailed?'草稿已保存，但写信标签未关闭':'草稿已确认保存'});
-          scheduleBatchRender({aux:false,force:true});
+          patchPlanningTaskRuntime({...task,status:'done',runtimeError:'',note:notes.join('；')});
           if (cleanupFailed) {
             cleanupStopReason = `当前草稿已保存，但网易写信标签未能安全关闭：${outcome.cleanup.reason || '未知原因'}。为避免继续累积或误操作标签，批处理已停止。`;
             batch.stopRequested = true;
             setBatchStatus(cleanupStopReason, 'warn');
             break;
           }
-          await sleep(batch.fastCompose ? 60 : 300);
+          // Exact Compose cleanup is already the synchronization boundary. A long fixed
+          // post-mail sleep only creates visible dead time; yield briefly and let the next
+          // openFreshCompose() perform the provider readiness check.
+          await sleep(24);
         } catch (error) {
           console.error(`[${APP}] dispatch ${task.editKey}`, error);
           const message=error.message || String(error);
@@ -8659,7 +8691,7 @@
               }
             }catch(persistError){console.warn(`[${APP}] persist follow-up execution error failed`,persistError);}
           }
-          failed++; scheduleBatchRender({aux:false,force:true});
+          failed++; patchPlanningTaskRuntime({...task,status:'ready',runtimeError:message});
           await updateMailboxBatchMonitor({action:'task-error',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-succeeded-failed),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||''},message});
           setBatchStatus(`${kindLabel} 创建失败，已自动停止：${message}。为避免页面状态异常导致串稿，不继续执行后续任务。`, 'error');
           break;

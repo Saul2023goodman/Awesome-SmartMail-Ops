@@ -1388,13 +1388,15 @@
 
     interruptionGuard.setPhase('cleanup');
     reportProgress(executionId, 'cleanup', '草稿已保存，正在关闭本封网易写信标签…', { evidence: saveOutcome.evidence || '' });
+    // Save is already confirmed. Stop popup observation before tearing the Compose module
+    // down so MutationObserver work cannot compete with the close/next-open boundary.
+    stopComposeInterruptionGuard(executionId);
     const cleanup = await closeExactCompose(composeIdentity);
     if (!cleanup.ok) {
       reportProgress(executionId, 'cleanup-error', `草稿已保存，但写信标签未能安全关闭：${cleanup.reason || '未知原因'}`, { saved:true });
     } else {
       reportProgress(executionId, 'done', '草稿已确认保存，写信标签已关闭。', { evidence: saveOutcome.evidence || '' });
     }
-    stopComposeInterruptionGuard(executionId);
     return {
       ok: true,
       outcome: {
