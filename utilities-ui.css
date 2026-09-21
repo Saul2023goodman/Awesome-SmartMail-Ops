@@ -423,3 +423,94 @@
 #nmda-root.nmda-standalone .nmda-utility-monitor-page{
   overflow:visible !important;
 }
+
+/* v3.8.102 · Human-facing contact work views
+   Primary filters answer "what do I need to do now?"; secondary filters only
+   refine the active work queue. Mailbox taxonomy stays out of the main UI. */
+#nmda-root.nmda-standalone .nmda-monitor-work-views{
+  position:sticky;top:0;z-index:8;display:grid!important;gap:0!important;min-height:0!important;
+  padding:0!important;border:1px solid #dfe5ec!important;border-radius:13px!important;
+  background:rgba(255,255,255,.96)!important;box-shadow:0 5px 18px rgba(24,36,52,.055)!important;
+  backdrop-filter:blur(12px);
+}
+#nmda-root.nmda-standalone .nmda-monitor-filter-top{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:7px 8px;
+}
+#nmda-root.nmda-standalone .nmda-monitor-filter-label{display:grid;gap:1px;padding:0 4px;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-monitor-filter-label small{font-size:7.5px;font-weight:720;letter-spacing:.055em;color:#9aa4b0}
+#nmda-root.nmda-standalone .nmda-monitor-filter-label strong{font-size:10px;color:#425064}
+#nmda-root.nmda-standalone .nmda-monitor-filters{
+  min-width:0;display:flex!important;align-items:center!important;gap:4px!important;padding:3px!important;
+  border:0!important;border-radius:9px!important;background:#f2f5f8!important;overflow:auto;scrollbar-width:none;
+}
+#nmda-root.nmda-standalone .nmda-monitor-filters::-webkit-scrollbar{display:none}
+#nmda-root.nmda-standalone .nmda-monitor-filters button{
+  min-height:30px!important;display:inline-flex;align-items:center;gap:6px;padding:0 9px!important;border:1px solid transparent!important;
+  border-radius:7px!important;background:transparent!important;color:#637083!important;font-size:9px!important;font-weight:680!important;white-space:nowrap;
+}
+#nmda-root.nmda-standalone .nmda-monitor-filters button b{
+  min-width:17px;height:17px;display:inline-grid;place-items:center;padding:0 4px;border-radius:999px;background:#e4e9ef;color:#718093;font-size:7.5px;font-weight:760;
+}
+#nmda-root.nmda-standalone .nmda-monitor-filters button:hover{background:#fff!important;border-color:#dfe5ec!important}
+#nmda-root.nmda-standalone .nmda-monitor-filters button.is-active{
+  background:#fff!important;border-color:#cbd8e6!important;color:#244d78!important;box-shadow:0 1px 4px rgba(28,45,65,.06)!important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-filters button.is-active b{background:#e7f0fb;color:#245d96}
+#nmda-root.nmda-standalone .nmda-monitor-filter-tools{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0}
+#nmda-root.nmda-standalone .nmda-monitor-attempt-filter{
+  min-height:32px;display:flex;align-items:center;gap:5px;padding:0 7px;border:1px solid #dfe5ec;border-radius:8px;background:#fff;color:#8a95a2;white-space:nowrap;
+}
+#nmda-root.nmda-standalone .nmda-monitor-attempt-filter>span{font-size:7.5px;font-weight:650}
+#nmda-root.nmda-standalone .nmda-monitor-attempt-filter select{
+  max-width:92px;border:0;background:transparent;outline:0;color:#4f5e71;font-size:8px;font-weight:650;cursor:pointer;
+}
+#nmda-root.nmda-standalone .nmda-monitor-search{
+  width:min(250px,24vw)!important;min-height:32px!important;padding:0 9px!important;border-radius:8px!important;font-size:9px!important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-subfilters{
+  display:flex;align-items:center;gap:8px;padding:6px 9px;border-top:1px solid #edf1f4;background:#fbfcfd;
+}
+#nmda-root.nmda-standalone .nmda-monitor-subfilters[hidden]{display:none!important}
+#nmda-root.nmda-standalone .nmda-monitor-subfilters>span{font-size:7.7px;font-weight:720;color:#8b96a4;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-monitor-subfilters>div{display:flex;align-items:center;gap:4px;min-width:0;overflow:auto;scrollbar-width:none}
+#nmda-root.nmda-standalone .nmda-monitor-subfilters>div::-webkit-scrollbar{display:none}
+#nmda-root.nmda-standalone .nmda-monitor-subfilters button{
+  min-height:25px;display:inline-flex;align-items:center;gap:5px;padding:0 8px;border:1px solid #dfe5ec;border-radius:999px;background:#fff;color:#697789;font-size:8px;font-weight:650;white-space:nowrap;cursor:pointer;
+}
+#nmda-root.nmda-standalone .nmda-monitor-subfilters button:hover{border-color:#c6d3e0;background:#f8fbff}
+#nmda-root.nmda-standalone .nmda-monitor-subfilters button.is-active{border-color:#aac4df;background:#edf5fd;color:#285d91}
+#nmda-root.nmda-standalone .nmda-monitor-subfilters button b{font-size:7px;color:inherit}
+
+/* Ambiguous inbound: one complete action surface, with a direct route to the
+   actual mailbox message before asking the operator to classify it. */
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence{
+  display:grid!important;grid-template-columns:minmax(220px,.8fr) minmax(0,1.6fr);align-items:center!important;gap:12px!important;
+  padding:9px 12px!important;border-top:1px solid #eadfdb!important;background:#fffaf8!important;
+}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence-copy{min-width:0;display:grid!important;gap:2px!important}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence-copy small{font-size:7.5px;font-weight:750;letter-spacing:.04em;color:#a45d52}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence-copy strong{font-size:9.5px!important;color:#563d39!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence-copy span{font-size:7.6px!important;color:#9a7771!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence-actions{display:flex!important;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence-actions>span{font-size:7.4px!important;color:#9a857f!important}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence-actions>i{width:1px;height:17px;background:#eaded9}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence button{
+  min-height:26px;padding:0 8px!important;border:1px solid #dfd7d3!important;border-radius:7px!important;background:#fff!important;color:#6d5651!important;font-size:8px!important;font-weight:650;cursor:pointer;
+}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence button:hover{border-color:#cbbab4!important;background:#fffdfc!important}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence button.is-open{border-color:#b9cce2!important;background:#f5f9fe!important;color:#315f91!important}
+
+@media(max-width:1100px){
+  #nmda-root.nmda-standalone .nmda-monitor-filter-top{grid-template-columns:auto minmax(0,1fr)}
+  #nmda-root.nmda-standalone .nmda-monitor-filter-tools{grid-column:1/-1;justify-content:stretch}
+  #nmda-root.nmda-standalone .nmda-monitor-search{width:100%!important}
+  #nmda-root.nmda-standalone .nmda-monitor-reply-evidence{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-monitor-reply-evidence-actions{justify-content:flex-start}
+}
+@media(max-width:720px){
+  #nmda-root.nmda-standalone .nmda-monitor-filter-top{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-monitor-filter-label{display:none}
+  #nmda-root.nmda-standalone .nmda-monitor-filter-tools{grid-column:auto;flex-wrap:wrap}
+  #nmda-root.nmda-standalone .nmda-monitor-attempt-filter{flex:1}
+  #nmda-root.nmda-standalone .nmda-monitor-subfilters{align-items:flex-start;flex-direction:column}
+}

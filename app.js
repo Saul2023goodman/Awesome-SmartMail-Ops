@@ -1104,14 +1104,14 @@
                   </div>
                   <span class="nmda-contact-tree-link" aria-hidden="true"></span>
                   <div class="nmda-contact-tree-branches">
-                    <button type="button" data-monitor-summary-filter="replied" class="nmda-contact-tree-branch is-replied"><span>已有有效回复</span><strong id="nmda-monitor-contact-replied">0</strong><small>转人工沟通</small></button>
+                    <button type="button" data-monitor-summary-filter="attention" data-monitor-summary-subfilter="replied" class="nmda-contact-tree-branch is-replied"><span>已有有效回复</span><strong id="nmda-monitor-contact-replied">0</strong><small>转人工沟通</small></button>
                     <div class="nmda-contact-tree-unreplied">
                       <div class="nmda-contact-tree-unreplied-head"><span>尚未有效回复</span><strong id="nmda-monitor-contact-unreplied">0</strong></div>
                       <div class="nmda-contact-tree-outcomes">
-                        <button type="button" data-monitor-summary-filter="due"><small>现在需要跟进</small><strong id="nmda-monitor-contact-due">0</strong></button>
-                        <button type="button" data-monitor-summary-filter="waiting"><small>继续等待</small><strong id="nmda-monitor-contact-waiting">0</strong></button>
-                        <button type="button" data-monitor-summary-filter="waiting"><small>已安排发送</small><strong id="nmda-monitor-contact-scheduled">0</strong></button>
-                        <span><small>跟进已结束</small><strong id="nmda-monitor-contact-complete">0</strong></span>
+                        <button type="button" data-monitor-summary-filter="attention" data-monitor-summary-subfilter="due"><small>现在需要跟进</small><strong id="nmda-monitor-contact-due">0</strong></button>
+                        <button type="button" data-monitor-summary-filter="waiting" data-monitor-summary-subfilter="time"><small>继续等待</small><strong id="nmda-monitor-contact-waiting">0</strong></button>
+                        <button type="button" data-monitor-summary-filter="waiting" data-monitor-summary-subfilter="scheduled"><small>已安排发送</small><strong id="nmda-monitor-contact-scheduled">0</strong></button>
+                        <button type="button" data-monitor-summary-filter="complete"><small>跟进已结束</small><strong id="nmda-monitor-contact-complete">0</strong></button>
                       </div>
                     </div>
                   </div>
@@ -1139,15 +1139,32 @@
               <label class="nmda-monitor-history-window" title="只统计所选时间范围内的联系人历史。"><span>监测范围</span><select id="nmda-monitor-history-months"><option value="0">全部邮件</option><option value="3">最近 3 个月</option><option value="6">最近 6 个月</option><option value="9">最近 9 个月</option><option value="12">最近 12 个月</option><option value="18">最近 18 个月</option><option value="24">最近 24 个月</option></select></label>
             </div>
 
-            <div class="nmda-monitor-filterbar" id="nmda-monitor-filterbar">
-              <div class="nmda-monitor-filters" role="group" aria-label="联系人状态筛选">
-                <button type="button" data-monitor-filter="all" class="is-active">全部联系人</button>
-                <button type="button" data-monitor-filter="due">需要跟进</button>
-                <button type="button" data-monitor-filter="waiting">等待 / 已安排</button>
-                <button type="button" data-monitor-filter="replied">已有回复</button>
-                <button type="button" data-monitor-filter="blocked">需判断</button>
+            <div class="nmda-monitor-filterbar nmda-monitor-work-views" id="nmda-monitor-filterbar">
+              <div class="nmda-monitor-filter-top">
+                <div class="nmda-monitor-filter-label"><small>工作视图</small><strong id="nmda-monitor-filter-title">全部联系人</strong></div>
+                <div class="nmda-monitor-filters" role="group" aria-label="按当前工作状态查看联系人">
+                  <button type="button" data-monitor-filter="attention"><span>需要我处理</span><b data-monitor-filter-count="attention">0</b></button>
+                  <button type="button" data-monitor-filter="waiting"><span>等待中</span><b data-monitor-filter-count="waiting">0</b></button>
+                  <button type="button" data-monitor-filter="complete"><span>本轮结束</span><b data-monitor-filter-count="complete">0</b></button>
+                  <button type="button" data-monitor-filter="all" class="is-active"><span>全部</span><b data-monitor-filter-count="all">0</b></button>
+                </div>
+                <div class="nmda-monitor-filter-tools">
+                  <label class="nmda-monitor-attempt-filter"><span>已跟进</span><select id="nmda-monitor-attempts"><option value="all">不限次数</option><option value="0">0 次</option><option value="1">1 次</option><option value="2plus">2 次及以上</option></select></label>
+                  <input class="nmda-monitor-search" id="nmda-monitor-search" type="search" placeholder="搜索联系人、邮箱或主题">
+                </div>
               </div>
-              <input class="nmda-monitor-search" id="nmda-monitor-search" type="search" placeholder="搜索邮箱、联系人或主题">
+              <div class="nmda-monitor-subfilters" id="nmda-monitor-subfilters" hidden aria-label="细分当前工作视图">
+                <span id="nmda-monitor-subfilter-label">进一步查看</span>
+                <div role="group">
+                  <button type="button" data-monitor-subfilter="all" class="is-active">全部</button>
+                  <button type="button" data-monitor-subfilter="due" data-monitor-subfilter-for="attention">需要跟进 <b data-monitor-subfilter-count="due">0</b></button>
+                  <button type="button" data-monitor-subfilter="replied" data-monitor-subfilter-for="attention">处理回复 <b data-monitor-subfilter-count="replied">0</b></button>
+                  <button type="button" data-monitor-subfilter="ambiguous" data-monitor-subfilter-for="attention">确认来信 <b data-monitor-subfilter-count="ambiguous">0</b></button>
+                  <button type="button" data-monitor-subfilter="issue" data-monitor-subfilter-for="attention">其他待处理 <b data-monitor-subfilter-count="issue">0</b></button>
+                  <button type="button" data-monitor-subfilter="time" data-monitor-subfilter-for="waiting">等待时间 <b data-monitor-subfilter-count="time">0</b></button>
+                  <button type="button" data-monitor-subfilter="scheduled" data-monitor-subfilter-for="waiting">已安排发送 <b data-monitor-subfilter-count="scheduled">0</b></button>
+                </div>
+              </div>
             </div>
 
             <div class="nmda-monitor-bulkbar" id="nmda-monitor-bulkbar" hidden>
@@ -1758,7 +1775,7 @@
   }
 
 
-  const monitorState = { filter:'all', search:'', syncing:false, lastRenderAt:0, selectedRootIds:new Set() };
+  const monitorState = { filter:'all', subfilter:'all', attempts:'all', search:'', syncing:false, lastRenderAt:0, selectedRootIds:new Set() };
 
   function monitorEls() {
     return {
@@ -1857,8 +1874,8 @@
         : {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成 Follow-up',observation:effectiveReply,activeTask,humanManaged:group.humanManaged===true};
     }
     if(ambiguous)return scheduledDraft
-      ? {key:'blocked',tone:'blocked',label:'回复待判断 · 已有定时 Follow-up',detail:`先判断回复，并留意 ${Operations.formatDisplayTime(scheduledDraft.scheduleAt)} 的网易定时草稿`,observation:ambiguous,scheduledDraft,activeTask:null}
-      : {key:'blocked',tone:'blocked',label:'回复待判断',detail:ambiguous.subject||'需要人工确认',observation:ambiguous,activeTask};
+      ? {key:'blocked',tone:'blocked',label:'有来信待确认 · 已有定时 Follow-up',detail:`先查看这封来信，再决定是否保留 ${Operations.formatDisplayTime(scheduledDraft.scheduleAt)} 的定时发送`,observation:ambiguous,scheduledDraft,activeTask:null}
+      : {key:'blocked',tone:'blocked',label:'有来信待确认',detail:'请先查看来信，确认是否属于有效回复',observation:ambiguous,activeTask};
     if(activeTask?.state==='blocked')return {key:'blocked',tone:'blocked',label:'跟进已阻断',detail:activeTask.blocker?.kind==='human'?'已收到有效回复，需要人工回复':'需要处理阻断原因',activeTask};
     if(scheduledDraft){
       const sequence=Math.max(1,Number(scheduledDraft.sequence||scheduledDraft.observedSequence||group.eligibility?.sequence||1));
@@ -1902,18 +1919,19 @@
     const nodes=[{kind:'fact',title:'已经联系',value:sentAt,tone:'done'}];
     const effectiveReply=[...(group?.replies||[])].reverse().find(item=>Operations?.isEffectiveReplyObservation?.(item)||item.kind==='human')||group?.humanReply||null;
     const ambiguous=[...(group?.replies||[])].reverse().find(item=>item.kind==='ambiguous')||null;
+    const automatic=[...(group?.replies||[])].reverse().find(item=>item.kind==='automatic')||null;
     if(effectiveReply){
-      nodes.push({kind:'decision',title:'对方回复了吗？',value:'有',tone:'stop'});
+      nodes.push({kind:'decision',title:'有有效回复吗？',value:'有',tone:'stop'});
       if(st?.scheduledDraft)nodes.push({kind:'result',title:'需要你处理',value:'先处理回复与已安排邮件',tone:'warn'});
       else nodes.push({kind:'result',title:'下一步',value:'转人工回复，不再自动跟进',tone:'reply'});
       return nodes;
     }
     if(ambiguous){
-      nodes.push({kind:'decision',title:'对方回复了吗？',value:'需要判断',tone:'warn'});
-      nodes.push({kind:'result',title:'下一步',value:'先确认这封回复的性质',tone:'warn'});
+      nodes.push({kind:'decision',title:'发现一封来信',value:'需要确认',tone:'warn'});
+      nodes.push({kind:'result',title:'下一步',value:'查看来信后确认是否停止跟进',tone:'warn'});
       return nodes;
     }
-    nodes.push({kind:'decision',title:'对方回复了吗？',value:'没有',tone:'pass'});
+    nodes.push({kind:'decision',title:'有有效回复吗？',value:automatic?'没有 · 自动回复不计入':'没有',tone:'pass'});
     const scheduled=st?.scheduledDraft||eligibility.scheduledDraft||null;
     if(scheduled){
       nodes.push({kind:'decision',title:'已有后续安排吗？',value:'有',tone:'scheduled'});
@@ -1996,10 +2014,114 @@
     return {total,replied,blocked,due,creatable,prepared,scheduled,waiting,complete,followUps,unreplied:Math.max(0,total-replied)};
   }
 
+  function monitorHasEffectiveReply(group) {
+    return !!((group?.replies||[]).some(reply=>Operations?.isEffectiveReplyObservation?.(reply)||reply?.kind==='human')||group?.humanReply);
+  }
+
+  function monitorIsComplete(group) {
+    return group?.eligibility?.reason==='max-attempts-reached';
+  }
+
+  function monitorHasAmbiguousReply(group) {
+    return group?.viewState?.observation?.kind==='ambiguous';
+  }
+
+  function monitorQueueFor(group) {
+    if(monitorIsComplete(group))return 'complete';
+    const st=group?.viewState||{};
+    if(st.key==='due'||st.key==='blocked'||monitorHasEffectiveReply(group))return 'attention';
+    return 'waiting';
+  }
+
+  function monitorMatchesQueue(group, filter='all') {
+    const key=filter||'all';
+    return key==='all' || monitorQueueFor(group)===key;
+  }
+
+  function monitorMatchesSubfilter(group, subfilter='all') {
+    const key=subfilter||'all', st=group?.viewState||{};
+    if(key==='all')return true;
+    if(key==='due')return st.key==='due';
+    if(key==='replied')return monitorHasEffectiveReply(group);
+    if(key==='ambiguous')return monitorHasAmbiguousReply(group);
+    if(key==='issue')return monitorQueueFor(group)==='attention' && st.key!=='due' && !monitorHasEffectiveReply(group) && !monitorHasAmbiguousReply(group);
+    if(key==='time')return monitorQueueFor(group)==='waiting' && st.tone!=='scheduled';
+    if(key==='scheduled')return st.tone==='scheduled';
+    return true;
+  }
+
+  function monitorMatchesAttempts(group, attempts='all') {
+    const key=attempts||'all';
+    if(key==='all')return true;
+    const count=Math.max(0,Number(group?.completedFollowUps||0));
+    if(key==='2plus')return count>=2;
+    return count===Math.max(0,Number(key||0));
+  }
+
+  function monitorDisplayReplySubject(value='', group=null, observation=null) {
+    const raw=String(value||'').trim();
+    if(!raw)return '(无主题)';
+    // Some mailbox list variants decorate auto-response subjects even when the
+    // opened message displays the normal thread subject. Keep that raw value for
+    // deterministic classification, but do not present the provider decoration as
+    // if SmartMail edited the user's subject.
+    const cleaned=raw.replace(/^\s*(?:(?:automatic(?:ally)?|automated|auto(?:matic)?)\s*(?:reply|response)|auto[- ]?response)\s*[:：-]\s*/i,'').trim();
+    if(cleaned&&cleaned!==raw&&group){
+      const related=(group.outbounds||[]).find(record=>String(record?.id||'')===String(observation?.relatedOutboundId||''))||group.lastOutbound||null;
+      const relatedSubject=String(related?.subject||'').trim();
+      if(relatedSubject&&Operations?.subjectThreadKey?.(cleaned)===Operations?.subjectThreadKey?.(relatedSubject))return relatedSubject;
+    }
+    return cleaned||raw;
+  }
+
+  function syncMonitorFilterControls(enriched=[]) {
+    const counts={
+      all:enriched.length,
+      attention:enriched.filter(item=>monitorQueueFor(item)==='attention').length,
+      waiting:enriched.filter(item=>monitorQueueFor(item)==='waiting').length,
+      complete:enriched.filter(item=>monitorQueueFor(item)==='complete').length
+    };
+    ui.querySelectorAll('[data-monitor-filter-count]').forEach(el=>{const key=el.dataset.monitorFilterCount||'all';el.textContent=String(counts[key]||0);});
+    ui.querySelectorAll('[data-monitor-filter]').forEach(item=>item.classList.toggle('is-active',(item.dataset.monitorFilter||'all')===monitorState.filter));
+    const titles={all:'全部联系人',attention:'需要我处理',waiting:'等待中的联系人',complete:'本轮跟进已结束'};
+    const title=$('nmda-monitor-filter-title');if(title)title.textContent=titles[monitorState.filter]||titles.all;
+    const attempts=$('nmda-monitor-attempts');if(attempts&&document.activeElement!==attempts)attempts.value=monitorState.attempts||'all';
+    const sub=$('nmda-monitor-subfilters');
+    const showSub=monitorState.filter==='attention'||monitorState.filter==='waiting';
+    if(sub)sub.hidden=!showSub;
+    const subLabel=$('nmda-monitor-subfilter-label');if(subLabel)subLabel.textContent=monitorState.filter==='attention'?'待办类型':(monitorState.filter==='waiting'?'等待类型':'进一步查看');
+    const subCounts={
+      due:enriched.filter(item=>monitorQueueFor(item)==='attention'&&monitorMatchesSubfilter(item,'due')).length,
+      replied:enriched.filter(item=>monitorQueueFor(item)==='attention'&&monitorMatchesSubfilter(item,'replied')).length,
+      ambiguous:enriched.filter(item=>monitorQueueFor(item)==='attention'&&monitorMatchesSubfilter(item,'ambiguous')).length,
+      issue:enriched.filter(item=>monitorQueueFor(item)==='attention'&&monitorMatchesSubfilter(item,'issue')).length,
+      time:enriched.filter(item=>monitorQueueFor(item)==='waiting'&&monitorMatchesSubfilter(item,'time')).length,
+      scheduled:enriched.filter(item=>monitorQueueFor(item)==='waiting'&&monitorMatchesSubfilter(item,'scheduled')).length
+    };
+    ui.querySelectorAll('[data-monitor-subfilter-count]').forEach(el=>{const key=el.dataset.monitorSubfilterCount||'';el.textContent=String(subCounts[key]||0);});
+    ui.querySelectorAll('[data-monitor-subfilter]').forEach(button=>{
+      const forFilter=button.dataset.monitorSubfilterFor||'';
+      button.hidden=!!forFilter&&forFilter!==monitorState.filter;
+      button.classList.toggle('is-active',(button.dataset.monitorSubfilter||'all')===monitorState.subfilter);
+    });
+  }
+
+  function monitorMatchesCurrentFilters(item, query='') {
+    if(!monitorMatchesQueue(item,monitorState.filter))return false;
+    if(!monitorMatchesSubfilter(item,monitorState.subfilter))return false;
+    if(!monitorMatchesAttempts(item,monitorState.attempts))return false;
+    const normalized=String(query||'').toLocaleLowerCase('zh-CN').trim();
+    if(!normalized)return true;
+    const identity=monitorContactIdentity(item);
+    const replyText=(item.replies||[]).map(reply=>`${reply?.sender||''} ${monitorDisplayReplySubject(reply?.subject||'')}`).join(' ');
+    const hay=[identity.name,identity.email,item.lastOutbound?.subject,item.viewState?.label,item.viewState?.detail,replyText].join(' ').toLocaleLowerCase('zh-CN');
+    return normalized.split(/\s+/).every(token=>hay.includes(token));
+  }
+
   function monitorContactStatusLabel(group) {
     const st=group?.viewState||{};
     if(st.key==='replied')return '已有回复';
-    if(st.key==='blocked')return st.observation?.kind==='ambiguous'?'回复待判断':'需要处理';
+    if(st.key==='blocked')return st.observation?.kind==='ambiguous'?'需要确认来信':'需要处理';
     if(st.key==='due')return st.activeTask?'跟进已准备':'需要跟进';
     if(st.tone==='scheduled')return '已安排跟进';
     if(group?.eligibility?.reason==='max-attempts-reached')return '跟进已结束';
@@ -2066,14 +2188,9 @@
       els.syncCopy.textContent=last?`上次更新 ${Operations.formatDisplayTime(last)} · ${historyCopy}`:`尚未更新联系人状态 · ${historyCopy}`;
     }
 
+    syncMonitorFilterControls(enriched);
     const query=String(monitorState.search||'').toLocaleLowerCase('zh-CN').trim();
-    const visible=enriched.filter(item=>{
-      if(monitorState.filter!=='all' && item.viewState.key!==monitorState.filter)return false;
-      if(!query)return true;
-      const identity=monitorContactIdentity(item);
-      const hay=[identity.name,identity.email,item.lastOutbound?.subject,item.viewState.label,item.viewState.detail].join(' ').toLocaleLowerCase('zh-CN');
-      return query.split(/\s+/).every(token=>hay.includes(token));
-    });
+    const visible=enriched.filter(item=>monitorMatchesCurrentFilters(item,query));
     const selected=pruneMonitorSelection(enriched);
     const visibleCreatable=visible.filter(monitorCreatable);
     const allCreatable=enriched.filter(monitorCreatable);
@@ -2089,7 +2206,7 @@
 
     if(els.list){
       if(!visible.length){
-        els.list.innerHTML=`<div class="nmda-monitor-empty"><div><strong>${groups.length?'当前筛选没有联系人':'尚无已联系联系人'}</strong><small>${groups.length?'切换联系人状态筛选，或清空搜索。':'连接网易邮箱并更新状态后，这里会按联系人邮箱汇总联系与跟进进度。'}</small></div></div>`;
+        els.list.innerHTML=`<div class="nmda-monitor-empty"><div><strong>${groups.length?'当前视图没有联系人':'尚无已联系联系人'}</strong><small>${groups.length?'切换工作视图、调整已跟进次数，或清空搜索。':'连接网易邮箱并更新状态后，这里会按联系人邮箱汇总联系与跟进进度。'}</small></div></div>`;
       }else{
         els.list.innerHTML=visible.map(group=>{
           const last=group.lastOutbound, st=group.viewState, active=st.activeTask;
@@ -2114,9 +2231,12 @@
             : `<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" disabled>查看最近邮件</button>`);
 
           let evidence='';
-          const ambiguous=(group.replies||[]).filter(obs=>obs.kind==='ambiguous').slice(-1)[0];
+          const ambiguous=st.observation?.kind==='ambiguous'?st.observation:null;
           if(ambiguous){
-            evidence=`<div class="nmda-monitor-reply-evidence"><div><strong>这位联系人的回复需要判断</strong><span>${escapeHtml(ambiguous.sender||identity.email)} · ${escapeHtml(ambiguous.subject||'(无主题)')}</span></div><div><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="human">这是有效回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="automatic">自动回复，忽略</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="unrelated">与此联系人无关</button></div></div>`;
+            const replyMessageId=String(ambiguous.providerMessageId||'').trim();
+            const replySubject=monitorDisplayReplySubject(ambiguous.subject||'',group,ambiguous);
+            const replyWhen=Operations.formatDisplayTime(ambiguous.receivedAt||'');
+            evidence=`<div class="nmda-monitor-reply-evidence"><div class="nmda-monitor-reply-evidence-copy"><small>需要你确认一封来信</small><strong>${escapeHtml(replySubject)}</strong><span>${escapeHtml(ambiguous.sender||identity.email)}${replyWhen&&replyWhen!=='—'?` · ${escapeHtml(replyWhen)}`:''}</span></div><div class="nmda-monitor-reply-evidence-actions"><button class="is-open" type="button" data-monitor-open-mail="${escapeHtml(replyMessageId)}">${replyMessageId?'查看这封来信':'打开收件箱'}</button><i aria-hidden="true"></i><span>确认后：</span><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="human">计为有效回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="automatic">这是自动回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="unrelated">不属于这次联系</button></div></div>`;
           }
           const selectable=monitorCreatable(group);
           const selectionCell=selectable?`<label class="nmda-monitor-card-select" title="选择这位联系人"><input type="checkbox" data-monitor-select="${escapeHtml(group.rootTaskId)}" ${selected.has(group.rootTaskId)?'checked':''}><span>选择</span></label>`:'';
@@ -2155,11 +2275,14 @@
 
   async function loadMonitoring() {
     await ensureOperationStore();
-    // Entering Follow-up monitoring always starts from the complete monitored set.
+    // Entering monitoring starts from the full contact set; secondary filters are
+    // explicit so the user is never silently dropped into a hidden subset.
     monitorState.filter='all';
+    monitorState.subfilter='all';
+    monitorState.attempts='all';
     monitorState.search='';
     const search=$('nmda-monitor-search');if(search)search.value='';
-    ui.querySelectorAll('[data-monitor-filter]').forEach(item=>item.classList.toggle('is-active',(item.dataset.monitorFilter||'all')==='all'));
+    const attempts=$('nmda-monitor-attempts');if(attempts)attempts.value='all';
     renderMonitoring();
   }
 
@@ -2350,17 +2473,23 @@
     const overlay=$('nmda-monitor-settings-overlay');if(overlay)overlay.hidden=true;
   }
 
-  function setMonitorFilter(filter='all',{clearSearch=false,scrollToList=false}={}) {
-    monitorState.filter=filter||'all';
+  function setMonitorFilter(filter='all',{subfilter='all',clearSearch=false,scrollToList=false}={}) {
+    monitorState.filter=['all','attention','waiting','complete'].includes(filter)?filter:'all';
+    monitorState.subfilter=subfilter||'all';
+    monitorState.attempts='all';
     if(clearSearch){
       monitorState.search='';
       const search=$('nmda-monitor-search');if(search)search.value='';
     }
-    ui.querySelectorAll('[data-monitor-filter]').forEach(item=>item.classList.toggle('is-active',(item.dataset.monitorFilter||'all')===monitorState.filter));
     renderMonitoring();
     if(scrollToList){
       requestAnimationFrame(()=>($('nmda-monitor-filterbar')||$('nmda-monitor-list'))?.scrollIntoView?.({behavior:'smooth',block:'start'}));
     }
+  }
+
+  function setMonitorSubfilter(subfilter='all') {
+    monitorState.subfilter=subfilter||'all';
+    renderMonitoring();
   }
 
   function bindMonitoringUI() {
@@ -2393,21 +2522,19 @@
     $('nmda-monitor-template-sync')?.addEventListener('change',renderMonitorFollowUpTemplate);
     $('nmda-monitor-save-template')?.addEventListener('click',()=>void saveMonitorFollowUpTemplate());
     ui.querySelectorAll('[data-monitor-filter]').forEach(button=>button.addEventListener('click',()=>setMonitorFilter(button.dataset.monitorFilter||'all')));
-    ui.querySelectorAll('[data-monitor-summary-filter]').forEach(button=>button.addEventListener('click',()=>setMonitorFilter(button.dataset.monitorSummaryFilter||'all',{clearSearch:true,scrollToList:true})));
+    ui.querySelectorAll('[data-monitor-subfilter]').forEach(button=>button.addEventListener('click',()=>setMonitorSubfilter(button.dataset.monitorSubfilter||'all')));
+    ui.querySelectorAll('[data-monitor-summary-filter]').forEach(button=>button.addEventListener('click',()=>setMonitorFilter(button.dataset.monitorSummaryFilter||'all',{subfilter:button.dataset.monitorSummarySubfilter||'all',clearSearch:true,scrollToList:true})));
     $('nmda-monitor-due-summary')?.addEventListener('click',event=>{
       const summary=event.currentTarget;if(summary.disabled)return;
-      setMonitorFilter('due',{clearSearch:true,scrollToList:true});
+      setMonitorFilter('attention',{subfilter:'due',clearSearch:true,scrollToList:true});
     });
+    $('nmda-monitor-attempts')?.addEventListener('change',event=>{monitorState.attempts=event.currentTarget.value||'all';renderMonitoring();});
     $('nmda-monitor-search')?.addEventListener('input',event=>{monitorState.search=event.currentTarget.value||'';renderMonitoring();});
     $('nmda-monitor-select-visible')?.addEventListener('change',event=>{
       const selected=monitorSelectedIds();
       const groups=Operations.monitoringRoots(operationState.store).map(group=>({...group,viewState:monitorGroupState(group)}));
       const query=String(monitorState.search||'').toLocaleLowerCase('zh-CN').trim();
-      const visible=groups.filter(item=>{
-        if(monitorState.filter!=='all'&&item.viewState.key!==monitorState.filter)return false;
-        if(query){const identity=monitorContactIdentity(item);const hay=[identity.name,identity.email,item.lastOutbound?.subject,item.viewState.label,item.viewState.detail].join(' ').toLocaleLowerCase('zh-CN');if(!query.split(/\s+/).every(token=>hay.includes(token)))return false;}
-        return monitorCreatable(item);
-      });
+      const visible=groups.filter(item=>monitorMatchesCurrentFilters(item,query)&&monitorCreatable(item));
       visible.forEach(item=>event.currentTarget.checked?selected.add(item.rootTaskId):selected.delete(item.rootTaskId));
       renderMonitoring();
     });
@@ -8398,7 +8525,7 @@
       try{localStorage.removeItem(MAILBOX_HISTORY_MONTHS_KEY);localStorage.removeItem(FOLLOWUP_PREFS_KEY);localStorage.removeItem(SCHEDULE_PREFS_KEY);}catch(_){}
 
       dispatchRuntime?.clear?.();
-      monitorSelectedIds().clear();monitorState.filter='all';monitorState.search='';monitorState.syncing=false;monitorState.lastRenderAt=0;
+      monitorSelectedIds().clear();monitorState.filter='all';monitorState.subfilter='all';monitorState.attempts='all';monitorState.search='';monitorState.syncing=false;monitorState.lastRenderAt=0;
       const monitorSearch=$('nmda-monitor-search');if(monitorSearch)monitorSearch.value='';
       const template=$('nmda-monitor-template-body');if(template){template.value='';template.dataset.dirty='0';template.dataset.initialized='0';}
       const syncTemplate=$('nmda-monitor-template-sync');if(syncTemplate)syncTemplate.checked=true;

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.101",
-  "description": "SmartMail Ops — Contact-centric mail monitoring: current progress is summarized per contact while full mail history remains available, with replies, follow-up counts, due actions, and user-facing decision paths.",
+  "version": "3.8.102",
+  "description": "SmartMail Ops — Contact-centric monitoring with action-oriented work views, direct reply inspection, non-blocking auto-reply handling, follow-up counts, and user-facing decision paths.",
   "permissions": [
     "scripting",
     "tabs",

@@ -741,8 +741,15 @@
         subjectMatch: best.subjectMatch,
         referenceMatch: best.referenceMatch
       });
-      const strong = best.subjectMatch || best.score >= 12 || best.referenceMatch || (classified.kind === 'automatic' && candidates.length === 1);
-      const kind = strong ? classified.kind : 'ambiguous';
+      // Automatic replies are non-blocking mailbox facts. Their exact parent outbound
+      // does not need human resolution when the sender/contact is already known: the
+      // follow-up workflow only needs to know that the inbound is not an effective
+      // human reply. Previously, an explicit auto-reply could be downgraded to
+      // `ambiguous` merely because the same contact had multiple historical outbounds,
+      // which surfaced a confusing manual-review banner in Monitoring.
+      const automaticNonBlocking = classified.kind === 'automatic';
+      const strong = best.subjectMatch || best.score >= 12 || best.referenceMatch || automaticNonBlocking;
+      const kind = automaticNonBlocking ? 'automatic' : (strong ? classified.kind : 'ambiguous');
       const observation = {
         id: obsId,
         providerMessageId: inbound.providerMessageId || '',
@@ -755,7 +762,9 @@
         relatedOutboundId: best.outbound.id,
         evidence: {
           ...classified.evidence,
-          association: strong ? (best.subjectMatch ? 'sender+subject' : 'provider-reference') : 'sender-only',
+          association: strong
+            ? (best.subjectMatch ? 'sender+subject' : (best.referenceMatch ? 'provider-reference' : (automaticNonBlocking ? 'sender+automatic-nonblocking' : 'sender+time')))
+            : 'sender-only',
           score: best.score,
           inboundId: inbound.id,
           candidates: candidates.slice(0, 4).map(item => ({ outboundId: item.outbound.id, rootTaskId: item.outbound.rootTaskId, score: item.score }))
