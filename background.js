@@ -1081,60 +1081,114 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return chrome.tabs.sendMessage(tabId, message);
     }
     if (message?.type === 'NMDA_DRAFT_ATTACHMENT_SEED_NATIVE_DELETE') {
-      return runMain(tabId, identityArg => new Promise(resolve => {
+      const identity = message.identity || {};
+      const seedDraftId = String(message.draftId || identity.did || '');
+      const nativeAttempt = await runMain(tabId, (identityArg, draftIdArg) => new Promise(resolve => {
         try {
           const identity=identityArg||{};
           const targetName=String(identity.name||'');
+          const seedDid=String(draftIdArg||identity.did||'');
           const group=window.$?.JS?.modules?.['compose.ComposeModule']||{};
           const target=targetName ? (Object.values(group).filter(Boolean).find(mod=>String(mod?.name||'')===targetName)||null) : null;
           const cid=String(target?.info?.get?.({cid:true})||identity.cid||'');
-          const did=String(target?.info?.get?.({did:true})||identity.did||'');
-          if(!cid)return resolve({ok:false,reason:'seed-compose-cid-missing',draftId:did});
+          const did=String(target?.info?.get?.({did:true})||seedDid||'');
 
+          const closeModule=()=>{
+            if(!target)return {removed:true,moduleAlreadyGone:true};
+            try{target.info?.set?.({cid:''});target.info?.set?.({did:''});}catch(_){}
+            if(!window.$?.MultiTab?.remove)return {removed:false,moduleStillOpen:true};
+            try{window.$.MultiTab.remove(target);return {removed:true};}catch(error){return {removed:false,moduleStillOpen:true,closeWarning:error?.message||String(error)};}
+          };
           const finish=(response,method)=>{
             try{
               const success=window.$?.S_OK;
               if(response?.code!==undefined&&success!==undefined&&response.code!==success){
                 return resolve({ok:false,reason:`mbox:cancelComposes code=${String(response.code)}`,code:response.code,cid,draftId:did,method});
               }
-              if(!target)return resolve({ok:true,method,cid,draftId:did,removed:true,moduleAlreadyGone:true});
-              try{target.info?.set?.({cid:''});target.info?.set?.({did:''});}catch(_){}
-              if(!window.$?.MultiTab?.remove)return resolve({ok:true,method,cid,draftId:did,removed:false,moduleStillOpen:true});
-              try{window.$.MultiTab.remove(target);}catch(_){}
-              const started=Date.now();
-              const check=()=>{
-                try{
-                  const current=window.$?.JS?.modules?.['compose.ComposeModule']||{};
-                  const exists=targetName&&Object.values(current).some(mod=>String(mod?.name||'')===targetName);
-                  if(!exists)return resolve({ok:true,method,cid,draftId:did,removed:true});
-                  if(Date.now()-started>=3500)return resolve({ok:true,method,cid,draftId:did,removed:false,moduleStillOpen:true});
-                  setTimeout(check,80);
-                }catch(error){resolve({ok:true,method,cid,draftId:did,removed:false,moduleStillOpen:true,closeWarning:error?.message||String(error)});}
-              };
-              setTimeout(check,60);
+              return resolve({ok:true,method,cid,draftId:did,...closeModule()});
             }catch(error){resolve({ok:false,reason:error?.message||String(error),cid,draftId:did,method});}
           };
 
-          // Prefer the exact native ComposeAction contract when the seed module is still alive.
+          // First try the exact live ComposeModule route. A provider success here is only an
+          // acknowledgement; the outer handler will still verify that the Draft MID vanished.
           if(typeof target?.action?.cancelId==='function'){
-            target.action.cancelId({deleteDraft:true,callback:response=>finish(response,'native-cancelId-deleteDraft')});
+            let settled=false;
+            const timer=setTimeout(()=>{if(!settled){settled=true;resolve({ok:false,reason:'native-cancelId-timeout',cid,draftId:did});}},10000);
+            try{
+              target.action.cancelId({deleteDraft:true,callback:response=>{if(settled)return;settled=true;clearTimeout(timer);finish(response,'native-cancelId-deleteDraft');}});
+            }catch(error){if(!settled){settled=true;clearTimeout(timer);resolve({ok:false,reason:error?.message||String(error),cid,draftId:did});}}
             return;
           }
 
-          // The user may have switched/closed the seed module before cleanup. The CID remains
-          // the provider-owned handle, so use the same native WMSVR contract directly rather
-          // instead of using the mailbox-level deletion path.
+          if(!cid)return resolve({ok:false,reason:'seed-compose-cid-missing',draftId:did});
           if(!window.$?.DataAction)return resolve({ok:false,reason:'$.DataAction unavailable for seed cleanup',cid,draftId:did});
           const action=new window.$.DataAction();
+          let settled=false;
+          const timer=setTimeout(()=>{if(!settled){settled=true;resolve({ok:false,reason:'direct-cancelComposes-timeout',cid,draftId:did});}},10000);
           action.wmsvr({
             func:'mbox:cancelComposes',
             body:{ids:[cid],deleteDraft:true},
             ignoreError:true,
-            call(response){finish(response,'direct-cancelComposes-deleteDraft');},
-            error(error){resolve({ok:false,reason:error?.message||error?.code||'mbox:cancelComposes failed',code:error?.code,cid,draftId:did});}
+            call(response){if(settled)return;settled=true;clearTimeout(timer);finish(response,'direct-cancelComposes-deleteDraft');},
+            error(error){if(settled)return;settled=true;clearTimeout(timer);resolve({ok:false,reason:error?.message||error?.code||'mbox:cancelComposes failed',code:error?.code,cid,draftId:did});}
           });
         }catch(error){resolve({ok:false,reason:error?.message||String(error)});}
-      }), [message.identity || {}]);
+      }), [identity, seedDraftId]);
+
+      const candidateDraftId = String(seedDraftId || nativeAttempt?.draftId || '');
+      if (!candidateDraftId) return nativeAttempt?.ok ? {ok:false,reason:'seed-draft-id-missing-after-delete-ack',nativeAttempt} : nativeAttempt;
+
+      const normalizeId = value => { const raw=String(value||''); return raw.includes(':') ? raw.split(':').pop() : raw; };
+      const sameId = (a,b) => String(a||'')===String(b||'') || normalizeId(a)===normalizeId(b);
+      const verifyGone = async () => {
+        const drafts = await readMailbox(tabId, 2, 250, 0);
+        if (!drafts?.ok) return {ok:false,reason:drafts?.reason||'seed-cleanup-verify-read-failed'};
+        const found = (drafts.messages||[]).find(item=>sameId(item?.id,candidateDraftId));
+        return {ok:true,gone:!found,found:found?{id:String(found.id||''),subject:String(found.subject||''),savedAt:String(found.savedAt||'')}:null};
+      };
+
+      // Provider callbacks can acknowledge the compose cancellation before the saved Draft MID
+      // is actually removed. Never report cleanup success until the mailbox confirms absence.
+      for (let attempt=0; attempt<4; attempt++) {
+        if (attempt) await new Promise(resolve=>setTimeout(resolve,180*(attempt+1)));
+        const verified = await verifyGone();
+        if (verified?.ok && verified.gone) return {ok:true,verified:true,draftId:candidateDraftId,method:nativeAttempt?.method||'native-delete',nativeAttempt};
+      }
+
+      // Fallback onto the same provider-native path that successfully removes original drafts:
+      // restore the exact MID to obtain a fresh CID, then cancel that CID with deleteDraft=true.
+      const fallback = await runMain(tabId, draftIdArg => new Promise(async resolve => {
+        const successCode=window.$?.S_OK;
+        const request=(func,body)=>new Promise(res=>{
+          let settled=false;
+          const done=value=>{if(settled)return;settled=true;clearTimeout(timer);res(value||{});};
+          const timer=setTimeout(()=>done({__error:true,reason:`${func} timeout`,code:'NMDA_TIMEOUT'}),15000);
+          try{
+            const action=new window.$.DataAction();
+            action.wmsvr({func,body,ignoreError:true,call(response){done(response||{});},error(error){done({__error:true,reason:error?.message||error?.code||`${func} failed`,code:error?.code});}});
+          }catch(error){done({__error:true,reason:error?.message||String(error)});}
+        });
+        const ok=response=>!response?.__error&&(response?.code===undefined||successCode===undefined||response.code===successCode);
+        try{
+          const restored=await request('mbox:restoreDraft',{id:String(draftIdArg)});
+          // If restore says the MID no longer exists, the deletion has already propagated.
+          if(!ok(restored)||!restored?.var?.id){
+            const code=String(restored?.code||'');
+            if(/ID_NOT_FOUND|NOT_FOUND/i.test(code))return resolve({ok:true,alreadyGone:true,code});
+            return resolve({ok:false,reason:restored?.reason||`mbox:restoreDraft code=${code||'unknown'}`,code:restored?.code});
+          }
+          const freshCid=String(restored.var.id||'');
+          const deleted=await request('mbox:cancelComposes',{ids:[freshCid],deleteDraft:true});
+          resolve({ok:ok(deleted),method:'restore-fresh-cid-deleteDraft',cid:freshCid,code:deleted?.code,reason:ok(deleted)?'':(deleted?.reason||`mbox:cancelComposes code=${String(deleted?.code)}`)});
+        }catch(error){resolve({ok:false,reason:error?.message||String(error)});}
+      }), [candidateDraftId]);
+
+      for (let attempt=0; attempt<6; attempt++) {
+        if (attempt) await new Promise(resolve=>setTimeout(resolve,220*(attempt+1)));
+        const verified = await verifyGone();
+        if (verified?.ok && verified.gone) return {ok:true,verified:true,draftId:candidateDraftId,method:fallback?.method||'fallback-delete',nativeAttempt,fallback};
+      }
+      return {ok:false,reason:'temporary-seed-still-present-after-delete',draftId:candidateDraftId,nativeAttempt,fallback};
     }
     if (message?.type === 'NMDA_COMPOSE_IDENTITY') {
       return runMain(tabId, () => {

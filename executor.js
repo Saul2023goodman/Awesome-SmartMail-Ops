@@ -1292,10 +1292,12 @@
     const executionId = String(message?.executionId || '');
     const identity = message?.identity || {};
     const targetName = String(identity.name || '');
-    if (!targetName) return {ok:false,reason:'seed-compose-identity-missing'};
+    const draftId = String(message?.draftId || identity?.did || '');
+    if (!targetName && !draftId) return {ok:false,reason:'seed-compose-identity-and-draft-id-missing'};
     const result = await chrome.runtime.sendMessage({
       type:'NMDA_DRAFT_ATTACHMENT_SEED_NATIVE_DELETE',
-      identity
+      identity,
+      draftId
     });
     if (!result?.ok) return result || {ok:false,reason:'seed-native-delete-failed'};
     if (executionId) activeDraftAttachmentSeedIdentities.delete(executionId);

@@ -4299,16 +4299,17 @@
       await worker();
       throwIfDraftAttachmentCancelled();
 
-      if(seedIdentity){
-        for(let attempt=0;attempt<3&&seedIdentity;attempt++){
+      if(seedIdentity||seedDraftId){
+        setDraftAttachmentProgress('草稿已替换，正在删除一次性附件源并确认草稿箱中不再残留…');
+        for(let attempt=0;attempt<2&&(seedIdentity||seedDraftId);attempt++){
           if(attempt)await new Promise(resolve=>setTimeout(resolve,180*(attempt+1)));
           throwIfDraftAttachmentCancelled();
           const cleanup=await awaitDraftAttachmentStep(
-            chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',executionId,identity:seedIdentity}).catch(error=>({ok:false,reason:error?.message||String(error)})),
-            executionId,15000,'清理临时附件源'
+            chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',executionId,identity:seedIdentity||{},draftId:seedDraftId}).catch(error=>({ok:false,reason:error?.message||String(error)})),
+            executionId,45000,'清理并核验临时附件源'
           );
-          if(cleanup?.ok){seedIdentity=null;seedDraftId='';}
-          else if(attempt===2)seedCleanupWarning=`临时附件源未能自动清理（${cleanup?.reason||'unknown'}），请在草稿箱手动删除。`;
+          if(cleanup?.ok&&cleanup?.verified!==false){seedIdentity=null;seedDraftId='';}
+          else if(attempt===1)seedCleanupWarning=`临时附件源未能确认删除（${cleanup?.reason||'unknown'}），请在草稿箱核对。`;
         }
       }
       throwIfDraftAttachmentCancelled();
@@ -4368,10 +4369,13 @@
         setDraftAttachmentUtilityResult(`${error?.message||String(error)} 已请求停止后台执行；可以重新检查草稿状态后再试。`,'error');
       }
     }finally{
-      if(seedIdentity){
+      if(seedIdentity||seedDraftId){
+        // Final safety cleanup is intentionally allowed to outlive the visible run. The
+        // provider can acknowledge cancellation before the Draft MID disappears, so give
+        // the verified cleanup transaction enough time to restore/delete/recheck once more.
         await Promise.race([
-          chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',executionId,identity:seedIdentity}).catch(()=>null),
-          new Promise(resolve=>setTimeout(()=>resolve(null),5000))
+          chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',executionId,identity:seedIdentity||{},draftId:seedDraftId}).catch(()=>null),
+          new Promise(resolve=>setTimeout(()=>resolve(null),30000))
         ]);
       }
       executionProgressHandlers.delete(executionId);
