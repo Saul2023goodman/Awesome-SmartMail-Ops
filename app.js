@@ -3766,7 +3766,7 @@
     if(!targets.length)return;
     draftAttachmentTool.running=true;renderDraftAttachmentTool();setDraftAttachmentUtilityResult('');
     const executionId=crypto.randomUUID();
-    let refs=[],seedDraftId='',seedCleanupWarning='';
+    let refs=[],seedDraftId='',seedIdentity=null,seedCleanupWarning='';
     executionProgressHandlers.set(executionId,message=>setDraftAttachmentProgress(message?.message||''));
     try{
       refs=await prepareRuntimeFileRefs([file]);
@@ -3775,35 +3775,45 @@
       const seed=await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED',executionId,file:refs[0]});
       if(!seed?.ok||!seed?.source)throw new Error(seed?.reason||'新版附件源建立失败');
       seedDraftId=String(seed.seedDraftId||'');
+      seedIdentity=seed.seedIdentity||null;
       const source={...seed.source,name:file.name,size:file.size};
       let cursor=0,done=0,failed=0;const failures=[],doneIds=new Set();
-      const integrityBaseline=new Map(targets.map(item=>[String(item.draft.id||''),{subject:String(item.draft.subject||''),recipients:String(item.draft.recipients||''),cc:String(item.draft.cc||''),bcc:String(item.draft.bcc||''),bodyHtml:String(item.draft.bodyHtml||''),scheduleAt:String(item.draft.scheduleAt||''),oldAttachmentIds:item.attachments.map(att=>String(att.id||'')).filter(Boolean)}]));
-      const workerCount=Math.min(5,Math.max(1,targets.length));
+      const integrityBaseline=new Map(targets.map(item=>[String(item.draft.id||''),{subject:String(item.draft.subject||''),recipients:String(item.draft.recipients||''),cc:String(item.draft.cc||''),bcc:String(item.draft.bcc||''),bodyHtml:String(item.draft.bodyHtml||''),scheduleAt:String(item.draft.scheduleAt||''),oldAttachmentIds:item.attachments.map(att=>String(att.id||'')).filter(Boolean),oldAttachments:item.attachments.map(att=>({name:String(att.name||''),size:Number(att.size||0)||0}))}]));
+      const workerCount=Math.min(3,Math.max(1,targets.length));
       async function worker(){
         while(cursor<targets.length){
           const item=targets[cursor++],draft=item.draft,draftId=String(draft.id||'');
-          const deleteIds=item.attachments.map(att=>String(att.id||'')).filter(Boolean);
+          const deleteAttachments=item.attachments.map(att=>({id:String(att.id||''),name:String(att.name||''),size:Number(att.size||0)||0,partId:String(att.partId||'')}));
+          const deleteIds=deleteAttachments.map(att=>att.id).filter(Boolean);
           try{
             const existing=(draft.attachments||[]).some(att=>!deleteIds.includes(String(att.id||''))&&String(att.name||'')===file.name&&(!Number(att.size||0)||Math.abs(Number(att.size||0)-file.size)<100));
-            if(!existing){
-              setDraftAttachmentProgress(`正在挂载新版附件 ${done+failed+1}/${targets.length} · ${draft.subject||draftId}`);
-              const added=await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MUTATE',draftId,deleteIds:[],source,summary:{id:draftId,scheduleAt:draft.scheduleAt||'',savedAt:draft.savedAt||'',subject:draft.subject||'',flags:draft.flags||{},scheduledDraft:!!draft.scheduledDraft}});
-              if(!added?.ok||added.verified!==true)throw new Error(added?.reason||'新版附件挂载验证失败');
+            setDraftAttachmentProgress(`正在原地替换附件 ${done+failed+1}/${targets.length} · ${draft.subject||draftId}`);
+            const mutated=await chrome.runtime.sendMessage({
+              type:'NMDA_DRAFT_ATTACHMENT_MUTATE',
+              draftId,
+              deleteIds,
+              deleteAttachments,
+              source:existing?null:source,
+              summary:{id:draftId,scheduleAt:draft.scheduleAt||'',savedAt:draft.savedAt||'',subject:draft.subject||'',flags:draft.flags||{},scheduledDraft:!!draft.scheduledDraft}
+            });
+            if(!mutated?.ok||mutated.verified!==true)throw new Error(mutated?.reason||'草稿附件事务提交或回读验证失败');
+            const committedId=String(mutated.draftId||draftId);
+            if(committedId!==draftId){
+              const before=integrityBaseline.get(draftId);
+              if(before){integrityBaseline.set(committedId,before);integrityBaseline.delete(draftId);}
             }
-            const removed=await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MUTATE',draftId,deleteIds,source:null,summary:{id:draftId,scheduleAt:draft.scheduleAt||'',savedAt:draft.savedAt||'',subject:draft.subject||'',flags:draft.flags||{},scheduledDraft:!!draft.scheduledDraft}});
-            if(!removed?.ok||removed.verified!==true)throw new Error(removed?.reason||'旧附件删除验证失败');
-            done++;doneIds.add(draftId);
+            done++;doneIds.add(committedId);
           }catch(error){failed++;failures.push(`${draft.subject||draftId}：${error?.message||String(error)}`);}
           setDraftAttachmentProgress(`草稿附件更新 ${done+failed}/${targets.length} · 成功 ${done}${failed?` · 失败 ${failed}`:''}` , failed?'warn':'');
         }
       }
       await Promise.all(Array.from({length:workerCount},worker));
-      if(seedDraftId){
-        for(let attempt=0;attempt<3&&seedDraftId;attempt++){
+      if(seedIdentity){
+        for(let attempt=0;attempt<3&&seedIdentity;attempt++){
           if(attempt)await new Promise(resolve=>setTimeout(resolve,180*(attempt+1)));
-          const cleanup=await chrome.runtime.sendMessage({type:'NMDA_DELETE_DRAFT',draftId:seedDraftId}).catch(error=>({ok:false,reason:error?.message||String(error)}));
-          if(cleanup?.ok)seedDraftId='';
-          else if(attempt===2)seedCleanupWarning=`临时附件源草稿未能自动删除（${cleanup?.reason||'unknown'}），请在草稿箱手动删除。`;
+          const cleanup=await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',identity:seedIdentity}).catch(error=>({ok:false,reason:error?.message||String(error)}));
+          if(cleanup?.ok){seedIdentity=null;seedDraftId='';}
+          else if(attempt===2)seedCleanupWarning=`临时附件源未能通过网易原生 Compose 清理（${cleanup?.reason||'unknown'}），请在草稿箱手动删除。`;
         }
       }
       await scanDraftAttachmentTool({allowDuringRun:true});
@@ -3820,7 +3830,12 @@
         if(String(after.bodyHtml||'')!==before.bodyHtml)changed.push('正文');
         if(!sameMinute(after.scheduleAt,before.scheduleAt))changed.push('排期');
         const afterAttachments=Array.isArray(after.attachments)?after.attachments:[];
-        if((before.oldAttachmentIds||[]).some(id=>afterAttachments.some(att=>String(att?.id||'')===id)))changed.push('旧附件仍存在');
+        const oldStillPresent=(before.oldAttachments||[]).some(old=>afterAttachments.some(att=>{
+          const sameName=String(att?.name||'')===String(old?.name||'');
+          const a=Number(att?.size||0),b=Number(old?.size||0);
+          return sameName&&(!a||!b||Math.abs(a-b)<100);
+        }));
+        if(oldStillPresent)changed.push('旧附件仍存在');
         const replacementPresent=afterAttachments.some(att=>String(att?.name||'')===file.name&&(!Number(att?.size||0)||Math.abs(Number(att?.size||0)-file.size)<100));
         if(!replacementPresent)changed.push('新版附件缺失');
         if(changed.length)integrityFailures.push(`${before.subject||draftId}：${changed.join('、')}${changed.some(label=>label.includes('附件'))?'':'发生变化'}`);
@@ -3833,7 +3848,7 @@
     }catch(error){
       setDraftAttachmentUtilityResult(error?.message||String(error),'error');
     }finally{
-      if(seedDraftId)await chrome.runtime.sendMessage({type:'NMDA_DELETE_DRAFT',draftId:seedDraftId}).catch(()=>null);
+      if(seedIdentity)await chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP',identity:seedIdentity}).catch(()=>null);
       executionProgressHandlers.delete(executionId);releaseRuntimeFileRefs(refs);draftAttachmentTool.running=false;setDraftAttachmentProgress('');renderDraftAttachmentTool();
     }
   }

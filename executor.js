@@ -1228,14 +1228,36 @@
         throw new Error(exported?.reason || '网易未能建立可复用的附件源。');
       }
       reportProgress(executionId,'attachment-seed','新版附件源已就绪，开始原地更新草稿。',{draftId:exported.draftId,name:file.name});
-      const cleanup = await closeExactCompose(composeIdentity);
+      // Keep the exact ComposeModule alive until every target draft has copied the source.
+      // Cleanup later uses NetEase's native cancelComposes({deleteDraft:true}) contract;
+      // closing here would cancel the CID first and force us onto security-gated deleteMessages.
       stopComposeInterruptionGuard(executionId);
-      return {ok:true,source:{...source,name:file.name,size:file.size},seedDraftId:String(exported.draftId||source.draftId||''),cleanup};
+      return {
+        ok:true,
+        source:{...source,name:file.name,size:file.size},
+        seedDraftId:String(exported.draftId||source.draftId||''),
+        seedIdentity:composeIdentity,
+        seedCid:String(composeIdentity?.cid||''),
+        cleanup:{deferred:true}
+      };
     } catch (error) {
       try { await closeExactCompose(composeIdentity); } catch (_) {}
       stopComposeInterruptionGuard(executionId);
       throw error;
     }
+  }
+
+
+  async function cleanupDraftAttachmentSeed(message) {
+    const identity = message?.identity || {};
+    const targetName = String(identity.name || '');
+    if (!targetName) return {ok:false,reason:'seed-compose-identity-missing'};
+    const result = await chrome.runtime.sendMessage({
+      type:'NMDA_DRAFT_ATTACHMENT_SEED_NATIVE_DELETE',
+      identity
+    });
+    if (!result?.ok) return result || {ok:false,reason:'seed-native-delete-failed'};
+    return result;
   }
 
   async function executeDraft(message) {
@@ -1430,6 +1452,12 @@
       createDraftAttachmentSeed(message).then(sendResponse).catch(error => {
         stopComposeInterruptionGuard(message?.executionId);
         reportProgress(message?.executionId,'error',error?.message||String(error));
+        sendResponse({ok:false,reason:error?.message||String(error)});
+      });
+      return true;
+    }
+    if (message?.type === 'NMDA_DRAFT_ATTACHMENT_SEED_CLEANUP') {
+      cleanupDraftAttachmentSeed(message).then(sendResponse).catch(error => {
         sendResponse({ok:false,reason:error?.message||String(error)});
       });
       return true;
