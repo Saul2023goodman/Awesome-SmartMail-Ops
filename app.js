@@ -4411,6 +4411,13 @@
 
   function syncBatchProcessingApply(){
     if(!formatGovernanceApplyEl)return;
+    if(batchProcessingBusy){
+      formatGovernanceApplyEl.disabled=true;
+      formatGovernanceApplyEl.setAttribute('aria-busy','true');
+      formatGovernanceApplyEl.textContent='正在应用…';
+      return;
+    }
+    formatGovernanceApplyEl.removeAttribute('aria-busy');
     const plan=currentBatchProcessingPlan(),total=plan.rows.length;
     formatGovernanceApplyEl.disabled=!total;
     formatGovernanceApplyEl.textContent=total?`应用批量处理 · ${total} 封`:'应用批量处理';
@@ -4531,6 +4538,22 @@
   }
 
   let batchGovernanceFeedbackTimer=0;
+  let batchProcessingBusy=false;
+  let batchGovernanceRefreshTimer=0;
+
+  function yieldBrowserPaint(){
+    return new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
+  }
+
+  function scheduleBatchGovernanceRefresh(){
+    if(batchGovernanceRefreshTimer)clearTimeout(batchGovernanceRefreshTimer);
+    batchGovernanceRefreshTimer=setTimeout(()=>{
+      batchGovernanceRefreshTimer=0;
+      if(batchProcessingBusy||batch.reviewSurface!=='preview')return;
+      renderFormatDriftSuggestions();
+      if(!formatGovernanceEl?.hidden)renderFormatGovernanceAnalysis();
+    },40);
+  }
 
   function clearGovernancePreviewHighlight(){
     try{window.CSS?.highlights?.delete?.('nmda-governance-target');window.CSS?.highlights?.delete?.('nmda-governance-applied');}catch(_){}
@@ -4613,14 +4636,23 @@
   }
 
   async function applyBatchProcessing(){
-    const plan=currentBatchProcessingPlan();if(!plan.rows.length)return;
-    const previewContext=batch.reviewSurface==='preview'?{activeKey:String(batch.reviewEditingKey||batch.reviewPreviewKey||''),scrollTop:reviewQueueEl?.scrollTop||0,railScrollTop:reviewPreviewRailListEl?.scrollTop||0}:null;
-    let changedTasks=0,subjectChanged=0,formatChangedTasks=0,formatChangedOccurrences=0;
-    const changedKeys=[],subjectChangedKeys=[],formatChangedKeys=[];
-    const formatStats=new Map((plan.formatAnalyses||[]).map(analysis=>[governanceRuleKey(analysis.rule),{analysis,changedTaskKeys:new Set(),changedOccurrences:0}]));
+    if(batchProcessingBusy)return;
+    batchProcessingBusy=true;
+    syncBatchProcessingApply();
+    // Let the busy state paint before any whole-batch analysis starts. Previously the
+    // click entered several synchronous scans immediately, so the UI looked frozen.
+    await yieldBrowserPaint();
+    let shouldRefreshGovernance=false;
     try{
+      const plan=currentBatchProcessingPlan();if(!plan.rows.length)return;
+      const previewContext=batch.reviewSurface==='preview'?{activeKey:String(batch.reviewEditingKey||batch.reviewPreviewKey||''),scrollTop:reviewQueueEl?.scrollTop||0,railScrollTop:reviewPreviewRailListEl?.scrollTop||0}:null;
+      let changedTasks=0,subjectChanged=0,formatChangedTasks=0,formatChangedOccurrences=0;
+      const changedKeys=[],subjectChangedKeys=[],formatChangedKeys=[];
+      const formatStats=new Map((plan.formatAnalyses||[]).map(analysis=>[governanceRuleKey(analysis.rule),{analysis,changedTaskKeys:new Set(),changedOccurrences:0}]));
       for(const row of plan.rows){
         let rowChanged=false,formatRowChanged=false;
+        // Batch normalization is deterministic. Preserve the task's existing review state so a
+        // format/empty-subject repair neither invents a new confirmation nor clears a real one.
         const patch={reviewConfirmed:!!row.task.reviewConfirmed,reviewDraftPending:!!row.task.reviewDraftPending};
         if(row.subject&&plan.subject){
           patch.subject=plan.subject;
@@ -4650,28 +4682,40 @@
         const appliedKeys=new Set((plan.formatAnalyses||[]).map(analysis=>governanceRuleKey(analysis.rule)));
         setQueuedGovernanceRules(queuedGovernanceRules().filter(rule=>!appliedKeys.has(governanceRuleKey(rule))),{persist:false});
       }
-      if(changedTasks)rebuildTasks();
-      if(changedTasks||appliedFormatRules.length)scheduleWorkspacePersist();
-      renderReviewPageOverview();renderImportTaskPreview();renderFormatDriftSuggestions();renderFormatGovernanceAnalysis();renderBatchSubjectGovernance();renderMonitoring();
+
       const parts=[];
       if(subjectChanged)parts.push(`补齐主题 ${subjectChanged} 封`);
       if(formatChangedTasks)parts.push(`统一格式 ${appliedFormatRules.length} 条 / ${formatChangedTasks} 封 / ${formatChangedOccurrences} 处`);
       const summary=parts.join(' · ')||'批量处理已完成';
-      const reveal=()=>{
-        if(batch.reviewSurface!=='preview')return;
-        if(previewContext){
-          if(reviewQueueEl)reviewQueueEl.scrollTop=Math.min(previewContext.scrollTop,Math.max(0,reviewQueueEl.scrollHeight-reviewQueueEl.clientHeight));
-          if(reviewPreviewRailListEl)reviewPreviewRailListEl.scrollTop=Math.min(previewContext.railScrollTop,Math.max(0,reviewPreviewRailListEl.scrollHeight-reviewPreviewRailListEl.clientHeight));
-          if(previewContext.activeKey)setReviewPreviewActiveKey(previewContext.activeKey,{revealRail:false});
-        }
+
+      // Commit the already-mutated task objects to the visible Preview first. Do not wait for
+      // rebuildTasks(), duplicate audit, drift rescans, or monitoring UI that the operator cannot
+      // currently see. This is the user-visible "apply now" boundary.
+      if(changedTasks&&batch.reviewSurface==='preview'&&reviewInlineEl&&!reviewInlineEl.hidden){
+        renderReviewQueue(previewContext?.activeKey||'',{preserveScroll:true});
         showBatchGovernanceFeedback({changedKeys,subjectKeys:subjectChangedKeys,formatKeys:formatChangedKeys,formatRules:appliedFormatRules,summary});
-      };
-      requestAnimationFrame(()=>requestAnimationFrame(reveal));
+      }
       setImportStatus(`批量处理完成：${parts.join('；')||'无正文改动'}。`,'ok');
+      if(changedTasks||appliedFormatRules.length)scheduleWorkspacePersist();
+
+      // Give the browser a real paint opportunity before running the expensive consistency pass.
+      // requestAnimationFrame alone is insufficient because promise continuations run before paint.
+      await yieldBrowserPaint();
+
+      if(changedTasks)rebuildTasks();
+      // Rebuild header/count state without immediately repeating the expensive whole-batch drift
+      // scan. That scan is coalesced below and runs after the apply interaction has completed.
+      renderReviewPageOverview({skipGovernanceRefresh:true,skipReviewQueue:true});
+      shouldRefreshGovernance=true;
     }catch(error){
       console.error('[NMDA] batch processing failed',error);setImportStatus(`批量处理失败：${error?.message||error}`,'error');
-    }finally{syncBatchProcessingApply();}
+    }finally{
+      batchProcessingBusy=false;
+      syncBatchProcessingApply();
+      if(shouldRefreshGovernance)scheduleBatchGovernanceRefresh();
+    }
   }
+
 
 
   function renderReviewBatchActions() {
@@ -5118,7 +5162,7 @@
     finishImportDuplicateDecision(`已明确保留该组 ${group.tasks?.length||0} 封邮件`);
   }
 
-  function renderReviewPageOverview() {
+  function renderReviewPageOverview(options={}) {
     renderReviewTrash();
     const tasks=allReviewTasks();
     const initialCount=tasks.filter(task=>!isFollowUpReviewTask(task)).length;
@@ -5163,8 +5207,11 @@
     syncReviewBatchLaunch();
     if(!tasks.length){batch.reviewEditingKey='';setReviewSurface('board');renderReviewBatchActions();return;}
     renderReviewBatchActions();
-    if(batch.reviewSurface==='preview'){renderBatchSubjectGovernance();renderFormatDriftSuggestions();}
-    if(reviewInlineEl && !reviewInlineEl.hidden)renderReviewQueue(batch.reviewEditingKey||batch.reviewPreviewKey||'');
+    if(batch.reviewSurface==='preview'){
+      renderBatchSubjectGovernance();
+      if(!options.skipGovernanceRefresh)renderFormatDriftSuggestions();
+    }
+    if(reviewInlineEl && !reviewInlineEl.hidden && !options.skipReviewQueue)renderReviewQueue(batch.reviewEditingKey||batch.reviewPreviewKey||'');
     scheduleReadyBatchAutoHandoff('邮件审阅已就绪');
   }
 
