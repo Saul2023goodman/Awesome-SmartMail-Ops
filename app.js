@@ -4087,18 +4087,25 @@
 
   function setDraftAttachmentMotion(payload={}){
     const root=$('nmda-draft-attachment-motion');if(!root)return;
+    // Keep motion rendering self-contained. The old implementation accidentally
+    // called renderDraftAttachmentTool()'s local setText helper from here, which
+    // is outside that helper's lexical scope. Any selection/file-change action
+    // therefore mutated state first, then threw `ReferenceError: setText is not
+    // defined` before the current view could re-render. Leaving and re-entering
+    // the utility appeared to "fix" it only because the mutated state survived.
+    const writeText=(id,value)=>{const el=$(id);if(el)el.textContent=String(value??'');};
     const phase=normalizeDraftAttachmentMotionPhase(payload.phase||'read');
     root.hidden=payload.hidden===true;
     root.dataset.phase=phase;
-    if(payload.oldName!=null)setText('nmda-draft-motion-old-file',payload.oldName||'旧附件');
-    if(payload.newName!=null)setText('nmda-draft-motion-new-file',payload.newName||'新版附件');
-    if(payload.subject!=null)setText('nmda-draft-motion-subject',payload.subject||'当前草稿');
-    if(payload.message!=null)setText('nmda-draft-motion-message',payload.message||'');
+    if(payload.oldName!=null)writeText('nmda-draft-motion-old-file',payload.oldName||'旧附件');
+    if(payload.newName!=null)writeText('nmda-draft-motion-new-file',payload.newName||'新版附件');
+    if(payload.subject!=null)writeText('nmda-draft-motion-subject',payload.subject||'当前草稿');
+    if(payload.message!=null)writeText('nmda-draft-motion-message',payload.message||'');
     if(payload.current!=null||payload.total!=null){
       const current=Number(payload.current||0),total=Number(payload.total||0);
-      setText('nmda-draft-motion-count',`${Math.max(0,current)} / ${Math.max(0,total)}`);
+      writeText('nmda-draft-motion-count',`${Math.max(0,current)} / ${Math.max(0,total)}`);
     }
-    setText('nmda-draft-motion-title',DRAFT_ATTACHMENT_MOTION_LABELS[phase]||'附件更新');
+    writeText('nmda-draft-motion-title',DRAFT_ATTACHMENT_MOTION_LABELS[phase]||'附件更新');
     const stagePhase=phase==='seed'?'read':phase==='done'?'swap':phase;
     const activeIndex=DRAFT_ATTACHMENT_MOTION_ORDER.indexOf(stagePhase);
     root.querySelectorAll('[data-draft-motion-stage]').forEach((node,index)=>{

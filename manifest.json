@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.103",
-  "description": "SmartMail Ops — Interruptible draft-attachment replacement with bounded upload/transaction waits, safe cancellation, faster draft discovery, and recoverable execution states.",
+  "version": "3.8.104",
+  "description": "SmartMail Ops — Fixes draft-attachment selection/upload UI stalls by removing a motion-render scope error, while retaining interruptible safe replacement and cancellation.",
   "permissions": [
     "scripting",
     "tabs",
