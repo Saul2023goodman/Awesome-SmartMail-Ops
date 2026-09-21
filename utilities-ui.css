@@ -180,3 +180,110 @@
 @keyframes nmdaDraftPacketTravel{0%{transform:translate(-50%,-50%) translateX(-5px)}100%{transform:translate(-50%,-50%) translateX(5px)}}
 @keyframes nmdaDraftNodePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
 @media (prefers-reduced-motion:reduce){#nmda-root .nmda-draft-attachment-motion *{animation:none!important;transition:none!important;}}
+
+
+/* v3.8.99 · Mail Monitoring Decision Tree
+   The monitor is a user-facing decision surface: mailbox facts -> decisions -> next action. */
+#nmda-root.nmda-standalone .nmda-utility-monitor-page{gap:10px !important;background:#f4f7fa !important}
+#nmda-root.nmda-standalone .nmda-monitor-toolbar{min-height:46px !important;padding:8px 10px !important;border-color:#e2e7ed !important;background:rgba(255,255,255,.78) !important;box-shadow:none !important}
+#nmda-root.nmda-standalone .nmda-monitor-toolbar-copy strong{font-size:12px !important}
+#nmda-root.nmda-standalone .nmda-monitor-toolbar-copy small{font-size:9.5px !important}
+
+#nmda-root.nmda-standalone .nmda-monitor-decision-board{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,.72fr);gap:10px;align-items:stretch}
+#nmda-root.nmda-standalone .nmda-monitor-logic-overview{min-width:0;padding:13px 14px 11px;border:1px solid #dce4ed;border-radius:15px;background:rgba(255,255,255,.94);box-shadow:0 4px 18px rgba(27,39,55,.035)}
+#nmda-root.nmda-standalone .nmda-monitor-logic-overview>header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:11px}
+#nmda-root.nmda-standalone .nmda-monitor-logic-overview>header>div{display:grid;gap:2px}
+#nmda-root.nmda-standalone .nmda-monitor-logic-overview>header small{font-size:9px;font-weight:760;letter-spacing:.06em;color:#8290a1}
+#nmda-root.nmda-standalone .nmda-monitor-logic-overview>header strong{font-size:14px;letter-spacing:-.015em;color:#263447}
+#nmda-root.nmda-standalone .nmda-monitor-logic-overview>header>span{font-size:9px;color:#8a96a5}
+#nmda-root.nmda-standalone .nmda-monitor-logic-overview>p{margin:9px 0 0;font-size:9.5px;line-height:1.45;color:#7b8797}
+#nmda-root.nmda-standalone .nmda-monitor-logic-map{display:grid;grid-template-columns:minmax(104px,.8fr) 18px minmax(130px,1fr) 18px minmax(140px,1fr) 18px minmax(140px,1fr) 18px minmax(112px,.88fr);align-items:stretch;min-width:0}
+#nmda-root.nmda-standalone .nmda-monitor-logic-root,#nmda-root.nmda-standalone .nmda-monitor-logic-decision,#nmda-root.nmda-standalone .nmda-monitor-logic-result{position:relative;min-width:0;min-height:66px;display:grid;grid-template-columns:24px minmax(0,1fr);align-content:center;gap:8px;padding:8px 9px;border:1px solid #dfe6ed;border-radius:11px;background:#fbfcfe}
+#nmda-root.nmda-standalone .nmda-monitor-logic-decision{background:#fff}
+#nmda-root.nmda-standalone .nmda-monitor-logic-result{border-color:#c9dcbf;background:#f7fbf5}
+#nmda-root.nmda-standalone .nmda-monitor-logic-root>i,#nmda-root.nmda-standalone .nmda-monitor-logic-decision>i,#nmda-root.nmda-standalone .nmda-monitor-logic-result>i{width:24px;height:24px;display:grid;place-items:center;border-radius:8px;background:#eef2f6;color:#627286;font-size:9px;font-style:normal;font-weight:780}
+#nmda-root.nmda-standalone .nmda-monitor-logic-result>i{background:#e8f4e2;color:#4d7b3a}
+#nmda-root.nmda-standalone .nmda-monitor-logic-map span{min-width:0;display:grid;gap:1px}
+#nmda-root.nmda-standalone .nmda-monitor-logic-map small{font-size:8px;color:#909aa7}
+#nmda-root.nmda-standalone .nmda-monitor-logic-map strong{font-size:10.5px;line-height:1.22;color:#334155;white-space:normal}
+#nmda-root.nmda-standalone .nmda-monitor-logic-decision>em{grid-column:1/-1;justify-self:start;margin-top:2px;padding:2px 5px;border-radius:999px;background:#f1f4f7;color:#7b8795;font-size:7.5px;font-style:normal;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-monitor-logic-link{position:relative;display:block !important}
+#nmda-root.nmda-standalone .nmda-monitor-logic-link::before{content:"";position:absolute;left:2px;right:2px;top:50%;height:1px;background:#ccd5df}
+#nmda-root.nmda-standalone .nmda-monitor-logic-link::after{content:"";position:absolute;right:1px;top:calc(50% - 3px);width:5px;height:5px;border-top:1px solid #aab6c3;border-right:1px solid #aab6c3;transform:rotate(45deg)}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary{min-width:0;display:grid;grid-template-rows:auto 1fr;gap:8px}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary .nmda-monitor-ready-card{min-height:96px !important;padding:12px !important;grid-template-columns:36px minmax(0,1fr) !important;gap:10px !important;border-radius:15px !important;box-shadow:0 4px 18px rgba(27,39,55,.035) !important}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary .nmda-monitor-ready-mark{width:36px !important;height:36px !important;border-radius:11px !important;font-size:17px !important}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary .nmda-monitor-ready-copy>small{font-size:8.5px !important}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary .nmda-monitor-ready-copy>strong{font-size:14px !important}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary .nmda-monitor-ready-copy>span{font-size:9px !important;line-height:1.4 !important}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary .nmda-monitor-ready-card>b{grid-column:2;justify-self:start;min-width:0 !important;padding:5px 8px !important;font-size:9px !important}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary .nmda-monitor-stats{grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:6px !important}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary .nmda-monitor-stat{min-height:43px !important;padding:7px 8px !important;display:grid !important;align-content:center !important;gap:2px !important}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary .nmda-monitor-stat span{font-size:8px !important;font-weight:650 !important;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-monitor-action-summary .nmda-monitor-stat strong{font-size:15px !important;line-height:1 !important}
+#nmda-root.nmda-standalone .nmda-monitor-stat[data-tone="due"] strong{color:#a86113 !important}
+
+#nmda-root.nmda-standalone .nmda-monitor-controlstrip{grid-template-columns:minmax(0,1fr) 156px !important;gap:8px !important}
+#nmda-root.nmda-standalone .nmda-monitor-setting-launch{min-height:48px !important;padding:7px 10px !important;border-radius:11px !important}
+#nmda-root.nmda-standalone .nmda-monitor-history-window{min-height:48px !important;border-radius:11px !important}
+#nmda-root.nmda-standalone .nmda-monitor-filterbar{min-height:38px !important;padding:4px 5px !important;border-radius:11px !important}
+#nmda-root.nmda-standalone .nmda-monitor-filters button{min-height:27px !important;font-size:9.5px !important;padding:4px 9px !important}
+#nmda-root.nmda-standalone .nmda-monitor-search{font-size:9.5px !important}
+
+#nmda-root.nmda-standalone .nmda-monitor-list{gap:8px !important}
+#nmda-root.nmda-standalone .nmda-monitor-tree-card{position:relative;min-width:0;overflow:hidden;border:1px solid #dfe5ec;border-radius:14px;background:rgba(255,255,255,.96);box-shadow:0 2px 9px rgba(24,36,52,.028);transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}
+#nmda-root.nmda-standalone .nmda-monitor-tree-card:hover{border-color:#cdd7e2;box-shadow:0 6px 18px rgba(24,36,52,.055)}
+#nmda-root.nmda-standalone .nmda-monitor-tree-card[data-tone="due"]{border-color:#e6cfaa;background:#fffdf9}
+#nmda-root.nmda-standalone .nmda-monitor-tree-card[data-tone="replied"]{border-color:#cfe1d2}
+#nmda-root.nmda-standalone .nmda-monitor-tree-card[data-tone="scheduled"]{border-color:#cfdced;background:#fbfdff}
+#nmda-root.nmda-standalone .nmda-monitor-tree-card[data-tone="blocked"]{border-color:#ead2cf;background:#fffdfd}
+#nmda-root.nmda-standalone .nmda-monitor-tree-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;padding:10px 12px 9px;border-bottom:1px solid #edf0f3}
+#nmda-root.nmda-standalone .nmda-monitor-tree-identity{min-width:0;display:grid;gap:2px}
+#nmda-root.nmda-standalone .nmda-monitor-tree-title{display:flex;align-items:center;gap:7px;min-width:0}
+#nmda-root.nmda-standalone .nmda-monitor-tree-title>strong{min-width:0;font-size:11.5px;color:#273444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nmda-root.nmda-standalone .nmda-monitor-tree-title .nmda-monitor-badge{font-size:8px !important;min-height:19px !important;padding:0 6px !important}
+#nmda-root.nmda-standalone .nmda-monitor-tree-identity .nmda-monitor-subject{margin-top:1px !important;font-size:9.5px !important;color:#556274 !important}
+#nmda-root.nmda-standalone .nmda-monitor-tree-identity>small{font-size:8.5px;color:#929caa}
+#nmda-root.nmda-standalone .nmda-monitor-tree-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+#nmda-root.nmda-standalone .nmda-monitor-tree-actions>div{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+#nmda-root.nmda-standalone .nmda-monitor-card-select{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:7px;background:#fff5e5;color:#8a5d1b;font-size:8.5px;font-weight:700;cursor:pointer}
+#nmda-root.nmda-standalone .nmda-monitor-card-select input{margin:0}
+#nmda-root.nmda-standalone .nmda-monitor-tree-body{display:grid;grid-template-columns:132px minmax(0,1fr);gap:12px;align-items:center;padding:9px 12px 11px}
+#nmda-root.nmda-standalone .nmda-monitor-tree-label{min-width:0;display:grid;align-content:center;gap:3px}
+#nmda-root.nmda-standalone .nmda-monitor-tree-label>span{font-size:8.5px;font-weight:780;letter-spacing:.04em;color:#7c8999}
+#nmda-root.nmda-standalone .nmda-monitor-tree-label>small{font-size:8.5px;line-height:1.35;color:#8995a4}
+#nmda-root.nmda-standalone .nmda-monitor-decision-path{min-width:0;display:flex;align-items:stretch;overflow-x:auto;padding:1px 0 3px;scrollbar-width:thin}
+#nmda-root.nmda-standalone .nmda-monitor-path-node{flex:0 1 170px;min-width:126px;max-width:210px;display:grid;align-content:center;gap:2px;padding:7px 8px;border:1px solid #dfe5eb;border-radius:9px;background:#fbfcfd}
+#nmda-root.nmda-standalone .nmda-monitor-path-node small{font-size:7.8px;line-height:1.15;color:#929caa;white-space:nowrap}
+#nmda-root.nmda-standalone .nmda-monitor-path-node strong{font-size:9.5px;line-height:1.28;color:#3d4958;white-space:normal;overflow-wrap:anywhere}
+#nmda-root.nmda-standalone .nmda-monitor-path-node[data-kind="decision"]{background:#fff}
+#nmda-root.nmda-standalone .nmda-monitor-path-node[data-kind="result"]{border-width:1.5px}
+#nmda-root.nmda-standalone .nmda-monitor-path-node[data-tone="pass"]{border-color:#d6e4d2;background:#f9fcf8}
+#nmda-root.nmda-standalone .nmda-monitor-path-node[data-tone="due"]{border-color:#e4c58f;background:#fff8e9}.nmda-monitor-path-node[data-tone="due"] strong{color:#8a5b12 !important}
+#nmda-root.nmda-standalone .nmda-monitor-path-node[data-tone="reply"]{border-color:#cfe3d2;background:#f6fbf7}.nmda-monitor-path-node[data-tone="reply"] strong{color:#32704a !important}
+#nmda-root.nmda-standalone .nmda-monitor-path-node[data-tone="scheduled"]{border-color:#cbdced;background:#f5f9fe}.nmda-monitor-path-node[data-tone="scheduled"] strong{color:#356a9f !important}
+#nmda-root.nmda-standalone .nmda-monitor-path-node[data-tone="warn"],#nmda-root.nmda-standalone .nmda-monitor-path-node[data-tone="stop"]{border-color:#e9c9c5;background:#fff8f7}.nmda-monitor-path-node[data-tone="warn"] strong,.nmda-monitor-path-node[data-tone="stop"] strong{color:#a04a43 !important}
+#nmda-root.nmda-standalone .nmda-monitor-path-node[data-tone="prepared"]{border-color:#d4d6e9;background:#fafaff}.nmda-monitor-path-node[data-tone="prepared"] strong{color:#5c5f91 !important}
+#nmda-root.nmda-standalone .nmda-monitor-path-node[data-tone="waiting"],#nmda-root.nmda-standalone .nmda-monitor-path-node[data-tone="muted"]{background:#f7f8fa;color:#657284}
+#nmda-root.nmda-standalone .nmda-monitor-path-link{position:relative;flex:0 0 22px;display:block !important}
+#nmda-root.nmda-standalone .nmda-monitor-path-link::before{content:"";position:absolute;left:3px;right:3px;top:50%;height:1px;background:#cfd7df}
+#nmda-root.nmda-standalone .nmda-monitor-path-link::after{content:"";position:absolute;right:2px;top:calc(50% - 3px);width:5px;height:5px;border-top:1px solid #adb9c5;border-right:1px solid #adb9c5;transform:rotate(45deg)}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence{display:flex !important;align-items:center !important;justify-content:space-between;gap:10px;padding:8px 12px !important;border-top:1px solid #f0dfdc !important;background:#fff9f8}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence>div:first-child{display:grid;gap:1px}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence strong{font-size:9px;color:#87443e}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence span{font-size:8.5px !important;color:#8c6966 !important}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence>div:last-child{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+#nmda-root.nmda-standalone .nmda-monitor-reply-evidence button{font-size:8.5px !important;padding:4px 7px !important}
+
+@media(max-width:1180px){
+  #nmda-root.nmda-standalone .nmda-monitor-decision-board{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-monitor-action-summary{grid-template-columns:minmax(0,1fr) minmax(330px,.85fr);grid-template-rows:auto}
+  #nmda-root.nmda-standalone .nmda-monitor-logic-map{overflow-x:auto;padding-bottom:3px;grid-template-columns:130px 18px 150px 18px 160px 18px 160px 18px 130px}
+}
+@media(max-width:820px){
+  #nmda-root.nmda-standalone .nmda-monitor-action-summary{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-monitor-tree-head{grid-template-columns:1fr}
+  #nmda-root.nmda-standalone .nmda-monitor-tree-actions{justify-content:flex-start}
+  #nmda-root.nmda-standalone .nmda-monitor-tree-actions>div{justify-content:flex-start}
+  #nmda-root.nmda-standalone .nmda-monitor-tree-body{grid-template-columns:1fr;gap:7px}
+}

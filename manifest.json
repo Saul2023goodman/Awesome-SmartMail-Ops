@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.98",
-  "description": "SmartMail Ops — Draft Attachment Update now provides a live Clone-and-Swap motion workflow, focuses the real NetEase mailbox during execution, and mirrors verified stages in the mailbox Dock.",
+  "version": "3.8.99",
+  "description": "SmartMail Ops — Mail Monitoring now explains Follow-up decisions as a user-facing logic tree, while preserving mailbox reconciliation and execution behavior.",
   "permissions": [
     "scripting",
     "tabs",
