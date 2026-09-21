@@ -1450,16 +1450,56 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           cancelled = true;
           try { await request('mbox:cancelComposes',{ids:[cid]},true); } catch (_) {}
         };
+        const isSourceAttachment = (item, src) => {
+          if (!item || !src) return false;
+          const itemMid=String(item._mid||item.mid||'').trim();
+          const itemPart=String(item._part??item.partId??'').trim();
+          if (itemMid && src.mid && !sameId(itemMid,src.mid)) return false;
+          if (itemPart && src.part && String(itemPart)!==String(src.part)) return false;
+          const sameName=String(item.name||item.fileName||'').trim()===String(src.name||'').trim();
+          const a=Number(item.size||item.attsize||0), b=Number(src.size||0);
+          const sizeOk=!a||!b||Math.abs(a-b)<100;
+          return !!((itemMid || itemPart) && sameName && sizeOk);
+        };
         const sourcePresent = (attachments, src) => {
           if (!src) return true;
-          return values(attachments).some(item => {
-            if (!item || item.deleted) return false;
+          return values(attachments).some(item => item && !item.deleted && (isSourceAttachment(item,src) || (()=>{
             const sameName=String(item.name||item.fileName||'').trim()===String(src.name||'').trim();
             const a=Number(item.size||item.attsize||0), b=Number(src.size||0);
-            const sizeOk=!a||!b||Math.abs(a-b)<100;
-            const midOk=!item._mid || sameId(item._mid,src.mid);
-            return sameName && sizeOk && midOk;
-          });
+            return sameName && (!a||!b||Math.abs(a-b)<100) && (!item._mid || sameId(item._mid,src.mid));
+          })()));
+        };
+        const remapDeleteIds = (attachments, requestedDeletes, fallbackIds, src) => {
+          const current = values(attachments).filter(item=>item && !item.deleted);
+          const used = new Set();
+          const ids = [];
+          const requested = Array.isArray(requestedDeletes) ? requestedDeletes : [];
+          for (const old of requested) {
+            let index=current.findIndex((item,idx)=>!used.has(idx) && !isSourceAttachment(item,src) && old.id && String(item?.id||item?.attachmentId||'')===String(old.id));
+            if(index<0 && old.partId){
+              index=current.findIndex((item,idx)=>!used.has(idx) && !isSourceAttachment(item,src) && String(item?._part??item?.partId??'')===String(old.partId));
+            }
+            if(index<0){
+              index=current.findIndex((item,idx)=>{
+                if(used.has(idx) || isSourceAttachment(item,src)) return false;
+                const sameName=String(item?.name||item?.fileName||'').trim()===String(old.name||'').trim();
+                const a=Number(item?.size||item?.fileSize||item?.attsize||0), b=Number(old.size||0);
+                return sameName && (!a||!b||Math.abs(a-b)<100);
+              });
+            }
+            if(index<0) return {ok:false,reason:`old-attachment-not-found-in-current-compose:${String(old.name||old.id||'unknown')}`};
+            used.add(index);
+            const id=String(current[index]?.id||current[index]?.attachmentId||'').trim();
+            if(!id) return {ok:false,reason:`current-attachment-id-missing:${String(old.name||'unknown')}`};
+            ids.push(id);
+          }
+          if(!requested.length){
+            for(const id of (fallbackIds||[]).map(String).filter(Boolean)){
+              const item=current.find(entry=>!isSourceAttachment(entry,src) && String(entry?.id||entry?.attachmentId||'')===id);
+              if(item) ids.push(id);
+            }
+          }
+          return {ok:true,ids:[...new Set(ids)]};
         };
         try {
           const restoredResponse = await request('mbox:restoreDraft',{id:String(draftIdArg)},false);
@@ -1475,34 +1515,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           cid = String(restored.id || '').trim();
           if (!cid) return resolve({ok:false,reason:'restoreDraft-compose-cid-missing'});
 
-          const restoredAttachments = values(restored.attachments).filter(item=>item && !item.deleted);
           const requestedDeletes = Array.isArray(deleteAttachmentsArg) ? deleteAttachmentsArg : [];
-          const currentDeleteIds = [];
-          const usedDeleteIndexes = new Set();
-          for (const requested of requestedDeletes) {
-            let index = restoredAttachments.findIndex((item,idx)=>!usedDeleteIndexes.has(idx) && requested.id && String(item?.id||'')===String(requested.id));
-            if (index < 0) {
-              index = restoredAttachments.findIndex((item,idx)=>{
-                if (usedDeleteIndexes.has(idx)) return false;
-                const sameName=String(item?.name||item?.fileName||'').trim()===String(requested.name||'').trim();
-                const a=Number(item?.size||item?.fileSize||0), b=Number(requested.size||0);
-                return sameName && (!a||!b||Math.abs(a-b)<100);
-              });
-            }
-            if (index < 0) {
-              await cancel();
-              return resolve({ok:false,stage:'attachment-remap',cid,reason:`old-attachment-not-found-in-current-compose:${String(requested.name||requested.id||'unknown')}`});
-            }
-            usedDeleteIndexes.add(index);
-            const currentId=String(restoredAttachments[index]?.id||restoredAttachments[index]?.attachmentId||'').trim();
-            if (!currentId) {
-              await cancel();
-              return resolve({ok:false,stage:'attachment-remap',cid,reason:`current-attachment-id-missing:${String(requested.name||'unknown')}`});
-            }
-            currentDeleteIds.push(currentId);
-          }
-          if (!requestedDeletes.length) currentDeleteIds.push(...(deleteIdsArg||[]).map(String).filter(Boolean));
-
           let lastAttachments = restored.attachments;
           if (sourceArg?.mid && sourceArg?.part) {
             const add = await request('mbox:compose',{
@@ -1527,16 +1540,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
           }
 
+          // Resolve the old attachment SIDs only AFTER the add mutation. NetEase's own UI
+          // deletes from the current Compose attachment model (e.sid), not from a stale
+          // restore/list snapshot. This also excludes the newly attached internal source.
+          const remapped = remapDeleteIds(lastAttachments, requestedDeletes, deleteIdsArg, sourceArg);
+          if (!remapped.ok) {
+            await cancel();
+            return resolve({ok:false,stage:'attachment-remap',cid,reason:remapped.reason});
+          }
+          const currentDeleteIds = remapped.ids;
+
           if (currentDeleteIds.length) {
+            // IMPORTANT: mirror NetEase ComposeAction.deleteAttach() exactly.
+            // Unlike syncAttach(), deleteAttach() DOES NOT send returnInfo:true.
+            // The provider routes delete and sync through different continue contracts;
+            // adding returnInfo to a delete mutation causes FS_UNKNOWN on current 163.
             const remove = await request('mbox:compose',{
-              id:cid, action:'continue', returnInfo:true,
+              id:cid, action:'continue',
               attrs:{attachments:currentDeleteIds.map(id=>({id:String(id),deleted:true}))}
             },true);
             if (!isOk(remove)) {
               await cancel();
               return resolve({ok:false,stage:'attach-delete',cid,reason:remove?.reason || `mbox:compose continue(delete) code=${String(remove?.code)}`,code:remove?.code});
             }
-            lastAttachments = remove?.var?.attachments || lastAttachments;
+
+            // Native deleteAttach() only checks response.code; it does not expect var.attachments.
+            // Read current Compose state separately and prove all requested SIDs disappeared
+            // before committing the draft. This prevents a nominal S_OK from becoming a false success.
+            const afterDeleteInfo = await request('mbox:getComposeInfo',{id:cid},true);
+            if (!isOk(afterDeleteInfo)) {
+              await cancel();
+              return resolve({ok:false,stage:'attach-delete-verify',cid,reason:afterDeleteInfo?.reason || `mbox:getComposeInfo after delete code=${String(afterDeleteInfo?.code)}`,code:afterDeleteInfo?.code});
+            }
+            lastAttachments = afterDeleteInfo?.var?.attachments || lastAttachments;
+            const remainingIds = new Set(values(lastAttachments).filter(item=>item && !item.deleted).map(item=>String(item?.id||item?.attachmentId||'')).filter(Boolean));
+            const stillPresent = currentDeleteIds.filter(id=>remainingIds.has(String(id)));
+            if (stillPresent.length) {
+              await cancel();
+              return resolve({ok:false,stage:'attach-delete-verify',cid,reason:`old-attachment-still-present:${stillPresent.join(',')}`});
+            }
           }
 
           // Reproduce ComposeBase.sendBuild(save/schedule) for the stable fields returned by restoreDraft.
