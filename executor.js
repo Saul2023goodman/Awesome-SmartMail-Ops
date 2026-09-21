@@ -321,7 +321,67 @@
     return Array.from(root.childNodes || []).map(render).join('');
   }
 
-  async function setBody(root, bodyText, bodyHtml = '', bodyIsHtml = false) {
+  function composeNodeIsBlankBlock(node) {
+    if (!node || node.nodeType !== 1) return false;
+    const tag = String(node.tagName || '').toLowerCase();
+    if (!['div','p'].includes(tag)) return false;
+    const text = String(node.textContent || '').replace(/\u00a0/g, ' ').trim();
+    if (text) return false;
+    return ![...node.querySelectorAll('*')].some(el => String(el.tagName || '').toLowerCase() !== 'br');
+  }
+
+  function ensureComposeParagraphSpacing(html) {
+    const safe = String(html || '');
+    if (!safe.trim()) return safe;
+    const doc = new DOMParser().parseFromString(`<div>${safe}</div>`, 'text/html');
+    const root = doc.body.firstElementChild;
+    if (!root) return safe;
+    const blockTags = new Set(['div','p','blockquote','ul','ol','pre']);
+    const containerTags = new Set(['div','blockquote']);
+    const addSpacing = container => {
+      let previousContentBlock = null;
+      let blankSincePrevious = false;
+      for (const node of [...container.childNodes]) {
+        if (node.nodeType === 3) {
+          if (String(node.nodeValue || '').replace(/\u00a0/g, ' ').trim()) { previousContentBlock = null; blankSincePrevious = false; }
+          continue;
+        }
+        if (node.nodeType !== 1) continue;
+        const tag = String(node.tagName || '').toLowerCase();
+        if (composeNodeIsBlankBlock(node)) {
+          if (previousContentBlock) blankSincePrevious = true;
+          continue;
+        }
+        if (!blockTags.has(tag)) {
+          previousContentBlock = null; blankSincePrevious = false;
+          continue;
+        }
+        const hasContent = !!(String(node.textContent || '').replace(/\u00a0/g, ' ').trim() || node.querySelector('img,table,hr'));
+        if (!hasContent) continue;
+        if (previousContentBlock && !blankSincePrevious) {
+          const spacer = doc.createElement('div');
+          spacer.setAttribute('data-nmda-paragraph-gap', '1');
+          spacer.appendChild(doc.createElement('br'));
+          container.insertBefore(spacer, node);
+        }
+        previousContentBlock = node;
+        blankSincePrevious = false;
+        if (containerTags.has(tag)) addSpacing(node);
+      }
+    };
+    addSpacing(root);
+    return root.innerHTML;
+  }
+
+  function composeBodyHtml(bodyText, bodyHtml = '', bodyIsHtml = false, ensureParagraphSpacing = true) {
+    if (bodyIsHtml && String(bodyHtml || '').trim()) {
+      const sanitized = sanitizeComposeHtml(bodyHtml);
+      return ensureParagraphSpacing === false ? sanitized : ensureComposeParagraphSpacing(sanitized);
+    }
+    return plainTextToHtml(bodyText || '');
+  }
+
+  async function setBody(root, bodyText, bodyHtml = '', bodyIsHtml = false, ensureParagraphSpacing = true) {
     const iframe = await waitFor(() => findEditorIframe(root), 8000, 120, '未找到正文编辑器 iframe。');
     const body = await waitFor(() => {
       try { return iframe.contentDocument?.body || null; } catch (_) { return null; }
@@ -330,18 +390,17 @@
     // Drafts imported from the mailbox already contain NetEase-sanitized HTML.
     // Preserve that representation unless the user edited the plain-text body in
     // the workbench; ordinary file imports continue through the plain-text path.
-    if (bodyIsHtml && String(bodyHtml || '').trim()) body.innerHTML = sanitizeComposeHtml(bodyHtml);
-    else body.innerHTML = plainTextToHtml(bodyText || '');
+    body.innerHTML = composeBodyHtml(bodyText, bodyHtml, bodyIsHtml, ensureParagraphSpacing);
     fire(body, 'input'); fire(body, 'change'); fire(body, 'blur');
   }
 
 
-  async function prependBody(root, bodyText, bodyHtml = '', bodyIsHtml = false) {
+  async function prependBody(root, bodyText, bodyHtml = '', bodyIsHtml = false, ensureParagraphSpacing = true) {
     const iframe = await waitFor(() => findEditorIframe(root), 8000, 120, '未找到正文编辑器 iframe。');
     const body = await waitFor(() => {
       try { return iframe.contentDocument?.body || null; } catch (_) { return null; }
     }, 8000, 120, '无法访问正文编辑器内容。');
-    const html = bodyIsHtml && String(bodyHtml || '').trim() ? sanitizeComposeHtml(bodyHtml) : plainTextToHtml(bodyText || '');
+    const html = composeBodyHtml(bodyText, bodyHtml, bodyIsHtml, ensureParagraphSpacing);
     if (!String(html || '').trim()) return;
     body.focus();
     const wrapper = body.ownerDocument.createElement('div');
@@ -850,8 +909,8 @@
     await setAuxRecipients(root, task.cc || '', '抄送');
     await setAuxRecipients(root, task.bcc || '', '密送');
     if (composeMode === 'new') await setSubject(root, task.subject || '');
-    if (contextual) await prependBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml);
-    else await setBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml);
+    if (contextual) await prependBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml, task.ensureParagraphSpacing !== false);
+    else await setBody(root, task.body || '', task.bodyHtml || '', !!task.bodyIsHtml, task.ensureParagraphSpacing !== false);
     if (Number(task.priority || 0) === 1) await enableComposeOption(root, '紧急', true);
     if (task.requestReadReceipt) await enableComposeOption(root, '已读回执', true);
 

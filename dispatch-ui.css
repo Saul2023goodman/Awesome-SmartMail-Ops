@@ -202,7 +202,7 @@
 
 /* v3.8.27 — optional per-message inspection gate */
 #nmda-root .nmda-dispatch-page .nmda-mail-handoff-bar {
-  grid-template-columns:minmax(0,1fr) auto auto !important;
+  grid-template-columns:minmax(0,1fr) auto auto auto !important;
 }
 #nmda-root .nmda-dispatch-page .nmda-execution-mode {
   min-height:32px;
@@ -224,7 +224,7 @@
 #nmda-root .nmda-dispatch-page .nmda-execution-mode input { width:14px; height:14px; margin:0; accent-color:#2563eb; }
 #nmda-root .nmda-dispatch-page .nmda-execution-mode:has(input:disabled) { opacity:.58; cursor:default; }
 @media (max-width:980px) {
-  #nmda-root .nmda-dispatch-page .nmda-mail-handoff-bar { grid-template-columns:1fr auto !important; }
+  #nmda-root .nmda-dispatch-page .nmda-mail-handoff-bar { grid-template-columns:1fr auto auto !important; }
   #nmda-root .nmda-dispatch-page .nmda-mail-handoff-copy { grid-column:1/-1; }
 }
 @media (max-width:700px) {
