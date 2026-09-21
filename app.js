@@ -773,6 +773,12 @@
                     <button type="button" data-review-filter="confirmed"><span>已确认</span><strong>0</strong></button>
                   </div>
                   <div class="nmda-review-queue-tools">
+                    <button class="nmda-review-batch-launch" id="nmda-review-batch-launch" type="button" title="进入 Preview 进行批量处理">
+                      <span class="nmda-review-batch-launch-glyph" aria-hidden="true"><i></i><b></b></span>
+                      <span class="nmda-review-batch-launch-copy"><strong>批量处理</strong><small id="nmda-review-batch-launch-meta">格式偏移推荐与主题补齐</small></span>
+                      <b class="nmda-review-batch-launch-count" id="nmda-review-batch-launch-count" hidden>0</b>
+                      <i class="nmda-review-batch-launch-arrow" aria-hidden="true">→</i>
+                    </button>
                     <label class="nmda-review-search"><span aria-hidden="true">⌕</span><input id="nmda-review-search" type="search" placeholder="搜索收件人 / 邮箱 / 主题" autocomplete="off"></label>
                     <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-bulk-entry" id="nmda-review-select-filtered" type="button">批量确认…</button>
                   </div>
@@ -2193,6 +2199,7 @@
   const reviewWorkspaceTitleEl=$('nmda-review-workspace-title'), reviewWorkspaceDescEl=$('nmda-review-workspace-desc');
   const reviewFilterEl=$('nmda-review-filter'), reviewSearchEl=$('nmda-review-search');
   const reviewBatchbarEl=$('nmda-review-batchbar'), reviewSelectedCountEl=$('nmda-review-selected-count');
+  const reviewBatchLaunchEl=$('nmda-review-batch-launch'), reviewBatchLaunchMetaEl=$('nmda-review-batch-launch-meta'), reviewBatchLaunchCountEl=$('nmda-review-batch-launch-count');
   const formatGovernanceEntryEl=$('nmda-review-format-governance'), formatGovernanceEntryCountEl=$('nmda-preview-format-drift-count'), formatGovernanceEl=$('nmda-format-governance'), formatGovernancePhraseEl=$('nmda-format-governance-phrase'), formatGovernanceCaseEl=$('nmda-format-governance-case'), formatGovernanceResultEl=$('nmda-format-governance-result'), formatGovernanceListEl=$('nmda-format-governance-list'), formatGovernanceApplyEl=$('nmda-format-governance-apply'), formatGovernanceSuggestionsEl=$('nmda-format-governance-suggestions'), formatGovernanceQueueEl=$('nmda-format-governance-queue'), formatGovernanceAddEl=$('nmda-format-governance-add'), formatGovernanceHistoryEl=$('nmda-format-governance-history');
   const batchStandardSubjectCountEl=$('nmda-batch-standard-subject-count'), batchStandardFormatCountEl=$('nmda-batch-standard-format-count'), batchStandardSubjectBadgeEl=$('nmda-batch-standard-subject-badge'), batchStandardSubjectInputEl=$('nmda-batch-standard-subject-input'), batchStandardSubjectSuggestionEl=$('nmda-batch-standard-subject-suggestion'), batchStandardSubjectResultEl=$('nmda-batch-standard-subject-result'), batchStandardPlanSummaryEl=$('nmda-batch-standard-plan-summary');
   const batchStandardsEl=$('nmda-format-governance'), batchStandardsDescEl=$('nmda-batch-standards-desc');
@@ -4091,6 +4098,22 @@
     }
   }
 
+  function syncReviewBatchLaunch(){
+    if(!reviewBatchLaunchEl)return;
+    const tasks=allReviewTasks().filter(task=>!task?.importExcluded),subjectCount=missingSubjectTasks().length,queuedCount=queuedGovernanceRules().length;
+    reviewBatchLaunchEl.hidden=!tasks.length;
+    reviewBatchLaunchEl.classList.toggle('needs-subject',subjectCount>0);
+    reviewBatchLaunchEl.classList.toggle('has-queued-rules',queuedCount>0);
+    if(reviewBatchLaunchCountEl){reviewBatchLaunchCountEl.hidden=!subjectCount;reviewBatchLaunchCountEl.textContent=String(subjectCount||0);}
+    if(reviewBatchLaunchMetaEl){
+      if(subjectCount)reviewBatchLaunchMetaEl.textContent=`${subjectCount} 封缺主题 · 点击批量补齐`;
+      else if(queuedCount)reviewBatchLaunchMetaEl.textContent=`已选 ${queuedCount} 条格式处理 · 继续`;
+      else reviewBatchLaunchMetaEl.textContent='查看格式偏移推荐';
+    }
+    reviewBatchLaunchEl.title=subjectCount?`有 ${subjectCount} 封 Initial 缺少主题；点击进入 Preview 批量补齐`:'进入 Preview 查看格式偏移推荐与批量处理';
+    reviewBatchLaunchEl.setAttribute('aria-label',reviewBatchLaunchEl.title);
+  }
+
   function renderBatchSubjectGovernance(){
     const state=batchSubjectGovernanceState(),count=state.missing.length;
     if(batchStandardSubjectCountEl)batchStandardSubjectCountEl.textContent=String(count);
@@ -4108,6 +4131,7 @@
       else batchStandardSubjectResultEl.innerHTML=`<strong>${count} 封缺少主题</strong><span>现有主题不够一致，请输入确认后的统一主题。</span>`;
     }
     syncBatchProcessingApply();
+    syncReviewBatchLaunch();
   }
 
   function syncFormatGovernancePreviewBadge(suggestions=[]){
@@ -4121,6 +4145,7 @@
       const details=[];if(subjectCount)details.push(`主题缺失 ${subjectCount} 封`);if(formatCount)details.push(`格式漂移 ${formatCount} 组`);
       formatGovernanceEntryEl.title=count?`批量处理：${details.join(' · ')}`:'当前批次未发现待处理的确定性批量事项';
     }
+    syncReviewBatchLaunch();
   }
 
   function renderFormatDriftSuggestions(){
@@ -4801,6 +4826,7 @@
     if(reviewFilterEl)reviewFilterEl.hidden=false;
     ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter===batch.reviewFilter));
     if(reviewSearchEl && reviewSearchEl.value!==String(batch.reviewSearch||''))reviewSearchEl.value=String(batch.reviewSearch||'');
+    syncReviewBatchLaunch();
     if(!tasks.length){batch.reviewEditingKey='';setReviewSurface('board');renderReviewBatchActions();return;}
     renderReviewBatchActions();
     if(batch.reviewSurface==='preview'){renderBatchSubjectGovernance();renderFormatDriftSuggestions();}
@@ -5235,6 +5261,24 @@
     renderReviewBatchActions();
     const visible=reviewVisibleTasks().filter(taskCanBatchConfirm),allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
     const selectButton=$('nmda-review-select-filtered');if(selectButton){const batchMode=batch.reviewFilter==='pending'&&reviewTasks().length>0;selectButton.hidden=surface==='preview'||!batchMode||visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
+  }
+
+  function openReviewBatchProcessing(){
+    if(batch.reviewEditingKey){setImportStatus('请先保存或取消当前邮件的编辑，再打开批量处理。','warn');return;}
+    const tasks=allReviewTasks().filter(task=>!task?.importExcluded);
+    if(!tasks.length){setImportStatus('当前没有可批量处理的邮件。','warn');return;}
+    if(batch.reviewSurface!=='preview'){
+      // 批量处理作用于整批邮件；进入时切回完整视图，避免筛选状态造成范围误解。
+      batch.reviewFilter='all';
+      batch.reviewSearch='';
+      if(reviewSearchEl)reviewSearchEl.value='';
+      ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter==='all'));
+      const target=missingSubjectTasks()[0]||tasks[0];
+      openReviewPreview(target?.editKey||'');
+      requestAnimationFrame(()=>openFormatGovernance({fromBoard:true}));
+      return;
+    }
+    if(formatGovernanceEl?.hidden)openFormatGovernance();else closeFormatGovernance();
   }
 
   function openReviewPreview(editKey='') {
@@ -7294,7 +7338,8 @@
   $('nmda-review-select-filtered')?.addEventListener('click',selectVisibleReviewTasks);
   batchStandardSubjectInputEl?.addEventListener('input',()=>{renderBatchSubjectGovernance();syncBatchProcessingApply();});
   batchStandardSubjectSuggestionEl?.addEventListener('click',()=>{const suggestion=suggestedBulkSubject();if(!suggestion)return;if(batchStandardSubjectInputEl)batchStandardSubjectInputEl.value=suggestion;renderBatchSubjectGovernance();batchStandardSubjectInputEl?.focus?.({preventScroll:true});});
-  formatGovernanceEntryEl?.addEventListener('click',()=>{if(batch.reviewSurface!=='preview')return;if(batch.reviewEditingKey){setImportStatus('请先保存或取消当前邮件的编辑，再打开批量处理。','warn');return;}if(formatGovernanceEl?.hidden)openFormatGovernance();else closeFormatGovernance();});
+  reviewBatchLaunchEl?.addEventListener('click',openReviewBatchProcessing);
+  formatGovernanceEntryEl?.addEventListener('click',openReviewBatchProcessing);
   $('nmda-format-governance-close')?.addEventListener('click',closeFormatGovernance);
   formatGovernancePhraseEl?.addEventListener('input',scheduleFormatGovernancePreview);
   formatGovernanceCaseEl?.addEventListener('change',scheduleFormatGovernancePreview);
