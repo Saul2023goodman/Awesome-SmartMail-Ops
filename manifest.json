@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.105",
-  "description": "SmartMail Ops — Makes temporary attachment-source cleanup verifiable: delete, confirm the Draft MID is gone, then restore with a fresh CID and retry if NetEase only acknowledged cancellation.",
+  "version": "3.8.106",
+  "description": "SmartMail Ops — Adds a contact-first outcome dashboard for outreach fulfillment, persistence, follow-up effort, and high-signal ongoing conversations.",
   "permissions": [
     "scripting",
     "tabs",

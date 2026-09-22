@@ -495,6 +495,7 @@
           <button class="nmda-tab is-active" data-tab="batch" type="button" title="导入资料"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg></span><span><strong>导入资料</strong><small>识别 · 查重 · 附件</small></span></button>
           <button class="nmda-tab" data-tab="review" type="button" title="邮件审阅"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><span><strong>邮件审阅</strong><small>Initial · Follow-up · Pass</small></span><b class="nmda-tab-count" id="nmda-review-nav-count" hidden>0</b></button>
           <button class="nmda-tab" data-tab="dispatch" type="button" title="选择与排期"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="8" cy="6" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="11" cy="18" r="1.8"/></svg></span><span><strong>选择与排期</strong><small>初始邮件 · Follow-up</small></span></button>
+          <button class="nmda-tab" data-tab="dashboard" type="button" title="成效看板"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19V10M12 19V5M19 19v-7"/><path d="M4 19h16"/></svg></span><span><strong>成效看板</strong><small>履约 · 争取 · 往来</small></span></button>
           <button class="nmda-tab" data-tab="utilities" type="button" title="实用功能"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><path d="M17 14v6M14 17h6"/></svg></span><span><strong>实用功能</strong><small>邮件监测 · 极速附件</small></span></button>
 
         </nav>
@@ -508,6 +509,9 @@
           </div>
           <div class="nmda-page-head" data-page-head="dispatch" hidden>
             <div><h2>选择与排期</h2><p>汇合初始邮件与 Follow-up → 选择范围 → 安排时间 → 统一执行</p></div>
+          </div>
+          <div class="nmda-page-head" data-page-head="dashboard" hidden>
+            <div><h2>成效看板</h2><p>以联系人为单位呈现目标触达、持续争取与正在形成的真实沟通。</p></div>
           </div>
           <div class="nmda-page-head" data-page-head="utilities" hidden>
             <div><h2>实用功能</h2><p>把高频辅助作业集中在一个一级工作区；已上线能力并列展示，并为后续工具预留稳定扩展位。</p></div>
@@ -1045,6 +1049,79 @@
 
           </section>
 
+
+          <section class="nmda-tabpane nmda-page nmda-dashboard-page" data-pane="dashboard" hidden aria-label="成效看板">
+            <div class="nmda-dashboard-shell">
+              <header class="nmda-dashboard-head">
+                <div class="nmda-dashboard-heading">
+                  <span class="nmda-dashboard-eyebrow">OUTREACH PERFORMANCE</span>
+                  <div><h2>成效看板</h2><p id="nmda-dashboard-period-copy">用联系人事实呈现履约、持续争取与正在形成的真实沟通。</p></div>
+                </div>
+                <div class="nmda-dashboard-actions">
+                  <div class="nmda-dashboard-mode" role="group" aria-label="看板视图">
+                    <button type="button" data-dashboard-mode="operator" class="is-active">Operator</button>
+                    <button type="button" data-dashboard-mode="student">学生展示</button>
+                  </div>
+                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dashboard-refresh" type="button">更新邮箱事实</button>
+                </div>
+              </header>
+
+              <section class="nmda-dashboard-kpis" aria-label="履约与成效摘要">
+                <article class="nmda-dashboard-kpi is-delivery">
+                  <div><small>CONTACT DELIVERY</small><span>目标触达</span></div>
+                  <strong id="nmda-dashboard-delivery-value">—</strong>
+                  <p id="nmda-dashboard-delivery-copy">正在汇总当前目标池</p>
+                  <div class="nmda-dashboard-progress"><i id="nmda-dashboard-delivery-progress"></i></div>
+                </article>
+                <article class="nmda-dashboard-kpi">
+                  <div><small>INSTITUTION BREADTH</small><span>院校覆盖</span></div>
+                  <strong id="nmda-dashboard-institution-value">—</strong>
+                  <p id="nmda-dashboard-institution-copy">按当前资料识别</p>
+                </article>
+                <article class="nmda-dashboard-kpi">
+                  <div><small>PERSISTENCE</small><span>持续争取</span></div>
+                  <strong id="nmda-dashboard-followup-value">—</strong>
+                  <p id="nmda-dashboard-followup-copy">至少完成一次 Follow-up</p>
+                </article>
+                <article class="nmda-dashboard-kpi is-signal">
+                  <div><small>ACTIVE CONVERSATIONS</small><span>持续往来</span></div>
+                  <strong id="nmda-dashboard-active-value">—</strong>
+                  <p id="nmda-dashboard-active-copy">真人回复后已进入人工沟通</p>
+                </article>
+              </section>
+
+              <section class="nmda-dashboard-core">
+                <article class="nmda-dashboard-panel nmda-dashboard-opportunities">
+                  <header class="nmda-dashboard-panel-head">
+                    <div><small>HIGH-SIGNAL CONTACTS</small><strong>正在形成的沟通</strong><span>把少数已经出现真实往来的联系人放在最前面。</span></div>
+                    <b id="nmda-dashboard-opportunity-count">0</b>
+                  </header>
+                  <div class="nmda-dashboard-opportunity-list" id="nmda-dashboard-opportunity-list"></div>
+                  <div class="nmda-dashboard-signal-ladder" id="nmda-dashboard-signal-ladder" aria-label="沟通信号层级"></div>
+                </article>
+
+                <article class="nmda-dashboard-panel nmda-dashboard-field-panel">
+                  <header class="nmda-dashboard-panel-head">
+                    <div><small>OUTREACH FIELD</small><strong>目标联系场</strong><span id="nmda-dashboard-field-copy">每个点是一位联系人；信号越明确，视觉权重越高。</span></div>
+                    <div class="nmda-dashboard-field-legend" aria-label="联系人状态图例"><span><i data-level="base"></i>已触达</span><span><i data-level="followup"></i>已跟进</span><span><i data-level="reply"></i>真人回复</span><span><i data-level="active"></i>持续往来</span></div>
+                  </header>
+                  <div class="nmda-dashboard-field" id="nmda-dashboard-field"></div>
+                </article>
+              </section>
+
+              <section class="nmda-dashboard-lower">
+                <article class="nmda-dashboard-panel nmda-dashboard-trajectory-panel">
+                  <header class="nmda-dashboard-panel-head is-compact"><div><small>DELIVERY TRAJECTORY</small><strong>履约轨迹</strong><span>累计触达是主线，Follow-up 与真人回复作为过程证据。</span></div><b id="nmda-dashboard-trajectory-range">—</b></header>
+                  <div class="nmda-dashboard-trajectory" id="nmda-dashboard-trajectory"></div>
+                </article>
+                <article class="nmda-dashboard-panel nmda-dashboard-persistence-panel">
+                  <header class="nmda-dashboard-panel-head is-compact"><div><small>OUTREACH DEPTH</small><strong>争取深度</strong><span>不以低回复率定义表现，只呈现实际完成的触达层次。</span></div></header>
+                  <div class="nmda-dashboard-depth" id="nmda-dashboard-depth"></div>
+                  <div class="nmda-dashboard-evidence" id="nmda-dashboard-evidence"></div>
+                </article>
+              </section>
+            </div>
+          </section>
 
           <section class="nmda-tabpane nmda-page nmda-utilities-page" data-pane="utilities" hidden data-utility-view="home">
             <section class="nmda-utilities-home" id="nmda-utilities-home" aria-label="实用功能">
@@ -1787,6 +1864,7 @@
 
 
   const monitorState = { filter:'all', subfilter:'all', attempts:'all', search:'', syncing:false, lastRenderAt:0, selectedRootIds:new Set() };
+  const dashboardState = { mode: (()=>{ try{return localStorage.getItem('nmda.dashboard.mode')==='student'?'student':'operator';}catch(_){return 'operator';} })(), syncing:false };
 
   function monitorEls() {
     return {
@@ -2150,6 +2228,233 @@
     return `<details class="nmda-contact-history"><summary>查看联系记录 <b>${records.length}</b></summary><div>${rows}</div></details>`;
   }
 
+
+  function dashboardTaskContacts() {
+    const map=new Map();
+    const merge=(emailRaw,nameRaw='',schoolRaw='',taskIncrement=0)=>{
+      const email=Operations?.normalizeEmail?.(emailRaw||'')||String(emailRaw||'').trim().toLowerCase();
+      if(!email||email===operationState.account)return;
+      const current=map.get(email)||{email,name:'',school:'',planned:true,tasks:0};
+      current.tasks+=Math.max(0,Number(taskIncrement||0));
+      if(!current.name&&nameRaw)current.name=String(nameRaw).trim();
+      if(!current.school&&schoolRaw)current.school=String(schoolRaw).trim();
+      map.set(email,current);
+    };
+    // The master roster is the closest thing to the operator's promised target pool.
+    // Merge it before prepared mails so contacts with a roster identity remain in the
+    // denominator even when their message is not ready yet.
+    for(const entry of (batch?.roster?.entries||[]))merge(entry?.email||'',entry?.name||'',entry?.school||'',0);
+    for(const task of (batch?.tasks||[])){
+      if(task?.dispatchKind==='follow_up')continue;
+      const recipients=Operations?.parseRecipients?.(task?.recipients||'')||[];
+      for(const recipient of recipients)merge(recipient?.email||'',recipient?.name||'',task?.school||'',1);
+    }
+    return map;
+  }
+
+  function dashboardHumanReplies(group){
+    return (group?.replies||[]).filter(reply=>Operations?.isEffectiveReplyObservation?.(reply)||reply?.kind==='human')
+      .sort((a,b)=>Operations.timeMs(a?.receivedAt)-Operations.timeMs(b?.receivedAt));
+  }
+
+  function dashboardGroupEmail(group){
+    return Operations?.normalizeEmail?.(monitorContactIdentity(group)?.email||'')||String(monitorContactIdentity(group)?.email||'').toLowerCase();
+  }
+
+  function dashboardReplyAfterFollowUp(group,reply){
+    if(!reply)return false;
+    const related=(group?.outbounds||[]).find(record=>String(record?.id||'')===String(reply?.relatedOutboundId||''));
+    return Math.max(0,Number(related?.effectiveSequence??related?.sequence??0))>0;
+  }
+
+  function dashboardContactSignal(group,meta={}){
+    const replies=dashboardHumanReplies(group);
+    const followUps=Math.max(0,Number(group?.completedFollowUps||0));
+    const active=!!group?.operatorContinued;
+    const strong=active&&replies.length>=2;
+    return {
+      email:meta.email||dashboardGroupEmail(group),
+      name:meta.name||monitorContactIdentity(group)?.name||'',
+      school:meta.school||'',
+      group,replies,followUps,active,strong,
+      level:strong?'strong':active?'active':replies.length?'reply':followUps?'followup':'base',
+      firstReplyAfterFollowUp:dashboardReplyAfterFollowUp(group,replies[0]||null),
+      lastAt:Math.max(
+        Operations.timeMs(group?.lastOutbound?.sentAt||''),
+        ...replies.map(reply=>Operations.timeMs(reply?.receivedAt||'')),
+        0
+      )
+    };
+  }
+
+  function dashboardSnapshot(){
+    const planned=dashboardTaskContacts();
+    const allGroups=Operations&&operationState.loaded?Operations.monitoringRoots(operationState.store):[];
+    const groupByEmail=new Map();
+    for(const group of allGroups){const email=dashboardGroupEmail(group);if(email)groupByEmail.set(email,group);}
+    const plannedMode=planned.size>0;
+    const scopedGroups=plannedMode?allGroups.filter(group=>planned.has(dashboardGroupEmail(group))):allGroups;
+    const contacts=[];
+    if(plannedMode){
+      for(const meta of planned.values()){
+        const group=groupByEmail.get(meta.email)||null;
+        contacts.push(group?dashboardContactSignal(group,meta):{...meta,group:null,replies:[],followUps:0,active:false,strong:false,level:'planned',firstReplyAfterFollowUp:false,lastAt:0});
+      }
+    }else{
+      for(const group of scopedGroups)contacts.push(dashboardContactSignal(group,{}));
+    }
+    const signals=scopedGroups.map(group=>dashboardContactSignal(group,planned.get(dashboardGroupEmail(group))||{}));
+    const reachedCount=plannedMode?signals.length:scopedGroups.length;
+    const plannedCount=plannedMode?planned.size:reachedCount;
+    const followedUp=signals.filter(contact=>contact.followUps>0).length;
+    const human=signals.filter(contact=>contact.replies.length>0).length;
+    const active=signals.filter(contact=>contact.active).length;
+    const strong=signals.filter(contact=>contact.strong).length;
+    const followUpEmergence=signals.filter(contact=>contact.replies.length&&contact.firstReplyAfterFollowUp).length;
+    const activeAfterFollowUp=signals.filter(contact=>contact.active&&contact.firstReplyAfterFollowUp).length;
+    const schoolSet=new Set([...planned.values()].map(item=>item.school).filter(Boolean));
+    const reachedSchoolSet=new Set(signals.map(item=>item.school).filter(Boolean));
+    const store=operationState.store||{};
+    const sync=store.mailboxSync||{};
+    const mailboxKnown=Object.keys(store.outboundRecords||{}).length>0||!!(sync.lastQuickAt||sync.lastFullAt||sync.lastDedupeAt);
+    const policy=store.followUpPolicies?.default||Operations?.DEFAULT_FOLLOWUP_POLICY||{delayDays:7,maxAttempts:2};
+    return {planned,plannedMode,groups:scopedGroups,signals,contacts,reachedCount,plannedCount,followedUp,human,active,strong,followUpEmergence,activeAfterFollowUp,schoolCount:schoolSet.size,reachedSchoolCount:reachedSchoolSet.size,mailboxKnown,policy};
+  }
+
+  function dashboardSchoolForContact(contact){return String(contact?.school||'').trim()||'其他联系人';}
+  function dashboardContactLabel(contact,index=0){
+    const mode=dashboardState.mode;
+    const name=String(contact?.name||'').trim();
+    if(name)return name;
+    if(mode==='student')return `联系人 ${String(index+1).padStart(2,'0')}`;
+    return contact?.email||'未知联系人';
+  }
+  function dashboardDateLabel(value){
+    const ms=Operations?.timeMs?.(value)||0;if(!ms)return '—';
+    return new Date(ms).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'});
+  }
+
+  function renderDashboardOpportunities(snapshot){
+    const list=$('nmda-dashboard-opportunity-list'), count=$('nmda-dashboard-opportunity-count');if(!list)return;
+    const ranked=[...snapshot.signals].filter(item=>item.replies.length).sort((a,b)=>{
+      const score=item=>(item.strong?140:item.active?100:60)+(item.replies.length*7)+(item.followUps*2)+(item.lastAt?Math.min(15,Math.floor(item.lastAt/86400000)%16):0);
+      return score(b)-score(a)||b.lastAt-a.lastAt;
+    });
+    if(count)count.textContent=snapshot.active?`${snapshot.active} 持续往来`:`${snapshot.human} 真人回复`;
+    const ladder=$('nmda-dashboard-signal-ladder');
+    if(ladder)ladder.innerHTML=`<span><small>真人回复</small><strong>${snapshot.human}</strong></span><i>→</i><span><small>转人工沟通</small><strong>${snapshot.active}</strong></span><i>→</i><span class="is-strong"><small>多轮往来</small><strong>${snapshot.strong}</strong></span>`;
+    if(!ranked.length){
+      list.innerHTML=`<div class="nmda-dashboard-empty"><div><strong>当前尚未出现真人回复</strong><span>这不会被标记为失败。看板继续保留履约与 Follow-up 证据，出现真实沟通后会自动置顶。</span></div></div>`;
+      return;
+    }
+    list.innerHTML=ranked.slice(0,6).map((contact,index)=>{
+      const latestReply=contact.replies[contact.replies.length-1]||null;
+      const identity=dashboardContactLabel(contact,index);
+      const label=contact.strong?'多轮往来':contact.active?'已转人工沟通':'真人回复';
+      const rank=contact.strong?'strong':'normal';
+      const school=dashboardSchoolForContact(contact);
+      const privateLine=dashboardState.mode==='student'?school:[school,contact.email].filter(Boolean).join(' · ');
+      const messageId=String(latestReply?.providerMessageId||contact.group?.lastOutbound?.providerMessageId||'').trim();
+      return `<article class="nmda-dashboard-opportunity" data-rank="${rank}">
+        <span class="nmda-dashboard-opportunity-avatar" aria-hidden="true">${escapeHtml((identity||'@').charAt(0).toUpperCase())}</span>
+        <div class="nmda-dashboard-opportunity-main"><div class="nmda-dashboard-opportunity-title"><strong>${escapeHtml(identity)}</strong><span>${escapeHtml(label)}</span></div><small data-private="1">${escapeHtml(privateLine)}</small><div class="nmda-dashboard-opportunity-facts"><span><b>${contact.group?.outbounds?.length||0}</b> 次触达</span><span><b>${contact.replies.length}</b> 次真人回复</span><span>最近 ${escapeHtml(dashboardDateLabel(latestReply?.receivedAt||contact.group?.lastOutbound?.sentAt||''))}</span></div></div>
+        ${messageId&&dashboardState.mode==='operator'?`<button class="nmda-dashboard-open-mail" type="button" data-open-original-mail="${escapeHtml(messageId)}" data-open-original-fid="${latestReply?'1':'3'}" title="在 163 打开最近相关邮件">↗</button>`:''}
+      </article>`;
+    }).join('');
+  }
+
+  function renderDashboardField(snapshot){
+    const field=$('nmda-dashboard-field'),copy=$('nmda-dashboard-field-copy');if(!field)return;
+    if(copy)copy.textContent=snapshot.plannedMode?'每个点是一位当前目标联系人；空心点尚未形成已发送事实，信号越明确视觉权重越高。':'每个点是一位已联系联系人；Follow-up、真人回复与持续往来逐级增强。';
+    if(!snapshot.contacts.length){field.innerHTML='<div class="nmda-dashboard-empty"><div><strong>暂无联系人事实</strong><span>导入目标名单或连接网易邮箱后，这里会形成联系人级联系场。</span></div></div>';return;}
+    const groups=new Map();
+    for(const contact of snapshot.contacts){const school=dashboardSchoolForContact(contact);if(!groups.has(school))groups.set(school,[]);groups.get(school).push(contact);}
+    const ordered=[...groups.entries()].sort((a,b)=>{
+      const signal=list=>list.reduce((n,item)=>n+(item.strong?9:item.active?7:item.replies?.length?5:item.followUps?2:0),0);
+      return signal(b[1])-signal(a[1])||b[1].length-a[1].length||a[0].localeCompare(b[0]);
+    });
+    field.innerHTML=ordered.map(([school,contacts])=>{
+      const dots=contacts.sort((a,b)=>({strong:5,active:4,reply:3,followup:2,base:1,planned:0}[b.level]-({strong:5,active:4,reply:3,followup:2,base:1,planned:0}[a.level]))).map((contact,index)=>{
+        const label=dashboardContactLabel(contact,index),status=contact.level==='strong'?'多轮往来':contact.level==='active'?'持续往来':contact.level==='reply'?'真人回复':contact.level==='followup'?`已跟进 ${contact.followUps} 次`:contact.level==='planned'?'目标池 · 尚无已发送事实':'已触达';
+        const tip=dashboardState.mode==='student'?`${label} · ${status}`:`${label}${contact.email&&label!==contact.email?` · ${contact.email}`:''} · ${status}`;
+        return `<button class="nmda-dashboard-dot" type="button" data-level="${escapeHtml(contact.level)}" aria-label="${escapeHtml(tip)}"></button>`;
+      }).join('');
+      return `<section class="nmda-dashboard-field-group"><header><strong title="${escapeHtml(school)}">${escapeHtml(school)}</strong><span>${contacts.length}</span></header><div class="nmda-dashboard-dots">${dots}</div></section>`;
+    }).join('');
+  }
+
+  function dashboardTrajectorySeries(snapshot){
+    const firstContacts=snapshot.groups.map(group=>({at:Operations.timeMs(group?.outbounds?.[0]?.sentAt||group?.lastOutbound?.sentAt||''),group})).filter(item=>item.at).sort((a,b)=>a.at-b.at);
+    const followEvents=[],replyEvents=[];
+    for(const group of snapshot.groups){
+      for(const outbound of group?.outbounds||[]){if(Math.max(0,Number(outbound?.effectiveSequence??outbound?.sequence??0))>0){const at=Operations.timeMs(outbound.sentAt);if(at)followEvents.push(at);}}
+      for(const reply of dashboardHumanReplies(group)){const at=Operations.timeMs(reply.receivedAt);if(at)replyEvents.push(at);}
+    }
+    const all=[...firstContacts.map(item=>item.at),...followEvents,...replyEvents].filter(Boolean).sort((a,b)=>a-b);
+    return {firstContacts,followEvents,replyEvents,min:all[0]||0,max:all[all.length-1]||0};
+  }
+
+  function renderDashboardTrajectory(snapshot){
+    const host=$('nmda-dashboard-trajectory'),range=$('nmda-dashboard-trajectory-range');if(!host)return;
+    const series=dashboardTrajectorySeries(snapshot);
+    if(!series.firstContacts.length){host.innerHTML='<div class="nmda-dashboard-empty"><div><strong>暂无履约轨迹</strong><span>读取已发送邮件后，这里按首次触达累计呈现执行过程。</span></div></div>';if(range)range.textContent='—';return;}
+    const W=620,H=112,pad={l:28,r:12,t:11,b:20};
+    const min=series.min,max=Math.max(series.max,series.min+86400000),maxY=Math.max(1,series.firstContacts.length);
+    const x=ms=>pad.l+(ms-min)/(max-min)*(W-pad.l-pad.r), y=n=>H-pad.b-(n/maxY)*(H-pad.t-pad.b);
+    let d=`M ${x(series.firstContacts[0].at).toFixed(1)} ${y(0).toFixed(1)}`;let count=0;
+    for(const item of series.firstContacts){const xx=x(item.at).toFixed(1);d+=` H ${xx}`;count+=1;d+=` V ${y(count).toFixed(1)}`;}
+    d+=` H ${(W-pad.r).toFixed(1)}`;
+    const area=`${d} V ${H-pad.b} H ${pad.l} Z`;
+    const compactEvents=(values,limit=80)=>values.length<=limit?values:values.filter((_,i)=>i%Math.ceil(values.length/limit)===0);
+    const follows=compactEvents(series.followEvents).map(ms=>`<line class="nmda-dashboard-chart-follow" x1="${x(ms).toFixed(1)}" x2="${x(ms).toFixed(1)}" y1="${H-pad.b+1}" y2="${H-pad.b+7}"/>`).join('');
+    const replies=compactEvents(series.replyEvents,28).map(ms=>{const c=series.firstContacts.filter(item=>item.at<=ms).length;return `<circle class="nmda-dashboard-chart-reply" cx="${x(ms).toFixed(1)}" cy="${y(c).toFixed(1)}" r="2.6"/>`;}).join('');
+    const grid=[.25,.5,.75,1].map(fr=>`<line class="nmda-dashboard-chart-grid" x1="${pad.l}" x2="${W-pad.r}" y1="${y(maxY*fr).toFixed(1)}" y2="${y(maxY*fr).toFixed(1)}"/>`).join('');
+    const grad=`<defs><linearGradient id="nmdaDashArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7890ad" stop-opacity=".16"/><stop offset="1" stop-color="#7890ad" stop-opacity=".015"/></linearGradient></defs>`;
+    host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="累计联系人触达轨迹">${grad}${grid}<path class="nmda-dashboard-chart-area" d="${area}"/><path class="nmda-dashboard-chart-line" d="${d}"/>${follows}${replies}<circle class="nmda-dashboard-chart-dot" cx="${W-pad.r}" cy="${y(maxY).toFixed(1)}" r="3.2"/><text class="nmda-dashboard-chart-value" x="${W-pad.r-2}" y="${Math.max(9,y(maxY)-6).toFixed(1)}" text-anchor="end">${maxY} 位</text><text class="nmda-dashboard-chart-label" x="${pad.l}" y="${H-4}">${escapeHtml(dashboardDateLabel(min))}</text><text class="nmda-dashboard-chart-label" x="${W-pad.r}" y="${H-4}" text-anchor="end">${escapeHtml(dashboardDateLabel(max))}</text></svg>`;
+    if(range)range.textContent=`${dashboardDateLabel(min)} → ${dashboardDateLabel(max)}`;
+  }
+
+  function renderDashboardDepth(snapshot){
+    const host=$('nmda-dashboard-depth'),evidence=$('nmda-dashboard-evidence');if(!host)return;
+    const rows=[
+      ['首次触达',snapshot.reachedCount],
+      ['≥ 1 次 Follow-up',snapshot.signals.filter(item=>item.followUps>=1).length],
+      ['≥ 2 次 Follow-up',snapshot.signals.filter(item=>item.followUps>=2).length]
+    ];
+    const max=Math.max(1,...rows.map(row=>row[1]));
+    host.innerHTML=rows.map(([label,value])=>`<div class="nmda-dashboard-depth-row"><span>${escapeHtml(label)}</span><div class="nmda-dashboard-depth-track"><i style="width:${Math.max(0,Math.min(100,value/max*100)).toFixed(1)}%"></i></div><b>${value}</b></div>`).join('');
+    if(evidence){
+      const policy=snapshot.policy||{};const delay=Math.max(0,Number(policy.delayDays??7));const maxAttempts=Math.max(0,Number(policy.maxAttempts??2));
+      const strategy=`当前策略：首次 / 上次发送后等待 <strong>${delay} 天</strong>，无有效回复时最多继续 <strong>${maxAttempts} 次</strong> Follow-up。`;
+      let result='';
+      if(snapshot.activeAfterFollowUp>0)result=`其中 <strong>${snapshot.activeAfterFollowUp}</strong> 段持续往来的首次真人回复发生在 Follow-up 之后。`;
+      else if(snapshot.followUpEmergence>0)result=`已有 <strong>${snapshot.followUpEmergence}</strong> 位联系人的首次真人回复出现在 Follow-up 之后。`;
+      else result=snapshot.followedUp?`已有 <strong>${snapshot.followedUp}</strong> 位联系人完成至少一次 Follow-up；继续按既定规则观察。`:'当前尚未进入 Follow-up 阶段。';
+      evidence.dataset.tone=(snapshot.activeAfterFollowUp||snapshot.followUpEmergence)?'signal':'';
+      evidence.innerHTML=`${strategy} ${result}`;
+    }
+  }
+
+  function renderDashboard(){
+    if(!Operations||!operationState.loaded)return;
+    const pane=ui.querySelector('[data-pane="dashboard"]');if(!pane)return;
+    pane.dataset.dashboardMode=dashboardState.mode;
+    ui.querySelectorAll('[data-dashboard-mode]').forEach(button=>button.classList.toggle('is-active',button.dataset.dashboardMode===dashboardState.mode));
+    const snapshot=dashboardSnapshot();
+    const set=(id,value)=>{const el=$(id);if(el)el.textContent=String(value)};
+    const deliveryValue=snapshot.mailboxKnown?(snapshot.plannedMode?`${snapshot.reachedCount} / ${snapshot.plannedCount}`:`${snapshot.reachedCount}`):(snapshot.plannedMode?`— / ${snapshot.plannedCount}`:'—');
+    set('nmda-dashboard-delivery-value',deliveryValue);
+    set('nmda-dashboard-delivery-copy',snapshot.plannedMode?(snapshot.mailboxKnown?`当前目标池已完成 ${snapshot.reachedCount} 位实际触达`:'目标池已载入；更新邮箱后核对实际触达'):(snapshot.mailboxKnown?'按邮箱事实统计唯一联系人':'更新邮箱后读取实际触达'));
+    const progress=$('nmda-dashboard-delivery-progress');if(progress)progress.style.width=snapshot.mailboxKnown&&snapshot.plannedCount?`${Math.min(100,snapshot.reachedCount/snapshot.plannedCount*100).toFixed(1)}%`:'0%';
+    const inst=snapshot.schoolCount?(snapshot.mailboxKnown?`${snapshot.reachedSchoolCount} / ${snapshot.schoolCount}`:`— / ${snapshot.schoolCount}`):(snapshot.reachedSchoolCount||'—');
+    set('nmda-dashboard-institution-value',inst);set('nmda-dashboard-institution-copy',snapshot.schoolCount?'按当前目标资料识别的院校覆盖':'当前资料未提供稳定院校字段');
+    set('nmda-dashboard-followup-value',snapshot.mailboxKnown?snapshot.followedUp:'—');set('nmda-dashboard-followup-copy',snapshot.mailboxKnown?`${snapshot.signals.filter(item=>item.followUps>=2).length} 位已完成两次及以上争取`:'更新邮箱后统计 Follow-up 深度');
+    set('nmda-dashboard-active-value',snapshot.mailboxKnown?snapshot.active:'—');set('nmda-dashboard-active-copy',snapshot.mailboxKnown?(snapshot.strong?`${snapshot.strong} 位已出现多轮真人往来`:`另有 ${snapshot.human} 位出现真人回复`):'更新邮箱后识别持续往来');
+    const period=$('nmda-dashboard-period-copy');if(period)period.textContent=dashboardState.mode==='student'?'阶段成果以实际触达、持续争取和真实往来为主，不以低基率回复制造成败判断。':'以联系人为主键核对履约、Follow-up 深度与人工往来；自动回复不计入成果。';
+    const heading=pane.querySelector('.nmda-dashboard-heading h2');if(heading)heading.textContent=dashboardState.mode==='student'?'阶段外联成果':'成效看板';
+    renderDashboardOpportunities(snapshot);renderDashboardField(snapshot);renderDashboardTrajectory(snapshot);renderDashboardDepth(snapshot);
+  }
+
   function renderMonitoring() {
     if(!Operations || !operationState.loaded)return;
     const els=monitorEls();
@@ -2282,6 +2587,7 @@
       }
     }
     monitorState.lastRenderAt=Date.now();
+    if(currentWorkbenchTab()==='dashboard')renderDashboard();
   }
 
   async function loadMonitoring() {
@@ -2775,6 +3081,7 @@
     if (name === 'batch' && viewPerf.batchDirty) scheduleBatchRender();
     if (name === 'review') requestAnimationFrame(() => { if(reviewInlineEl)reviewInlineEl.hidden=false; void (async()=>{ await ensureOperationStore(); renderReviewPageOverview(); })(); });
     if (name === 'dispatch') requestAnimationFrame(() => { void (async()=>{ await ensureOperationStore(); scheduleBatchRender({aux:false,force:true}); })(); });
+    if (name === 'dashboard') requestAnimationFrame(() => { void (async()=>{ await ensureOperationStore(); renderDashboard(); })(); });
     if (name === 'utilities') requestAnimationFrame(() => { renderUtilityHubSummary(); if(activeUtilityView==='monitor')void loadMonitoring(); else if(activeUtilityView==='draft-attachments'){ if(!draftAttachmentTool.scanned&&!draftAttachmentTool.loading) void scanDraftAttachmentTool(); else renderDraftAttachmentTool(); } });
     if(name==='batch' && batch?.dataset && !mailboxDedupeSnapshotAvailable()) scheduleMailboxAutoSync('history',{source:'batch'});
     else scheduleMailboxAutoSync('quick',{source:`tab:${name}`});
@@ -2801,6 +3108,17 @@
     history.replaceState(null,'',`#${name}`);
   }));
   ui.querySelectorAll('[data-flow-step]').forEach(button => button.addEventListener('click', () => { void goToProcessStep(button.dataset.flowStep); }));
+  ui.querySelectorAll('[data-dashboard-mode]').forEach(button=>button.addEventListener('click',()=>{
+    dashboardState.mode=button.dataset.dashboardMode==='student'?'student':'operator';
+    try{localStorage.setItem('nmda.dashboard.mode',dashboardState.mode);}catch(_){}
+    renderDashboard();
+  }));
+  $('nmda-dashboard-refresh')?.addEventListener('click',()=>void (async()=>{
+    const button=$('nmda-dashboard-refresh');if(button){button.disabled=true;button.textContent='正在更新…';}
+    try{await ensureOperationStore();await requestAutoMailboxSync('quick',{force:true,source:'tab:dashboard'});renderDashboard();}
+    catch(error){console.warn(`[${APP}] dashboard refresh failed`,error);}
+    finally{if(button){button.disabled=false;button.textContent='更新邮箱事实';}}
+  })());
 
   const batch = {
     dataset: null, collectionIndex: 0, collectionConfigs: new Map(), detection: null, mapping: {}, tasks: [],
@@ -9009,6 +9327,7 @@
         if(normalizedKind==='full'){mailboxAutoSyncState.lastFullAt=finished;mailboxAutoSyncState.lastQuickAt=finished;}
         if(batch?.dataset){renderDuplicateDecision();renderRosterAudit();renderProcessGuide();}
         renderMonitoring();
+        if(currentWorkbenchTab()==='dashboard')renderDashboard();
         renderReviewPageOverview();
         const inferred=result?.historicalFollowUpsRecognized?` · 历史 Follow-up ${result.historicalFollowUpsRecognized}`:'';
         const historyMonths=readMailboxHistoryMonths();
@@ -9272,7 +9591,7 @@
     if(raw==='monitor'){setWorkbenchTab('utilities');setUtilityView('monitor',{syncHash:false});return;}
     const utility=raw.match(/^utilities(?:\/(monitor|draft-attachments))?$/);
     if(utility){setWorkbenchTab('utilities');setUtilityView(utility[1]||'home',{syncHash:false});return;}
-    const match=raw.match(/^(batch|review|dispatch)$/);
+    const match=raw.match(/^(batch|review|dispatch|dashboard)$/);
     if(!match)return;
     const tab=match[1];
     if(tab==='review'){requestAnimationFrame(()=>void openReviewWorkspace({pendingOnly:false,fromDeepLink:true}));return;}
