@@ -10,7 +10,9 @@
     skipEnd: '',
     preserveExisting: true,
     includeMailboxScheduled: true,
-    intraRoundMinutes: 10,
+    sameGroupIntervalDays: 7,
+    // Legacy compatibility only. Automatic schedules no longer stagger minutes.
+    intraRoundMinutes: 0,
     skipHolidays: true
   });
 
@@ -159,6 +161,8 @@
     let weekdays=input.weekdays;
     if((!Array.isArray(weekdays)||!weekdays.length)&&legacyParts)weekdays=[legacyParts.weekday].filter(n=>n>=1&&n<=5);
     const skipStart=String(input.skipStart||'').trim(),skipEnd=String(input.skipEnd||'').trim();
+    const intervalRaw=Number(input.sameGroupIntervalDays ?? input.intervalDays ?? DEFAULT_RULES.sameGroupIntervalDays);
+    const sameGroupIntervalDays=Number.isFinite(intervalRaw)?Math.max(0,Math.min(365,intervalRaw)):DEFAULT_RULES.sameGroupIntervalDays;
     const startInstant=zonedLocalToDate(startDate,localTime,timeZone);
     return {
       startAt:startInstant?formatLocalDateTime(startInstant):'',
@@ -171,7 +175,9 @@
       maxPerGroupPerRound:max,
       preserveExisting:input.preserveExisting!==false,
       includeMailboxScheduled:input.includeMailboxScheduled!==false,
-      intraRoundMinutes:Math.max(0,Math.min(120,Number(input.intraRoundMinutes)||DEFAULT_RULES.intraRoundMinutes)),
+      sameGroupIntervalDays,
+      // Retained so older saved workspaces can still be read; it no longer changes send time.
+      intraRoundMinutes:0,
       skipHolidays:input.skipHolidays!==false
     };
   }
@@ -335,8 +341,18 @@
   function localMinuteValue(time){const m=String(time||'').match(/^(\d{1,2}):(\d{2})$/);return m?Math.max(0,Math.min(1439,(+m[1])*60+(+m[2]))):450;}
   function minuteTime(value){const total=Math.max(0,Math.min(1439,Number(value)||0));return `${pad(Math.floor(total/60))}:${pad(total%60)}`;}
   function scheduleInstantForDate(key,rules,slot=0){
-    const normalized=normalizeRules(rules),minute=localMinuteValue(normalized.localTime)+Math.max(0,Number(slot)||0)*Math.max(1,Number(normalized.intraRoundMinutes)||10);
+    // The operator-selected local time is authoritative. Multiple independent
+    // tasks may legitimately share the same clock time; scheduling constraints
+    // operate on dates / institutions, never by silently nudging minutes.
+    const normalized=normalizeRules(rules),minute=localMinuteValue(normalized.localTime);
     if(minute>=1440)return null;return zonedLocalToDate(key,minuteTime(minute),normalized.timeZone);
+  }
+  function dateKeyOrdinal(key){
+    const m=String(key||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m?Math.floor(Date.UTC(+m[1],+m[2]-1,+m[3])/86400000):NaN;
+  }
+  function dateKeyDistance(a,b){
+    const aa=dateKeyOrdinal(a),bb=dateKeyOrdinal(b);return Number.isFinite(aa)&&Number.isFinite(bb)?Math.abs(aa-bb):Number.POSITIVE_INFINITY;
   }
   function calendarReasonForKey(key,task,rules){
     const normalized=normalizeRules(rules),weekday=weekdayForDateKey(key),reasons=[],country=countryForSchedule(task,normalized);
@@ -373,13 +389,11 @@
       _scheduleDate:date
     };
   }
-  function scheduleMinuteKey(value){const date=parseLocalDateTime(value);return date?formatLocalDateTime(date):'';}
-
   function audit(tasks,rulesInput={},context={}){
     const rules=normalizeRules(rulesInput),buckets=new Map();let scheduled=0;
-    const holidayConflicts=[],currentScheduled=[];
+    const holidayConflicts=[];
     for(const task of (tasks||[]).filter(t=>t&&t.enabled&&t.status==='ready'&&t.scheduleAt)){
-      const date=parseLocalDateTime(task.scheduleAt);if(!date)continue;scheduled++;currentScheduled.push({task,date});
+      const date=parseLocalDateTime(task.scheduleAt);if(!date)continue;scheduled++;
       const dayKey=localDateKey(date,rules.timeZone),calendar=calendarReasonForKey(dayKey,task,rules);
       if(calendar.blocked)holidayConflicts.push({task,date,info:{...calendar,dateKey:dayKey,nonWorking:true}});
       const group=groupForTask(task),key=`${group.key}|${dayKey}`;
@@ -387,16 +401,33 @@
     }
     const currentDraftIds=new Set((tasks||[]).map(task=>String(task?.mailboxDraftId||'')).filter(Boolean));
     const anchors=rules.includeMailboxScheduled?(context.externalAnchors||[]).map(normalizeExternalAnchor).filter(anchor=>anchor&&!currentDraftIds.has(anchor.id)):[];
-    const anchorTimes=new Map();
     for(const anchor of anchors){
       const dayKey=localDateKey(anchor._scheduleDate,rules.timeZone),group=groupForTask(anchor),key=`${group.key}|${dayKey}`;
       if(!buckets.has(key))buckets.set(key,{group,dayKey,tasks:[],anchors:[]});buckets.get(key).anchors.push(anchor);
-      const timeKey=scheduleMinuteKey(anchor.scheduleAt);if(timeKey){if(!anchorTimes.has(timeKey))anchorTimes.set(timeKey,[]);anchorTimes.get(timeKey).push(anchor);}
     }
     const conflicts=[...buckets.values()].filter(x=>x.tasks.length>rules.maxPerGroupPerRound).map(x=>({groupLabel:x.group.label,dayKey:x.dayKey,count:x.tasks.length,limit:rules.maxPerGroupPerRound,tasks:x.tasks}));
     const externalConflicts=[...buckets.values()].filter(x=>x.tasks.length&&x.tasks.length+x.anchors.length>rules.maxPerGroupPerRound).map(x=>({groupLabel:x.group.label,dayKey:x.dayKey,count:x.tasks.length+x.anchors.length,currentCount:x.tasks.length,lockedCount:x.anchors.length,limit:rules.maxPerGroupPerRound,tasks:x.tasks,anchors:x.anchors}));
-    const timeConflicts=currentScheduled.map(({task,date})=>({task,date,anchors:anchorTimes.get(formatLocalDateTime(date))||[]})).filter(item=>item.anchors.length);
-    return {conflicts,externalConflicts,timeConflicts,holidayConflicts,scheduled,externalCount:anchors.length};
+    const byGroup=new Map();
+    for(const bucket of buckets.values()){
+      if(!byGroup.has(bucket.group.key))byGroup.set(bucket.group.key,{group:bucket.group,entries:[]});
+      const target=byGroup.get(bucket.group.key).entries;
+      for(const task of bucket.tasks)target.push({kind:'task',task,dayKey:bucket.dayKey});
+      for(const anchor of bucket.anchors)target.push({kind:'anchor',anchor,dayKey:bucket.dayKey});
+    }
+    const intervalConflicts=[];
+    if(rules.sameGroupIntervalDays>0){
+      for(const item of byGroup.values()){
+        const entries=item.entries.sort((a,b)=>dateKeyOrdinal(a.dayKey)-dateKeyOrdinal(b.dayKey));
+        for(let i=1;i<entries.length;i++){
+          const earlier=entries[i-1],later=entries[i],gapDays=dateKeyDistance(earlier.dayKey,later.dayKey);
+          if(gapDays<rules.sameGroupIntervalDays&&(earlier.kind==='task'||later.kind==='task'))intervalConflicts.push({groupLabel:item.group.label,earlier,later,gapDays,limitDays:rules.sameGroupIntervalDays});
+        }
+      }
+    }
+    // Exact clock-time equality is not a conflict: NetEase can hold multiple
+    // independently scheduled drafts for the same minute. Keep the field for API compatibility.
+    const timeConflicts=[];
+    return {conflicts,externalConflicts,intervalConflicts,timeConflicts,holidayConflicts,scheduled,externalCount:anchors.length};
   }
 
   function buildPlan(tasks,rulesInput={},now=new Date(),context={}){
@@ -409,27 +440,24 @@
 
     const currentDraftIds=new Set(candidates.map(task=>String(task.mailboxDraftId||'')).filter(Boolean));
     const externalAnchors=rules.includeMailboxScheduled?(context.externalAnchors||[]).map(normalizeExternalAnchor).filter(anchor=>anchor&&anchor._scheduleDate.getTime()>now.getTime()+60*1000&&!currentDraftIds.has(anchor.id)):[];
-    const externalByGroup=new Map(),lockedTimes=new Set();
+    const externalByGroup=new Map();
     for(const anchor of externalAnchors){
       const group=groupForTask(anchor);if(!externalByGroup.has(group.key))externalByGroup.set(group.key,[]);externalByGroup.get(group.key).push({anchor,group});
-      lockedTimes.add(formatLocalDateTime(anchor._scheduleDate));
     }
 
     const taskOrder=new Map(candidates.map((task,index)=>[task,index])),groups=new Map();
     for(const task of candidates){
       const group=groupForTask(task);if(!groups.has(group.key))groups.set(group.key,{...group,tasks:[]});groups.get(group.key).tasks.push(task);
-      const source=String(task.scheduleSource||''),existingDate=parseLocalDateTime(task.scheduleAt);
-      const providerLocked=source==='mailbox'&&!!task.mailboxDraftId&&existingDate&&existingDate.getTime()>now.getTime()+60*1000;
-      const rosterFixed=source==='roster-fixed'&&existingDate&&existingDate.getTime()>now.getTime()+60*1000;
-      if(providerLocked||rosterFixed||(rules.preserveExisting&&task.scheduleAt&&source!=='auto'&&existingDate&&existingDate.getTime()>now.getTime()+60*1000))lockedTimes.add(formatLocalDateTime(existingDate));
+      // Existing times are protected by their own school/date constraints below.
+      // Equal clock times across different schools are intentionally allowed.
     }
 
     const assignments=[],preserved=[],usedSendDays=new Set();
-    let priorityOrderedGroups=0,holidayAdjusted=0,skipAdjusted=0,lockedTimeAdjusted=0;
+    let priorityOrderedGroups=0,holidayAdjusted=0,skipAdjusted=0,intervalAdjusted=0;
     for(const group of groups.values()){
-      const occupancy=new Map(),protectedPriority=[];
+      const occupancy=new Map(),protectedPriority=[],usedGroupDays=new Set();
       for(const item of externalByGroup.get(group.key)||[]){
-        const key=localDateKey(item.anchor._scheduleDate,rules.timeZone);occupancy.set(key,(occupancy.get(key)||0)+1);usedSendDays.add(key);
+        const key=localDateKey(item.anchor._scheduleDate,rules.timeZone);occupancy.set(key,(occupancy.get(key)||0)+1);usedSendDays.add(key);usedGroupDays.add(key);
       }
       const autoQueue=[];
       for(const task of group.tasks){
@@ -438,7 +466,7 @@
         const rosterFixed=source==='roster-fixed'&&existingDate&&existingDate.getTime()>now.getTime()+60*1000;
         const isProtected=providerLocked||rosterFixed||(rules.preserveExisting&&task.scheduleAt&&source!=='auto'&&existingDate&&existingDate.getTime()>now.getTime()+60*1000);
         if(isProtected){
-          const key=localDateKey(existingDate,rules.timeZone);occupancy.set(key,(occupancy.get(key)||0)+1);usedSendDays.add(key);
+          const key=localDateKey(existingDate,rules.timeZone);occupancy.set(key,(occupancy.get(key)||0)+1);usedSendDays.add(key);usedGroupDays.add(key);
           const protectedRound=priorityRoundForTask(task);if(protectedRound.has)protectedPriority.push({priority:protectedRound.round,instant:existingDate,label:protectedRound.raw||`R${protectedRound.round+1}`,dateKey:key});
           preserved.push({task,group,scheduleAt:task.scheduleAt,source:source||'existing'});
         }else autoQueue.push(task);
@@ -455,11 +483,12 @@
         const laterProtected=priorityRound.has?protectedPriority.filter(item=>item.priority>priorityRound.round):[];
         const minInstant=earlierProtected.length?new Date(Math.max(...earlierProtected.map(item=>item.instant.getTime()))+60*1000):null;
         const ceilingInstant=laterProtected.length?new Date(Math.min(...laterProtected.map(item=>item.instant.getTime()))):null;
-        let key=cursorKey||rules.startDate,when=null,slot=0,collisionShifts=0,calendarHolidaySeen=false,calendarSkipSeen=false;
+        let key=cursorKey||rules.startDate,when=null,slot=0,calendarHolidaySeen=false,calendarSkipSeen=false,intervalGapSeen=false;
         for(let guard=0;guard<730&&!when;guard++,key=addDateKeyDays(key,1)){
           const calendar=calendarReasonForKey(key,task,rules);
           if(calendar.blocked){if(calendar.reasons.includes('跳过时间段'))calendarSkipSeen=true;if(calendar.reasons.some(r=>r!=='非所选工作日'&&r!=='跳过时间段'))calendarHolidaySeen=true;continue;}
           slot=occupancy.get(key)||0;if(slot>=rules.maxPerGroupPerRound)continue;
+          if(rules.sameGroupIntervalDays>0&&[...usedGroupDays].some(day=>dateKeyDistance(day,key)<rules.sameGroupIntervalDays)){intervalGapSeen=true;continue;}
           let candidate=scheduleInstantForDate(key,rules,slot);if(!candidate)continue;
           if(candidate.getTime()<=now.getTime()+60*1000)continue;
           if(minInstant&&candidate.getTime()<minInstant.getTime())continue;
@@ -467,28 +496,28 @@
             const blocker=laterProtected.sort((a,b)=>a.instant-b.instant||a.priority-b.priority)[0];
             throw new Error(`${group.label} 的固定/已有时间与同校优先轮次冲突：${priorityRound.raw||`R${priorityRound.round+1}`} 无法排在 ${blocker.label} 之前。请调整固定时间或优先轮次。`);
           }
-          const stepMinutes=Math.max(1,Number(rules.intraRoundMinutes)||10);collisionShifts=0;
-          while(lockedTimes.has(formatLocalDateTime(candidate))&&collisionShifts<144){candidate=new Date(candidate.getTime()+stepMinutes*60*1000);collisionShifts++;}
-          if(collisionShifts>=144)continue;
+          // Do not mutate the chosen clock time to avoid an unrelated message.
+          // Cross-school same-minute schedules are valid; school spacing is date-based.
           if(localDateKey(candidate,rules.timeZone)!==key)continue;
           if(ceilingInstant&&candidate.getTime()>=ceilingInstant.getTime())continue;
-          when=candidate;
+          when=candidate;break;
         }
-        if(!when)throw new Error(`无法为 ${group.label} 找到可用的工作日时间槽。请检查开始日期、工作日、跳过时间段或已有排期。`);
-        if(calendarHolidaySeen)holidayAdjusted++;if(calendarSkipSeen)skipAdjusted++;if(collisionShifts)lockedTimeAdjusted++;
-        occupancy.set(key,slot+1);lockedTimes.add(formatLocalDateTime(when));usedSendDays.add(key);cursorKey=key;
+        if(!when)throw new Error(`无法为 ${group.label} 找到符合规则的发送日期。请检查开始日期、工作日、跳过时间段或已有排期。`);
+        if(calendarHolidaySeen)holidayAdjusted++;if(calendarSkipSeen)skipAdjusted++;if(intervalGapSeen)intervalAdjusted++;
+        occupancy.set(key,slot+1);usedGroupDays.add(key);usedSendDays.add(key);cursorKey=key;
         const priority=priorityForTask(task),localLabel=formatInTimeZone(when,rules.timeZone).replace('T',' '),reasonParts=[`${group.label} · ${localLabel} · ${timeZoneLabel(rules.timeZone)}`];
         if(rules.maxPerGroupPerRound>1)reasonParts.push(`当日第 ${slot+1} 位`);
         if(priorityRound.has)reasonParts.push(`同校优先轮次 ${priorityRound.raw||`R${priorityRound.round+1}`}`);
         if(priority.has)reasonParts.push(`名单顺序 ${priority.raw||priority.rank}`);
-        if(calendarSkipSeen)reasonParts.push('已避开跳过时间段');if(calendarHolidaySeen)reasonParts.push('已避开当地节假日');if(collisionShifts)reasonParts.push(`避开已有排期，顺延 ${collisionShifts*Math.max(1,Number(rules.intraRoundMinutes)||10)} 分钟`);
+        if(intervalGapSeen&&rules.sameGroupIntervalDays>0)reasonParts.push(`同校至少间隔 ${rules.sameGroupIntervalDays} 天`);
+        if(calendarSkipSeen)reasonParts.push('已避开跳过时间段');if(calendarHolidaySeen)reasonParts.push('已避开当地节假日');
         assignments.push({
           editKey:task.editKey,task,groupKey:group.key,groupLabel:group.label,groupSource:group.source,
           scheduleAt:formatLocalDateTime(when),originalScheduleAt:formatLocalDateTime(scheduleInstantForDate(key,rules,slot)),scheduleDayKey:key,scheduleCycleIndex:0,roundIndex:0,slotIndex:slot,
           priorityRoundIndex:priorityRound.has?priorityRound.round:null,priorityRoundLabel:priorityRound.has?(priorityRound.raw||`R${priorityRound.round+1}`):'',
           priorityRank:priority.has?priority.rank:null,priorityLabel:priority.has?(priority.raw||String(priority.rank)):'',
           holidayShiftDays:calendarHolidaySeen?1:0,holidayReasons:calendarHolidaySeen?['当地节假日']:[],country:countryForSchedule(task,rules).raw||countryForSchedule(task,rules).code||'',
-          lockedTimeShiftMinutes:collisionShifts*Math.max(1,Number(rules.intraRoundMinutes)||10),localScheduleAt:formatInTimeZone(when,rules.timeZone),timeZone:rules.timeZone,
+          lockedTimeShiftMinutes:0,localScheduleAt:formatInTimeZone(when,rules.timeZone),timeZone:rules.timeZone,
           reason:reasonParts.join(' · ')
         });
       }
@@ -496,7 +525,7 @@
     const autoDays=new Set(assignments.map(item=>item.scheduleDayKey).filter(Boolean));
     return {
       rules,assignments,preserved,externalAnchors,
-      summary:{selected:candidates.length,groups:groups.size,auto:assignments.length,preserved:preserved.length,externalAnchors:externalAnchors.length,externalGroups:externalByGroup.size,scheduleDays:autoDays.size,scheduleCycles:autoDays.size,rounds:autoDays.size,priorityOrderedGroups,holidayAdjusted,skipAdjusted,lockedTimeAdjusted}
+      summary:{selected:candidates.length,groups:groups.size,auto:assignments.length,preserved:preserved.length,externalAnchors:externalAnchors.length,externalGroups:externalByGroup.size,scheduleDays:autoDays.size,scheduleCycles:autoDays.size,rounds:autoDays.size,priorityOrderedGroups,holidayAdjusted,skipAdjusted,intervalAdjusted,lockedTimeAdjusted:0}
     };
   }
 

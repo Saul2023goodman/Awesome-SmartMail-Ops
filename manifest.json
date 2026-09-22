@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SmartMail Ops",
-  "version": "3.8.106",
-  "description": "SmartMail Ops — Adds a contact-first outcome dashboard for outreach fulfillment, persistence, follow-up effort, and high-signal ongoing conversations.",
+  "version": "3.8.107",
+  "description": "SmartMail Ops — Exact-time scheduling: preserves the operator-selected clock time, restores configurable same-school day spacing, and keeps cross-school schedules independent.",
   "permissions": [
     "scripting",
     "tabs",
