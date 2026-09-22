@@ -321,7 +321,7 @@
     const writeButton = findWriteButton();
     if (!writeButton) throw new Error(`无法新建下一封写信。页面接口：${apiResult.reason || '不可用'}。`);
     writeButton.click();
-    return waitFor(isFresh, 12000, 120, '已触发“写信”，但没有检测到新的 Compose 实例；为避免覆盖上一封草稿，批处理已停止。');
+    return waitFor(isFresh, 12000, 120, '网易邮箱没有打开新的写信窗口。为避免影响上一封草稿，本次创建已停止。');
   }
 
 
@@ -339,7 +339,7 @@
 
   async function openNativeMessageContext(messageId, fid = 3) {
     const id = String(messageId || '').trim();
-    if (!id) throw new Error('缺少原邮件 message id，无法打开网易原生上下文。');
+    if (!id) throw new Error('无法定位对应的原邮件，请先刷新邮件监测后重试。');
     const payload = { area:'normal', isThread:false, viewType:'', id, fid:Number(fid || 3) || 3 };
     location.hash = `module=read.ReadModule%7C${encodeURIComponent(JSON.stringify(payload))}`;
     await waitFor(() => {
@@ -365,14 +365,14 @@
         messageId:String(messageId || ''),
         fid:Number(fid || 3) || 3
       });
-      if (!native?.ok) throw new Error(`已打开原邮件，但网易原生“回复全部（带附件）”入口不可用：${native?.reason || 'unknown'}`);
+      if (!native?.ok) throw new Error(`无法从原邮件打开“回复全部（带附件）”：${native?.reason || '请刷新页面后重试'}`);
       return waitFor(() => {
         const root = findComposeRoot();
         if (!root) return null;
         const now = composeFingerprint(root);
         if (!beforeRoot || !before || (now && now !== before)) return root;
         return null;
-      }, 14000, 120, '已调用网易原生“回复全部（带附件）”，但没有检测到新的回复 Compose。');
+      }, 14000, 120, '已打开原邮件，但“回复全部（带附件）”窗口没有正常出现。');
     }
 
     const labels = ['转发'];
@@ -384,7 +384,7 @@
       const now = composeFingerprint(root);
       if (!beforeRoot || !before || (now && now !== before)) return root;
       return null;
-    }, 12000, 120, `点击“${labels[0]}”后没有检测到网易原生写信窗口。`);
+    }, 12000, 120, `点击“${labels[0]}”后，写信窗口没有正常出现。`);
   }
 
   function findRecipientInput(root) {
@@ -617,15 +617,15 @@
       identity:composeIdentity || {},
       scheduled:!!scheduled
     });
-    if (!result?.ok) throw new Error(`极速 Compose 原生提交失败：${result?.reason || 'unknown'}`);
+    if (!result?.ok) throw new Error(`快速创建未能保存草稿：${result?.reason || '请关闭“快速创建”后重试'}`);
     return result;
   }
 
   async function setBody(root, bodyText, bodyHtml = '', bodyIsHtml = false, ensureParagraphSpacing = true) {
-    const iframe = await waitFor(() => findEditorIframe(root), 8000, 120, '未找到正文编辑器 iframe。');
+    const iframe = await waitFor(() => findEditorIframe(root), 8000, 120, '未找到正文编辑区域。');
     const body = await waitFor(() => {
       try { return iframe.contentDocument?.body || null; } catch (_) { return null; }
-    }, 8000, 120, '无法访问正文编辑器内容。');
+    }, 8000, 120, '无法读取正文编辑区域。');
     body.focus();
     // Drafts imported from the mailbox already contain NetEase-sanitized HTML.
     // Preserve that representation unless the user edited the plain-text body in
@@ -636,10 +636,10 @@
 
 
   async function prependBody(root, bodyText, bodyHtml = '', bodyIsHtml = false, ensureParagraphSpacing = true) {
-    const iframe = await waitFor(() => findEditorIframe(root), 8000, 120, '未找到正文编辑器 iframe。');
+    const iframe = await waitFor(() => findEditorIframe(root), 8000, 120, '未找到正文编辑区域。');
     const body = await waitFor(() => {
       try { return iframe.contentDocument?.body || null; } catch (_) { return null; }
-    }, 8000, 120, '无法访问正文编辑器内容。');
+    }, 8000, 120, '无法读取正文编辑区域。');
     const html = composeBodyHtml(bodyText, bodyHtml, bodyIsHtml, ensureParagraphSpacing);
     if (!String(html || '').trim()) return;
     body.focus();
@@ -1164,7 +1164,7 @@
     assertDraftAttachmentActive(executionId);
     const meta = await chrome.runtime.sendMessage({ type: 'NMDA_RUNTIME_FILE_META', id });
     assertDraftAttachmentActive(executionId);
-    if (!meta?.ok) throw new Error(`无法读取附件 ${ref?.name || id}：${meta?.reason || '运行时文件不存在'}`);
+    if (!meta?.ok) throw new Error(`无法读取附件 ${ref?.name || id}，请重新选择该附件后重试。`);
     const chunkSize = 256 * 1024;
     const parts = [];
     let received = 0;
@@ -1227,7 +1227,7 @@
   async function createDraftAttachmentSeed(message) {
     const executionId = String(message.executionId || '');
     const ref = message.file || null;
-    if (!ref?.id) throw new Error('缺少新版附件运行时文件。');
+    if (!ref?.id) throw new Error('新版附件暂不可用，请重新选择文件后重试。');
     assertDraftAttachmentActive(executionId);
     const file = await readRuntimeFile(ref, executionId);
     assertDraftAttachmentActive(executionId);
@@ -1326,7 +1326,7 @@
         () => composeHasExpectedRecipient(root, task.recipients || '') ? true : null,
         12000,
         120,
-        '网易原生“回复全部（带附件）”已打开，但收件人上下文没有完成回填。已停止以避免把 Follow-up 写成普通新邮件。'
+        '回复窗口已打开，但收件人没有正常带入。为避免误发，本封已停止。'
       );
       const entry = String(composeIdentity?.fromEntry || '');
       const detail = String(composeIdentity?.fromEntryDetail || '');
@@ -1340,8 +1340,8 @@
         executionId,
         'content',
         nativeReplyAllAttach
-          ? `已进入网易原生“回复全部（带附件）”${Number.isFinite(inheritedCount) ? ` · 原生附件上下文 ${inheritedCount} 项` : ''}。`
-          : '网易原生回复 Compose 已打开，正在保留线程与附件上下文。',
+          ? `已打开“回复全部（带附件）”${Number.isFinite(inheritedCount) ? ` · 保留原附件 ${inheritedCount} 项` : ''}。`
+          : '已打开回复窗口，正在保留原邮件与附件。',
         { nativeReplyAllAttach, fromEntry:entry, fromEntryDetail:detail, inheritedAttachmentCount:inheritedCount }
       );
     }
@@ -1351,7 +1351,7 @@
     const fastNativeRequested = message.fastCompose === true && composeMode === 'new';
     if (fastNativeRequested) {
       interruptionGuard.setPhase('fast-compose');
-      reportProgress(executionId, 'fast-compose', '极速 Compose：正在通过网易原生 Compose 内核直写收件人、主题、正文与定时数据…', {fastCompose:true});
+      reportProgress(executionId, 'fast-compose', '正在快速填写收件人、主题、正文与发送时间…', {fastCompose:true});
       const applied = await applyFastNativeCompose(composeIdentity, task);
       if (applied?.ok) {
         fastNativeActive = true;
@@ -1359,23 +1359,23 @@
         reportProgress(
           executionId,
           'fast-compose',
-          `极速 Compose 已就绪 · 原生格式编译${task.scheduleAt ? ' · 原生定时' : ''}${applied.nativeContentLength ? ` · HTML ${applied.nativeContentLength} 字符` : ''}`,
+          `快速创建已准备完成${task.scheduleAt ? ' · 已带入发送时间' : ''}`,
           {fastCompose:true,nativeDirect:true,compiled:applied.compiled || null}
         );
       } else {
         reportProgress(
           executionId,
           'content',
-          `极速 Compose 当前不可用，已自动回退标准模式：${applied?.reason || 'native-capability-unavailable'}`,
+          '快速创建当前不可用，已自动切换为标准创建模式。',
           {fastCompose:true,fallback:true,reason:applied?.reason || ''}
         );
       }
     } else if (message.fastCompose === true && contextual) {
-      reportProgress(executionId, 'content', '当前为 Reply / Forward，上下文优先保真；本封自动使用标准原生 Compose。', {fastCompose:true,fallback:true,reason:'contextual-compose'});
+      reportProgress(executionId, 'content', '回复或转发邮件将自动使用标准创建模式，以保留原邮件内容。', {fastCompose:true,fallback:true,reason:'contextual-compose'});
     }
 
     if (!fastNativeActive) {
-      reportProgress(executionId, 'content', contextual ? '正在保留网易原生邮件上下文并插入 Follow-up 正文…' : '正在填写收件人、主题和正文…');
+      reportProgress(executionId, 'content', contextual ? '正在保留原邮件内容并填写跟进正文…' : '正在填写收件人、主题和正文…');
       if (composeMode === 'forward' || composeMode === 'new') await setRecipients(root, task.recipients || '');
       await setAuxRecipients(root, task.cc || '', '抄送');
       await setAuxRecipients(root, task.bcc || '', '密送');
@@ -1408,7 +1408,7 @@
       }
     } else {
       interruptionGuard.setPhase('attachments');
-      reportProgress(executionId, 'attachments', contextual ? '保留网易原生转发 / 回复上下文中的附件状态。' : '没有附件，跳过附件步骤。');
+      reportProgress(executionId, 'attachments', contextual ? '正在保留原邮件中的附件。' : '没有附件，跳过附件步骤。');
     }
 
     let actualMinute = null;
@@ -1417,13 +1417,13 @@
       const displaySchedule=String(task.scheduleDisplayAt||task.scheduleAt).replace('T',' '), zoneLabel=String(task.scheduleTimeZoneLabel||'').trim();
       if (fastNativeActive) {
         actualMinute = new Date(task.scheduleAt).getMinutes();
-        reportProgress(executionId, 'schedule', `极速 Compose 已把定时 ${displaySchedule}${zoneLabel?` · ${zoneLabel} 当地时间`:''} 写入网易原生 Schedule 模型。`, {fastCompose:true,nativeSchedule:true});
+        reportProgress(executionId, 'schedule', `发送时间已设置为 ${displaySchedule}${zoneLabel?` · ${zoneLabel} 当地时间`:''}。`, {fastCompose:true,nativeSchedule:true});
       } else {
         reportProgress(executionId, 'schedule', `正在设置定时 ${displaySchedule}${zoneLabel?` · ${zoneLabel} 当地时间`:''}…`);
         actualMinute = await setSchedule(root, task.scheduleAt);
       }
     } else {
-      reportProgress(executionId, 'schedule', fastNativeActive ? '极速 Compose：普通草稿无需定时步骤。' : '未设置定时，将保存普通草稿。');
+      reportProgress(executionId, 'schedule', fastNativeActive ? '未设置发送时间，将保存为普通草稿。' : '未设置发送时间，将保存为普通草稿。');
     }
 
     if (message.pauseEveryTime === true) {
@@ -1439,7 +1439,7 @@
       executionId,
       'save',
       fastNativeActive
-        ? `极速 Compose：正在通过网易原生 send() 提交并确认${task.scheduleAt ? '定时设置' : '草稿保存'}…`
+        ? `正在保存草稿并确认${task.scheduleAt ? '发送时间' : '保存结果'}…`
         : `正在点击“存草稿”并确认${task.scheduleAt ? '定时设置' : '草稿保存'}…`,
       {fastCompose:fastNativeActive}
     );

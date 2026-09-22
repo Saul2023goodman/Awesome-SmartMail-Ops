@@ -1,0 +1,104 @@
+/* SmartMail Ops v3.8.108 — product information architecture.
+   The UI separates the core mail journey from operating views and tools. */
+#nmda-root.nmda-standalone .nmda-tabs{
+  gap:10px!important;
+  padding:11px 8px 12px!important;
+}
+#nmda-root .nmda-nav-group{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+#nmda-root .nmda-nav-group.is-secondary{
+  margin-top:4px;
+  padding-top:11px;
+  border-top:1px solid #e3e8ee;
+}
+#nmda-root .nmda-nav-section-label{
+  display:block;
+  padding:0 2px;
+  color:#98a2b0;
+  font-size:9px;
+  font-weight:720;
+  line-height:1;
+  letter-spacing:.08em;
+  text-align:center;
+}
+#nmda-root .nmda-nav-group.is-secondary .nmda-tab{
+  min-height:60px!important;
+}
+#nmda-root .nmda-nav-group.is-secondary .nmda-tab:not(.is-active){
+  color:#596778;
+}
+#nmda-root .nmda-utilities-home{
+  max-width:1120px;
+  gap:22px;
+}
+#nmda-root .nmda-utilities-intro{
+  align-items:center;
+  padding:18px 2px 4px;
+}
+#nmda-root .nmda-utilities-intro>div{
+  max-width:650px;
+}
+#nmda-root .nmda-utilities-eyebrow{
+  font-family:inherit;
+  font-size:11px;
+  font-weight:720;
+  letter-spacing:.02em;
+  text-transform:none;
+  color:#7a8794;
+}
+#nmda-root .nmda-utilities-intro h3{
+  margin-top:8px;
+  font-size:25px;
+}
+#nmda-root .nmda-utilities-intro p{
+  max-width:620px;
+  font-size:13px;
+  line-height:1.6;
+}
+#nmda-root .nmda-utilities-count{
+  padding:6px 10px;
+  border-color:#e3e7eb;
+  background:#fff;
+  color:#7a8794;
+  box-shadow:none;
+}
+#nmda-root .nmda-utility-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+}
+#nmda-root .nmda-utility-card{
+  min-height:210px;
+  padding:22px;
+  border-radius:18px;
+}
+#nmda-root .nmda-utility-card-main>small,
+#nmda-root .nmda-utility-workspace-head>div>small,
+#nmda-root .nmda-draft-attachment-browser>header>div>small,
+#nmda-root .nmda-draft-attachment-replace>header>div>small{
+  font-family:inherit;
+  letter-spacing:.01em;
+  text-transform:none;
+}
+#nmda-root .nmda-utility-card-main>strong{
+  margin-top:6px;
+  font-size:20px;
+}
+#nmda-root .nmda-utility-card-main>span{
+  margin-top:9px;
+  font-size:13px;
+  line-height:1.6;
+}
+#nmda-root .nmda-utility-card-foot b{
+  color:#697787;
+}
+#nmda-root .nmda-utility-card-foot i{
+  color:#2f5f91;
+}
+@media(max-width:760px){
+  #nmda-root .nmda-nav-section-label{display:none}
+  #nmda-root .nmda-utility-grid{grid-template-columns:1fr}
+}

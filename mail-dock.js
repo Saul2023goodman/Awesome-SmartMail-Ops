@@ -112,7 +112,7 @@
 
   const PHASE_ORDER = ['open', 'content', 'attachments', 'schedule', 'save'];
   const DRAFT_ATTACHMENT_PHASE_ORDER = ['read','clone','attachments','verify','swap'];
-  const DRAFT_ATTACHMENT_STAGE_LABELS = ['读取旧稿','构建新稿','迁移附件','回读验证','安全切换'];
+  const DRAFT_ATTACHMENT_STAGE_LABELS = ['读取原稿','创建新稿','更新附件','核对内容','完成替换'];
   const PHASE_LABELS = {
     open: '打开写信页',
     content: '写入邮件内容',
@@ -125,7 +125,7 @@
     cleanup: '确认并收尾',
     'cleanup-error': '收尾异常',
     done: '本封已完成',
-    read:'读取旧草稿',clone:'构建等价新草稿',verify:'回读完整性验证',swap:'安全切换草稿',
+    read:'读取原草稿',clone:'创建新草稿',verify:'核对邮件内容',swap:'完成替换',
     seed:'准备新版附件源',stopped:'已停止'
   };
 

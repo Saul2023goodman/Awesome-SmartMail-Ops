@@ -566,7 +566,7 @@ async function readDraftDetail(tabId, summary = {}) {
 
 async function readSentDetail(tabId, messageId) {
   const id = String(messageId || '').trim();
-  if (!id) return { ok:false, id:'', reasonCode:'initial-provider-id-missing', reason:'缺少已发送邮件 provider message id' };
+  if (!id) return { ok:false, id:'', reasonCode:'initial-provider-id-missing', reason:'无法定位对应的已发送邮件，请刷新邮箱状态后重试' };
   return runMain(tabId, (idArg) => new Promise(async resolve => {
     try {
       if (!window.$?.DataAction) return resolve({ ok:false, id:idArg, reasonCode:'sent-read-unavailable', reason:'$.DataAction unavailable' });
@@ -1519,7 +1519,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const baseline = await readDraftDetail(tabId, { ...summary, id:draftId });
       if(cancelledDraftAttachmentExecutions.has(executionId))return {ok:false,cancelled:true,reason:'operation-cancelled'};
       if (!baseline?.ok) return {ok:false,reason:baseline?.reason || 'draft-baseline-read-failed'};
-      emitDraftAttachmentProgress(tabId,{executionId,phase:'clone',current,total,subject:String(baseline.subject||summary?.subject||draftId),message:'旧草稿已锁定，正在构建等价新草稿…'});
+      emitDraftAttachmentProgress(tabId,{executionId,phase:'clone',current,total,subject:String(baseline.subject||summary?.subject||draftId),message:'已读取原草稿，正在创建新草稿…'});
       if ((baseline.attachments || []).some(item => item?.kind === 'cloud-link')) {
         return {ok:false,reason:'draft-has-cloud-link-attachment'};
       }
@@ -1676,7 +1676,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return resolve({ok:false,stage:'clone-commit',reason:committed?.reason||`mbox:compose ${action} code=${String(committed?.code)}`,code:committed?.code});
           }
           if(cancelled()){await cancelCid(originalCid,false);await cancelCid(newCid,true);return resolve({ok:false,cancelled:true,stage:'cancelled',reason:'operation-cancelled'});}
-          nativeProgress('verify','新草稿已提交，正在等待草稿箱回读验证…',{cid:newCid});
+          nativeProgress('verify','新草稿已创建，正在核对草稿内容…',{cid:newCid});
           // The old draft is still untouched. Release its temporary restore session;
           // deletion happens only after the new draft is independently read back.
           await cancelCid(originalCid,false);

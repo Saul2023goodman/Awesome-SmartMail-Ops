@@ -610,7 +610,7 @@
           queued: false,
           scheduleAt: live.scheduleAt || '',
           scheduleSource: 'mailbox-scheduled-draft',
-          scheduleReason: '网易草稿箱已存在定时 Follow-up',
+          scheduleReason: '网易草稿箱已存在定时跟进邮件',
           dequeuedAt: nowIso(),
           dequeuedReason: 'mailbox-scheduled-followup-exists'
         };
@@ -1377,11 +1377,11 @@
   function createFollowUpTask(storeInput, rootTaskId, options = {}) {
     const store = normalizeStore(storeInput);
     const eligibility = evaluateFollowUpEligibility(store, rootTaskId, { now: options.now, ignoreTiming: options.manual === true });
-    if (!eligibility.eligible) throw new Error(`当前不能创建 Follow-up：${eligibility.reason}`);
+    if (!eligibility.eligible) throw new Error(`当前不能创建跟进邮件：${eligibility.reason}`);
     const next = clone(store);
     const { lastOutbound, sequence, policy, dueAt } = eligibility;
     const rendered = renderFollowUpTemplate(next, rootTaskId, policy);
-    if (!rendered.ok) throw new Error(`当前不能生成 Follow-up：${rendered.reason}`);
+    if (!rendered.ok) throw new Error(`当前不能生成跟进邮件：${rendered.reason}`);
     const id = `followup:${stableHash(`${rootTaskId}|${sequence}`)}`;
     const now = nowIso();
     const task = {
@@ -1523,7 +1523,7 @@
     const next = clone(store);
     const current = next.derivedTasks[taskId];
     if (!current) throw new Error(`找不到 derived task：${taskId}`);
-    if (current.state === 'sent' || current.state === 'cancelled') throw new Error('已发送或已取消的 Follow-up 不可修改。');
+    if (current.state === 'sent' || current.state === 'cancelled') throw new Error('已发送或已取消的跟进邮件不可修改。');
     const changed = ['recipients', 'subject', 'body', 'bodyHtml', 'bodyIsHtml', 'composeMode'].some(key => patch[key] !== undefined && JSON.stringify(patch[key]) !== JSON.stringify(current[key]));
     const composeMode = patch.composeMode === undefined ? current.composeMode : (COMPOSE_MODES.includes(patch.composeMode) ? patch.composeMode : current.composeMode);
     const task = { ...current, ...patch, composeMode, updatedAt: nowIso() };
@@ -1555,7 +1555,7 @@
     const now = nowIso();
     const review = applyFollowUpReviewDecision(task, 'manual', now);
     if (!review.ok) {
-      const labels = review.issues.map(issue => ({'missing-recipient':'缺少收件人','missing-body':'正文为空','missing-subject':'新邮件模式缺少主题','blocked':'Follow-up 已阻断'}[issue] || issue));
+      const labels = review.issues.map(issue => ({'missing-recipient':'缺少收件人','missing-body':'正文为空','missing-subject':'新邮件模式缺少主题','blocked':'跟进邮件已阻断'}[issue] || issue));
       throw new Error(`${labels.join('；')}，不能通过审阅。`);
     }
     next.updatedAt = now;
@@ -1568,7 +1568,7 @@
     const next = clone(store);
     const task = next.derivedTasks[taskId];
     if (!task) throw new Error(`找不到 derived task：${taskId}`);
-    if (!FOLLOWUP_STATES.includes(state)) throw new Error(`未知 Follow-up state：${state}`);
+    if (!FOLLOWUP_STATES.includes(state)) throw new Error(`未知跟进状态：${state}`);
     if ((state === 'scheduled' || state === 'sent') && Number(task.confirmedVersion) !== Number(task.contentVersion)) throw new Error('内容版本未确认，不能执行。');
     next.derivedTasks[taskId] = { ...task, ...patch, state, updatedAt: nowIso() };
     next.updatedAt = next.derivedTasks[taskId].updatedAt;

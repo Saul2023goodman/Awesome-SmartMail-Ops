@@ -459,16 +459,16 @@
     const root = document.createElement('div');
     root.id = 'nmda-root';
     root.innerHTML = `
-      <button id="nmda-launcher" type="button" title="网易邮箱外联工作台" aria-label="打开网易邮箱外联工作台">
+      <button id="nmda-launcher" type="button" title="打开 SmartMail Ops" aria-label="打开 SmartMail Ops">
         <span class="nmda-launcher-mark">N</span><span class="nmda-launcher-dot"></span>
       </button>
-      <section id="nmda-panel" hidden aria-label="网易邮箱外联工作台">
+      <section id="nmda-panel" hidden aria-label="SmartMail Ops">
         <header class="nmda-head">
           <div class="nmda-brand">
             <div class="nmda-brand-mark">N</div>
             <div>
               <div class="nmda-title">SmartMail Ops</div>
-              <div class="nmda-subtitle">批量邮件作业</div>
+              <div class="nmda-subtitle">外联运营</div>
             </div>
           </div>
           <div class="nmda-head-actions">
@@ -479,42 +479,46 @@
                 <small id="nmda-mail-connection-detail" class="nmda-mail-connection-detail">连接状态</small>
                 <span class="nmda-mail-auto-sync" id="nmda-mail-auto-sync" data-state="idle" aria-live="polite" title="SmartMail 会自动读取邮箱事实">
                   <span class="nmda-mail-auto-sync-track" aria-hidden="true"><i></i><i></i><i></i><b></b></span>
-                  <span class="nmda-mail-auto-sync-copy"><strong id="nmda-mail-auto-sync-title">自动同步</strong><small id="nmda-mail-auto-sync-detail">后台保持最新</small></span>
+                  <span class="nmda-mail-auto-sync-copy"><strong id="nmda-mail-auto-sync-title">邮箱同步</strong><small id="nmda-mail-auto-sync-detail">保持最新</small></span>
                 </span>
               </span>
               <button class="nmda-btn nmda-btn-small nmda-mail-open-button" id="nmda-open-mail" type="button">连接邮箱</button>
             </div>
-            <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-reset-all-entry" id="nmda-reset-all-data" type="button" title="清空 SmartMail 的全部本地数据">清空全部</button>
+            <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-reset-all-entry" id="nmda-reset-all-data" type="button" title="清除当前工作内容并重新开始">重新开始</button>
             <button class="nmda-icon-btn" id="nmda-expand" type="button" title="全屏 / 还原">⛶</button>
             <button class="nmda-icon-btn nmda-close" id="nmda-close" type="button" title="关闭">×</button>
           </div>
         </header>
 
-        <nav class="nmda-tabs" aria-label="工作台模块">
-          <div class="nmda-nav-label">工作区</div>
-          <button class="nmda-tab is-active" data-tab="batch" type="button" title="导入资料"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg></span><span><strong>导入资料</strong><small>识别 · 查重 · 附件</small></span></button>
-          <button class="nmda-tab" data-tab="review" type="button" title="邮件审阅"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><span><strong>邮件审阅</strong><small>Initial · Follow-up · Pass</small></span><b class="nmda-tab-count" id="nmda-review-nav-count" hidden>0</b></button>
-          <button class="nmda-tab" data-tab="dispatch" type="button" title="选择与排期"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="8" cy="6" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="11" cy="18" r="1.8"/></svg></span><span><strong>选择与排期</strong><small>初始邮件 · Follow-up</small></span></button>
-          <button class="nmda-tab" data-tab="dashboard" type="button" title="成效看板"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19V10M12 19V5M19 19v-7"/><path d="M4 19h16"/></svg></span><span><strong>成效看板</strong><small>履约 · 争取 · 往来</small></span></button>
-          <button class="nmda-tab" data-tab="utilities" type="button" title="实用功能"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><path d="M17 14v6M14 17h6"/></svg></span><span><strong>实用功能</strong><small>邮件监测 · 极速附件</small></span></button>
-
+        <nav class="nmda-tabs" aria-label="SmartMail 导航">
+          <div class="nmda-nav-group" role="group" aria-label="邮件流程">
+            <span class="nmda-nav-section-label">流程</span>
+            <button class="nmda-tab is-active" data-tab="batch" type="button" title="准备邮件"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg></span><span><strong>准备邮件</strong><small>资料 · 查重 · 附件</small></span></button>
+            <button class="nmda-tab" data-tab="review" type="button" title="审阅邮件"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><span><strong>审阅邮件</strong><small>初始 · 跟进 · 就绪</small></span><b class="nmda-tab-count" id="nmda-review-nav-count" hidden>0</b></button>
+            <button class="nmda-tab" data-tab="dispatch" type="button" title="安排发送"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="8" cy="6" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="11" cy="18" r="1.8"/></svg></span><span><strong>安排发送</strong><small>范围 · 时间 · 创建</small></span></button>
+          </div>
+          <div class="nmda-nav-group is-secondary" role="group" aria-label="运营与工具">
+            <span class="nmda-nav-section-label">运营</span>
+            <button class="nmda-tab" data-tab="dashboard" type="button" title="成效"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19V10M12 19V5M19 19v-7"/><path d="M4 19h16"/></svg></span><span><strong>成效</strong><small>触达 · 争取 · 往来</small></span></button>
+            <button class="nmda-tab" data-tab="utilities" type="button" title="工具"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><path d="M17 14v6M14 17h6"/></svg></span><span><strong>工具</strong><small>监测 · 附件</small></span></button>
+          </div>
         </nav>
 
         <main class="nmda-main">
           <div class="nmda-page-head" data-page-head="batch">
-            <div><h2>导入资料</h2><p>识别来源 → 完成查重与附件准备 → 进入邮件审阅</p></div>
+            <div><h2>准备邮件</h2><p>加入资料，完成查重与附件准备。</p></div>
           </div>
           <div class="nmda-page-head" data-page-head="review" hidden>
-            <div><h2>邮件审阅</h2><p>统一审阅 Initial 与 Follow-up → Pass → 进入选择与排期</p></div>
+            <div><h2>审阅邮件</h2><p>检查收件人、主题、正文与附件，确认可以发送。</p></div>
           </div>
           <div class="nmda-page-head" data-page-head="dispatch" hidden>
-            <div><h2>选择与排期</h2><p>汇合初始邮件与 Follow-up → 选择范围 → 安排时间 → 统一执行</p></div>
+            <div><h2>安排发送</h2><p>选择本次邮件，安排发送时间并创建草稿。</p></div>
           </div>
           <div class="nmda-page-head" data-page-head="dashboard" hidden>
-            <div><h2>成效看板</h2><p>以联系人为单位呈现目标触达、持续争取与正在形成的真实沟通。</p></div>
+            <div><h2>成效</h2><p>按联系人查看触达、持续争取与真实沟通。</p></div>
           </div>
           <div class="nmda-page-head" data-page-head="utilities" hidden>
-            <div><h2>实用功能</h2><p>把高频辅助作业集中在一个一级工作区；已上线能力并列展示，并为后续工具预留稳定扩展位。</p></div>
+            <div><h2>工具</h2><p>处理联系人跟进与草稿维护。</p></div>
           </div>
           <section class="nmda-tabpane nmda-page nmda-ingest-page nmda-bulk-workbench" data-pane="batch" data-phase="empty">
             <div class="nmda-workflow-stage-head" id="nmda-stage-prepare">
@@ -522,7 +526,7 @@
             </div>
             <div class="nmda-ingest-workspace nmda-ingest-workspace-v2">
               <div class="nmda-card nmda-ingest-source-card" id="nmda-import-card">
-                <div class="nmda-card-head"><div><div class="nmda-card-title" id="nmda-import-card-title">导入邮件资料</div><div class="nmda-card-desc" id="nmda-import-card-desc">把本批次邮件资料放进来。</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" id="nmda-import-busy-badge" hidden>正在处理…</span><span class="nmda-workspace-saved-badge" id="nmda-workspace-saved-badge" hidden>本地保存 · 可继续追加</span><button class="nmda-btn nmda-btn-small" id="nmda-open-supplement-preflight" type="button" hidden>批次准备</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button" hidden>清空本批次</button></div></div>
+                <div class="nmda-card-head"><div><div class="nmda-card-title" id="nmda-import-card-title">导入邮件资料</div><div class="nmda-card-desc" id="nmda-import-card-desc">把本批次邮件资料放进来。</div></div><div class="nmda-row nmda-wrap"><span class="nmda-import-busy-badge" id="nmda-import-busy-badge" hidden>正在处理…</span><span class="nmda-workspace-saved-badge" id="nmda-workspace-saved-badge" hidden>已保存 · 可继续添加</span><button class="nmda-btn nmda-btn-small" id="nmda-open-supplement-preflight" type="button" hidden>补充资料</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-reset-import" type="button" hidden>清空本批次</button></div></div>
                 <input id="nmda-import-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip,.pdf,.ppt,.pptx,.rtf,.png,.jpg,.jpeg,.gif,.webp,.svg,.rar,.7z">
                 <input id="nmda-import-dir" type="file" webkitdirectory multiple hidden>
                 <input id="nmda-roster-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
@@ -768,18 +772,18 @@
 
               <div class="nmda-card nmda-inline-review" id="nmda-inline-review" hidden>
                 <div class="nmda-inline-review-top">
-                  <div><div class="nmda-card-title" id="nmda-review-workspace-title">邮件审阅</div><div class="nmda-card-desc" id="nmda-review-workspace-desc"></div></div>
+                  <div><div class="nmda-card-title" id="nmda-review-workspace-title">审阅邮件</div><div class="nmda-card-desc" id="nmda-review-workspace-desc"></div></div>
                   <div class="nmda-inline-review-actions"><details class="nmda-review-trash" id="nmda-review-trash"><summary class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-trash-trigger" id="nmda-review-trash-trigger" title="查看被排除的邮件"><span class="nmda-review-trash-icon" aria-hidden="true"></span><span>垃圾箱</span><strong id="nmda-review-trash-count">0</strong></summary><div class="nmda-review-trash-popover"><header><div><strong>垃圾箱</strong><small>排除只影响后续排期与发送，邮件内容仍保留。</small></div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-trash-restore-all" type="button">全部恢复</button></header><div class="nmda-review-trash-list" id="nmda-review-trash-list"></div><div class="nmda-review-trash-empty" id="nmda-review-trash-empty">垃圾箱为空</div></div></details><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个需处理</button></div>
                 </div>
                 <div class="nmda-review-boardbar nmda-review-boardbar-unified">
                   <div class="nmda-review-filter nmda-review-status-tabs" id="nmda-review-filter" role="group" aria-label="邮件状态筛选">
                     <button class="is-active" type="button" data-review-filter="all"><span>全部</span><strong>0</strong></button>
-                    <button type="button" data-review-filter="auto"><span>自动通过</span><strong>0</strong></button>
+                    <button type="button" data-review-filter="auto"><span>已就绪</span><strong>0</strong></button>
                     <button type="button" data-review-filter="pending"><span>需处理</span><strong>0</strong></button>
-                    <button type="button" data-review-filter="confirmed"><span>已确认</span><strong>0</strong></button>
+                    <button type="button" data-review-filter="confirmed"><span>已检查</span><strong>0</strong></button>
                   </div>
                   <div class="nmda-review-queue-tools">
-                    <button class="nmda-review-batch-launch" id="nmda-review-batch-launch" type="button" title="进入 Preview 进行批量处理">
+                    <button class="nmda-review-batch-launch" id="nmda-review-batch-launch" type="button" title="打开批量处理">
                       <span class="nmda-review-batch-launch-glyph" aria-hidden="true"><i></i><b></b></span>
                       <span class="nmda-review-batch-launch-copy"><strong>批量处理</strong><small id="nmda-review-batch-launch-meta">格式偏移推荐与主题补齐</small></span>
                       <b class="nmda-review-batch-launch-count" id="nmda-review-batch-launch-count" hidden>0</b>
@@ -789,7 +793,7 @@
                     <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-bulk-entry" id="nmda-review-select-filtered" type="button">批量确认…</button>
                   </div>
                 </div>
-                <section class="nmda-format-governance nmda-batch-standards" id="nmda-format-governance" hidden aria-label="Preview 批量处理">
+                <section class="nmda-format-governance nmda-batch-standards" id="nmda-format-governance" hidden aria-label="批量处理">
                   <header class="nmda-format-governance-head nmda-batch-standards-head">
                     <div><strong>批量处理</strong><small id="nmda-batch-standards-desc">只显示当前真正需要处理的批量事项：补齐主题、处理检测到的格式偏移。</small></div>
                     <button class="nmda-icon-btn" id="nmda-format-governance-close" type="button" aria-label="关闭批量处理">×</button>
@@ -799,7 +803,7 @@
                     <span data-standard-summary="format"><i>✦</i><b>格式偏移</b><strong id="nmda-batch-standard-format-count">0</strong><small>推荐</small></span>
                   </div>
                   <section class="nmda-batch-standard-card is-subject" id="nmda-batch-standard-subject">
-                    <header><div><strong>主题完整性</strong><small>仅补空白 Initial 主题，不覆盖任何已有主题；Follow-up 主题链保持原样。</small></div><b id="nmda-batch-standard-subject-badge">0 封</b></header>
+                    <header><div><strong>主题完整性</strong><small>只补齐缺失的初始邮件主题；已有主题与跟进邮件主题保持不变。</small></div><b id="nmda-batch-standard-subject-badge">0 封</b></header>
                     <label class="nmda-batch-standard-subject-field"><span>补齐为</span><input id="nmda-batch-standard-subject-input" type="text" maxlength="240" placeholder="输入统一主题" autocomplete="off"></label>
                     <button class="nmda-batch-standard-suggestion" id="nmda-batch-standard-subject-suggestion" type="button" hidden></button>
                     <div class="nmda-batch-standard-result" id="nmda-batch-standard-subject-result">正在检查主题完整性…</div>
@@ -841,13 +845,13 @@
                 </div>
                 <div class="nmda-review-page-empty" id="nmda-review-page-empty">
                   <div class="nmda-review-empty-visual" aria-hidden="true"><span></span><i></i><b></b></div>
-                  <div class="nmda-review-empty-copy"><span class="nmda-review-empty-kicker">REVIEW QUEUE</span><strong>当前没有需要审阅的邮件</strong><small id="nmda-review-empty-hint">导入 Initial 邮件，或从邮件监测生成 Follow-up 后，会自动出现在这里。</small></div>
-                  <div class="nmda-review-empty-actions"><button class="nmda-btn nmda-btn-primary" id="nmda-review-empty-import" type="button">去导入资料</button><button class="nmda-btn nmda-btn-quiet" id="nmda-review-empty-monitor" type="button">查看邮件监测</button></div>
-                  <div class="nmda-review-empty-foot"><span>Initial</span><i>→</i><span>审阅</span><i>→</i><span>选择与排期</span><b>·</b><span>Follow-up 从邮件监测进入同一审阅队列</span></div>
+                  <div class="nmda-review-empty-copy"><span class="nmda-review-empty-kicker">审阅邮件</span><strong>当前没有需要审阅的邮件</strong><small id="nmda-review-empty-hint">准备好初始邮件，或在邮件监测中生成跟进邮件后，会出现在这里。</small></div>
+                  <div class="nmda-review-empty-actions"><button class="nmda-btn nmda-btn-primary" id="nmda-review-empty-import" type="button">去准备邮件</button><button class="nmda-btn nmda-btn-quiet" id="nmda-review-empty-monitor" type="button">查看邮件监测</button></div>
+                  <div class="nmda-review-empty-foot"><span>初始邮件</span><i>→</i><span>审阅</span><i>→</i><span>安排发送</span><b>·</b><span>跟进邮件也在这里统一审阅</span></div>
                 </div>
                 <div class="nmda-review-preview-toolbar" id="nmda-review-preview-toolbar" hidden>
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-preview-back" id="nmda-review-preview-back" type="button">← 返回邮件列表</button>
-                  <div class="nmda-review-preview-toolbar-copy"><strong>邮件 Preview</strong><small id="nmda-review-preview-meta">只读预览 · 当前邮件可原位编辑</small></div>
+                  <div class="nmda-review-preview-toolbar-copy"><strong>查看邮件</strong><small id="nmda-review-preview-meta">逐封核对 · 可直接编辑当前邮件</small></div>
                   <div class="nmda-review-preview-key" aria-label="关键信息定位标识">
                     <span class="nmda-semantic-legend-item" data-semantic="advisor"><i></i><strong>导师</strong></span>
                     <span class="nmda-semantic-legend-item" data-semantic="student"><i></i><strong>学生</strong></span>
@@ -858,12 +862,12 @@
                     <span class="nmda-semantic-legend-item" data-semantic="format"><i></i><strong>其他格式</strong><small>加粗 / 下划线 / 链接</small></span>
                   </div>
                 </div>
-                <aside class="nmda-review-preview-rail" id="nmda-review-preview-rail" hidden aria-label="Preview 邮件导航">
+                <aside class="nmda-review-preview-rail" id="nmda-review-preview-rail" hidden aria-label="邮件导航">
                   <div class="nmda-review-preview-rail-head"><div><strong>邮件</strong><small id="nmda-review-preview-rail-count">0</small></div></div>
                   <div class="nmda-review-preview-rail-list" id="nmda-review-preview-rail-list"></div>
                 </aside>
                 <div id="nmda-review-queue" class="nmda-review-queue nmda-review-mail-grid"></div>
-                <div class="nmda-preview-format-dock" id="nmda-preview-format-dock" aria-label="Preview 批量处理">
+                <div class="nmda-preview-format-dock" id="nmda-preview-format-dock" aria-label="批量处理">
                   <button class="nmda-review-format-entry nmda-preview-format-entry" id="nmda-review-format-governance" type="button" aria-expanded="false" title="处理可批量执行的规范与派生规则">
                     <span class="nmda-preview-format-glyph nmda-preview-standard-glyph" aria-hidden="true"><i></i><b></b></span>
                     <span class="nmda-preview-format-label">批量处理</span>
@@ -884,7 +888,7 @@
 
           <section class="nmda-tabpane nmda-page nmda-dispatch-page" data-pane="dispatch" hidden>
             <div class="nmda-dispatch-intro">
-              <div><strong>执行池</strong><small></small></div>
+              <div><strong>待发送邮件</strong><small></small></div>
               <div class="nmda-dispatch-source-summary" id="nmda-dispatch-source-summary"></div>
             </div>
             <div class="nmda-batch-empty" id="nmda-batch-empty" hidden></div>
@@ -909,9 +913,9 @@
               <input id="nmda-bulk-tag-value" type="hidden"><button id="nmda-bulk-add-tag" type="button" hidden></button><button id="nmda-bulk-remove-tag" type="button" hidden></button><button id="nmda-bulk-disable" type="button" hidden></button>
               <div class="nmda-table-wrap nmda-batch-table-wrap"><div class="nmda-planning-board" id="nmda-preview-body"></div></div>
               <div class="nmda-mail-handoff-bar" id="nmda-mail-handoff-bar">
-                <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备转到网易邮箱执行</strong><div class="nmda-create-preflight" id="nmda-create-preflight">确认本次范围与排期后，真实创建过程将在网易邮箱页面显示。</div></div></div>
-                <label class="nmda-execution-mode" title="写入真实 163 Compose 时，确保相邻正文段落之间至少保留一个空行；不会改写工作台里的正文源数据"><input id="nmda-compose-paragraph-spacing" type="checkbox" checked><span>段落间留空行</span></label>
-                <label class="nmda-execution-mode nmda-execution-mode-fast" title="实验性高速路径：直接调用网易 Compose 原生 form / editor / schedule / send 内核，跳过逐字段 DOM 操作；能力不满足时自动回退标准模式。"><input id="nmda-fast-compose" type="checkbox"><span>极速 Compose</span></label>
+                <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备在网易邮箱创建草稿</strong><div class="nmda-create-preflight" id="nmda-create-preflight">确认本次邮件与发送时间后，创建过程会在网易邮箱页面同步显示。</div></div></div>
+                <label class="nmda-execution-mode" title="创建 163 草稿时，确保相邻正文段落之间至少保留一个空行；不会改变这里的正文内容"><input id="nmda-compose-paragraph-spacing" type="checkbox" checked><span>段落间留空行</span></label>
+                <label class="nmda-execution-mode nmda-execution-mode-fast" title="优先使用快速创建；遇到不兼容情况会自动切换为标准模式。"><input id="nmda-fast-compose" type="checkbox"><span>快速创建</span></label>
                 <label class="nmda-execution-mode" title="每封邮件填写完成后暂停，人工检查后再保存"><input id="nmda-pause-every-time" type="checkbox"><span>每封填写后暂停</span></label>
                 <button class="nmda-btn nmda-btn-primary nmda-mail-handoff-action" id="nmda-batch-start" type="button">前往网易邮箱并创建所选草稿</button>
                 <button id="nmda-batch-stop" type="button" hidden disabled>当前封后停止</button>
@@ -1082,7 +1086,7 @@
                 <article class="nmda-dashboard-kpi">
                   <div><small>PERSISTENCE</small><span>持续争取</span></div>
                   <strong id="nmda-dashboard-followup-value">—</strong>
-                  <p id="nmda-dashboard-followup-copy">至少完成一次 Follow-up</p>
+                  <p id="nmda-dashboard-followup-copy">至少完成一次跟进</p>
                 </article>
                 <article class="nmda-dashboard-kpi is-signal">
                   <div><small>ACTIVE CONVERSATIONS</small><span>持续往来</span></div>
@@ -1112,7 +1116,7 @@
 
               <section class="nmda-dashboard-lower">
                 <article class="nmda-dashboard-panel nmda-dashboard-trajectory-panel">
-                  <header class="nmda-dashboard-panel-head is-compact"><div><small>DELIVERY TRAJECTORY</small><strong>履约轨迹</strong><span>累计触达是主线，Follow-up 与真人回复作为过程证据。</span></div><b id="nmda-dashboard-trajectory-range">—</b></header>
+                  <header class="nmda-dashboard-panel-head is-compact"><div><small>DELIVERY TRAJECTORY</small><strong>履约轨迹</strong><span>累计触达是主线，持续跟进与真人回复作为过程证据。</span></div><b id="nmda-dashboard-trajectory-range">—</b></header>
                   <div class="nmda-dashboard-trajectory" id="nmda-dashboard-trajectory"></div>
                 </article>
                 <article class="nmda-dashboard-panel nmda-dashboard-persistence-panel">
@@ -1125,39 +1129,29 @@
           </section>
 
           <section class="nmda-tabpane nmda-page nmda-utilities-page" data-pane="utilities" hidden data-utility-view="home">
-            <section class="nmda-utilities-home" id="nmda-utilities-home" aria-label="实用功能">
+            <section class="nmda-utilities-home" id="nmda-utilities-home" aria-label="工具">
               <div class="nmda-utilities-intro">
-                <div><span class="nmda-utilities-eyebrow">UTILITY WORKSPACE</span><h3>把高频辅助作业放在同一个入口</h3><p>邮件监测与极速附件是彼此独立的实用能力；后续新增工具沿用同一层级，不再挤进导入、审阅或排期页面。</p></div>
-                <span class="nmda-utilities-count" id="nmda-utilities-count">2 个可用工具</span>
+                <div><span class="nmda-utilities-eyebrow">工具</span><h3>处理日常邮箱作业</h3><p>选择要处理的事项，完成后可随时返回邮件流程。</p></div>
+                <span class="nmda-utilities-count" id="nmda-utilities-count">2 项</span>
               </div>
               <div class="nmda-utility-grid">
                 <button class="nmda-utility-card is-live" type="button" data-open-utility="monitor">
                   <span class="nmda-utility-card-icon" aria-hidden="true">M</span>
-                  <span class="nmda-utility-card-main"><small>持续监测</small><strong>邮件监测</strong><span>沿判定路径检查回复、已有安排与跟进时间，直接给出下一步。</span></span>
-                  <span class="nmda-utility-card-foot"><b id="nmda-utility-monitor-meta">回复 · Follow-up</b><i>打开 →</i></span>
+                  <span class="nmda-utility-card-main"><small>联系人跟进</small><strong>邮件监测</strong><span>按联系人查看回复、已安排邮件与跟进时间，并处理下一步。</span></span>
+                  <span class="nmda-utility-card-foot"><b id="nmda-utility-monitor-meta">查看联系人进展</b><i>进入 →</i></span>
                 </button>
                 <button class="nmda-utility-card is-live is-attachment-update" type="button" data-open-utility="draft-attachments">
                   <span class="nmda-utility-card-icon" aria-hidden="true">A</span>
-                  <span class="nmda-utility-card-main"><small>DRAFT ATTACHMENT UPDATE</small><strong>极速附件</strong><span>批量更新网易草稿箱中的旧附件；正文、收件人、主题与原排期保持不变。</span></span>
-                  <span class="nmda-utility-card-foot"><b id="nmda-utility-draft-attachment-meta">读取草稿箱</b><i>打开 →</i></span>
+                  <span class="nmda-utility-card-main"><small>草稿附件更新</small><strong>极速附件</strong><span>一次替换多封草稿中的旧附件，同时保留邮件内容和原发送时间。</span></span>
+                  <span class="nmda-utility-card-foot"><b id="nmda-utility-draft-attachment-meta">查看草稿附件</b><i>进入 →</i></span>
                 </button>
-                <article class="nmda-utility-card is-placeholder" aria-label="待开发功能">
-                  <span class="nmda-utility-card-icon" aria-hidden="true">+</span>
-                  <span class="nmda-utility-card-main"><small>COMING NEXT</small><strong>待开发功能</strong><span>保留给下一项独立工具，不提前绑定具体流程。</span></span>
-                  <span class="nmda-utility-card-foot"><b>预留能力位</b><i>—</i></span>
-                </article>
-                <article class="nmda-utility-card is-placeholder is-wide" aria-label="待开发功能扩展区">
-                  <span class="nmda-utility-card-icon" aria-hidden="true">···</span>
-                  <span class="nmda-utility-card-main"><small>EXTENSION SLOT</small><strong>待开发功能</strong><span>新的诊断、批处理或邮箱工具可以直接进入这里，一级导航无需继续膨胀。</span></span>
-                  <span class="nmda-utility-card-foot"><b>保持开放</b><i>—</i></span>
-                </article>
               </div>
             </section>
 
             <section class="nmda-utility-workspace nmda-utility-monitor-workspace" data-utility-workspace="monitor" hidden>
               <header class="nmda-utility-workspace-head">
-                <button class="nmda-utility-back" type="button" data-utility-back>← 实用功能</button>
-                <div><small>联系人运营</small><strong>邮件监测</strong><span>以联系人邮箱为主线，汇总联系次数、回复、跟进次数与下一步。</span></div>
+                <button class="nmda-utility-back" type="button" data-utility-back>← 工具</button>
+                <div><small>联系人跟进</small><strong>邮件监测</strong><span>按联系人汇总联系次数、回复、跟进与下一步。</span></div>
               </header>
               <div class="nmda-monitor-page nmda-utility-monitor-page">
             <div class="nmda-monitor-toolbar">
@@ -1206,7 +1200,7 @@
             </section>
 
             <div class="nmda-monitor-controlstrip">
-              <div class="nmda-monitor-setting-launchers" aria-label="Follow-up 设置">
+              <div class="nmda-monitor-setting-launchers" aria-label="跟进设置">
                 <button class="nmda-monitor-setting-launch" id="nmda-monitor-open-policy" type="button">
                   <span><small>跟进规则</small><strong id="nmda-monitor-policy-summary">读取中…</strong></span><b>设置</b>
                 </button>
@@ -1263,13 +1257,13 @@
                   <div><span class="nmda-dialog-eyebrow">跟进设置</span><h3 id="nmda-monitor-settings-title">跟进规则与正文</h3><p>规则决定什么时候进入下一次跟进；模板决定生成的邮件正文。</p></div>
                   <button class="nmda-dialog-close" id="nmda-monitor-settings-close" type="button" aria-label="关闭">×</button>
                 </header>
-                <div class="nmda-monitor-settings-tabs" role="tablist" aria-label="Follow-up 设置类型">
+                <div class="nmda-monitor-settings-tabs" role="tablist" aria-label="跟进设置类型">
                   <button type="button" data-monitor-settings-tab="policy" class="is-active">跟进规则</button>
                   <button type="button" data-monitor-settings-tab="template">正文模板</button>
                 </div>
                 <div class="nmda-monitor-settings-content">
                   <section class="nmda-monitor-settings-pane" data-monitor-settings-pane="policy">
-                    <div class="nmda-monitor-settings-intro"><strong>什么时候生成下一封跟进？</strong><span>系统只在未检测到有效回复、没有已定时 Follow-up，并且未达到次数上限时生成。</span></div>
+                    <div class="nmda-monitor-settings-intro"><strong>什么时候生成下一封跟进？</strong><span>未收到有效回复、没有已安排的跟进邮件且未达到次数上限时，才会生成下一封。</span></div>
                     <div class="nmda-monitor-policy-editor" id="nmda-monitor-policy">
                       <label class="nmda-monitor-policy-field"><span>首封 / 上次发送后等待</span><div class="nmda-smart-duration"><input id="nmda-monitor-delay" type="number" min="0" max="365" step="1" data-smart-temporal="duration-days" data-smart-role="followup-delay"><b>天</b><button class="nmda-smart-temporal-trigger is-inline" type="button" data-smart-temporal-open aria-label="快速设置等待天数" title="常用间隔">⌄</button></div><small>达到这个间隔后，邮件会进入“待跟进”。</small></label>
                       <label class="nmda-monitor-policy-field"><span>最多跟进次数</span><div><input id="nmda-monitor-max" type="number" min="0" max="20" step="1"><b>次</b></div><small>达到上限后继续监测回复，但不再生成新跟进。</small></label>
@@ -1279,16 +1273,16 @@
                   </section>
 
                   <section class="nmda-monitor-settings-pane" data-monitor-settings-pane="template" hidden>
-                    <div class="nmda-monitor-settings-intro"><strong>Follow-up 正文模板</strong><span>称呼和署名从每封 Initial 自动继承，这里只写中间正文；无需重复写 Dear… 或落款。</span></div>
+                    <div class="nmda-monitor-settings-intro"><strong>跟进邮件正文模板</strong><span>称呼和署名沿用对应的初始邮件，这里只填写中间正文；无需重复写 Dear… 或落款。</span></div>
                     <div class="nmda-monitor-template-editor" id="nmda-monitor-template-panel">
                       <div class="nmda-monitor-template-body">
                         <label class="nmda-monitor-template-field"><textarea id="nmda-monitor-template-body" rows="7" placeholder="例如：I wanted to follow up on my previous email regarding ..."></textarea></label>
                         <div class="nmda-monitor-template-actions">
-                          <label class="nmda-monitor-template-sync"><input id="nmda-monitor-template-sync" type="checkbox" checked><span>同时刷新尚未发送、且仍由模板管理的 Follow-up</span></label>
+                          <label class="nmda-monitor-template-sync"><input id="nmda-monitor-template-sync" type="checkbox" checked><span>同时更新尚未发送、且仍由模板管理的跟进邮件</span></label>
                           <small id="nmda-monitor-template-sync-count">当前无待同步邮件</small>
                           <button class="nmda-btn nmda-btn-primary" id="nmda-monitor-save-template" type="button">保存正文模板</button>
                         </div>
-                        <div class="nmda-monitor-template-result" id="nmda-monitor-template-result"><strong>未设置模板</strong><span>设置后，符合条件的邮件可直接生成 Follow-up。</span></div>
+                        <div class="nmda-monitor-template-result" id="nmda-monitor-template-result"><strong>未设置模板</strong><span>设置后，符合条件的联系人可直接生成跟进邮件。</span></div>
                       </div>
                     </div>
                   </section>
@@ -1302,8 +1296,8 @@
 
             <section class="nmda-utility-workspace nmda-draft-attachment-workspace" data-utility-workspace="draft-attachments" hidden>
               <header class="nmda-utility-workspace-head">
-                <button class="nmda-utility-back" type="button" data-utility-back>← 实用功能</button>
-                <div><small>DRAFT ATTACHMENT UPDATE</small><strong>极速附件</strong><span>通过等价新草稿重建、回读验证与安全切换更新旧附件；正文、收件人、主题和原排期保持不变。</span></div>
+                <button class="nmda-utility-back" type="button" data-utility-back>← 工具</button>
+                <div><small>草稿附件更新</small><strong>极速附件</strong><span>批量替换草稿中的旧附件，并保留正文、收件人、主题和原发送时间。</span></div>
                 <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-draft-attachment-refresh" type="button">重新读取草稿箱</button>
               </header>
 
@@ -1316,42 +1310,42 @@
 
               <div class="nmda-draft-attachment-layout">
                 <section class="nmda-draft-attachment-browser">
-                  <header><div><small>EXISTING ATTACHMENTS</small><strong>草稿箱中的附件</strong><span>按文件名与大小区分版本。选择你要淘汰的旧版本。</span></div><input id="nmda-draft-attachment-search" type="search" placeholder="搜索附件名"></header>
+                  <header><div><small>草稿附件</small><strong>选择要替换的旧附件</strong><span>按文件名与大小区分版本。</span></div><input id="nmda-draft-attachment-search" type="search" placeholder="搜索附件名"></header>
                   <div class="nmda-draft-attachment-groups" id="nmda-draft-attachment-groups"></div>
                   <div class="nmda-draft-attachment-empty" id="nmda-draft-attachment-empty">正在读取草稿箱…</div>
                 </section>
 
                 <section class="nmda-draft-attachment-replace">
-                  <header><div><small>REPLACEMENT PLAN</small><strong id="nmda-draft-attachment-plan-title">选择一个旧附件版本</strong><span id="nmda-draft-attachment-plan-copy">系统会列出所有包含该旧附件的草稿。</span></div></header>
+                  <header><div><small>替换范围</small><strong id="nmda-draft-attachment-plan-title">选择一个旧附件版本</strong><span id="nmda-draft-attachment-plan-copy">选择后会显示受影响的全部草稿。</span></div></header>
                   <div class="nmda-draft-attachment-targets" id="nmda-draft-attachment-targets"></div>
                   <input id="nmda-draft-attachment-file" type="file" hidden>
                   <button class="nmda-draft-attachment-drop" id="nmda-draft-attachment-drop" type="button" disabled>
                     <span class="nmda-draft-attachment-drop-mark" aria-hidden="true">⇧</span>
-                    <span><strong id="nmda-draft-attachment-new-name">选择新版附件</strong><small id="nmda-draft-attachment-new-meta">只上传一次；系统先创建并验证等价新草稿，确认无误后再替换旧草稿。</small></span>
+                    <span><strong id="nmda-draft-attachment-new-name">选择新版附件</strong><small id="nmda-draft-attachment-new-meta">只需选择一次；每封邮件都会先核对新草稿，再替换旧草稿。</small></span>
                     <b>选择文件</b>
                   </button>
-                  <div class="nmda-draft-attachment-safety"><strong>安全替换</strong><span>先生成等价新草稿并回读验证正文、收件人、主题、排期和附件；全部正确后才删除旧草稿，失败则保留旧草稿。</span></div>
+                  <div class="nmda-draft-attachment-safety"><strong>安全替换</strong><span>先创建新草稿并核对正文、收件人、主题、发送时间和附件；确认一致后才替换旧草稿，失败时保留原稿。</span></div>
                   <section class="nmda-draft-attachment-motion" id="nmda-draft-attachment-motion" data-phase="idle" hidden aria-live="polite">
                     <div class="nmda-draft-motion-head">
-                      <span><small>LIVE CLONE · VERIFY · SWAP</small><strong id="nmda-draft-motion-title">准备附件更新</strong></span>
+                      <span><small>附件更新进度</small><strong id="nmda-draft-motion-title">准备附件更新</strong></span>
                       <b id="nmda-draft-motion-count">0 / 0</b>
                     </div>
                     <div class="nmda-draft-motion-scene" aria-hidden="true">
                       <div class="nmda-draft-motion-mail is-old"><i></i><span>旧草稿</span><em id="nmda-draft-motion-old-file">旧附件</em></div>
                       <div class="nmda-draft-motion-route"><span class="nmda-draft-motion-packet">↗</span><i></i></div>
                       <div class="nmda-draft-motion-mail is-new"><i></i><span>新草稿</span><em id="nmda-draft-motion-new-file">新版附件</em></div>
-                      <div class="nmda-draft-motion-verify"><span>✓</span><small>VERIFY</small></div>
+                      <div class="nmda-draft-motion-verify"><span>✓</span><small>已核对</small></div>
                     </div>
                     <div class="nmda-draft-motion-stages" id="nmda-draft-motion-stages">
-                      <span data-draft-motion-stage="read"><i></i><b>读取旧稿</b></span>
-                      <span data-draft-motion-stage="clone"><i></i><b>构建新稿</b></span>
-                      <span data-draft-motion-stage="attachments"><i></i><b>迁移附件</b></span>
-                      <span data-draft-motion-stage="verify"><i></i><b>回读验证</b></span>
-                      <span data-draft-motion-stage="swap"><i></i><b>安全切换</b></span>
+                      <span data-draft-motion-stage="read"><i></i><b>读取原稿</b></span>
+                      <span data-draft-motion-stage="clone"><i></i><b>创建新稿</b></span>
+                      <span data-draft-motion-stage="attachments"><i></i><b>更新附件</b></span>
+                      <span data-draft-motion-stage="verify"><i></i><b>核对内容</b></span>
+                      <span data-draft-motion-stage="swap"><i></i><b>完成替换</b></span>
                     </div>
                     <div class="nmda-draft-motion-current">
                       <strong id="nmda-draft-motion-subject">等待开始</strong>
-                      <span id="nmda-draft-motion-message">执行后会自动切换到 163 邮箱页面，并在邮箱侧同步显示真实执行阶段。</span>
+                      <span id="nmda-draft-motion-message">开始后会切换到 163 邮箱，并同步显示当前进度。</span>
                     </div>
                   </section>
                   <div class="nmda-draft-attachment-progress" id="nmda-draft-attachment-progress" hidden></div>
@@ -1386,16 +1380,16 @@
     resetDialog.innerHTML=`
       <section class="nmda-workflow-dialog nmda-reset-all-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-reset-all-title">
         <header class="nmda-workflow-dialog-head">
-          <div><span class="nmda-dialog-eyebrow">RESET SMARTMAIL</span><h3 id="nmda-reset-all-title">清空一切 SmartMail 数据？</h3><p>用于直接放弃当前工作进程并从零开始，不需要逐封排除。</p></div>
+          <div><span class="nmda-dialog-eyebrow">重新开始</span><h3 id="nmda-reset-all-title">清除当前工作内容？</h3><p>清除后可以重新准备邮件并开始新一批邮件。</p></div>
           <button class="nmda-dialog-close" id="nmda-reset-all-close" type="button" aria-label="关闭">×</button>
         </header>
         <div class="nmda-reset-all-body">
-          <div class="nmda-reset-all-warning"><strong>将清空</strong><span>当前导入与全部任务、审阅状态、附件映射、排期、Follow-up 本地状态与模板/规则、读取范围和本地工作区缓存。</span></div>
-          <div class="nmda-reset-all-safe"><strong>不会删除</strong><span>网易 163 邮箱中的真实已发送邮件、收件、草稿或定时邮件。重新进入邮件监测时仍可再次读取这些外部事实。</span></div>
-          <label class="nmda-reset-all-confirm"><input id="nmda-reset-all-confirm" type="checkbox"><span>我确认清空全部 SmartMail 本地数据并重新开始</span></label>
+          <div class="nmda-reset-all-warning"><strong>将清除</strong><span>已准备邮件、审阅邮件结果、附件设置、发送安排，以及当前跟进设置。</span></div>
+          <div class="nmda-reset-all-safe"><strong>网易邮箱不受影响</strong><span>已发送邮件、收件、草稿和定时邮件都会保留。</span></div>
+          <label class="nmda-reset-all-confirm"><input id="nmda-reset-all-confirm" type="checkbox"><span>我确认清除当前工作内容并重新开始</span></label>
           <div class="nmda-reset-all-status" id="nmda-reset-all-status" hidden></div>
         </div>
-        <footer class="nmda-workflow-dialog-foot"><button class="nmda-btn nmda-btn-quiet" id="nmda-reset-all-cancel" type="button">取消</button><div class="nmda-dialog-foot-spacer"></div><button class="nmda-btn nmda-btn-danger" id="nmda-reset-all-confirm-button" type="button" disabled>清空全部数据</button></footer>
+        <footer class="nmda-workflow-dialog-foot"><button class="nmda-btn nmda-btn-quiet" id="nmda-reset-all-cancel" type="button">取消</button><div class="nmda-dialog-foot-spacer"></div><button class="nmda-btn nmda-btn-danger" id="nmda-reset-all-confirm-button" type="button" disabled>清除并重新开始</button></footer>
       </section>`;
     ui.querySelector('#nmda-panel')?.appendChild(resetDialog);
   }
@@ -1430,7 +1424,7 @@
     next.id='nmda-import-handoff-card';
     next.className='nmda-next-step-card nmda-import-next-step';
     next.hidden=true;
-    next.innerHTML='<div class="nmda-next-step-copy"><span class="nmda-next-step-kicker">导入完成</span><strong>进入邮件审阅</strong><small id="nmda-handoff-hint"></small></div><div class="nmda-import-ready-summary" id="nmda-import-ready-summary"></div><button class="nmda-btn nmda-btn-primary nmda-next-step-action" id="nmda-go-batch" type="button">邮件审阅 →</button>';
+    next.innerHTML='<div class="nmda-next-step-copy"><span class="nmda-next-step-kicker">导入完成</span><strong>进入审阅邮件</strong><small id="nmda-handoff-hint"></small></div><div class="nmda-import-ready-summary" id="nmda-import-ready-summary"></div><button class="nmda-btn nmda-btn-primary nmda-next-step-action" id="nmda-go-batch" type="button">审阅邮件 →</button>';
     batchPaneHost.appendChild(next);
   }
   // Attachments belong to import, so their single workspace is physically mounted
@@ -1499,7 +1493,7 @@
   function smartTemporalTitle(input){
     return ({
       'schedule-start':'开始日期','schedule-time':'当地发送时间','skip-start':'跳过区间 · 开始','skip-end':'跳过区间 · 结束',
-      'task-schedule':'单封发送时间','followup-delay':'Follow-up 等待间隔'
+      'task-schedule':'单封发送时间','followup-delay':'跟进等待间隔'
     })[input?.dataset?.smartRole]||'快速设置时间';
   }
   function smartTemporalPresets(input){
@@ -1530,7 +1524,7 @@
   function ensureSmartTemporalPopover(){
     if(smartTemporalPopover)return smartTemporalPopover;
     const pop=document.createElement('div');pop.id='nmda-smart-temporal-popover';pop.className='nmda-smart-temporal-popover';pop.hidden=true;
-    pop.innerHTML='<div class="nmda-smart-temporal-pophead"><div><small>QUICK SET</small><strong data-smart-temporal-title>快速设置时间</strong></div><button type="button" data-smart-temporal-close aria-label="关闭">×</button></div><div class="nmda-smart-temporal-presets" data-smart-temporal-presets></div><div class="nmda-smart-temporal-popfoot"><span>可直接键盘输入，也可使用系统选择器</span><button type="button" data-smart-temporal-native>打开选择器</button></div>';
+    pop.innerHTML='<div class="nmda-smart-temporal-pophead"><div><small>快捷时间</small><strong data-smart-temporal-title>快速设置时间</strong></div><button type="button" data-smart-temporal-close aria-label="关闭">×</button></div><div class="nmda-smart-temporal-presets" data-smart-temporal-presets></div><div class="nmda-smart-temporal-popfoot"><span>可直接输入，也可打开日期时间选择器</span><button type="button" data-smart-temporal-native>打开选择器</button></div>';
     ui.appendChild(pop);smartTemporalPopover=pop;
     return pop;
   }
@@ -1575,7 +1569,7 @@
     mailboxAutoSyncEl.dataset.state=state;
     const titles={idle:'自动同步',syncing:'正在读取邮箱',success:'邮箱已同步',error:'同步异常',waiting:'等待邮箱连接'};
     if(mailboxAutoSyncTitleEl)mailboxAutoSyncTitleEl.textContent=titles[state]||titles.idle;
-    if(mailboxAutoSyncDetailEl)mailboxAutoSyncDetailEl.textContent=detail||({idle:'后台保持最新',syncing:'已发送 · 草稿 · 收件',success:'邮箱事实已更新',error:'稍后自动重试',waiting:'登录后自动开始'}[state]||'');
+    if(mailboxAutoSyncDetailEl)mailboxAutoSyncDetailEl.textContent=detail||({idle:'保持最新',syncing:'已发送 · 草稿 · 收件',success:'邮箱已更新',error:'稍后自动重试',waiting:'登录后自动开始'}[state]||'');
   }
   function mailboxSyncKindPriority(kind='quick'){
     return ({quick:1,history:2,full:3})[kind]||1;
@@ -1615,7 +1609,7 @@
       if(!executionId||executionId===String(draftAttachmentTool.executionId||'')){
         draftAttachmentTool.cancelRequested=true;
         draftAttachmentTool.stopping=true;
-        setDraftAttachmentProgress('正在停止：当前安全步骤会尽快收尾，后续草稿不会继续执行…','warn');
+        setDraftAttachmentProgress('正在停止：当前步骤完成后停止，后续草稿不会继续更新…','warn');
         notifyDraftAttachmentCancelled(String(draftAttachmentTool.executionId||executionId));
         renderDraftAttachmentTool();
       }
@@ -1860,7 +1854,7 @@
   function renderDispatchSourceSummary(tasks = dispatchTasks()) {
     const el=$('nmda-dispatch-source-summary');if(!el)return;
     const counts=Dispatch?.sourceCounts?.(tasks)||{initial:tasks.filter(t=>t.dispatchKind!=='follow_up').length,followUp:tasks.filter(t=>t.dispatchKind==='follow_up').length,total:tasks.length};
-    el.innerHTML=`<span>执行池 <strong>${counts.total}</strong></span><span>初始邮件 <strong>${counts.initial}</strong></span><span>Follow-up <strong>${counts.followUp}</strong></span>`;
+    el.innerHTML=`<span>待发送 <strong>${counts.total}</strong></span><span>初始邮件 <strong>${counts.initial}</strong></span><span>跟进邮件 <strong>${counts.followUp}</strong></span>`;
   }
 
 
@@ -1918,22 +1912,22 @@
     if(save)save.disabled=!state.changed||!state.validation.valid;
     if(result){
       if(!state.validation.valid)result.innerHTML=`<strong>模板结构不规范</strong><span>${escapeHtml(state.validation.reason)}</span>`;
-      else if(state.changed&&!state.value)result.innerHTML='<strong>将清空模板</strong><span>之后不会再用模板生成新的 Follow-up；已经生成或已定时的邮件不受影响。</span>';
-      else if(state.changed)result.innerHTML=`<strong>模板待保存</strong><span>保存后用于后续到期 Follow-up${state.syncable.length?`；可同步 ${state.syncable.length} 封尚未发送的模板邮件`:''}${state.protectedCount?`；${state.protectedCount} 封人工改写正文不会覆盖`:''}${state.lockedCount?`；${state.lockedCount} 封已排期邮件保持现状`:''}。</span>`;
-      else if(saved)result.innerHTML='<strong>模板已生效</strong><span>到期后直接在邮件监测中生成；称呼与署名从各自 Initial 继承。</span>';
-      else result.innerHTML='<strong>未设置模板</strong><span>设置后，到期邮件可直接在这里生成 Follow-up。</span>';
+      else if(state.changed&&!state.value)result.innerHTML='<strong>将清空模板</strong><span>之后不会再用模板生成新的跟进邮件；已经生成或已定时的邮件不受影响。</span>';
+      else if(state.changed)result.innerHTML=`<strong>模板待保存</strong><span>保存后用于后续到期的跟进邮件${state.syncable.length?`；可同步 ${state.syncable.length} 封尚未发送的模板邮件`:''}${state.protectedCount?`；${state.protectedCount} 封人工改写正文不会覆盖`:''}${state.lockedCount?`；${state.lockedCount} 封已排期邮件保持现状`:''}。</span>`;
+      else if(saved)result.innerHTML='<strong>模板已生效</strong><span>到期后直接在邮件监测中生成；称呼与署名从各自初始邮件继承。</span>';
+      else result.innerHTML='<strong>未设置模板</strong><span>设置后，到期联系人可直接在这里生成跟进邮件。</span>';
     }
     if(trigger){
       const due=(Operations?.monitoringRoots?.(operationState.store)||[]).some(group=>group?.eligibility?.eligible===true);
       trigger.classList.toggle('is-attention',due&&!saved&&!state.changed);
-      trigger.setAttribute('aria-label',due&&!saved?'正文模板未设置；当前已有可跟进邮件':'打开 Follow-up 正文模板设置');
+      trigger.setAttribute('aria-label',due&&!saved?'正文模板未设置；当前已有可跟进邮件':'打开跟进邮件正文模板设置');
     }
   }
 
   async function saveMonitorFollowUpTemplate() {
     await ensureOperationStore();
     const state=monitorFollowUpTemplateState();
-    if(!state.changed){setMonitorNotice('Follow-up 模板没有变化。');return;}
+    if(!state.changed){setMonitorNotice('跟进邮件模板没有变化。');return;}
     if(!state.validation.valid){setMonitorNotice(state.validation.reason,'warn');renderMonitorFollowUpTemplate();return;}
     try{
       const result=Operations.setFollowUpPolicy(operationState.store,'',{templateBody:state.value});
@@ -1946,8 +1940,8 @@
       await commitRuntimeOperations();
       const field=$('nmda-monitor-template-body');if(field)field.dataset.dirty='0';
       renderMonitoring();renderReviewPageOverview();scheduleBatchRender({aux:true});
-      const parts=[state.value?'Follow-up 模板已保存':'Follow-up 模板已清空'];
-      if(refreshedCount)parts.push(`同步 ${refreshedCount} 封待发 Follow-up`);
+      const parts=[state.value?'跟进邮件模板已保存':'跟进邮件模板已清空'];
+      if(refreshedCount)parts.push(`同步 ${refreshedCount} 封待发跟进邮件`);
       if(protectedCount)parts.push(`${protectedCount} 封人工正文保持不变`);
       setMonitorNotice(`${parts.join(' · ')}。`,'ok');
     }catch(error){setMonitorNotice(`保存模板失败：${error?.message||String(error)}`,'error');}
@@ -1960,11 +1954,11 @@
     const ambiguous=[...(group.replies||[])].reverse().find(item=>item.kind==='ambiguous') || null;
     if(effectiveReply){
       return scheduledDraft
-        ? {key:'blocked',tone:'blocked',label:'已回复 · 有定时 Follow-up',detail:`网易草稿箱仍有 ${Operations.formatDisplayTime(scheduledDraft.scheduleAt)} 的定时发送，请先处理该草稿`,observation:effectiveReply,scheduledDraft,activeTask:null,humanManaged:true}
-        : {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成 Follow-up',observation:effectiveReply,activeTask,humanManaged:group.humanManaged===true};
+        ? {key:'blocked',tone:'blocked',label:'已回复 · 有定时跟进邮件',detail:`网易草稿箱仍有 ${Operations.formatDisplayTime(scheduledDraft.scheduleAt)} 的定时发送，请先处理该草稿`,observation:effectiveReply,scheduledDraft,activeTask:null,humanManaged:true}
+        : {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成跟进邮件',observation:effectiveReply,activeTask,humanManaged:group.humanManaged===true};
     }
     if(ambiguous)return scheduledDraft
-      ? {key:'blocked',tone:'blocked',label:'有来信待确认 · 已有定时 Follow-up',detail:`先查看这封来信，再决定是否保留 ${Operations.formatDisplayTime(scheduledDraft.scheduleAt)} 的定时发送`,observation:ambiguous,scheduledDraft,activeTask:null}
+      ? {key:'blocked',tone:'blocked',label:'有来信待确认 · 已有定时跟进邮件',detail:`先查看这封来信，再决定是否保留 ${Operations.formatDisplayTime(scheduledDraft.scheduleAt)} 的定时发送`,observation:ambiguous,scheduledDraft,activeTask:null}
       : {key:'blocked',tone:'blocked',label:'有来信待确认',detail:'请先查看来信，确认是否属于有效回复',observation:ambiguous,activeTask};
     if(activeTask?.state==='blocked')return {key:'blocked',tone:'blocked',label:'跟进已阻断',detail:activeTask.blocker?.kind==='human'?'已收到有效回复，需要人工回复':'需要处理阻断原因',activeTask};
     if(scheduledDraft){
@@ -1978,7 +1972,7 @@
       const autoReviewed=reviewed && activeTask.reviewDecision==='auto';
       const label=reviewed?'已生成 · 可排期':'已生成 · 需审阅';
       const sequence=Math.max(1,Number(activeTask.sequence||1));
-      const detail=activeTask.draftPreparedAt?`第 ${sequence} 次跟进 · 草稿已创建`:activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`第 ${sequence} 次跟进 · 已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:`第 ${sequence} 次跟进 · ${autoReviewed?'模板检查完整，已进入选择与排期':'已进入选择与排期'}`):(reviewed?`第 ${sequence} 次跟进 · 等待进入选择与排期`:`第 ${sequence} 次跟进 · 生成后发现异常，请到邮件审阅处理`);
+      const detail=activeTask.draftPreparedAt?`第 ${sequence} 次跟进 · 草稿已创建`:activeTask.dispatch?.queued?(activeTask.dispatch.scheduleAt?`第 ${sequence} 次跟进 · 已安排 ${Operations.formatDisplayTime(activeTask.dispatch.scheduleAt)}`:`第 ${sequence} 次跟进 · ${autoReviewed?'模板检查完整，已进入安排发送':'已进入安排发送'}`):(reviewed?`第 ${sequence} 次跟进 · 等待进入安排发送`:`第 ${sequence} 次跟进 · 生成后发现异常，请到审阅邮件处理`);
       return {key:'due',tone:'due',label,detail,activeTask};
     }
     if(group.eligibility?.eligible){
@@ -1994,7 +1988,7 @@
       const sequence=Math.max(1,Number(group.eligibility.sequence||1));
       return {key:'waiting',tone:'',label:'还在等待',detail:`预计 ${Operations.formatDisplayTime(group.eligibility.dueAt)} 后可准备第 ${sequence} 次跟进`};
     }
-    if(group.eligibility?.reason==='human-managed-conversation')return {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成 Follow-up',observation:group.eligibility.blockingObservation||null,humanManaged:true};
+    if(group.eligibility?.reason==='human-managed-conversation')return {key:'replied',tone:'replied',label:'已回复',detail:'有效回复，需要人工回复；SmartMail 不再生成跟进邮件',observation:group.eligibility.blockingObservation||null,humanManaged:true};
     if(group.eligibility?.reason==='max-attempts-reached')return {key:'waiting',tone:'',label:'本轮跟进已完成',detail:`已达到最多 ${group.policy.maxAttempts} 次跟进`};
     if(group.eligibility?.reason==='recipient-guard')return {key:'blocked',tone:'blocked',label:'联系规则阻断',detail:(group.eligibility.guard?.reasons||[]).join('；')||'已暂停联系'};
     return {key:'waiting',tone:'',label:'监测中',detail:group.eligibility?.reason||'等待邮箱事实'};
@@ -2025,14 +2019,14 @@
     const scheduled=st?.scheduledDraft||eligibility.scheduledDraft||null;
     if(scheduled){
       nodes.push({kind:'decision',title:'已有后续安排吗？',value:'有',tone:'scheduled'});
-      nodes.push({kind:'result',title:`Follow-up #${sequence}`,value:`等待 ${Operations.formatDisplayTime(scheduled.scheduleAt||eligibility.dueAt)} 发送`,tone:'scheduled'});
+      nodes.push({kind:'result',title:`跟进 #${sequence}`,value:`等待 ${Operations.formatDisplayTime(scheduled.scheduleAt||eligibility.dueAt)} 发送`,tone:'scheduled'});
       return nodes;
     }
     nodes.push({kind:'decision',title:'已有后续安排吗？',value:'没有',tone:'pass'});
     if(st?.activeTask){
       const reviewed=!!st.activeTask.reviewedAt&&Number(st.activeTask.confirmedVersion)===Number(st.activeTask.contentVersion);
       nodes.push({kind:'decision',title:'跟进内容准备好了吗？',value:'已生成',tone:'prepared'});
-      nodes.push({kind:'result',title:`Follow-up #${Math.max(1,Number(st.activeTask.sequence||sequence))}`,value:st.activeTask.dispatch?.queued?'已进入选择与排期':(reviewed?'等待进入选择与排期':'需要完成邮件审阅'),tone:'prepared'});
+      nodes.push({kind:'result',title:`跟进 #${Math.max(1,Number(st.activeTask.sequence||sequence))}`,value:st.activeTask.dispatch?.queued?'已进入安排发送':(reviewed?'等待进入安排发送':'需要完成审阅邮件'),tone:'prepared'});
       return nodes;
     }
     if(eligibility.reason==='max-attempts-reached'){
@@ -2047,7 +2041,7 @@
     }
     const due=eligibility.eligible===true;
     nodes.push({kind:'decision',title:'到跟进时间了吗？',value:due?'到了':'还没有',tone:due?'due':'waiting'});
-    if(due)nodes.push({kind:'result',title:`Follow-up #${sequence}`,value:'现在可以准备',tone:'due'});
+    if(due)nodes.push({kind:'result',title:`跟进 #${sequence}`,value:'现在可以准备',tone:'due'});
     else if(eligibility.reason==='waiting')nodes.push({kind:'result',title:'继续等待',value:`预计 ${Operations.formatDisplayTime(eligibility.dueAt)} 后可准备`,tone:'waiting'});
     else nodes.push({kind:'result',title:'继续监测',value:st?.detail||'等待新的邮箱变化',tone:'muted'});
     return nodes;
@@ -2223,7 +2217,7 @@
     if(!records.length)return '';
     const rows=records.slice(0,6).map(record=>{
       const seq=Math.max(0,Number(record.effectiveSequence??record.sequence??0));
-      const kind=seq>0?`Follow-up #${seq}`:'首次联系';
+      const kind=seq>0?`跟进 #${seq}`:'首次联系';
       return `<div class="nmda-contact-history-row"><span><b>${escapeHtml(kind)}</b><small>${escapeHtml(record.subject||'(无主题)')}</small></span><time>${escapeHtml(Operations.formatDisplayTime(record.sentAt))}</time></div>`;
     }).join('');
     return `<details class="nmda-contact-history"><summary>查看联系记录 <b>${records.length}</b></summary><div>${rows}</div></details>`;
@@ -2345,7 +2339,7 @@
     const ladder=$('nmda-dashboard-signal-ladder');
     if(ladder)ladder.innerHTML=`<span><small>真人回复</small><strong>${snapshot.human}</strong></span><i>→</i><span><small>转人工沟通</small><strong>${snapshot.active}</strong></span><i>→</i><span class="is-strong"><small>多轮往来</small><strong>${snapshot.strong}</strong></span>`;
     if(!ranked.length){
-      list.innerHTML=`<div class="nmda-dashboard-empty"><div><strong>当前尚未出现真人回复</strong><span>这不会被标记为失败。看板继续保留履约与 Follow-up 证据，出现真实沟通后会自动置顶。</span></div></div>`;
+      list.innerHTML=`<div class="nmda-dashboard-empty"><div><strong>当前尚未出现真人回复</strong><span>这不会被标记为失败。看板继续保留履约与持续跟进记录，出现真实沟通后会自动置顶。</span></div></div>`;
       return;
     }
     list.innerHTML=ranked.slice(0,6).map((contact,index)=>{
@@ -2366,7 +2360,7 @@
 
   function renderDashboardField(snapshot){
     const field=$('nmda-dashboard-field'),copy=$('nmda-dashboard-field-copy');if(!field)return;
-    if(copy)copy.textContent=snapshot.plannedMode?'每个点是一位当前目标联系人；空心点尚未形成已发送事实，信号越明确视觉权重越高。':'每个点是一位已联系联系人；Follow-up、真人回复与持续往来逐级增强。';
+    if(copy)copy.textContent=snapshot.plannedMode?'每个点是一位当前目标联系人；空心点尚未形成已发送事实，信号越明确视觉权重越高。':'每个点是一位已联系联系人；持续跟进、真人回复与往来深度逐级增强。';
     if(!snapshot.contacts.length){field.innerHTML='<div class="nmda-dashboard-empty"><div><strong>暂无联系人事实</strong><span>导入目标名单或连接网易邮箱后，这里会形成联系人级联系场。</span></div></div>';return;}
     const groups=new Map();
     for(const contact of snapshot.contacts){const school=dashboardSchoolForContact(contact);if(!groups.has(school))groups.set(school,[]);groups.get(school).push(contact);}
@@ -2419,18 +2413,18 @@
     const host=$('nmda-dashboard-depth'),evidence=$('nmda-dashboard-evidence');if(!host)return;
     const rows=[
       ['首次触达',snapshot.reachedCount],
-      ['≥ 1 次 Follow-up',snapshot.signals.filter(item=>item.followUps>=1).length],
-      ['≥ 2 次 Follow-up',snapshot.signals.filter(item=>item.followUps>=2).length]
+      ['≥ 1 次跟进',snapshot.signals.filter(item=>item.followUps>=1).length],
+      ['≥ 2 次跟进',snapshot.signals.filter(item=>item.followUps>=2).length]
     ];
     const max=Math.max(1,...rows.map(row=>row[1]));
     host.innerHTML=rows.map(([label,value])=>`<div class="nmda-dashboard-depth-row"><span>${escapeHtml(label)}</span><div class="nmda-dashboard-depth-track"><i style="width:${Math.max(0,Math.min(100,value/max*100)).toFixed(1)}%"></i></div><b>${value}</b></div>`).join('');
     if(evidence){
       const policy=snapshot.policy||{};const delay=Math.max(0,Number(policy.delayDays??7));const maxAttempts=Math.max(0,Number(policy.maxAttempts??2));
-      const strategy=`当前策略：首次 / 上次发送后等待 <strong>${delay} 天</strong>，无有效回复时最多继续 <strong>${maxAttempts} 次</strong> Follow-up。`;
+      const strategy=`当前策略：首次 / 上次发送后等待 <strong>${delay} 天</strong>，无有效回复时最多继续 <strong>${maxAttempts} 次</strong>跟进。`;
       let result='';
-      if(snapshot.activeAfterFollowUp>0)result=`其中 <strong>${snapshot.activeAfterFollowUp}</strong> 段持续往来的首次真人回复发生在 Follow-up 之后。`;
-      else if(snapshot.followUpEmergence>0)result=`已有 <strong>${snapshot.followUpEmergence}</strong> 位联系人的首次真人回复出现在 Follow-up 之后。`;
-      else result=snapshot.followedUp?`已有 <strong>${snapshot.followedUp}</strong> 位联系人完成至少一次 Follow-up；继续按既定规则观察。`:'当前尚未进入 Follow-up 阶段。';
+      if(snapshot.activeAfterFollowUp>0)result=`其中 <strong>${snapshot.activeAfterFollowUp}</strong> 段持续往来的首次真人回复发生在跟进之后。`;
+      else if(snapshot.followUpEmergence>0)result=`已有 <strong>${snapshot.followUpEmergence}</strong> 位联系人的首次真人回复出现在跟进之后。`;
+      else result=snapshot.followedUp?`已有 <strong>${snapshot.followedUp}</strong> 位联系人完成至少一次跟进；继续按既定规则观察。`:'当前尚未进入跟进阶段。';
       evidence.dataset.tone=(snapshot.activeAfterFollowUp||snapshot.followUpEmergence)?'signal':'';
       evidence.innerHTML=`${strategy} ${result}`;
     }
@@ -2449,9 +2443,9 @@
     const progress=$('nmda-dashboard-delivery-progress');if(progress)progress.style.width=snapshot.mailboxKnown&&snapshot.plannedCount?`${Math.min(100,snapshot.reachedCount/snapshot.plannedCount*100).toFixed(1)}%`:'0%';
     const inst=snapshot.schoolCount?(snapshot.mailboxKnown?`${snapshot.reachedSchoolCount} / ${snapshot.schoolCount}`:`— / ${snapshot.schoolCount}`):(snapshot.reachedSchoolCount||'—');
     set('nmda-dashboard-institution-value',inst);set('nmda-dashboard-institution-copy',snapshot.schoolCount?'按当前目标资料识别的院校覆盖':'当前资料未提供稳定院校字段');
-    set('nmda-dashboard-followup-value',snapshot.mailboxKnown?snapshot.followedUp:'—');set('nmda-dashboard-followup-copy',snapshot.mailboxKnown?`${snapshot.signals.filter(item=>item.followUps>=2).length} 位已完成两次及以上争取`:'更新邮箱后统计 Follow-up 深度');
+    set('nmda-dashboard-followup-value',snapshot.mailboxKnown?snapshot.followedUp:'—');set('nmda-dashboard-followup-copy',snapshot.mailboxKnown?`${snapshot.signals.filter(item=>item.followUps>=2).length} 位已完成两次及以上争取`:'更新邮箱后统计跟进深度');
     set('nmda-dashboard-active-value',snapshot.mailboxKnown?snapshot.active:'—');set('nmda-dashboard-active-copy',snapshot.mailboxKnown?(snapshot.strong?`${snapshot.strong} 位已出现多轮真人往来`:`另有 ${snapshot.human} 位出现真人回复`):'更新邮箱后识别持续往来');
-    const period=$('nmda-dashboard-period-copy');if(period)period.textContent=dashboardState.mode==='student'?'阶段成果以实际触达、持续争取和真实往来为主，不以低基率回复制造成败判断。':'以联系人为主键核对履约、Follow-up 深度与人工往来；自动回复不计入成果。';
+    const period=$('nmda-dashboard-period-copy');if(period)period.textContent=dashboardState.mode==='student'?'阶段成果以实际触达、持续争取和真实往来为主，不以低基率回复制造成败判断。':'以联系人为主键核对履约、跟进深度与人工往来；自动回复不计入成果。';
     const heading=pane.querySelector('.nmda-dashboard-heading h2');if(heading)heading.textContent=dashboardState.mode==='student'?'阶段外联成果':'成效看板';
     renderDashboardOpportunities(snapshot);renderDashboardField(snapshot);renderDashboardTrajectory(snapshot);renderDashboardDepth(snapshot);
   }
@@ -2479,14 +2473,14 @@
       <div class="nmda-monitor-stat"><span>已联系联系人</span><strong>${summary.total}</strong><small>按收件邮箱归并</small></div>
       <div class="nmda-monitor-stat" data-tone="reply"><span>已有回复</span><strong>${summary.replied}</strong><small>${summary.total?`约 ${replyRate}%`:'暂无联系人'}</small></div>
       <div class="nmda-monitor-stat" data-tone="due"><span>需要跟进</span><strong>${summary.due}</strong><small>${summary.creatable} 位可直接准备</small></div>
-      <div class="nmda-monitor-stat" data-tone="scheduled"><span>已完成跟进</span><strong>${summary.followUps}</strong><small>累计 Follow-up 次数</small></div>`;
+      <div class="nmda-monitor-stat" data-tone="scheduled"><span>已完成跟进</span><strong>${summary.followUps}</strong><small>累计跟进次数</small></div>`;
 
     if(els.readyCard){
       els.readyCard.disabled=summary.due===0;
       els.readyCard.dataset.state=summary.due>0?'ready':'clear';
     }
     if(els.readyTitle)els.readyTitle.textContent=summary.due>0?`${summary.due} 位联系人现在需要跟进`:(summary.replied>0?'当前没有到期联系人':'当前联系人都在等待中');
-    if(els.readyCopy)els.readyCopy.textContent=summary.due>0?`${summary.creatable} 位可直接准备 Follow-up${summary.prepared?`，${summary.prepared} 位已生成、等待审阅或排期`:''}。`:(summary.scheduled?`${summary.scheduled} 位已经安排后续发送；其余联系人继续按规则监测。`:'联系人会在达到等待间隔、且没有有效回复时自动进入“需要跟进”。');
+    if(els.readyCopy)els.readyCopy.textContent=summary.due>0?`${summary.creatable} 位可直接准备跟进邮件${summary.prepared?`，${summary.prepared} 位已生成、等待审阅或排期`:''}。`:(summary.scheduled?`${summary.scheduled} 位已经安排后续发送；其余联系人继续按规则监测。`:'联系人会在达到等待间隔、且没有有效回复时自动进入“需要跟进”。');
     if(els.readyAction)els.readyAction.textContent=summary.due>0?`查看 ${summary.due} 位`:'无需操作';
 
     const policy=operationState.store.followUpPolicies?.default || Operations.DEFAULT_FOLLOWUP_POLICY;
@@ -2572,7 +2566,7 @@
             <div class="nmda-contact-card-grid">
               <div class="nmda-contact-metrics">
                 <div><small>联系次数</small><strong>${metrics.touches}</strong><span>封已发送</span></div>
-                <div><small>已跟进</small><strong>${metrics.followUps}</strong><span>次 Follow-up</span></div>
+                <div><small>已跟进</small><strong>${metrics.followUps}</strong><span>次跟进</span></div>
                 <div><small>有效回复</small><strong>${metrics.replies? '有':'—'}</strong><span>${metrics.replies?`${metrics.replies} 封回复`:'尚未回复'}</span></div>
                 <div><small>${st.key==='due'?'下一次跟进':'最近联系'}</small><strong>${st.key==='due'?`#${nextSequence}`:'最近'}</strong><span>${escapeHtml(st.key==='due'?(st.activeTask?'已准备':Operations.formatDisplayTime(group.eligibility?.dueAt||last.sentAt)):Operations.formatDisplayTime(metrics.lastAt))}</span></div>
               </div>
@@ -2631,21 +2625,21 @@
   function followUpTemplateReasonText(reason, detail='') {
     const code=String(reason||'');
     const labels={
-      'template-missing':'未配置 Follow-up 模板',
-      'initial-outbound-missing':'找不到 Initial 已发送记录',
-      'initial-provider-id-missing':'Initial 已发送记录缺少 provider message id',
+      'template-missing':'未配置跟进邮件模板',
+      'initial-outbound-missing':'找不到对应的初始邮件发送记录',
+      'initial-provider-id-missing':'无法定位对应的初始邮件',
       'sent-read-unavailable':'当前 163 页面无法调用邮件读取接口',
-      'sent-read-failed':'读取 Initial 已发送正文失败',
-      'sent-read-empty':'163 返回的 Initial 邮件详情为空',
-      'sent-readhtml-url-unavailable':'网易页面未提供 Initial 正文读取地址',
-      'sent-readhtml-failed':'读取 Initial 正文页失败',
-      'sent-readhtml-parse-failed':'已读取 Initial 正文页，但未解析出邮件正文',
-      'initial-body-missing':'Initial 正文尚未缓存',
-      'salutation-and-signature-missing':'Initial 正文中未识别到称呼和署名',
-      'salutation-missing':'Initial 正文中未识别到称呼',
-      'signature-missing':'Initial 正文中未识别到署名'
+      'sent-read-failed':'读取初始邮件正文失败',
+      'sent-read-empty':'未读取到初始邮件内容',
+      'sent-readhtml-url-unavailable':'暂时无法读取初始邮件正文',
+      'sent-readhtml-failed':'读取初始邮件正文失败',
+      'sent-readhtml-parse-failed':'已打开初始邮件，但未能识别正文',
+      'initial-body-missing':'尚未读取到初始邮件正文',
+      'salutation-and-signature-missing':'初始邮件中未识别到称呼和署名',
+      'salutation-missing':'初始邮件中未识别到称呼',
+      'signature-missing':'初始邮件中未识别到署名'
     };
-    const base=labels[code]||code||'无法生成 Follow-up';
+    const base=labels[code]||code||'无法生成跟进邮件';
     return detail?`${base}：${detail}`:base;
   }
 
@@ -2678,12 +2672,12 @@
 
     if(remote.length){
       const response=await chrome.runtime.sendMessage({type:'NMDA_READ_SENT_DETAILS',messageIds:remote.map(item=>item.providerMessageId)});
-      if(!response?.ok)throw new Error(response?.reason||'读取 Initial 邮件正文失败。');
+      if(!response?.ok)throw new Error(response?.reason||'读取初始邮件正文失败。');
       const byId=new Map((response.details||[]).map(item=>[String(item?.id||''),item]));
       for(const item of remote){
         const detail=byId.get(String(item.providerMessageId));
         if(!detail){
-          const failed=Operations.setOutboundContentReadFailure(operationState.store,item.outboundId,'sent-read-failed','读取结果中缺少对应 message id');
+          const failed=Operations.setOutboundContentReadFailure(operationState.store,item.outboundId,'sent-read-failed','未找到对应的已发送邮件');
           operationState.store=failed.store;
           continue;
         }
@@ -2708,7 +2702,7 @@
   async function createMonitorFollowUp(rootTaskId, manual=false) {
     await ensureOperationStore();
     const policy=Operations.policyForRoot(operationState.store,rootTaskId);
-    if(!String(policy.templateBody||'').trim()){setMonitorNotice('请先设置 Follow-up 正文模板。','warn');return;}
+    if(!String(policy.templateBody||'').trim()){setMonitorNotice('请先设置跟进邮件正文模板。','warn');return;}
     try{
       const hydrated=await hydrateInitialContentForRoots([rootTaskId]);
       const prep=hydrated[0]?.rendered;
@@ -2719,8 +2713,8 @@
       renderMonitoring();
       const autoPassed=created.task.reviewDecision==='auto' && created.task.dispatch?.queued===true;
       setMonitorNotice(autoPassed
-        ? `Follow-up #${created.task.sequence} 已按模板生成并自动通过审阅，已进入“选择与排期”。`
-        : `Follow-up #${created.task.sequence} 已按模板生成；检测到异常，请到“邮件审阅”处理。`,autoPassed?'ok':'warn');
+        ? `跟进邮件 #${created.task.sequence} 已按模板生成并完成审阅，已进入“安排发送”。`
+        : `跟进邮件 #${created.task.sequence} 已按模板生成；检测到需要处理的内容，请到“审阅邮件”查看。`,autoPassed?'ok':'warn');
       renderReviewPageOverview();
     }catch(error){setMonitorNotice(error?.message||String(error),'error');}
   }
@@ -2730,7 +2724,7 @@
     const selected=[...monitorSelectedIds()];
     if(!selected.length){setMonitorNotice('请先选择需要跟进的联系人。','warn');return;}
     const policy=operationState.store.followUpPolicies?.default || Operations.DEFAULT_FOLLOWUP_POLICY;
-    if(!String(policy.templateBody||'').trim()){setMonitorNotice('请先设置 Follow-up 正文模板，再批量准备联系人跟进。','warn');return;}
+    if(!String(policy.templateBody||'').trim()){setMonitorNotice('请先设置跟进邮件正文模板，再批量准备联系人跟进。','warn');return;}
     try{
       setMonitorNotice(`正在准备 ${selected.length} 位联系人的跟进内容…`);
       const hydrated=await hydrateInitialContentForRoots(selected);
@@ -2746,7 +2740,7 @@
       const reasons=[...new Set(allSkipped.map(item=>item.reasonText||item.reason).filter(Boolean))];
       const autoPassed=result.created.filter(task=>task.reviewDecision==='auto'&&task.dispatch?.queued===true).length;
       const needsReview=result.created.length-autoPassed;
-      const generatedCopy=`已生成 ${result.created.length} 个 Follow-up · ${autoPassed} 自动通过${needsReview?` · ${needsReview} 需处理`:''}`;
+      const generatedCopy=`已生成 ${result.created.length} 封跟进邮件 · ${autoPassed} 封已就绪${needsReview?` · ${needsReview} 封需处理`:''}`;
       setMonitorNotice(`${generatedCopy}${allSkipped.length?`；${allSkipped.length} 个未生成${reasons.length?`（${reasons.slice(0,4).join('；')}${reasons.length>4?'；…':''}）`:''}`:''}。`,result.created.length?'ok':'warn');
       renderReviewPageOverview();
     }catch(error){setMonitorNotice(`批量生成失败：${error?.message||String(error)}`,'error');}
@@ -2756,10 +2750,10 @@
     await ensureOperationStore();
     const task=operationState.store.derivedTasks?.[taskId];
     if(!task)return;
-    if(!confirm(`取消 Follow-up #${task.sequence}？已创建的网易草稿不会被自动删除。`))return;
+    if(!confirm(`取消跟进邮件 #${task.sequence}？已创建的网易草稿不会被自动删除。`))return;
     try{
       const result=Operations.setDerivedTaskState(operationState.store,taskId,'cancelled');
-      operationState.store=result.store;await commitRuntimeOperations();renderMonitoring();renderReviewPageOverview();setMonitorNotice('本次 Follow-up 已取消；如仍符合规则，可按当前模板重新生成。','ok');
+      operationState.store=result.store;await commitRuntimeOperations();renderMonitoring();renderReviewPageOverview();setMonitorNotice('本次跟进邮件已取消；如仍符合规则，可按当前模板重新生成。','ok');
     }catch(error){setMonitorNotice(error?.message||String(error),'error');}
   }
 
@@ -2944,7 +2938,7 @@
     const executionId = String(draftAttachmentTool.executionId || '');
     draftAttachmentTool.cancelRequested = true;
     draftAttachmentTool.stopping = true;
-    setDraftAttachmentProgress('正在停止：当前安全步骤会尽快收尾，后续草稿不会继续执行…','warn');
+    setDraftAttachmentProgress('正在停止：当前步骤完成后停止，后续草稿不会继续更新…','warn');
     setDraftAttachmentMotion({phase:'error',message:'已请求停止，正在结束当前安全步骤。'});
     renderDraftAttachmentTool();
     notifyDraftAttachmentCancelled(executionId);
@@ -2984,7 +2978,7 @@
     const attachmentIssues=hasSource && typeof importAttachmentStats==='function' ? Number(importAttachmentStats().issues||0) : 0;
     const blockers=hasSource && Array.isArray(batch.tasks) ? batch.tasks.filter(task=>typeof taskHasPrePlanningBlocker==='function' && taskHasPrePlanningBlocker(task)).length : 0;
     let ready=true, reason='';
-    if(n===2 && !hasSource){ready=false;reason='尚未导入资料。';}
+    if(n===2 && !hasSource){ready=false;reason='尚未准备邮件。';}
     return {allowed:true,ready,reason,hasSource,contextPending,attachmentIssues,blockers,fromStep:from,direction:n<from?'backward':n>from?'forward':'current'};
   }
 
@@ -3023,7 +3017,7 @@
         if(access.reason)button.title=`可查看 · ${access.reason}`;else button.removeAttribute('title');
         const small=button.querySelector('small');
         if(!small) return;
-        if(step===1) small.textContent=!hasSource?'先导入资料':contextPending?'完成导入核对':duplicateIssues?`查重待处理 ${duplicateIssues} 组`:attachmentIssues?`导入完成 · 附件提醒 ${attachmentIssues} 项`:'导入准备已完成';
+        if(step===1) small.textContent=!hasSource?'先准备邮件':contextPending?'完成导入核对':duplicateIssues?`查重待处理 ${duplicateIssues} 组`:attachmentIssues?`导入完成 · 附件提醒 ${attachmentIssues} 项`:'导入准备已完成';
         if(step===2) small.textContent=!hasSource?'添加资料后审阅':contextPending?'先完成导入准备':duplicateIssues?'先完成导入查重':blockers?`${blockers} 项待审阅`:'审阅完成';
       });
     });
@@ -3053,14 +3047,14 @@
       if(batch.attachmentManagerOpen)closeAttachmentManager();
     }
     if(n!==2 && reviewInlineEl && !reviewInlineEl.hidden){
-      if(batch.reviewEditingKey){setImportStatus('请先保存或取消当前邮件的编辑，再离开邮件审阅。','warn');return false;}
+      if(batch.reviewEditingKey){setImportStatus('请先保存或取消当前邮件的编辑，再离开审阅邮件。','warn');return false;}
       hideReviewWorkspaceWithoutStash();
     }
     if(n===2 && unresolvedDuplicateGroupCount()>0){
       batch.uiStep=1;
       renderProcessGuide();
       renderRosterAudit();
-      setImportStatus(`导入查重还有 ${unresolvedDuplicateGroupCount()} 组未处理；先决定保留版本，再进入邮件审阅。`,'warn');
+      setImportStatus(`导入查重还有 ${unresolvedDuplicateGroupCount()} 组未处理；先决定保留版本，再进入审阅邮件。`,'warn');
       requestAnimationFrame(()=>$('nmda-roster-audit-card')?.scrollIntoView?.({block:'nearest',behavior:'smooth'}));
       return false;
     }
@@ -3264,7 +3258,7 @@
       renderAttachmentAssetViews();
       renderSupplementPreflight();
       syncScheduleRuleControls();
-      setImportStatus(`已恢复上次工作集 · ${batch.tasks.length} 封邮件。可继续添加文件、文件夹、名单或附件。`,'ok');
+      setImportStatus(`已恢复上次处理的 ${batch.tasks.length} 封邮件。可继续添加文件、文件夹、名单或附件。`,'ok');
       if ((batch.tasks||[]).some(task => (task.attachmentRefs||[]).length)) {
         setBatchStatus('已恢复邮件与审阅状态；本地附件文件不会永久存储，请在执行前重新选择附件。','warn');
       }
@@ -3611,7 +3605,7 @@
     paintRosterPlannerSelection();
   }
   function openRosterPlannerView({returnToSchedule=false}={}){
-    if(!dispatchTasks().length){setBatchStatus('执行池为空；请先从邮件审阅进入选择与排期。','warn');return;}
+    if(!dispatchTasks().length){setBatchStatus('暂无待发送邮件；请先在“审阅邮件”确认邮件已就绪。','warn');return;}
     if(returnToSchedule)batch.rosterPlannerReturnToSchedule=true;
     closeScheduleModal({restoreFocus:false});
     batch.rosterPlannerOpen=true;
@@ -4390,7 +4384,7 @@
   }
 
   const DRAFT_ATTACHMENT_MOTION_ORDER=['read','clone','attachments','verify','swap'];
-  const DRAFT_ATTACHMENT_MOTION_LABELS={seed:'准备新版附件源',read:'读取旧草稿',clone:'构建等价新草稿',attachments:'服务器迁移附件',verify:'回读完整性验证',swap:'安全切换草稿',done:'附件更新完成',stopped:'已停止更新',error:'附件更新异常'};
+  const DRAFT_ATTACHMENT_MOTION_LABELS={seed:'准备新版附件',read:'读取原草稿',clone:'创建新草稿',attachments:'更新附件',verify:'核对邮件内容',swap:'完成替换',done:'附件更新完成',stopped:'已停止更新',error:'附件更新异常'};
 
   function normalizeDraftAttachmentMotionPhase(phase=''){
     const raw=String(phase||'');
@@ -4501,7 +4495,7 @@
     const drop=$('nmda-draft-attachment-drop'),file=draftAttachmentTool.replacementFile;
     if(drop)drop.disabled=!selected||draftAttachmentTool.running;
     setText('nmda-draft-attachment-new-name',file?file.name:'选择新版附件');
-    setText('nmda-draft-attachment-new-meta',file?`${formatAttachmentSize(file)} · 将只上传一次；每封先生成并验证替代草稿，再安全替换旧草稿。`:'只上传一次；系统先创建并验证等价新草稿，确认无误后再替换旧草稿。');
+    setText('nmda-draft-attachment-new-meta',file?`${formatAttachmentSize(file)} · 只需选择一次；每封都会先核对新草稿，再替换旧草稿。`:'只需选择一次；每封都会先核对新草稿，再替换旧草稿。');
     const run=$('nmda-draft-attachment-run');
     if(run){
       run.disabled=!selected||!file||!selectedCount||draftAttachmentTool.running;
@@ -4562,7 +4556,7 @@
       throwIfDraftAttachmentCancelled();
 
       refs=await prepareRuntimeFileRefs([file]);
-      if(!refs[0])throw new Error('新版附件运行时文件准备失败');
+      if(!refs[0])throw new Error('新版附件未准备好，请重新选择文件。');
       setDraftAttachmentProgress('正在上传新版附件；如果网易上传队列停止响应，系统会自动退出而不是无限等待…');
       const seed=await awaitDraftAttachmentStep(
         chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_SEED',executionId,file:refs[0]}),
@@ -4598,7 +4592,7 @@
             }),executionId,90000,`更新草稿 ${currentIndex}/${targets.length}`);
             throwIfDraftAttachmentCancelled();
             if(mutated?.cancelled)throw draftAttachmentCancelledError();
-            if(!mutated?.ok||mutated.verified!==true)throw new Error(mutated?.reason||'草稿附件事务提交或回读验证失败');
+            if(!mutated?.ok||mutated.verified!==true)throw new Error(mutated?.reason||'草稿附件更新后核对失败');
             const committedId=String(mutated.draftId||draftId);
             if(committedId!==draftId){
               const before=integrityBaseline.get(draftId);
@@ -4635,15 +4629,15 @@
       }
       throwIfDraftAttachmentCancelled();
 
-      setDraftAttachmentProgress('更新已完成，正在快速回读核对草稿箱…');
-      await awaitDraftAttachmentStep(scanDraftAttachmentTool({allowDuringRun:true}),executionId,60000,'回读草稿箱');
+      setDraftAttachmentProgress('更新已完成，正在核对草稿箱…');
+      await awaitDraftAttachmentStep(scanDraftAttachmentTool({allowDuringRun:true}),executionId,60000,'核对草稿箱');
       throwIfDraftAttachmentCancelled();
 
       const sameMinute=(a,b)=>{const left=String(a||'').trim(),right=String(b||'').trim();if(!left&&!right)return true;if(!left||!right)return false;const la=Date.parse(left),rb=Date.parse(right);return Number.isFinite(la)&&Number.isFinite(rb)?Math.abs(la-rb)<60000:left===right;};
       const integrityFailures=[];
       for(const draftId of doneIds){
         const before=integrityBaseline.get(draftId),after=(draftAttachmentTool.drafts||[]).find(item=>String(item?.id||'')===draftId);
-        if(!before||!after?.ok){integrityFailures.push(`${before?.subject||draftId}：更新后无法回读草稿`);continue;}
+        if(!before||!after?.ok){integrityFailures.push(`${before?.subject||draftId}：更新后无法重新读取草稿`);continue;}
         const changed=[];
         if(String(after.subject||'')!==before.subject)changed.push('主题');
         if(String(after.recipients||'')!==before.recipients)changed.push('收件人');
@@ -4675,7 +4669,7 @@
         setDraftAttachmentMotion({phase:'done',current:done,total:targets.length,oldName:group.name,newName:file.name,subject:'全部草稿已安全切换',message:seedCleanupWarning?'附件更新完成；临时源需要人工清理。':'新版附件已接管，旧草稿已在验证后安全移除。'});
         await Promise.race([chrome.runtime.sendMessage({type:'NMDA_DRAFT_ATTACHMENT_MONITOR',focus:false,payload:{action:'finish',executionId,status:'done',total:targets.length,current:done,succeeded:done,failed:0,message:'附件更新完成'}}).catch(()=>null),new Promise(resolve=>setTimeout(resolve,5000))]);
         if(seedCleanupWarning)setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新并通过完整性核验；${seedCleanupWarning}`,'warn');
-        else setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新，并回读确认正文、收件人、主题与原排期保持不变。`,'ok');
+        else setDraftAttachmentUtilityResult(`已完成 ${done} 封草稿的附件更新，并确认正文、收件人、主题与原发送时间保持不变。`,'ok');
       }
     }catch(error){
       const cancelled=error?.code==='NMDA_DRAFT_ATTACHMENT_CANCELLED'||draftAttachmentTool.cancelRequested;
@@ -4767,7 +4761,7 @@
 
   function openScheduleModal() {
     if(!dispatchTasks().length){
-      setBatchStatus('执行池为空；请先从邮件审阅进入选择与排期。','warn');
+      setBatchStatus('暂无待发送邮件；请先在“审阅邮件”确认邮件已就绪。','warn');
       return;
     }
     const overlay=$('nmda-schedule-modal');
@@ -4876,7 +4870,7 @@
     const hasTasks=!!(batch.tasks||[]).length;
     if(!hasTasks){setImportStatus('资料检查已完成，但当前仍没有可创建邮件。可继续调整资料用途或追加邮件资料。','warn');return;}
     if(!attachmentPreparedFileCount() && batch.attachmentPrepChoice==='pending')batch.attachmentPrepChoice='skipped';
-    if(stats.issues)setImportStatus(`导入资料已整理；有 ${stats.issues} 项附件提示未匹配，但不会阻断后续审阅或排期。`,'warn');
+    if(stats.issues)setImportStatus(`准备邮件已整理；有 ${stats.issues} 项附件提示未匹配，但不会阻断后续审阅或排期。`,'warn');
     const duplicatePending=unresolvedDuplicateGroupCount();
     if(duplicatePending){
       batch.uiStep=1;renderProcessGuide();renderRosterAudit();
@@ -4888,8 +4882,8 @@
     renderProcessGuide();
     const missingCount=missingSubjectTasks().length;
     const attachmentNote=stats.issues?`；${stats.issues} 项附件提示未匹配（不阻断）`:'';
-    if(missingCount>=3)setImportStatus(`导入准备已完成。邮件审阅可用；其中 ${missingCount} 封缺少主题${attachmentNote}。`,'warn');
-    else if(mailPending)setImportStatus(`导入准备已完成。邮件审阅可用${attachmentNote}。`,stats.issues?'warn':'ok');
+    if(missingCount>=3)setImportStatus(`导入准备已完成。审阅邮件可用；其中 ${missingCount} 封缺少主题${attachmentNote}。`,'warn');
+    else if(mailPending)setImportStatus(`导入准备已完成。审阅邮件可用${attachmentNote}。`,stats.issues?'warn':'ok');
     else setImportStatus(`导入准备已完成。后续阶段可查看；执行资格按当前状态判断${attachmentNote}。`,stats.issues?'warn':'ok');
     renderImportHandoff();
     scheduleReadyBatchAutoHandoff('导入准备已完成');
@@ -5155,16 +5149,16 @@
     const reviewed=!!task.reviewedAt && Number(task.confirmedVersion)===Number(task.contentVersion);
     return {
       reviewKind:'follow_up', sourceKind:'follow-up-review', derivedTaskId:task.id,
-      editKey:`fu-review:${task.id}`, id:`Follow-up #${Math.max(1,Number(task.sequence||1))}`,
-      collectionName:'Follow-up', recipients, subject:String(task.subject||parent?.subject||''), body:String(task.body||''), bodyHtml:String(task.bodyHtml||''), bodyIsHtml:task.bodyIsHtml===true,
+      editKey:`fu-review:${task.id}`, id:`跟进邮件 #${Math.max(1,Number(task.sequence||1))}`,
+      collectionName:'跟进邮件', recipients, subject:String(task.subject||parent?.subject||''), body:String(task.body||''), bodyHtml:String(task.bodyHtml||''), bodyIsHtml:task.bodyIsHtml===true,
       composeMode:task.composeMode||'forward', sequence:Number(task.sequence||1), reviewConfirmed:reviewed,
       rootTaskId:String(task.rootTaskId||''), parentOutboundId:String(task.parentOutboundId||''), parentMessageId:String(parent?.providerMessageId||''), parentFid:3,
       reviewDecision:String(task.reviewDecision||''), reviewDraftPending:false, importExcluded:false, importConfidence:100, importIssues:[], rosterIssues:[], errors:[],
-      policyBlocked:task.state==='blocked'||!!task.blocker, attachmentRefs:[], scheduleAt:String(task.dispatch?.scheduleAt||''), tags:['Follow-up'],
-      sourceFile:'Follow-up 模板生成',
+      policyBlocked:task.state==='blocked'||!!task.blocker, attachmentRefs:[], scheduleAt:String(task.dispatch?.scheduleAt||''), tags:[],
+      sourceFile:'跟进邮件模板生成',
       generatedFromTemplateVersion:Number(task.generatedFromTemplateVersion||0), personalization:task.personalization||{},
       _derivedState:task.state, _dispatchQueued:task.dispatch?.queued===true, _rawDerivedTask:task,
-      _searchStatic:[recipients,task.subject,task.body,`Follow-up ${task.sequence||''}`].join(' ').toLocaleLowerCase('zh-CN')
+      _searchStatic:[recipients,task.subject,task.body,`跟进邮件 ${task.sequence||''}`].join(' ').toLocaleLowerCase('zh-CN')
     };
   }
 
@@ -5199,8 +5193,8 @@
       else if(!recipientLooksValid(task.recipients))out.push('收件人邮箱格式无效');
       if(task?.composeMode==='new' && !followUpSubjectValid(task))out.push('缺少主题');
       if(!String(task?.body||'').trim())out.push('缺少正文');
-      if(task?.policyBlocked)out.push('Follow-up 已阻断');
-      if(!task?.reviewConfirmed && !out.includes('请检查 Follow-up 内容'))out.push('请检查 Follow-up 内容');
+      if(task?.policyBlocked)out.push('跟进邮件已阻断');
+      if(!task?.reviewConfirmed && !out.includes('请检查跟进邮件内容'))out.push('请检查跟进邮件内容');
       return out;
     }
     if (!String(task?.recipients||'').trim()) out.push('缺少收件人');
@@ -5593,8 +5587,8 @@
     if(!templateBody)return{valid:true,empty:true,body:'',reason:''};
     const lines=templateBody.split('\n').map(line=>line.trim()).filter(Boolean);
     const first=lines[0]||'',last=lines[lines.length-1]||'';
-    if(/^(?:dear\b|hi\b|hello\b|prof(?:essor)?\.?\b|dr\.?\b|尊敬的|您好)/i.test(first))return{valid:false,empty:false,body:templateBody,reason:'称呼由 Initial 自动继承；模板只填写中间正文。'};
-    if(/^(?:best(?:\s+regards)?|kind\s+regards|warm\s+regards|regards|sincerely|yours\s+sincerely|best\s+wishes|many\s+thanks|thank\s+you|谢谢|此致|祝好)[,!，！。]?$/i.test(last))return{valid:false,empty:false,body:templateBody,reason:'署名由 Initial 自动继承；模板只填写中间正文。'};
+    if(/^(?:dear\b|hi\b|hello\b|prof(?:essor)?\.?\b|dr\.?\b|尊敬的|您好)/i.test(first))return{valid:false,empty:false,body:templateBody,reason:'称呼会从初始邮件自动带入；模板只填写中间正文。'};
+    if(/^(?:best(?:\s+regards)?|kind\s+regards|warm\s+regards|regards|sincerely|yours\s+sincerely|best\s+wishes|many\s+thanks|thank\s+you|谢谢|此致|祝好)[,!，！。]?$/i.test(last))return{valid:false,empty:false,body:templateBody,reason:'署名会从初始邮件自动带入；模板只填写中间正文。'};
     return{valid:true,empty:false,body:templateBody,reason:''};
   }
 
@@ -5662,7 +5656,7 @@
       else if(queuedCount)reviewBatchLaunchMetaEl.textContent=`已选 ${queuedCount} 条格式处理 · 继续`;
       else reviewBatchLaunchMetaEl.textContent='查看格式偏移推荐';
     }
-    reviewBatchLaunchEl.title=!tasks.length?'批量处理会在导入邮件后进入 Preview 执行':subjectCount?`有 ${subjectCount} 封 Initial 缺少主题；点击进入 Preview 批量补齐`:'进入 Preview 查看格式偏移推荐与批量处理';
+    reviewBatchLaunchEl.title=!tasks.length?'准备好邮件后可使用批量处理':subjectCount?`有 ${subjectCount} 封初始邮件缺少主题；点击批量补齐`:'查看格式偏移建议与批量处理';
     reviewBatchLaunchEl.setAttribute('aria-label',reviewBatchLaunchEl.title);
     reviewBatchLaunchEl.setAttribute('aria-disabled',tasks.length?'false':'true');
   }
@@ -5678,9 +5672,9 @@
     }
     if(batchStandardSubjectInputEl)batchStandardSubjectInputEl.disabled=!count;
     if(batchStandardSubjectResultEl){
-      if(!count)batchStandardSubjectResultEl.innerHTML='<strong>主题完整</strong><span>当前所有 Initial 草稿均已有主题。</span>';
+      if(!count)batchStandardSubjectResultEl.innerHTML='<strong>主题完整</strong><span>当前所有初始邮件均已有主题。</span>';
       else if(state.value)batchStandardSubjectResultEl.innerHTML=`<strong>待补齐 ${count} 封</strong><span>只写入空白主题，不覆盖已有主题。</span>`;
-      else if(state.suggestion)batchStandardSubjectResultEl.innerHTML=`<strong>${count} 封缺少主题</strong><span>已从现有草稿中找到高一致度参考主题；采用后才会加入执行计划。</span>`;
+      else if(state.suggestion)batchStandardSubjectResultEl.innerHTML=`<strong>${count} 封缺少主题</strong><span>已从现有草稿中找到高一致度参考主题；采用后才会应用到本次处理。</span>`;
       else batchStandardSubjectResultEl.innerHTML=`<strong>${count} 封缺少主题</strong><span>现有主题不够一致，请输入确认后的统一主题。</span>`;
     }
     syncBatchProcessingApply();
@@ -6055,7 +6049,7 @@
       }catch(error){setPreviewEditFeedback(key,error?.message||String(error),'error');return false;}
       batch.reviewEditingKey='';
       renderReviewPageOverview();renderMonitoring();scheduleBatchRender({aux:false,force:true});
-      setImportStatus('修改已保存；当前 Preview 已恢复只读，请确认这一版本后再进入排期。','warn');
+      setImportStatus('修改已保存；请核对当前版本后再安排发送。','warn');
       focusReviewTask(key,{behavior:'auto',block:'center'});
       return true;
     }
@@ -6074,10 +6068,10 @@
     renderReviewPageOverview();
     if(current){
       const stillPending=taskNeedsImportReview(current);
-      setImportStatus(stillPending?'修改已保存；当前版本仍需在 Preview 中确认。':'修改已保存并通过确定性重新校验。',stillPending?'warn':'ok');
+      setImportStatus(stillPending?'修改已保存；当前版本仍需核对。':'修改已保存并通过确定性重新校验。',stillPending?'warn':'ok');
       focusReviewTask(key,{behavior:'auto',block:'center'});
     }
-    if(!reviewTasks().length)await continueAfterReviewResolution('邮件审阅已完成');
+    if(!reviewTasks().length)await continueAfterReviewResolution('邮件已审阅');
     return true;
   }
 
@@ -6090,7 +6084,7 @@
       try{const passed=Operations.passDerivedTaskReview(operationState.store,task.derivedTaskId);operationState.store=passed.store;await commitRuntimeOperations();}
       catch(error){setImportStatus(error?.message||String(error),'error');return false;}
       batch.reviewSelected?.delete?.(key);renderMonitoring();scheduleBatchRender({aux:false,force:true});
-      setImportStatus(`Follow-up #${Math.max(1,Number(task.sequence||1))} 已确认，并进入选择与排期。`,'ok');
+      setImportStatus(`跟进邮件 #${Math.max(1,Number(task.sequence||1))} 已确认，并进入安排发送。`,'ok');
     }else{
       const previousEdit=batch.taskEdits.get(key)||{};
       setTaskEdit(task,{reviewConfirmed:true,rosterConfirmed:(task.rosterIssues||[]).length?true:!!previousEdit.rosterConfirmed,duplicateConfirmedGroups:[...(previousEdit.duplicateConfirmedGroups||[])]});
@@ -6101,7 +6095,7 @@
     renderReviewPageOverview();
     const pending=reviewTasks();
     if(options.advance!==false&&pending.length){focusReviewTask(pending[0].editKey,{behavior:'smooth',block:'center'});return true;}
-    if(!pending.length)await continueAfterReviewResolution('邮件审阅已完成');
+    if(!pending.length)await continueAfterReviewResolution('邮件已审阅');
     return true;
   }
 
@@ -6112,7 +6106,7 @@
     batch.reviewSelected?.delete?.(key);
     if(isFollowUpReviewTask(task)){
       await ensureOperationStore();const result=Operations.setDerivedTaskState(operationState.store,task.derivedTaskId,'cancelled');operationState.store=result.store;await commitRuntimeOperations();
-      setImportStatus(`已取消 Follow-up #${Math.max(1,Number(task.sequence||1))}。`,'ok');renderMonitoring();
+      setImportStatus(`已取消跟进邮件 #${Math.max(1,Number(task.sequence||1))}。`,'ok');renderMonitoring();
     }else{
       batch.handoffComplete=false;setTaskEdit(task,{importExcluded:true});rebuildTasks();
       setImportStatus(`已将「${label}」移入垃圾箱；可随时恢复。`,'ok');
@@ -6151,8 +6145,8 @@
     renderMonitoring();
     scheduleBatchRender({aux:false,force:true});
     const message=blocked
-      ? `已 Pass ${confirmed} 封；${blocked} 封仍有阻断或必填信息缺失。`
-      : `已 Pass ${confirmed} 封邮件${followUpConfirmed?`，其中 Follow-up ${followUpConfirmed} 封已进入选择与排期`:''}。`;
+      ? `已通过 ${confirmed} 封；${blocked} 封仍有阻断或必填信息缺失。`
+      : `已通过 ${confirmed} 封邮件${followUpConfirmed?`，其中 ${followUpConfirmed} 封跟进邮件已进入安排发送`:''}。`;
     setImportStatus(message,blocked?'warn':'ok');
     if(!blocked)await continueAfterReviewResolution('所选邮件已通过审阅');
   }
@@ -6202,8 +6196,8 @@
     if(/未定位收件人|收件人邮箱|缺少收件人/.test(text))return '缺收件人';
     if(/主题为空|未找到 Subject|缺少主题/.test(text))return '缺主题';
     if(/缺少正文|正文过短/.test(text))return '正文缺失';
-    if(/请检查 Follow-up 内容/.test(text))return 'Follow-up 需确认';
-    if(/Follow-up 已阻断/.test(text))return 'Follow-up 已阻断';
+    if(/请检查跟进邮件内容/.test(text))return '跟进邮件需确认';
+    if(/跟进邮件已阻断/.test(text))return '跟进邮件已阻断';
     if(/总名单|联系人|院校/.test(text))return '联系人待核对';
     return text==='修改待确认'?'修改待确认':text;
   }
@@ -6252,12 +6246,12 @@
     if(stateEl)stateEl.textContent=mailboxUnread?'邮箱历史自动读取中':pendingCount?`${pendingCount} 项待处理`:`查重完成 · 邮箱 ${Operations.formatDisplayTime(syncAt)}`;
     if(mailboxUnread){
       duplicateDecisionEl.hidden=false;delete duplicateDecisionEl.dataset.groupId;duplicateDecisionEl.dataset.scope='mailbox-read';
-      if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent='前置核验';duplicateDecisionKindEl.dataset.tone='strong';}
-      if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent='正在自动核验邮箱历史';
-      if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent='新的 Initial Task 会自动核对网易邮箱里的已有草稿和已发送记录。核验完成后，这里会直接进入重复处理。';
-      if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent='“读取草稿箱”导入属于接管现有草稿，不受此门控。';
+      if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent='历史检查';duplicateDecisionKindEl.dataset.tone='strong';}
+      if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent='正在检查是否已联系过';
+      if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent='新导入的初始邮件会先对照网易邮箱中的草稿和已发送记录，避免重复联系。';
+      if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent='从草稿箱导入的邮件会直接沿用现有草稿。';
       duplicateCandidatesEl.dataset.count='0';
-      duplicateCandidatesEl.innerHTML='<article class="nmda-duplicate-candidate nmda-history-evidence is-auto-sync"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>自动读取中</strong></div></div><div class="nmda-duplicate-preview-body"><pre>核验范围：已有草稿 · 已发送</pre></div></article>';
+      duplicateCandidatesEl.innerHTML='<article class="nmda-duplicate-candidate nmda-history-evidence is-auto-sync"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>自动读取中</strong></div></div><div class="nmda-duplicate-preview-body"><pre>检查范围：已有草稿 · 已发送</pre></div></article>';
       if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.hidden=true;
       if(duplicateKeepAllEl)duplicateKeepAllEl.hidden=true;
       return;
@@ -6277,15 +6271,15 @@
       const facts=[group.sentCount?`已发送 ${group.sentCount}`:'',group.draftCount?`另有草稿 ${group.draftCount}`:''].filter(Boolean).join(' · ');
       if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent='已发送';duplicateDecisionKindEl.dataset.tone='strong';}
       if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent=`${String(task?.recipients||'该收件人')} 已有发送历史`;
-      if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent=`${facts}。已发送记录代表该联系人已经发生过外联；若这是继续联系，应从“邮件监测”创建 Follow-up。`;
-      if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=groups.length>1?`明确本封后继续处理剩余 ${groups.length-1} 组。`:'这是最后一组历史冲突；处理后即可进入邮件审阅。';
+      if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent=`${facts}。已发送记录代表该联系人已经发生过外联；若这是继续联系，应从“邮件监测”创建跟进邮件。`;
+      if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=groups.length>1?`明确本封后继续处理剩余 ${groups.length-1} 组。`:'这是最后一组历史冲突；处理后即可进入审阅邮件。';
       if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.textContent='排除当前新邮件';
       if(duplicateKeepAllEl)duplicateKeepAllEl.textContent='仍保留本封';
       duplicateCandidatesEl.dataset.count='1';
       const currentBody=String(task?.body||'').trim();
-      const current=`<article class="nmda-duplicate-candidate is-selected"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>本次导入 · 新 Initial Task</strong><em>待决策</em></div><span class="nmda-duplicate-preview-recipient">${escapeHtml(task?.recipients||'')}</span></div><div class="nmda-duplicate-preview-body"><pre>${escapeHtml(currentBody||task?.subject||'正文为空')}</pre></div></article>`;
+      const current=`<article class="nmda-duplicate-candidate is-selected"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>本次导入 · 新初始邮件</strong><em>待决策</em></div><span class="nmda-duplicate-preview-recipient">${escapeHtml(task?.recipients||'')}</span></div><div class="nmda-duplicate-preview-body"><pre>${escapeHtml(currentBody||task?.subject||'正文为空')}</pre></div></article>`;
       const records=[...(group.sent||[]).slice(0,3).map(record=>({kind:'已发送',time:record.sentAt,subject:record.subject,id:record.providerMessageId||record.id}))];
-      const history=records.map(record=>`<article class="nmda-duplicate-candidate nmda-history-evidence"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>${escapeHtml(record.kind)}</strong></div><span class="nmda-duplicate-preview-recipient">${escapeHtml(Operations.formatDisplayTime(record.time)||'时间未知')}</span></div><div class="nmda-duplicate-preview-body"><pre>${escapeHtml(record.subject||'(无主题)')}${record.id?`\nID: ${escapeHtml(record.id)}`:''}</pre></div></article>`).join('');
+      const history=records.map(record=>`<article class="nmda-duplicate-candidate nmda-history-evidence"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>${escapeHtml(record.kind)}</strong></div><span class="nmda-duplicate-preview-recipient">${escapeHtml(Operations.formatDisplayTime(record.time)||'时间未知')}</span></div><div class="nmda-duplicate-preview-body"><pre>${escapeHtml(record.subject||'(无主题)')}</pre></div></article>`).join('');
       duplicateCandidatesEl.innerHTML=current+history;
       return;
     }
@@ -6308,7 +6302,7 @@
       : `${group.label||'姓名与院校相同'}。请根据收件人和正文确认是否属于同一联系人。`;
     if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=groups.length>1
       ? `当前还有 ${groups.length} 组待处理；确认本组后自动显示下一组。`
-      : '这是最后一组；确认后即可进入邮件审阅。';
+      : '这是最后一组；确认后即可进入审阅邮件。';
     const compareTasks=(group.tasks||[]).filter(item=>!item?.importExcluded);
     duplicateCandidatesEl.dataset.count=String(compareTasks.length);
     duplicateCandidatesEl.innerHTML=compareTasks.map((candidate,index)=>{
@@ -6330,7 +6324,7 @@
     rebuildTasks();
     renderImportTaskPreview();renderImportHandoff();renderRosterAudit();renderProcessGuide();
     const remaining=unresolvedDuplicateGroupCount();
-    setImportStatus(remaining?`${summary}；还有 ${remaining} 项查重待处理。`:`${summary}；导入查重完成，可以进入邮件审阅。`,remaining?'warn':'ok');
+    setImportStatus(remaining?`${summary}；还有 ${remaining} 项查重待处理。`:`${summary}；导入查重完成，可以进入审阅邮件。`,remaining?'warn':'ok');
   }
 
   async function keepSelectedDuplicateCandidate() {
@@ -6390,7 +6384,7 @@
       else autoPassed++;
     }
     const pendingCount=actionCount;
-    if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='邮件审阅';
+    if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='审阅邮件';
     if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=tasks.length?`${tasks.length} 封 · ${pendingCount} 需处理`:'暂无审阅任务';
     if(reviewInlineEl)reviewInlineEl.dataset.reviewState=tasks.length&&pendingCount===0?'complete':pendingCount?'pending':'empty';
     if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
@@ -6404,7 +6398,7 @@
     if(reviewPageEmptyEl){
       reviewPageEmptyEl.hidden=!!tasks.length;
       const hint=$('nmda-review-empty-hint');
-      if(hint)hint.textContent=batch.dataset?'当前批次还没有形成可审阅邮件。可以返回导入资料继续补充，或到邮件监测查看 Follow-up。':'导入 Initial 邮件，或从邮件监测生成 Follow-up 后，会自动出现在这里。';
+      if(hint)hint.textContent=batch.dataset?'当前还没有可审阅邮件。可以返回“准备邮件”继续补充，或到邮件监测查看跟进邮件。':'准备初始邮件，或从邮件监测生成跟进邮件后，会出现在这里。';
     }
     if(!formatGovernanceEl?.hidden)renderBatchFollowUpTemplate();
     const nextPendingBtn=$('nmda-review-next-pending');
@@ -6412,7 +6406,7 @@
       const pendingMails=reviewTasks();
       nextPendingBtn.hidden=!tasks.length;
       nextPendingBtn.dataset.mode=pendingMails.length?'next':'dispatch';
-      nextPendingBtn.textContent=pendingMails.length?'下一个需处理':(batch.handoffComplete?'查看选择与排期 →':'正在同步到选择与排期…');
+      nextPendingBtn.textContent=pendingMails.length?'下一个需处理':(batch.handoffComplete?'查看安排发送 →':'正在同步到安排发送…');
       nextPendingBtn.disabled=!pendingMails.length&&!batch.handoffComplete;
       nextPendingBtn.classList.toggle('nmda-btn-primary',!pendingMails.length&&batch.handoffComplete);
     }
@@ -6427,7 +6421,7 @@
       if(!options.skipGovernanceRefresh)renderFormatDriftSuggestions();
     }
     if(reviewInlineEl && !reviewInlineEl.hidden && !options.skipReviewQueue)renderReviewQueue(batch.reviewEditingKey||batch.reviewPreviewKey||'');
-    scheduleReadyBatchAutoHandoff('邮件审阅已就绪');
+    scheduleReadyBatchAutoHandoff('审阅邮件已就绪');
   }
 
   function openReviewWorkspace(options = {}) {
@@ -6453,10 +6447,10 @@
         const reasons=[];
         if(contextPending)reasons.push('导入准备未完成');
         if(duplicatePending)reasons.push(`查重待处理 ${duplicatePending} 项`);
-        setImportStatus(`${reasons.join('；')}。完成后再进入 Initial 邮件审阅。`,'warn');
+        setImportStatus(`${reasons.join('；')}。完成后再进入初始审阅邮件。`,'warn');
         return false;
       }
-      setImportStatus('当前 Initial 批次仍在导入阶段；邮件审阅暂时只显示 Follow-up。','warn');
+      setImportStatus('当前初始邮件仍在准备阶段；审阅页暂时只显示跟进邮件。','warn');
     }
     batch.reviewReturnStep=1;
     batch.reviewFilter=options.pendingOnly?'pending':'all';
@@ -6507,7 +6501,7 @@
         if(!ready)return;
         scheduleMailboxAutoSync('quick',{source:'ready-handoff'});
         renderReviewPageOverview();
-        setImportStatus(`${reason}。已自动同步到“选择与排期”，可继续留在当前页面审阅，也可随时查看排期。`,'ok');
+        setImportStatus(`${reason}。已自动同步到“安排发送”，可继续留在当前页面审阅，也可随时查看排期。`,'ok');
       })();
     });
   }
@@ -6516,11 +6510,11 @@
     if(batch.running || batch.autoAdvancing)return false;
     await ensureOperationStore();
     const pendingFollowUps=followUpReviewTasks().filter(taskNeedsImportReview);
-    if(pendingFollowUps.length){setImportStatus(`还有 ${pendingFollowUps.length} 封 Follow-up 存在审阅异常。`,'warn');return false;}
+    if(pendingFollowUps.length){setImportStatus(`还有 ${pendingFollowUps.length} 封跟进邮件需要处理。`,'warn');return false;}
 
     const initialReady=initialReviewGateReady() && !!batch.tasks?.length;
     if(initialReady){
-      if((batch.tasks||[]).some(taskHasPrePlanningBlocker)){setBatchStatus('仍有 Initial 邮件内容或识别问题未通过审阅。','warn');return false;}
+      if((batch.tasks||[]).some(taskHasPrePlanningBlocker)){setBatchStatus('仍有初始邮件内容或识别问题需要处理。','warn');return false;}
       const token=batch.sessionId;
       batch.autoAdvancing=true;
       try{
@@ -6536,11 +6530,11 @@
 
     const followUpReady=Operations?.queuedDerivedTasks?.(operationState.store)?.length||0;
     if(!batch.handoffComplete && !followUpReady){
-      setImportStatus('还没有通过邮件审阅并进入执行池的邮件。','warn');
+      setImportStatus('还没有审阅完成、可安排发送的邮件。','warn');
       return false;
     }
-    setBatchStatus(`${reason}。选择与排期已就绪。`,'ok');
-    setImportStatus(`${reason}。已同步到“选择与排期”。`,'ok');
+    setBatchStatus(`${reason}。安排发送已就绪。`,'ok');
+    setImportStatus(`${reason}。已同步到“安排发送”。`,'ok');
     scheduleBatchRender({aux:true,force:true});
     renderProcessGuide();
     return true;
@@ -6564,7 +6558,7 @@
     if(!ready)return false;
     batch.reviewEditingKey='';
     renderReviewPageOverview();
-    setBatchStatus(`${reason}。已同步到“选择与排期”。`,'ok');
+    setBatchStatus(`${reason}。已同步到“安排发送”。`,'ok');
     return true;
   }
 
@@ -6603,7 +6597,7 @@
   function openNextReviewTask(){
     if(!reviewQueueEl)return;
     const pending=reviewTasks();
-    if(!pending.length){void continueAfterReviewResolution('邮件审阅已完成');return;}
+    if(!pending.length){void continueAfterReviewResolution('邮件已审阅');return;}
     if(batch.reviewSurface!=='preview'){openReviewPreview(pending[0].editKey);return;}
     const pages=[...reviewQueueEl.querySelectorAll('[data-review-row]')];
     const viewportTop=reviewQueueEl.getBoundingClientRect().top;
@@ -6655,9 +6649,9 @@
     if(issues.length)return isFollowUpReviewTask(task)
       ? {key:'action',label:'需处理',detail:'检查生成结果',icon:'!',issues,direct:[]}
       : {key:'action',label:'需核对',detail:'检查邮件内容',icon:'!',issues,direct:[]};
-    if(isFollowUpReviewTask(task) && task.reviewConfirmed && task.reviewDecision==='auto')return {key:'auto',label:'自动通过',detail:'',icon:'✓',issues:[]};
+    if(isFollowUpReviewTask(task) && task.reviewConfirmed && task.reviewDecision==='auto')return {key:'auto',label:'已就绪',detail:'',icon:'✓',issues:[]};
     if(task.reviewConfirmed||task.rosterConfirmed)return {key:'confirmed',label:'已确认',detail:'',icon:'✓',issues:[]};
-    return {key:'auto',label:'自动通过',detail:'',icon:'✓',issues:[]};
+    return {key:'auto',label:'已就绪',detail:'',icon:'✓',issues:[]};
   }
 
   function reviewQueueItems(tasks=[]) { return (tasks||[]).map(task=>({kind:'mail',task})); }
@@ -6689,13 +6683,13 @@
       const stateLine=pending
         ? `<span class="nmda-mail-card-issues">${issueChips}${moreCount?`<span>+${moreCount}</span>`:''}</span>`
         : '';
-      const sourceBadge=isFollowUpReviewTask(task)?`<em class="nmda-review-source-badge is-followup">Follow-up #${Math.max(1,Number(task.sequence||1))}</em>`:'<em class="nmda-review-source-badge">Initial</em>';
+      const sourceBadge=isFollowUpReviewTask(task)?`<em class="nmda-review-source-badge is-followup">跟进 #${Math.max(1,Number(task.sequence||1))}</em>`:'<em class="nmda-review-source-badge">初始邮件</em>';
       return `<article class="nmda-mail-review-card ${checked?'is-selected':''} ${task.editKey===activeKey?'is-active':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}" data-review-kind="${isFollowUpReviewTask(task)?'follow_up':'initial'}">
         <div class="nmda-mail-card-status"><span class="nmda-mail-state-shape" aria-hidden="true">${visual.icon}</span><span><strong>${escapeHtml(visual.label)}</strong>${visual.detail?`<small>${escapeHtml(visual.detail)}</small>`:''}</span><div class="nmda-mail-card-tools">${original163TaskButton(task,{compact:true,label:'163 ↗'})}${selectHtml}</div></div>
         <button class="nmda-mail-card-main" type="button" data-review-preview-key="${escapeHtml(task.editKey)}" aria-label="预览 ${escapeHtml(label)}">
           <span class="nmda-mail-card-index">${String(index+1).padStart(2,'0')}</span>
           <span class="nmda-mail-card-copy">${sourceBadge}<strong>${escapeHtml(cardTitle)}</strong><small>${escapeHtml(recipient)}</small><b>${escapeHtml(subject)}</b>${stateLine}</span>
-          <span class="nmda-mail-card-open">Preview <i>→</i></span>
+          <span class="nmda-mail-card-open">查看 <i>→</i></span>
         </button>
       </article>`;
     }).join(''):`<div class="nmda-review-empty">${batch.reviewFilter==='pending'?'无待处理邮件':'暂无邮件'}</div>`;
@@ -6721,7 +6715,7 @@
       const visual=reviewVisualState(task);
       const title=reviewRailTitle(task,index);
       const subject=String(task?.subject||'').trim()||'未识别主题';
-      const kind=isFollowUpReviewTask(task)?`FU ${Math.max(1,Number(task.sequence||1))}`:'Initial';
+      const kind=isFollowUpReviewTask(task)?`跟进 ${Math.max(1,Number(task.sequence||1))}`:'初始邮件';
       const active=task.editKey===activeKey;
       const editing=task.editKey===batch.reviewEditingKey;
       return `<button type="button" class="nmda-review-preview-rail-card ${active?'is-active':''} ${editing?'is-editing':''}" data-review-rail-key="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}" aria-current="${active?'true':'false'}" title="${escapeHtml(subject)}" style="--rail-delay:${Math.min(index,10)*18}ms">
@@ -6792,8 +6786,8 @@
       const label=String(task.id||task.collectionName||recipient||`邮件 ${index+1}`);
       const issueLabels=[...new Set(visual.issues.map(issue=>reviewIssueLabel(issue)).filter(Boolean))];
       const issueChips=issueLabels.map(issue=>`<span>${escapeHtml(issue)}</span>`).join('');
-      const sourceBadge=isFollowUpReviewTask(task)?`<em class="nmda-review-source-badge is-followup">Follow-up #${Math.max(1,Number(task.sequence||1))}</em>`:'<em class="nmda-review-source-badge">Initial</em>';
-      const stateCopy=pending?`<div class="nmda-preview-issues">${issueChips}</div>`:`<span class="nmda-preview-pass-note">✓ ${visual.key==='confirmed'?'人工确认':'自动通过'}</span>`;
+      const sourceBadge=isFollowUpReviewTask(task)?`<em class="nmda-review-source-badge is-followup">跟进 #${Math.max(1,Number(task.sequence||1))}</em>`:'<em class="nmda-review-source-badge">初始邮件</em>';
+      const stateCopy=pending?`<div class="nmda-preview-issues">${issueChips}</div>`:`<span class="nmda-preview-pass-note">✓ ${visual.key==='confirmed'?'已检查':'已就绪'}</span>`;
       const editLabel=visual.direct?.length?'补齐':'编辑';
       const confirmable=taskCanBatchConfirm(task);
       const menuLabel=isFollowUpReviewTask(task)?'取消跟进':'排除此封';
@@ -6812,7 +6806,7 @@
             ${suggestionHtml}
             <label><span>Subject</span><input data-preview-edit-subject type="text" value="${escapeHtml(String(task.subject||''))}" placeholder="邮件主题"></label>
           </div>
-          <div class="nmda-preview-inline-formatbar" aria-label="正文格式"><button type="button" data-preview-rich-command="bold" title="加粗（Ctrl+B）"><strong>B</strong></button><button type="button" data-preview-rich-command="italic" title="斜体（Ctrl+I）"><em>I</em></button><button type="button" data-preview-rich-command="underline" title="下划线（Ctrl+U）"><u>U</u></button><span>保持原邮件格式 · 保存后仍在同一 Preview 核对</span></div>
+          <div class="nmda-preview-inline-formatbar" aria-label="正文格式"><button type="button" data-preview-rich-command="bold" title="加粗（Ctrl+B）"><strong>B</strong></button><button type="button" data-preview-rich-command="italic" title="斜体（Ctrl+I）"><em>I</em></button><button type="button" data-preview-rich-command="underline" title="下划线（Ctrl+U）"><u>U</u></button><span>保持原邮件格式 · 保存后继续在这里核对</span></div>
           <div class="nmda-review-preview-body nmda-preview-inline-body" data-preview-edit-body contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true">${rich}</div>
           <div class="nmda-preview-inline-feedback" data-preview-edit-feedback hidden></div>
         </section>`;
@@ -6823,7 +6817,7 @@
         </section>`;
       }
       const footer=editing
-        ? `<footer class="nmda-review-preview-foot is-editing"><div class="nmda-preview-edit-note">修改只生成新版本，不会沿用旧确认；保存后在当前 Preview 继续核对。</div></footer>`
+        ? `<footer class="nmda-review-preview-foot is-editing"><div class="nmda-preview-edit-note">修改后需要重新核对；保存后仍停留在当前邮件。</div></footer>`
         : (pending?`<footer class="nmda-review-preview-foot">${stateCopy}${confirmable?`<button class="nmda-preview-confirm-next" type="button" data-preview-confirm-key="${escapeHtml(task.editKey)}">确认并继续 →</button>`:''}</footer>`:'');
       return `<article class="nmda-review-preview-page ${task.editKey===activeKey?'is-active':''} ${editing?'is-editing':''}" data-review-row="${escapeHtml(task.editKey)}" data-state="${escapeHtml(visual.key)}" data-review-kind="${isFollowUpReviewTask(task)?'follow_up':'initial'}" style="--page-delay:${Math.min(index,10)*16}ms">
         <header class="nmda-review-preview-head">
@@ -7544,7 +7538,7 @@
       const parts=[];
       const mailboxUnread=dedupeTasks.length>0&&!mailboxDedupeSnapshotAvailable();
       const decisionGroups=Math.max(0,pendingDuplicates-(mailboxUnread?1:0));
-      if(mailboxUnread)parts.push('正在自动读取邮箱历史；新的 Initial Task 会先核对已有草稿和已发送记录');
+      if(mailboxUnread)parts.push('正在读取邮箱记录；新导入的初始邮件会先检查已有草稿和已发送记录');
       if(decisionGroups)parts.push(`发现 <strong>${decisionGroups}</strong> 项查重待处理，请先完成批次版本取舍、草稿筛选或发送历史决策`);
       else if(dx.groups&&!mailboxUnread)parts.push(`本次发现过 <strong>${dx.groups}</strong> 组查重冲突，当前已全部处理`);
       else if(tasks.length&&!mailboxUnread)parts.push('当前批次未发现重复任务');
@@ -7866,7 +7860,7 @@
       for (const tag of taskBusinessTags(task)) counts.set(tag, (counts.get(tag) || 0) + 1);
     }
     const tags = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-CN'));
-    box.innerHTML = tags.length ? tags.slice(0, 50).map(([tag, count]) => `<button type="button" class="nmda-tag-chip" data-tag-chip="${escapeHtml(tag)}">${escapeHtml(tag)} <small>${count}</small></button>`).join('') : '<span class="nmda-hint">当前任务没有业务标记。运行状态和 Follow-up 状态不会混入标记。</span>';
+    box.innerHTML = tags.length ? tags.slice(0, 50).map(([tag, count]) => `<button type="button" class="nmda-tag-chip" data-tag-chip="${escapeHtml(tag)}">${escapeHtml(tag)} <small>${count}</small></button>`).join('') : '<span class="nmda-hint">当前任务没有业务标记。运行状态和跟进状态不会混入标记。</span>';
     box.querySelectorAll('[data-tag-chip]').forEach(button => button.addEventListener('click', () => {
       const tagsNow = Operations.parseTags(batchTagIncludeEl.value);
       const clicked = button.dataset.tagChip;
@@ -7900,10 +7894,10 @@
     if(!ready)return;
     const pending=reviewTasks().length;
     const autoPassed=Math.max(0,tasks.length-pending);
-    summary.innerHTML=`<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>进入审阅</span></div><div class="nmda-import-metric"><strong>${pending}</strong><span>需处理</span></div><div class="nmda-import-metric"><strong>${autoPassed}</strong><span>当前通过</span></div>`;
-    button.textContent='进入邮件审阅 →';
+    summary.innerHTML=`<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>进入审阅</span></div><div class="nmda-import-metric"><strong>${pending}</strong><span>需处理</span></div><div class="nmda-import-metric"><strong>${autoPassed}</strong><span>已就绪</span></div>`;
+    button.textContent='进入审阅 →';
     button.disabled=false;
-    if(hint){const attachmentNote=attachmentIssues?`；另有 ${attachmentIssues} 项附件提示未匹配（不阻断）`:'';hint.textContent=(pending?`导入事项已全部完成；还有 ${pending} 封邮件需要人工审阅。`:'导入事项已全部完成；邮件当前均自动通过，仍可进入审阅抽查。')+attachmentNote;}
+    if(hint){const attachmentNote=attachmentIssues?`；另有 ${attachmentIssues} 项附件提示未匹配（不阻断）`:'';hint.textContent=(pending?`导入事项已全部完成；还有 ${pending} 封邮件需要人工审阅。`:'导入事项已全部完成；当前邮件均已就绪，仍可进入审阅抽查。')+attachmentNote;}
   }
 
 
@@ -8332,7 +8326,7 @@
 
   function renderBatchSummaryControls(tasks = dispatchTasks(), snapshot = batchSummarySnapshot(tasks)) {
     const sources=Dispatch?.sourceCounts?.(tasks)||{initial:tasks.filter(t=>t.dispatchKind!=='follow_up').length,followUp:tasks.filter(t=>t.dispatchKind==='follow_up').length};
-    const summaryParts=[`共 <strong>${tasks.length}</strong> 封`,`初始 <strong>${sources.initial}</strong>`,`Follow-up <strong>${sources.followUp}</strong>`,`本次 <strong>${snapshot.selectedTotal}</strong>`,`可创建 <strong>${snapshot.selectedReady}</strong>`];
+    const summaryParts=[`共 <strong>${tasks.length}</strong> 封`,`初始 <strong>${sources.initial}</strong>`,`跟进 <strong>${sources.followUp}</strong>`,`本次 <strong>${snapshot.selectedTotal}</strong>`,`可创建 <strong>${snapshot.selectedReady}</strong>`];
     if(snapshot.selectedScheduled)summaryParts.push(`定时 ${snapshot.selectedScheduled}`);
     if(snapshot.errors)summaryParts.push(`<span class="nmda-danger">异常 ${snapshot.errors}</span>`);
     if(snapshot.done)summaryParts.push(`已完成 ${snapshot.done}`);
@@ -8344,7 +8338,7 @@
     if(attachmentChip){
       const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{issues:0};
       const localCount=attachmentPreparedFileCount();
-      attachmentChip.textContent=stats.issues?`附件提醒 ${stats.issues} 项 · 不阻断`:localCount?`初始邮件附件 ${localCount} 个`:'当前执行池无本地附件';
+      attachmentChip.textContent=stats.issues?`附件提醒 ${stats.issues} 项 · 不阻断`:localCount?`初始邮件附件 ${localCount} 个`:'本次发送不含本地附件';
       attachmentChip.dataset.state=stats.issues?'warn':localCount?'ok':'idle';
     }
 
@@ -8422,8 +8416,8 @@
     const viewingPlanning=currentWorkbenchTab()==='dispatch';
     const emptyCard=$('nmda-batch-empty');
     if(emptyCard){
-      let kicker='选择与排期',title='等待邮件任务',desc='Initial 与 Follow-up 都经邮件审阅规则通过后进入这里。';
-      if(!tasks.length){kicker='执行池为空';title='还没有可安排的邮件';desc='先在“邮件审阅”完成 Initial / Follow-up 的 Pass。';}
+      let kicker='安排发送',title='等待邮件',desc='审阅完成的初始邮件和跟进邮件会出现在这里。';
+      if(!tasks.length){kicker='安排发送';title='还没有可安排的邮件';desc='先在“审阅邮件”确认邮件已就绪。';}
       emptyCard.innerHTML=`<div class="nmda-card-kicker">${escapeHtml(kicker)}</div><div class="nmda-card-title">${escapeHtml(title)}</div><div class="nmda-card-desc">${escapeHtml(desc)}</div>`;
       emptyCard.hidden=!(viewingPlanning&&!hasTasks);
     }
@@ -8468,7 +8462,7 @@
 
   function dispatchKindBadge(task){
     return task?.dispatchKind === 'follow_up'
-      ? `<span class="nmda-plan-minibadge nmda-plan-source-followup">Follow-up #${Math.max(1,Number(task.sequence||1))}</span>`
+      ? `<span class="nmda-plan-minibadge nmda-plan-source-followup">跟进 #${Math.max(1,Number(task.sequence||1))}</span>`
       : '<span class="nmda-plan-minibadge nmda-plan-source-initial">初始邮件</span>';
   }
 
@@ -8566,7 +8560,7 @@
       });
     }
     if(result.truncated)warnings.push(`草稿箱本次仅读取 ${result.read||drafts.length} / ${result.total||'?'} 封；可再次读取或调整上限。`);
-    if(result.failures)warnings.push(`${result.failures} 封草稿详情读取不完整，已保留在邮件审阅中。`);
+    if(result.failures)warnings.push(`${result.failures} 封草稿详情读取不完整，已保留在审阅邮件中。`);
     const recordSet={
       name:'网易草稿箱', source:'网易草稿箱', rows,
       meta:{
@@ -8595,7 +8589,7 @@
         return;
       }
       token=beginImportSession('正在读取网易草稿箱…');
-      setImportStatus('正在读取草稿列表与原生 Compose 数据；无需逐封打开页面，将获取正文、收件人、定时和附件信息。');
+      setImportStatus('正在读取草稿箱中的正文、收件人、发送时间与附件信息，无需逐封打开邮件。');
       const result=await chrome.runtime.sendMessage({type:'NMDA_IMPORT_DRAFTS',limit:300});
       if(!isCurrentBatchSession(token))return;
       if(!result?.ok)throw new Error(result?.reason||'草稿箱读取失败');
@@ -8603,7 +8597,7 @@
       await applyImportedDataset(dataset,'网易草稿箱',token);
       if(!isCurrentBatchSession(token))return;
       const coverage=result.complete?'已读取完整草稿箱':`已读取最近 ${result.read||0} 封草稿`;
-      setImportStatus(`${coverage}；已识别正文、主题、收件人、定时与附件提示。原草稿附件不会被伪造复制；需要保留时请补充对应本地文件，缺失不会阻断后续流程。`,result.failures?'warn':'ok');
+      setImportStatus(`${coverage}；已识别正文、主题、收件人、发送时间与附件提示。草稿中的附件仅用于识别；需要随邮件发送时请补充对应本地文件。`,result.failures?'warn':'ok');
     }catch(error){
       if(token!=null && isCurrentBatchSession(token))clearImportOnError(error,token);
       else setImportStatus(`草稿箱读取失败：${error.message}`,'error');
@@ -8668,13 +8662,13 @@
     $('nmda-import-format-info').textContent = `${containerCount?`已展开 ${containerCount} 个资料包 · `:''}${sourceCount?`${sourceCount} 个内容文件 · `:''}${batch.tasks.length} 封邮件${referenceRosterCount()?` · 参考名单 ${referenceRosterCount()} 条`:''}${duplicateSourceCount?` · 已忽略 ${duplicateSourceCount} 个重复副本`:''}`;
     const addedTaskCount=Math.max(0,(batch.tasks||[]).length-previousTaskCount);
     setImportStatus(routedCounts.mail
-      ? `${append?`已追加到当前工作集${addedTaskCount?` · 新增 ${addedTaskCount} 封邮件`:''}`:'邮件已加入本批次'}。${duplicateSourceCount?`系统已在解析前合并 ${duplicateSourceCount} 个完全相同的重复来源。`:''}${referenceRosterCount()?'参考总名单已自动匹配当前导入邮件，后续追加邮件也会继续匹配。':'有参考总名单可现在补充；没有可直接继续。'}`
-      : `当前没有识别到可创建的邮件。已打开分类核验工作区，请先确认文件用途并直接修正。`,
+      ? `${append?`已加入当前批次${addedTaskCount?` · 新增 ${addedTaskCount} 封邮件`:''}`:'邮件已加入本批次'}。${duplicateSourceCount?`已忽略 ${duplicateSourceCount} 个完全相同的重复来源。`:''}${referenceRosterCount()?'参考总名单已匹配当前邮件，后续新增邮件也会继续匹配。':'有参考总名单可现在补充；没有可直接继续。'}`
+      : `当前没有识别到可准备的邮件。请先确认这些文件的用途。`,
       routedCounts.mail?'ok':'warn');
     renderImportLifecycleState();
     batch.supplementPreflightOpen=true;renderSupplementPreflight();
-    if(!routedCounts.mail||!batch.tasks.length)setBatchStatus('当前没有生成邮件任务；非邮件资料不会占用任务数或阻塞后续流程。','warn');
-    else setBatchStatus(`已准备 ${batch.tasks.length} 封邮件。${(batch.tasks||[]).some(taskHasBlockingIssue)?'请在邮件审阅阶段处理待办。':'后续阶段当前可执行。'}`, 'ok');
+    if(!routedCounts.mail||!batch.tasks.length)setBatchStatus('当前没有识别到可准备的邮件；其他资料已保留，不影响继续处理。','warn');
+    else setBatchStatus(`已准备 ${batch.tasks.length} 封邮件。${(batch.tasks||[]).some(taskHasBlockingIssue)?'请在审阅邮件中处理待办。':'当前邮件已可进入发送安排。'}`, 'ok');
     if(batch.tasks.length){
       if(batch.supplementPreflightDone)renderImportHandoff();
       if(!dataset?.meta?.mailboxDraftImport) scheduleMailboxAutoSync('history',{source:'import',force:true});
@@ -8782,7 +8776,7 @@
       renderImportLifecycleState();
       scheduleBatchRender({aux:true,force:true});
     }
-    setImportStatus(`${batch.importAppendMode?'追加失败，原工作集已保留':'读取失败'}：${error.message}`, 'error');
+    setImportStatus(`${batch.importAppendMode?'添加失败，当前批次已保留':'读取失败'}：${error.message}`, 'error');
   }
 
 
@@ -9046,12 +9040,12 @@
 
   $('nmda-go-batch')?.addEventListener('click',()=>void openReviewWorkspace({pendingOnly:false,fromImport:true}));
   $('nmda-review-go-dispatch')?.addEventListener('click',()=>void (async()=>{
-    const ready=await enterSelectionAndSchedule('邮件审阅已完成');
+    const ready=await enterSelectionAndSchedule('邮件已审阅');
     if(!ready)return;
     setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});
   })());
   $('nmda-review-next-pending')?.addEventListener('click',event=>{
-    if(event.currentTarget?.dataset?.mode==='dispatch'){void (async()=>{const ready=await enterSelectionAndSchedule('邮件审阅已完成');if(!ready)return;setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});})();return;}
+    if(event.currentTarget?.dataset?.mode==='dispatch'){void (async()=>{const ready=await enterSelectionAndSchedule('邮件已审阅');if(!ready)return;setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});})();return;}
     openNextReviewTask();
   });
   $('nmda-review-empty-import')?.addEventListener('click',()=>{
@@ -9135,7 +9129,7 @@
       if(!selected.has(hit.task.editKey))continue;
       setTaskEdit(hit.task,{importExcluded:true,draftHistoryDecision:'exclude',draftHistoryDecisionKey:hit.key});changed++;
     }
-    finishImportDuplicateDecision(`已筛除 ${changed} 封命中已有草稿的新 Initial Task`);
+    finishImportDuplicateDecision(`已排除 ${changed} 封与现有草稿重复的新邮件`);
   });
   draftHistoryKeepEl?.addEventListener('click',()=>{
     const selected=new Set([...(draftHistoryListEl?.querySelectorAll('input[data-draft-history-pick]:checked')||[])].map(input=>input.dataset.draftHistoryPick).filter(Boolean));
@@ -9257,7 +9251,7 @@
     const tagValue = $('nmda-bulk-tag-value').value;
     const parsed = parseTaskClassifications(tagValue);
     if ((kind === 'addTag' || kind === 'removeTag') && !parsed.length) {
-      setBatchStatus('请输入有效的任务标记。系统状态和 Follow-up 状态不能作为任务标记。', 'warn'); return;
+      setBatchStatus('请输入有效的业务标记。发送状态和跟进状态不能作为业务标记。', 'warn'); return;
     }
     let affected = 0, blockedSkipped = 0, followUpTagSkipped = 0;
     for (const task of targets) {
@@ -9274,7 +9268,7 @@
       }
     }
     const actionText = { enable: '纳入筛选结果', disable: '排除筛选结果', addTag: `添加标记“${tagsText(parsed)}”`, removeTag: `移除标记“${tagsText(parsed)}”` }[kind];
-    const skippedText = [blockedSkipped ? `${blockedSkipped} 封受联系保护规则拦截` : '', followUpTagSkipped ? `${followUpTagSkipped} 条 Follow-up 不使用批次标记` : ''].filter(Boolean);
+    const skippedText = [blockedSkipped ? `${blockedSkipped} 封受联系保护规则拦截` : '', followUpTagSkipped ? `${followUpTagSkipped} 封跟进邮件不使用批次标记` : ''].filter(Boolean);
     setBatchStatus(`已对 ${affected} 封任务执行：${actionText}${skippedText.length ? `；跳过 ${skippedText.join('、')}` : ''}。`, skippedText.length ? 'warn' : 'ok');
     scheduleBatchRender({aux:false,force:true});
   }
@@ -9334,7 +9328,7 @@
         renderMonitoring();
         if(currentWorkbenchTab()==='dashboard')renderDashboard();
         renderReviewPageOverview();
-        const inferred=result?.historicalFollowUpsRecognized?` · 历史 Follow-up ${result.historicalFollowUpsRecognized}`:'';
+        const inferred=result?.historicalFollowUpsRecognized?` · 历史跟进 ${result.historicalFollowUpsRecognized}`:'';
         const historyMonths=readMailboxHistoryMonths();
         const historyScope=historyMonths?`最近 ${historyMonths} 个月 · `:'';
         const facts=normalizedKind==='history'
@@ -9434,8 +9428,8 @@
     batch.fastCompose = !!batchFastComposeEl.checked;
     saveFastComposePref(batch.fastCompose);
     setBatchStatus(batch.fastCompose
-      ? '极速 Compose 已开启：普通新邮件优先走网易原生内核直写；不兼容场景会自动回退标准模式。'
-      : '极速 Compose 已关闭：使用标准可视 Compose 执行。', 'ok');
+      ? '快速创建已开启：创建新邮件时优先使用快速模式；遇到不兼容情况会自动切换为标准模式。'
+      : '快速创建已关闭：使用标准模式创建邮件。', 'ok');
   });
   ui.querySelectorAll('[data-open-utility]').forEach(entry=>entry.addEventListener('click',()=>openUtilityView(entry.dataset.openUtility||'home')));
   ui.querySelectorAll('[data-utility-back]').forEach(entry=>entry.addEventListener('click',()=>setUtilityView('home')));
@@ -9459,7 +9453,7 @@
       if(stillBlocked.length){setBatchStatus(`还有 ${stillBlocked.length} 封已选择邮件存在未解决问题。请先处理或取消选择。`,'error');return;}
     }
     const executable = queue.filter(task => task.enabled && task.status === 'ready');
-    if (!executable.length) { setBatchStatus('没有已选择且可创建的任务。请先在执行池中选择需要创建的草稿。', 'error'); return; }
+    if (!executable.length) { setBatchStatus('没有可创建的邮件。请先选择本次需要创建的草稿。', 'error'); return; }
     const staleScheduled=executable.filter(task=>task.scheduleAt && (Scheduler?.parseLocalDateTime?.(task.scheduleAt)?.getTime()||0) <= Date.now()+60*1000);
     if(staleScheduled.length){setBatchStatus(`有 ${staleScheduled.length} 封邮件的定时时间已过。请先在“时间安排”中更新或清空。`,'error');return;}
     const executableKeys = new Set(executable.map(task => task.editKey)); // freeze this dispatch run
@@ -9490,7 +9484,7 @@
         setDispatchRuntime(task,{status:'running',runtimeError:''});
         patchPlanningTaskRuntime({...task,status:'running',runtimeError:''});
         const runIndex=succeeded+failed+1;
-        const kindLabel=task.dispatchKind==='follow_up'?`Follow-up #${Math.max(1,Number(task.sequence||1))}`:'初始邮件';
+        const kindLabel=task.dispatchKind==='follow_up'?`跟进邮件 #${Math.max(1,Number(task.sequence||1))}`:'初始邮件';
         setBatchStatus(`正在处理 ${runIndex}/${executable.length} · ${kindLabel} · ${task.subject || '(无主题)'}${task.scheduleAt ? ` · 定时 ${scheduleValueForDisplay(task.scheduleAt,batch.scheduleRules||freshScheduleRules()).replace('T',' ')} · ${scheduleZoneText(batch.scheduleRules||freshScheduleRules())} 当地时间` : ' · 未定时'}`);
         await updateMailboxBatchMonitor({action:'task-start',current:runIndex,total:executable.length,succeeded,failed,remaining:Math.max(0,executable.length-runIndex+1),task:{key:task.editKey,id:task.id,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||''}});
         try {
@@ -9505,15 +9499,15 @@
             }
           });
           const notes=[];
-          if (outcome.fastCompose?.active) notes.push('极速 Compose · 网易原生内核直写');
-          else if (outcome.fastCompose?.requested) notes.push('极速 Compose 自动回退标准模式');
+          if (outcome.fastCompose?.active) notes.push('快速创建');
+          else if (outcome.fastCompose?.requested) notes.push('已切换标准创建模式');
           const upload = outcome.attachment || {};
           if (upload.verified === false && upload.missingNames?.length) notes.push(`附件已提交上传，但页面未确认：${upload.missingNames.join('、')}`);
           if (task.scheduleAt && outcome.actualMinute !== null && outcome.actualMinute !== undefined) {
             const requestedMinute = new Date(task.scheduleAt).getMinutes();
             if (Number(outcome.actualMinute) !== requestedMinute) notes.push(`分钟由 ${requestedMinute} 调整为 ${outcome.actualMinute}`);
           }
-          notes.push(`草稿已确认保存（${outcome.saveOutcome?.kind || 'remote'}）`);
+          notes.push('草稿已确认保存');
           if (outcome.cleanup?.ok === false) notes.push(`写信标签清理失败：${outcome.cleanup.reason || '未知原因'}`);
           let draftRecord=null;
           if (Operations) {
@@ -9523,7 +9517,7 @@
             if(task.dispatchKind==='follow_up'){
               const sourceId=task._sourceTaskId||task.id;
               const current=operationState.store.derivedTasks?.[sourceId];
-              if(!current)throw new Error('Follow-up 执行成功，但无法回写 derived task。');
+              if(!current)throw new Error('跟进邮件已创建，但状态未能更新。请刷新后核对该联系人。');
               const targetState=task.scheduleAt?'scheduled':'confirmed';
               const stateResult=Operations.setDerivedTaskState(operationState.store,sourceId,targetState,{
                 draftPreparedAt:new Date().toISOString(),
