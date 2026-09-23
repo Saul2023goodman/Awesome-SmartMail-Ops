@@ -366,3 +366,20 @@ test('follow-up service validates and saves templates through state and persiste
   assert.equal(state.operations.store.followUpPolicies.default.templateBody, 'New body');
   assert.equal(persisted.templateBody, 'New body');
 });
+
+test('workspace navigation publishes tab and review count without the DOM', () => {
+  const context = {};
+  runInNewContext(source('workspace-navigation.js'), context);
+  const navigation = context.NMDAWorkspaceNavigation;
+  let updates = 0;
+  const unsubscribe = navigation.subscribe(() => { updates++; });
+  navigation.setTab('review');
+  navigation.setReviewCount(4);
+  assert.equal(navigation.getSnapshot().tab, 'review');
+  assert.equal(navigation.getSnapshot().reviewCount, 4);
+  assert.equal(updates, 2);
+  assert.throws(() => navigation.setTab('missing'), /Unknown workspace tab/);
+  unsubscribe();
+  navigation.setTab('batch');
+  assert.equal(updates, 2);
+});

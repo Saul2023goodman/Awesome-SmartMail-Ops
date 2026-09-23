@@ -15,6 +15,7 @@
   const RosterPlanner = globalThis.NMDARosterPlanner;
   const Persistence = globalThis.NMDAWorkspacePersistence;
   const Runtime = globalThis.NMDAWorkspaceRuntime;
+  const Navigation = globalThis.NMDAWorkspaceNavigation;
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 
@@ -469,7 +470,7 @@
   }
 
   function currentWorkbenchTab() {
-    return ui.querySelector('.nmda-tab.is-active')?.dataset.tab || 'batch';
+    return Navigation.getSnapshot().tab;
   }
 
   let activeUtilityView = 'home';
@@ -669,11 +670,7 @@
   function setWorkbenchTab(name) {
     const current = currentWorkbenchTab();
     if(name!=='dispatch'&&batch?.rosterPlannerOpen)closeRosterPlannerView({restoreFocus:false});
-    if (current !== name) {
-      ui.querySelectorAll('.nmda-tab').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
-      ui.querySelectorAll('.nmda-tabpane').forEach(p => { p.hidden = p.dataset.pane !== name; });
-      ui.querySelectorAll('[data-page-head]').forEach(head => { head.hidden = head.dataset.pageHead !== name; });
-    }
+    if (current !== name) Navigation.setTab(name);
     if (name === 'batch' && viewPerf.batchDirty) scheduleBatchRender();
     if (name === 'review') requestAnimationFrame(() => { if(reviewInlineEl)reviewInlineEl.hidden=false; void (async()=>{ await State.ensureOperations(); renderReviewPageOverview(); })(); });
     if (name === 'dispatch') requestAnimationFrame(() => { void (async()=>{ await State.ensureOperations(); scheduleBatchRender({aux:false,force:true}); })(); });
@@ -696,13 +693,13 @@
     $('nmda-expand').textContent = panel.classList.contains('is-maximized') ? '◱' : '⛶';
     $('nmda-expand').title = panel.classList.contains('is-maximized') ? '还原工作台' : '全屏工作台';
   });
-  ui.querySelectorAll('.nmda-tab').forEach(tab => tab.addEventListener('click', () => {
-    const name=tab.dataset.tab;
+  window.addEventListener('nmda:tab-click', event => {
+    const name=event.detail;
     if(name==='review'){void openReviewWorkspace({pendingOnly:false,fromStageNav:true});return;}
     if(name==='utilities'){setWorkbenchTab('utilities');setUtilityView('home');return;}
     setWorkbenchTab(name);
     history.replaceState(null,'',`#${name}`);
-  }));
+  });
   ui.querySelectorAll('[data-flow-step]').forEach(button => button.addEventListener('click', () => { void goToProcessStep(button.dataset.flowStep); }));
   const batch = State.batch;
 
@@ -737,7 +734,7 @@
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), rosterFileEl = $('nmda-roster-file');
   const pasteSourceEl = $('nmda-paste-source');
   const reviewQueueEl = $('nmda-review-queue'), reviewPreviewRailEl=$('nmda-review-preview-rail'), reviewPreviewRailListEl=$('nmda-review-preview-rail-list'), reviewPreviewRailCountEl=$('nmda-review-preview-rail-count'), reviewProgressEl = $('nmda-review-progress');
-  const reviewNavCountEl=$('nmda-review-nav-count'), reviewInlineEl=$('nmda-inline-review'), reviewPageEmptyEl=$('nmda-review-page-empty');
+  const reviewInlineEl=$('nmda-inline-review'), reviewPageEmptyEl=$('nmda-review-page-empty');
   const reviewWorkspaceTitleEl=$('nmda-review-workspace-title'), reviewWorkspaceDescEl=$('nmda-review-workspace-desc');
   const reviewFilterEl=$('nmda-review-filter'), reviewSearchEl=$('nmda-review-search');
   const reviewBatchbarEl=$('nmda-review-batchbar'), reviewSelectedCountEl=$('nmda-review-selected-count');
@@ -3736,7 +3733,7 @@
     if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='审阅邮件';
     if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=tasks.length?`${tasks.length} 封 · ${pendingCount} 需处理`:'暂无审阅任务';
     if(reviewInlineEl)reviewInlineEl.dataset.reviewState=tasks.length&&pendingCount===0?'complete':pendingCount?'pending':'empty';
-    if(reviewNavCountEl){reviewNavCountEl.hidden=!pendingCount;reviewNavCountEl.textContent=String(pendingCount);}
+    Navigation.setReviewCount(pendingCount);
     const reviewCounts={all:tasks.length,auto:autoPassed,pending:actionCount,confirmed:checked};
     ui.querySelectorAll('#nmda-review-filter [data-review-filter]').forEach(button=>{
       const key=button.dataset.reviewFilter||'all';
@@ -5959,7 +5956,7 @@
     const inventory = $('nmda-source-inventory'); if (inventory) { inventory.hidden = true; inventory.innerHTML = ''; }
     if (reviewQueueEl) reviewQueueEl.innerHTML = '';
     if (reviewProgressEl) reviewProgressEl.textContent = '';
-    if (reviewNavCountEl) { reviewNavCountEl.hidden=true; reviewNavCountEl.textContent=''; }
+    Navigation.setReviewCount(0);
     if (reviewPageEmptyEl) reviewPageEmptyEl.hidden=false;
     if (reviewBatchbarEl) reviewBatchbarEl.hidden=true;
     if(schedulerCardEl){schedulerCardEl.open=true;schedulerCardEl.hidden=true;}

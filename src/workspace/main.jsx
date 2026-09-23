@@ -4,6 +4,7 @@ import MailboxConnection from './MailboxConnection.jsx';
 import Dashboard from './Dashboard.jsx';
 import Monitor from './Monitor.jsx';
 import UtilitiesHome from './UtilitiesHome.jsx';
+import { WorkspaceTabs, WorkspacePageHeads } from './Navigation.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -34,4 +35,12 @@ document.querySelectorAll('[data-workspace-mount="monitor"]').forEach(host => {
 
 document.querySelectorAll('[data-workspace-mount="utilities-home"]').forEach(host => {
   createRoot(host).render(<StrictMode><UtilitiesHome /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="tabs"]').forEach(host => {
+  createRoot(host).render(<StrictMode><WorkspaceTabs /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="page-heads"]').forEach(host => {
+  createRoot(host).render(<StrictMode><WorkspacePageHeads /></StrictMode>);
 });

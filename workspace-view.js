@@ -119,36 +119,9 @@
           </div>
         </header>
 
-        <nav class="nmda-tabs" aria-label="SmartMail 导航">
-          <div class="nmda-nav-group" role="group" aria-label="邮件流程">
-            <span class="nmda-nav-section-label">流程</span>
-            <button class="nmda-tab is-active" data-tab="batch" type="button" title="准备邮件"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg></span><span><strong>准备邮件</strong><small>资料 · 查重 · 附件</small></span></button>
-            <button class="nmda-tab" data-tab="review" type="button" title="审阅邮件"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><span><strong>审阅邮件</strong><small>初始 · 跟进 · 就绪</small></span><b class="nmda-tab-count" id="nmda-review-nav-count" hidden>0</b></button>
-            <button class="nmda-tab" data-tab="dispatch" type="button" title="安排发送"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="8" cy="6" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="11" cy="18" r="1.8"/></svg></span><span><strong>安排发送</strong><small>范围 · 时间 · 创建</small></span></button>
-          </div>
-          <div class="nmda-nav-group is-secondary" role="group" aria-label="运营与工具">
-            <span class="nmda-nav-section-label">运营</span>
-            <button class="nmda-tab" data-tab="dashboard" type="button" title="成效"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19V10M12 19V5M19 19v-7"/><path d="M4 19h16"/></svg></span><span><strong>成效</strong><small>触达 · 争取 · 往来</small></span></button>
-            <button class="nmda-tab" data-tab="utilities" type="button" title="工具"><span class="nmda-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><path d="M17 14v6M14 17h6"/></svg></span><span><strong>工具</strong><small>监测 · 附件</small></span></button>
-          </div>
-        </nav>
-
+        <div data-workspace-mount="tabs"></div>
         <main class="nmda-main">
-          <div class="nmda-page-head" data-page-head="batch">
-            <div><h2>准备邮件</h2><p>加入资料，完成查重与附件准备。</p></div>
-          </div>
-          <div class="nmda-page-head" data-page-head="review" hidden>
-            <div><h2>审阅邮件</h2><p>检查收件人、主题、正文与附件，确认可以发送。</p></div>
-          </div>
-          <div class="nmda-page-head" data-page-head="dispatch" hidden>
-            <div><h2>安排发送</h2><p>选择本次邮件，安排发送时间并创建草稿。</p></div>
-          </div>
-          <div class="nmda-page-head" data-page-head="dashboard" hidden>
-            <div><h2>成效</h2><p>按联系人查看触达、持续争取与真实沟通。</p></div>
-          </div>
-          <div class="nmda-page-head" data-page-head="utilities" hidden>
-            <div><h2>工具</h2><p>处理联系人跟进与草稿维护。</p></div>
-          </div>
+          <div data-workspace-mount="page-heads"></div>
           <section class="nmda-tabpane nmda-page nmda-ingest-page nmda-bulk-workbench" data-pane="batch" data-phase="empty">
             <div class="nmda-workflow-stage-head" id="nmda-stage-prepare">
               <span class="nmda-stage-number">01</span><div><strong>准备邮件</strong><small>把邮件资料加入本批次。</small></div>
