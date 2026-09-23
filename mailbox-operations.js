@@ -3,10 +3,11 @@
 
   const Operations = globalThis.NMDAOperations;
   const Persistence = globalThis.NMDAWorkspacePersistence;
+  const Runtime = globalThis.NMDAWorkspaceRuntime;
 
   async function readDedupeHistory(store) {
     const historyMonths = Persistence.readHistoryMonths();
-    const result = await chrome.runtime.sendMessage({ type:'NMDA_READ_DEDUPE_HISTORY', historyMonths });
+    const result = await Runtime.readDedupeHistory(historyMonths);
     if (!result?.ok) throw new Error(`${result?.phase ? `${result.phase}：` : ''}${result?.reason || '邮箱历史读取失败'}`);
     if (!result.complete || !result.sent?.complete || !result.drafts?.complete) {
       throw new Error('已发送或草稿箱未完整读取，拒绝将不完整结果用于导入查重。');
@@ -23,7 +24,7 @@
   async function readOperations(store, mode = 'quick') {
     const full = mode === 'full';
     const historyMonths = Persistence.readHistoryMonths();
-    const result = await chrome.runtime.sendMessage({ type:'NMDA_READ_MAILBOX_STATE', mode:full ? 'full' : 'quick', historyMonths });
+    const result = await Runtime.readMailboxState(full ? 'full' : 'quick', historyMonths);
     if (!result?.ok) throw new Error(`${result?.phase ? `${result.phase}：` : ''}${result?.reason || '邮箱读取失败'}`);
     const sent = result.sent || {}, drafts = result.drafts || {}, inbox = result.inbox || {};
     if (full && (!sent.complete || !drafts.complete || !inbox.complete)) {

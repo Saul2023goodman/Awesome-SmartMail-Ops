@@ -4,6 +4,20 @@
   const WORKSPACE_KEY = 'nmda.workspace.v2';
   const HISTORY_MONTHS_KEY = 'nmda.mailbox.historyMonths';
   const FOLLOWUP_PREFS_KEY = 'nmda.followup.settings.v1';
+  const SCHEDULE_PREFS_KEY = 'nmda.schedule.rules.v1';
+  const DASHBOARD_MODE_KEY = 'nmda.dashboard.mode';
+  const PARAGRAPH_SPACING_KEY = 'nmda.compose.paragraphSpacing.v1';
+  const FAST_COMPOSE_KEY = 'nmda.compose.fastNative.v1';
+
+  function readPreference(key, fallback) {
+    try { return localStorage.getItem(key) ?? fallback; }
+    catch (error) { console.warn(`Preference ${key} unavailable`, error); return fallback; }
+  }
+
+  function writePreference(key, value) {
+    try { localStorage.setItem(key, value); }
+    catch (error) { console.warn(`Preference ${key} could not be saved`, error); }
+  }
 
   function plainClone(value) {
     return JSON.parse(JSON.stringify(value, (key, item) => {
@@ -27,7 +41,7 @@
 
   function serializableDataset(dataset) {
     if (!dataset) return null;
-    const sets = plainClone(dataset.recordSets || dataset.sheets || []);
+    const sets = plainClone(dataset.recordSets || []);
     const meta = plainClone(dataset.meta || {});
     if (Array.isArray(meta.containerFiles)) meta.containerFiles = meta.containerFiles.map(fileMeta);
     return {
@@ -111,27 +125,21 @@
   async function clearWorkspace() { await chrome.storage.local.remove(WORKSPACE_KEY); }
 
   function readHistoryMonths() {
-    try {
-      const raw = localStorage.getItem(HISTORY_MONTHS_KEY);
-      if (raw == null || raw === '') return 0;
-      const value = Math.floor(Number(raw));
-      return Number.isFinite(value) ? Math.max(0, Math.min(60, value)) : 0;
-    } catch (error) {
-      console.warn('Mailbox history preference unavailable', error);
-      return 0;
-    }
+    const raw = readPreference(HISTORY_MONTHS_KEY, '');
+    if (raw === '') return 0;
+    const value = Math.floor(Number(raw));
+    return Number.isFinite(value) ? Math.max(0, Math.min(60, value)) : 0;
   }
 
   function writeHistoryMonths(value) {
     const months = Math.max(0, Math.min(60, Math.floor(Number(value) || 0)));
-    try { localStorage.setItem(HISTORY_MONTHS_KEY, String(months)); }
-    catch (error) { console.warn('Mailbox history preference could not be saved', error); }
+    writePreference(HISTORY_MONTHS_KEY, String(months));
     return months;
   }
 
   function readFollowUpPrefs(defaults = {}) {
     let raw;
-    try { raw = JSON.parse(localStorage.getItem(FOLLOWUP_PREFS_KEY) || '{}'); }
+    try { raw = JSON.parse(readPreference(FOLLOWUP_PREFS_KEY, '{}') || '{}'); }
     catch (error) {
       console.warn('Follow-up preferences invalid; using defaults', error);
       raw = {};
@@ -148,7 +156,7 @@
   function writeFollowUpPrefs(policy) {
     if (!policy) return;
     try {
-      localStorage.setItem(FOLLOWUP_PREFS_KEY, JSON.stringify({
+      writePreference(FOLLOWUP_PREFS_KEY, JSON.stringify({
         delayDays:Number(policy.delayDays || 0), maxAttempts:Number(policy.maxAttempts || 0),
         composeMode:String(policy.composeMode || 'forward'), templateBody:String(policy.templateBody || ''),
         templateVersion:Number(policy.templateVersion || 0)
@@ -156,16 +164,43 @@
     } catch (error) { console.warn('Follow-up preferences could not be saved', error); }
   }
 
+  function readDashboardMode() { return readPreference(DASHBOARD_MODE_KEY, 'operator') === 'student' ? 'student' : 'operator'; }
+  function writeDashboardMode(mode) { writePreference(DASHBOARD_MODE_KEY, mode === 'student' ? 'student' : 'operator'); }
+  function readParagraphSpacing() { return readPreference(PARAGRAPH_SPACING_KEY, 'true') !== 'false'; }
+  function writeParagraphSpacing(enabled) { writePreference(PARAGRAPH_SPACING_KEY, enabled === false ? 'false' : 'true'); }
+  function readFastCompose() { return readPreference(FAST_COMPOSE_KEY, 'false') === 'true'; }
+  function writeFastCompose(enabled) { writePreference(FAST_COMPOSE_KEY, enabled === true ? 'true' : 'false'); }
+  function readScheduleRules() {
+    try { return JSON.parse(readPreference(SCHEDULE_PREFS_KEY, '{}') || '{}'); }
+    catch (error) { console.warn('Schedule preferences invalid; using defaults', error); return {}; }
+  }
+  function writeScheduleRules(rules) {
+    writePreference(SCHEDULE_PREFS_KEY, JSON.stringify({
+      maxPerGroupPerRound:rules.maxPerGroupPerRound,
+      sameGroupIntervalDays:rules.sameGroupIntervalDays ?? 7,
+      weekdays:rules.weekdays, localTime:rules.localTime, timeZone:rules.timeZone,
+      skipStart:rules.skipStart || '', skipEnd:rules.skipEnd || '',
+      preserveExisting:rules.preserveExisting,
+      includeMailboxScheduled:rules.includeMailboxScheduled !== false,
+      skipHolidays:rules.skipHolidays !== false
+    }));
+  }
+
   function clearPreferences() {
     try {
       localStorage.removeItem(HISTORY_MONTHS_KEY);
       localStorage.removeItem(FOLLOWUP_PREFS_KEY);
+      localStorage.removeItem(SCHEDULE_PREFS_KEY);
     } catch (error) { console.warn('Workspace preferences could not be cleared', error); }
   }
 
   globalThis.NMDAWorkspacePersistence = Object.freeze({
     snapshot, hydrate, saveWorkspace, loadWorkspace, clearWorkspace,
     readHistoryMonths, writeHistoryMonths,
-    readFollowUpPrefs, writeFollowUpPrefs, clearPreferences
+    readFollowUpPrefs, writeFollowUpPrefs, clearPreferences,
+    readDashboardMode, writeDashboardMode,
+    readParagraphSpacing, writeParagraphSpacing,
+    readFastCompose, writeFastCompose,
+    readScheduleRules, writeScheduleRules
   });
 })();

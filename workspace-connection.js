@@ -1,8 +1,9 @@
 (() => {
   'use strict';
 
-  // The connection capsule and the legacy sync workflow observe the same state.
+  // The connection capsule and mailbox sync service observe the same state.
   // This is the only workspace owner of connection messages and refresh triggers.
+  const Runtime = globalThis.NMDAWorkspaceRuntime;
   const listeners = new Set();
   let snapshot = {
     status: null,
@@ -10,6 +11,7 @@
     cue: { state: 'idle', detail: '' }
   };
   let started = false;
+  let unsubscribeRuntime = null;
   let refreshVersion = 0;
 
   function publish(patch) {
@@ -23,7 +25,7 @@
   async function refresh() {
     const version = ++refreshVersion;
     try {
-      const status = await chrome.runtime.sendMessage({ type: 'NMDA_CONNECTION_STATUS' });
+      const status = await Runtime.connectionStatus();
       if (!status || typeof status.connected !== 'boolean' || typeof status.authenticated !== 'boolean') {
         throw new Error('邮箱连接状态响应无效。');
       }
@@ -37,7 +39,7 @@
 
   async function openMail() {
     try {
-      const result = await chrome.runtime.sendMessage({ type: 'NMDA_OPEN_MAIL', focus: true });
+      const result = await Runtime.openMail(true);
       if (!result?.ok) throw new Error(result?.reason || '无法打开网易邮箱。');
       setTimeout(() => { void refresh().catch(() => {}); }, 500);
       return result;
@@ -56,7 +58,7 @@
   function start() {
     if (started) return;
     started = true;
-    chrome.runtime.onMessage.addListener(onRuntimeMessage);
+    unsubscribeRuntime = Runtime.subscribe('NMDA_CONNECTION_CHANGED', onRuntimeMessage);
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);
     void refresh().catch(() => {});
@@ -66,7 +68,8 @@
     if (!started) return;
     started = false;
     ++refreshVersion;
-    chrome.runtime.onMessage.removeListener(onRuntimeMessage);
+    unsubscribeRuntime?.();
+    unsubscribeRuntime = null;
     window.removeEventListener('focus', onFocus);
     document.removeEventListener('visibilitychange', onVisibility);
   }
