@@ -11,6 +11,9 @@
   const Dispatch = globalThis.NMDADispatch;
   const Roster = globalThis.NMDARoster;
   const RosterPlanner = globalThis.NMDARosterPlanner;
+  const Connection = globalThis.NMDAConnection;
+  const Persistence = globalThis.NMDAWorkspacePersistence;
+  const MailboxOperations = globalThis.NMDAMailboxOperations;
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const executionProgressHandlers = new Map();
 
@@ -1357,23 +1360,6 @@
 
   const ui = buildUI();
 
-  // React workspace bridge (issue #2). The React mailbox connection widget
-  // emits 'nmda:connection-status' after every NMDA_CONNECTION_STATUS refresh
-  // and renders sync-cue state pushed through setSyncCue(). The React bundle
-  // creates a fallback bridge when app.js is absent.
-  window.NMDAWorkspaceBridge = {
-    syncCue: { state: 'idle', detail: '' },
-    listeners: new Set(),
-    setSyncCue(state = 'idle', detail = '') {
-      this.syncCue = { state: String(state || 'idle'), detail: String(detail || '') };
-      this.listeners.forEach(fn => { try { fn(this.syncCue); } catch (_) { /* subscriber gone */ } });
-    },
-    subscribe(fn) {
-      this.listeners.add(fn);
-      return () => { this.listeners.delete(fn); };
-    }
-  };
-
   // v3.8.82 · Global SmartMail data reset. Kept outside any single workflow page so a
   // stuck batch can be abandoned from Review / Dispatch / Monitoring without excluding
   // tasks one by one. This only clears SmartMail-owned local state; it never deletes
@@ -1570,7 +1556,7 @@
   const mailboxAutoSyncState={running:null,runningKind:'',lastQuickAt:0,lastHistoryAt:0,lastFullAt:0,generation:0};
   // The sync cue is rendered by the React mailbox connection widget.
   function setMailboxAutoSyncCue(state='idle',detail=''){
-    window.NMDAWorkspaceBridge?.setSyncCue?.(state,detail);
+    Connection.setSyncCue(state,detail);
   }
   function mailboxSyncKindPriority(kind='quick'){
     return ({quick:1,history:2,full:3})[kind]||1;
@@ -1578,9 +1564,8 @@
   function scheduleMailboxAutoSync(kind='quick',options={}){
     queueMicrotask(()=>{ requestAutoMailboxSync(kind,options).catch(()=>{}); });
   }
-  // Connection polling, rendering and the "open mailbox" button are owned by
-  // the React <MailboxConnection> workspace component (issue #2). Keep only the
-  // non-visual side effects here, driven by the status events it emits.
+  // Sync scheduling remains with the mailbox workflow and observes the shared
+  // connection state. The capsule never coordinates workflow side effects.
   async function handleMailboxConnectionStatus(state){
     const connected=!!state?.connected, authenticated=!!state?.authenticated;
     if(authenticated && state.account && Operations) {
@@ -1591,7 +1576,14 @@
       setMailboxAutoSyncCue('waiting',connected?'完成登录后自动读取':'连接网易邮箱后自动读取');
     }
   }
-  window.addEventListener('nmda:connection-status',event=>{void handleMailboxConnectionStatus(event.detail);});
+  let observedConnectionStatus=null;
+  Connection.subscribe(()=>{
+    const {status,error}=Connection.getSnapshot();
+    if(status && !error && status!==observedConnectionStatus){
+      observedConnectionStatus=status;
+      void handleMailboxConnectionStatus(status);
+    }
+  });
   chrome.runtime.onMessage.addListener(message=>{
     if(message?.type==='NMDA_EXECUTION_PROGRESS_BROADCAST'||message?.type==='NMDA_DRAFT_ATTACHMENT_PROGRESS_BROADCAST'){
       const handler=executionProgressHandlers.get(String(message.executionId||'')); if(handler) handler(message);
@@ -1614,38 +1606,9 @@
   });
   setTimeout(()=>scheduleMailboxAutoSync('quick',{source:'startup'}),120);
 
-  const MAILBOX_HISTORY_MONTHS_KEY = 'nmda.mailbox.historyMonths';
-  const DEFAULT_MAILBOX_HISTORY_MONTHS = 0;
-
-  function readMailboxHistoryMonths() {
-    try {
-      const raw = localStorage.getItem(MAILBOX_HISTORY_MONTHS_KEY);
-      if (raw == null || raw === '') return DEFAULT_MAILBOX_HISTORY_MONTHS;
-      const value = Math.floor(Number(raw));
-      return Number.isFinite(value) ? Math.max(0, Math.min(60, value)) : DEFAULT_MAILBOX_HISTORY_MONTHS;
-    } catch (_) { return DEFAULT_MAILBOX_HISTORY_MONTHS; }
-  }
-
-  function writeMailboxHistoryMonths(value) {
-    const months = Math.max(0, Math.min(60, Math.floor(Number(value) || 0)));
-    try { localStorage.setItem(MAILBOX_HISTORY_MONTHS_KEY, String(months)); } catch (_) {}
-    return months;
-  }
-
-  const FOLLOWUP_PREFS_KEY = 'nmda.followup.settings.v1';
-
-  function readFollowUpPrefs() {
-    try {
-      const raw = JSON.parse(localStorage.getItem(FOLLOWUP_PREFS_KEY) || '{}');
-      return {
-        delayDays: Math.max(0, Number(raw.delayDays ?? Operations?.DEFAULT_FOLLOWUP_POLICY?.delayDays ?? 7) || 0),
-        maxAttempts: Math.max(0, Math.floor(Number(raw.maxAttempts ?? Operations?.DEFAULT_FOLLOWUP_POLICY?.maxAttempts ?? 2) || 0)),
-        composeMode: ['forward','reply','new'].includes(raw.composeMode) ? raw.composeMode : (Operations?.DEFAULT_FOLLOWUP_POLICY?.composeMode || 'forward'),
-        templateBody: String(raw.templateBody || '').replace(/\r\n?/g, '\n').trim(),
-        templateVersion: Math.max(0, Math.floor(Number(raw.templateVersion || 0) || 0))
-      };
-    } catch (_) { return { ...(Operations?.DEFAULT_FOLLOWUP_POLICY || {}) }; }
-  }
+  const readMailboxHistoryMonths = Persistence.readHistoryMonths;
+  const writeMailboxHistoryMonths = Persistence.writeHistoryMonths;
+  const readFollowUpPrefs = () => Persistence.readFollowUpPrefs(Operations?.DEFAULT_FOLLOWUP_POLICY);
 
   function applyFollowUpPrefs(store) {
     if (!Operations || !store) return store;
@@ -1655,15 +1618,7 @@
     return result.store;
   }
 
-  function writeFollowUpPrefs(policy) {
-    if (!policy) return;
-    try {
-      localStorage.setItem(FOLLOWUP_PREFS_KEY, JSON.stringify({
-        delayDays:Number(policy.delayDays||0), maxAttempts:Number(policy.maxAttempts||0),
-        composeMode:String(policy.composeMode||'forward'), templateBody:String(policy.templateBody||''), templateVersion:Number(policy.templateVersion||0)
-      }));
-    } catch (_) {}
-  }
+  const writeFollowUpPrefs = Persistence.writeFollowUpPrefs;
 
   const operationState = { account: '', store: Operations ? applyFollowUpPrefs(Operations.createStore('default')) : null, loaded: false };
 
@@ -3117,86 +3072,13 @@
 
 
 
-  const WORKSPACE_STORAGE_KEY = 'nmda.workspace.v2';
   let workspaceSaveTimer = 0;
   let workspaceRestoring = false;
 
-  function storagePlainClone(value) {
-    try {
-      return JSON.parse(JSON.stringify(value, (key, item) => {
-        if (typeof File !== 'undefined' && item instanceof File) {
-          return { __nmdaFileMeta:true, name:String(item.name||''), size:Number(item.size||0), type:String(item.type||''), lastModified:Number(item.lastModified||0), _nmdaPath:String(item._nmdaPath||item.webkitRelativePath||item.name||'') };
-        }
-        if (typeof Blob !== 'undefined' && item instanceof Blob) return undefined;
-        if (item instanceof Map) return { __nmdaMap:true, entries:[...item.entries()] };
-        if (item instanceof Set) return { __nmdaSet:true, values:[...item.values()] };
-        return item;
-      }));
-    } catch (error) {
-      console.warn(`[${APP}] workspace clone failed`, error);
-      return null;
-    }
-  }
-
-  function sourceFileMeta(file) {
-    return {
-      name:String(file?.name||sourceFileName(file)||''),
-      size:Number(file?.size||0),
-      type:String(file?.type||''),
-      lastModified:Number(file?.lastModified||0),
-      _nmdaPath:String(file?._nmdaPath||file?.webkitRelativePath||file?.name||'')
-    };
-  }
-
-  function serializableDataset(dataset) {
-    if (!dataset) return null;
-    const sets = storagePlainClone(dataset.recordSets || dataset.sheets || []) || [];
-    const meta = storagePlainClone(dataset.meta || {}) || {};
-    if (meta && Array.isArray(meta.containerFiles)) meta.containerFiles = meta.containerFiles.map(sourceFileMeta);
-    return {
-      ...storagePlainClone(dataset),
-      recordSets:sets,
-      sheets:sets,
-      sourceFiles:(dataset.sourceFiles||[]).map(sourceFileMeta),
-      // Attachment bytes are intentionally not persisted. After reload the parsed mail
-      // survives, but files must be reselected before execution.
-      embeddedFiles:[],
-      meta
-    };
-  }
-
-  function workspaceSnapshot() {
-    if (!batch.dataset) return null;
-    return {
-      version:2,
-      savedAt:new Date().toISOString(),
-      dataset:serializableDataset(batch.dataset),
-      collectionIndex:Number(batch.collectionIndex||0),
-      collectionConfigs:storagePlainClone([...batch.collectionConfigs.entries()]) || [],
-      taskEdits:storagePlainClone([...batch.taskEdits.entries()]) || [],
-      formatGovernanceRules:storagePlainClone(batch.formatGovernanceRules||[]) || [],
-      formatGovernanceDraftRules:storagePlainClone(batch.formatGovernanceDraftRules||[]) || [],
-      reviewSelected:[...batch.reviewSelected],
-      duplicateSelections:storagePlainClone([...batch.duplicateSelections.entries()]) || [],
-      handoffComplete:!!batch.handoffComplete,
-      reviewFilter:String(batch.reviewFilter||'all'),
-      reviewSearch:String(batch.reviewSearch||''),
-      roster:storagePlainClone(batch.roster),
-      rosterPlanner:storagePlainClone(batch.rosterPlanner),
-      supplementPreflightDone:!!batch.supplementPreflightDone,
-      rosterPromptChoice:String(batch.rosterPromptChoice||'idle'),
-      attachmentPrepChoice:String(batch.attachmentPrepChoice||'idle'),
-      scheduleRules:storagePlainClone(batch.scheduleRules),
-      planningView:String(batch.planningView||'mails')
-    };
-  }
-
   async function persistWorkspaceNow() {
-    if (workspaceRestoring || !chrome?.storage?.local) return;
-    const snapshot = workspaceSnapshot();
+    if (workspaceRestoring) return;
     try {
-      if (!snapshot) await chrome.storage.local.remove(WORKSPACE_STORAGE_KEY);
-      else await chrome.storage.local.set({ [WORKSPACE_STORAGE_KEY]:snapshot });
+      await Persistence.saveWorkspace(batch);
     } catch (error) {
       console.warn(`[${APP}] workspace persistence failed`, error);
     }
@@ -3209,35 +3091,19 @@
   }
 
   async function restoreWorkspaceFromStorage() {
-    if (!chrome?.storage?.local) return false;
     workspaceRestoring = true;
     try {
-      const result = await chrome.storage.local.get(WORKSPACE_STORAGE_KEY);
-      const saved = result?.[WORKSPACE_STORAGE_KEY];
-      if (!saved?.dataset?.recordSets?.length) return false;
-      const sets = saved.dataset.recordSets || [];
-      batch.dataset = { ...saved.dataset, recordSets:sets, sheets:sets, embeddedFiles:[] };
-      batch.importMeta = batch.dataset.meta || null;
-      batch.collectionIndex = Math.max(0, Math.min(Number(saved.collectionIndex||0), Math.max(0,sets.length-1)));
-      batch.collectionConfigs = new Map(Array.isArray(saved.collectionConfigs)?saved.collectionConfigs:[]);
-      batch.taskEdits = new Map(Array.isArray(saved.taskEdits)?saved.taskEdits:[]);
-      batch.formatGovernanceRules = Array.isArray(saved.formatGovernanceRules)?saved.formatGovernanceRules:[];
-      batch.formatGovernanceDraftRules = Array.isArray(saved.formatGovernanceDraftRules)?saved.formatGovernanceDraftRules:[];
-      batch.reviewSelected = new Set(Array.isArray(saved.reviewSelected)?saved.reviewSelected:[]);
-      batch.duplicateSelections = new Map(Array.isArray(saved.duplicateSelections)?saved.duplicateSelections:[]);
-      batch.handoffComplete = !!saved.handoffComplete;
-      batch.reviewFilter = String(saved.reviewFilter||'all');
-      batch.reviewSearch = String(saved.reviewSearch||'');
-      batch.roster = saved.roster ? { ...emptyRosterState(), ...saved.roster } : emptyRosterState();
-      batch.rosterPlanner = RosterPlanner?.createState?.(saved.rosterPlanner)||{version:1,sourceKey:'',intents:{}};
+      const saved = await Persistence.loadWorkspace();
+      if (!saved) return false;
+      const restored = Persistence.hydrate(saved);
+      Object.assign(batch, restored);
+      const sets = batch.dataset.recordSets;
+      batch.roster = restored.roster ? { ...emptyRosterState(), ...restored.roster } : emptyRosterState();
+      batch.rosterPlanner = RosterPlanner?.createState?.(restored.rosterPlanner)||{version:1,sourceKey:'',intents:{}};
       // Normalize persisted roster fragments before task rebuilding so historical multi-import
       // workspaces get the same stable identity keys and dedupe behavior as new imports.
       syncRosterParts();
-      batch.supplementPreflightDone = !!saved.supplementPreflightDone;
-      batch.rosterPromptChoice = String(saved.rosterPromptChoice||'pending');
-      batch.attachmentPrepChoice = 'pending'; // file bytes never survive a reload
-      batch.scheduleRules = saved.scheduleRules ? { ...freshScheduleRules(), ...saved.scheduleRules } : freshScheduleRules();
-      batch.planningView = String(saved.planningView||'mails');
+      batch.scheduleRules = restored.scheduleRules ? { ...freshScheduleRules(), ...restored.scheduleRules } : freshScheduleRules();
       batch.directoryFiles=[]; batch.taskFiles=[]; batch.routedAttachmentFiles=[];
       batch.attachmentOverrides.clear(); batch.attachmentPolicies=new Map(); batch.fileIndex=Importer.buildFileIndex([]);
       sets.forEach((_,index)=>{ if(!batch.collectionConfigs.has(index)) ensureCollectionConfig(index,{reset:true}); });
@@ -8671,7 +8537,7 @@
 
   function resetImportWorkspace({ keepStatus = false, invalidate = true, message = '' } = {}) {
     if (invalidate) batch.sessionId += 1;
-    if(!workspaceRestoring && chrome?.storage?.local) void chrome.storage.local.remove(WORKSPACE_STORAGE_KEY).catch(()=>{});
+    if(!workspaceRestoring) void Persistence.clearWorkspace().catch(error=>console.warn(`[${APP}] workspace clear failed`,error));
     batch.importBusy = false;
     batch.handoffComplete = false;
     batch.autoAdvancing = false;
@@ -8985,8 +8851,9 @@
       mailboxAutoSyncState.generation+=1;
       mailboxAutoSyncState.lastQuickAt=0;mailboxAutoSyncState.lastHistoryAt=0;mailboxAutoSyncState.lastFullAt=0;
       if(workspaceSaveTimer){clearTimeout(workspaceSaveTimer);workspaceSaveTimer=0;}
-      if(chrome?.storage?.local)await chrome.storage.local.remove(WORKSPACE_STORAGE_KEY);
-      try{localStorage.removeItem(MAILBOX_HISTORY_MONTHS_KEY);localStorage.removeItem(FOLLOWUP_PREFS_KEY);localStorage.removeItem(SCHEDULE_PREFS_KEY);}catch(_){}
+      await Persistence.clearWorkspace();
+      Persistence.clearPreferences();
+      try{localStorage.removeItem(SCHEDULE_PREFS_KEY);}catch(error){console.warn(`[${APP}] schedule preference clear failed`,error);}
 
       dispatchRuntime?.clear?.();
       monitorSelectedIds().clear();monitorState.filter='all';monitorState.subfilter='all';monitorState.attempts='all';monitorState.search='';monitorState.syncing=false;monitorState.lastRenderAt=0;
@@ -9342,15 +9209,7 @@
   async function syncMailboxDedupeHistory(){
     if(!Operations)return null;
     await ensureOperationStore();
-    const result=await chrome.runtime.sendMessage({type:'NMDA_READ_DEDUPE_HISTORY',historyMonths:readMailboxHistoryMonths()});
-    if(!result?.ok)throw new Error(`${result?.phase?`${result.phase}：`:''}${result?.reason||'邮箱历史读取失败'}`);
-    if(!result.complete||!result.sent?.complete||!result.drafts?.complete)throw new Error('已发送或草稿箱未完整读取，拒绝将不完整结果用于导入查重。');
-    const applied=Operations.ingestMailboxDedupeSnapshot(operationState.store,result.sent.messages||[],result.drafts.messages||[],{
-      complete:true,
-      historyMonths:Number(result.historyMonths ?? readMailboxHistoryMonths())||0, historyCutoffAt:String(result.cutoffAt||''),
-      sentCoverage:result.coverage?.sent||{read:result.sent.messages?.length||0,total:result.sent.total||0,complete:true,pages:result.sent.pages||0},
-      draftCoverage:result.coverage?.drafts||{read:result.drafts.messages?.length||0,total:result.drafts.total||0,complete:true,pages:result.drafts.pages||0}
-    });
+    const applied=await MailboxOperations.readDedupeHistory(operationState.store);
     operationState.store=applied.store;
     await commitRuntimeOperations();
     if(batch.dataset)rebuildTasks();
@@ -9360,19 +9219,8 @@
 
   async function syncMailboxOperations(mode = 'quick') {
     if (!Operations) return null;
-    const full = mode === 'full';
     await ensureOperationStore();
-    const result = await chrome.runtime.sendMessage({ type: 'NMDA_READ_MAILBOX_STATE', mode: full ? 'full' : 'quick', historyMonths: readMailboxHistoryMonths() });
-    if (!result?.ok) throw new Error(`${result?.phase ? `${result.phase}：` : ''}${result?.reason || '邮箱读取失败'}`);
-    const sent = result.sent || {}, drafts = result.drafts || {}, inbox = result.inbox || {};
-    if (full && (!sent.complete || !drafts.complete || !inbox.complete)) throw new Error('完整邮箱快照未完成，拒绝覆盖 operation store。');
-    const applied = Operations.ingestMailboxSnapshot(operationState.store, sent.messages || [], drafts.messages || [], inbox.messages || [], {
-      mode: full ? 'full' : 'quick', complete: full,
-      historyMonths:Number(result.historyMonths ?? readMailboxHistoryMonths())||0, historyCutoffAt:String(result.cutoffAt||''),
-      sentCoverage: result.coverage?.sent || { read: sent.messages?.length || 0, total: sent.total || 0, complete: !!sent.complete, pages: sent.pages || 0 },
-      draftCoverage: result.coverage?.drafts || { read: drafts.messages?.length || 0, total: drafts.total || 0, complete: !!drafts.complete, pages: drafts.pages || 0 },
-      inboxCoverage: result.coverage?.inbox || { read: inbox.messages?.length || 0, total: inbox.total || 0, complete: !!inbox.complete, pages: inbox.pages || 0 }
-    });
+    const applied = await MailboxOperations.readOperations(operationState.store,mode);
     operationState.store = applied.store;
     await commitRuntimeOperations();
     if(batch.dataset)rebuildTasks();
