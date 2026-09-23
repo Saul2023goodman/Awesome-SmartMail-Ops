@@ -8,6 +8,12 @@
   const Scheduler = globalThis.NMDAScheduler;
   const RosterPlanner = globalThis.NMDARosterPlanner;
   const accountListeners = new Set();
+  const changeListeners = new Set();
+  let version = 0;
+  function changed() {
+    ++version;
+    for (const listener of changeListeners) listener();
+  }
 
   function withFollowUpPrefs(store) {
     const prefs = Persistence.readFollowUpPrefs(Operations.DEFAULT_FOLLOWUP_POLICY);
@@ -98,6 +104,7 @@
       batch.directoryFiles = []; batch.taskFiles = []; batch.routedAttachmentFiles = [];
       batch.attachmentOverrides.clear(); batch.attachmentPolicies = new Map();
       batch.fileIndex = Importer.buildFileIndex([]);
+      changed();
       return true;
     } catch (error) { restoring = false; throw error; }
   }
@@ -123,6 +130,7 @@
     operations.account = account;
     operations.store = withFollowUpPrefs(Operations.createStore(account));
     operations.loaded = true;
+    changed();
     if (previous !== account) for (const listener of accountListeners) listener(account);
     return operations;
   }
@@ -135,6 +143,7 @@
 
   function setStore(store) {
     operations.store = store;
+    changed();
     return store;
   }
 
@@ -142,6 +151,9 @@
     operations, batch, emptyRosterState, rosterState, freshScheduleRules,
     persistNow, schedulePersist, restoreBatch, finishRestore, clearWorkspace,
     detectAccount, ensureOperations, resetOperations, setStore,
+    changed,
+    subscribe(listener) { changeListeners.add(listener); return () => changeListeners.delete(listener); },
+    getVersion:() => version,
     onAccountChange(listener) { accountListeners.add(listener); return () => accountListeners.delete(listener); }
   });
 })();

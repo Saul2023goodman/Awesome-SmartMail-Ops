@@ -265,7 +265,7 @@
   MailboxSync.onApplied(() => {
     if (batch.dataset) { rebuildTasks(); invalidateBatchView(true); renderDuplicateDecision(); renderRosterAudit(); renderProcessGuide(); }
     renderMonitoring();
-    if (currentWorkbenchTab() === 'dashboard') renderDashboard();
+    if (currentWorkbenchTab() === 'dashboard') State.changed();
     renderReviewPageOverview();
   });
   MailboxSync.start();
@@ -328,6 +328,7 @@
 
   function scheduleBatchRender({ aux = false, force = false, persist = true } = {}) {
     invalidateBatchView(aux);
+    if (currentWorkbenchTab() === 'dashboard') State.changed();
     // Runtime execution state is intentionally ephemeral. Persisting the whole workspace
     // for every running/done transition serializes the complete imported dataset and, on
     // large batches, blocks the main thread exactly between two mails. During execution
@@ -452,7 +453,6 @@
 
 
   const monitorState = { filter:'all', subfilter:'all', attempts:'all', search:'', syncing:false, lastRenderAt:0, selectedRootIds:new Set() };
-  const dashboardState = { mode: Persistence.readDashboardMode(), syncing:false };
 
   function monitorEls() {
     return {
@@ -613,140 +613,6 @@
   }
 
 
-  function dashboardSchoolForContact(contact){return String(contact?.school||'').trim()||'其他联系人';}
-  function dashboardContactLabel(contact,index=0){
-    const mode=dashboardState.mode;
-    const name=String(contact?.name||'').trim();
-    if(name)return name;
-    if(mode==='student')return `联系人 ${String(index+1).padStart(2,'0')}`;
-    return contact?.email||'未知联系人';
-  }
-  function dashboardDateLabel(value){
-    const ms=Operations?.timeMs?.(value)||0;if(!ms)return '—';
-    return new Date(ms).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'});
-  }
-
-  function renderDashboardOpportunities(snapshot){
-    const list=$('nmda-dashboard-opportunity-list'), count=$('nmda-dashboard-opportunity-count');if(!list)return;
-    const ranked=[...snapshot.signals].filter(item=>item.replies.length).sort((a,b)=>{
-      const score=item=>(item.strong?140:item.active?100:60)+(item.replies.length*7)+(item.followUps*2)+(item.lastAt?Math.min(15,Math.floor(item.lastAt/86400000)%16):0);
-      return score(b)-score(a)||b.lastAt-a.lastAt;
-    });
-    if(count)count.textContent=snapshot.active?`${snapshot.active} 持续往来`:`${snapshot.human} 真人回复`;
-    const ladder=$('nmda-dashboard-signal-ladder');
-    if(ladder)ladder.innerHTML=`<span><small>真人回复</small><strong>${snapshot.human}</strong></span><i>→</i><span><small>转人工沟通</small><strong>${snapshot.active}</strong></span><i>→</i><span class="is-strong"><small>多轮往来</small><strong>${snapshot.strong}</strong></span>`;
-    if(!ranked.length){
-      list.innerHTML=`<div class="nmda-dashboard-empty"><div><strong>当前尚未出现真人回复</strong><span>这不会被标记为失败。看板继续保留履约与持续跟进记录，出现真实沟通后会自动置顶。</span></div></div>`;
-      return;
-    }
-    list.innerHTML=ranked.slice(0,6).map((contact,index)=>{
-      const latestReply=contact.replies[contact.replies.length-1]||null;
-      const identity=dashboardContactLabel(contact,index);
-      const label=contact.strong?'多轮往来':contact.active?'已转人工沟通':'真人回复';
-      const rank=contact.strong?'strong':'normal';
-      const school=dashboardSchoolForContact(contact);
-      const privateLine=dashboardState.mode==='student'?school:[school,contact.email].filter(Boolean).join(' · ');
-      const messageId=String(latestReply?.providerMessageId||contact.group?.lastOutbound?.providerMessageId||'').trim();
-      return `<article class="nmda-dashboard-opportunity" data-rank="${rank}">
-        <span class="nmda-dashboard-opportunity-avatar" aria-hidden="true">${escapeHtml((identity||'@').charAt(0).toUpperCase())}</span>
-        <div class="nmda-dashboard-opportunity-main"><div class="nmda-dashboard-opportunity-title"><strong>${escapeHtml(identity)}</strong><span>${escapeHtml(label)}</span></div><small data-private="1">${escapeHtml(privateLine)}</small><div class="nmda-dashboard-opportunity-facts"><span><b>${contact.group?.outbounds?.length||0}</b> 次触达</span><span><b>${contact.replies.length}</b> 次真人回复</span><span>最近 ${escapeHtml(dashboardDateLabel(latestReply?.receivedAt||contact.group?.lastOutbound?.sentAt||''))}</span></div></div>
-        ${messageId&&dashboardState.mode==='operator'?`<button class="nmda-dashboard-open-mail" type="button" data-open-original-mail="${escapeHtml(messageId)}" data-open-original-fid="${latestReply?'1':'3'}" title="在 163 打开最近相关邮件">↗</button>`:''}
-      </article>`;
-    }).join('');
-  }
-
-  function renderDashboardField(snapshot){
-    const field=$('nmda-dashboard-field'),copy=$('nmda-dashboard-field-copy');if(!field)return;
-    if(copy)copy.textContent=snapshot.plannedMode?'每个点是一位当前目标联系人；空心点尚未形成已发送事实，信号越明确视觉权重越高。':'每个点是一位已联系联系人；持续跟进、真人回复与往来深度逐级增强。';
-    if(!snapshot.contacts.length){field.innerHTML='<div class="nmda-dashboard-empty"><div><strong>暂无联系人事实</strong><span>导入目标名单或连接网易邮箱后，这里会形成联系人级联系场。</span></div></div>';return;}
-    const groups=new Map();
-    for(const contact of snapshot.contacts){const school=dashboardSchoolForContact(contact);if(!groups.has(school))groups.set(school,[]);groups.get(school).push(contact);}
-    const ordered=[...groups.entries()].sort((a,b)=>{
-      const signal=list=>list.reduce((n,item)=>n+(item.strong?9:item.active?7:item.replies?.length?5:item.followUps?2:0),0);
-      return signal(b[1])-signal(a[1])||b[1].length-a[1].length||a[0].localeCompare(b[0]);
-    });
-    field.innerHTML=ordered.map(([school,contacts])=>{
-      const dots=contacts.sort((a,b)=>({strong:5,active:4,reply:3,followup:2,base:1,planned:0}[b.level]-({strong:5,active:4,reply:3,followup:2,base:1,planned:0}[a.level]))).map((contact,index)=>{
-        const label=dashboardContactLabel(contact,index),status=contact.level==='strong'?'多轮往来':contact.level==='active'?'持续往来':contact.level==='reply'?'真人回复':contact.level==='followup'?`已跟进 ${contact.followUps} 次`:contact.level==='planned'?'目标池 · 尚无已发送事实':'已触达';
-        const tip=dashboardState.mode==='student'?`${label} · ${status}`:`${label}${contact.email&&label!==contact.email?` · ${contact.email}`:''} · ${status}`;
-        return `<button class="nmda-dashboard-dot" type="button" data-level="${escapeHtml(contact.level)}" aria-label="${escapeHtml(tip)}"></button>`;
-      }).join('');
-      return `<section class="nmda-dashboard-field-group"><header><strong title="${escapeHtml(school)}">${escapeHtml(school)}</strong><span>${contacts.length}</span></header><div class="nmda-dashboard-dots">${dots}</div></section>`;
-    }).join('');
-  }
-
-  function dashboardTrajectorySeries(snapshot){
-    const firstContacts=snapshot.groups.map(group=>({at:Operations.timeMs(group?.outbounds?.[0]?.sentAt||group?.lastOutbound?.sentAt||''),group})).filter(item=>item.at).sort((a,b)=>a.at-b.at);
-    const followEvents=[],replyEvents=[];
-    for(const group of snapshot.groups){
-      for(const outbound of group?.outbounds||[]){if(Math.max(0,Number(outbound?.effectiveSequence??outbound?.sequence??0))>0){const at=Operations.timeMs(outbound.sentAt);if(at)followEvents.push(at);}}
-      for(const reply of dashboardHumanReplies(group)){const at=Operations.timeMs(reply.receivedAt);if(at)replyEvents.push(at);}
-    }
-    const all=[...firstContacts.map(item=>item.at),...followEvents,...replyEvents].filter(Boolean).sort((a,b)=>a-b);
-    return {firstContacts,followEvents,replyEvents,min:all[0]||0,max:all[all.length-1]||0};
-  }
-
-  function renderDashboardTrajectory(snapshot){
-    const host=$('nmda-dashboard-trajectory'),range=$('nmda-dashboard-trajectory-range');if(!host)return;
-    const series=dashboardTrajectorySeries(snapshot);
-    if(!series.firstContacts.length){host.innerHTML='<div class="nmda-dashboard-empty"><div><strong>暂无履约轨迹</strong><span>读取已发送邮件后，这里按首次触达累计呈现执行过程。</span></div></div>';if(range)range.textContent='—';return;}
-    const W=620,H=112,pad={l:28,r:12,t:11,b:20};
-    const min=series.min,max=Math.max(series.max,series.min+86400000),maxY=Math.max(1,series.firstContacts.length);
-    const x=ms=>pad.l+(ms-min)/(max-min)*(W-pad.l-pad.r), y=n=>H-pad.b-(n/maxY)*(H-pad.t-pad.b);
-    let d=`M ${x(series.firstContacts[0].at).toFixed(1)} ${y(0).toFixed(1)}`;let count=0;
-    for(const item of series.firstContacts){const xx=x(item.at).toFixed(1);d+=` H ${xx}`;count+=1;d+=` V ${y(count).toFixed(1)}`;}
-    d+=` H ${(W-pad.r).toFixed(1)}`;
-    const area=`${d} V ${H-pad.b} H ${pad.l} Z`;
-    const compactEvents=(values,limit=80)=>values.length<=limit?values:values.filter((_,i)=>i%Math.ceil(values.length/limit)===0);
-    const follows=compactEvents(series.followEvents).map(ms=>`<line class="nmda-dashboard-chart-follow" x1="${x(ms).toFixed(1)}" x2="${x(ms).toFixed(1)}" y1="${H-pad.b+1}" y2="${H-pad.b+7}"/>`).join('');
-    const replies=compactEvents(series.replyEvents,28).map(ms=>{const c=series.firstContacts.filter(item=>item.at<=ms).length;return `<circle class="nmda-dashboard-chart-reply" cx="${x(ms).toFixed(1)}" cy="${y(c).toFixed(1)}" r="2.6"/>`;}).join('');
-    const grid=[.25,.5,.75,1].map(fr=>`<line class="nmda-dashboard-chart-grid" x1="${pad.l}" x2="${W-pad.r}" y1="${y(maxY*fr).toFixed(1)}" y2="${y(maxY*fr).toFixed(1)}"/>`).join('');
-    const grad=`<defs><linearGradient id="nmdaDashArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7890ad" stop-opacity=".16"/><stop offset="1" stop-color="#7890ad" stop-opacity=".015"/></linearGradient></defs>`;
-    host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="累计联系人触达轨迹">${grad}${grid}<path class="nmda-dashboard-chart-area" d="${area}"/><path class="nmda-dashboard-chart-line" d="${d}"/>${follows}${replies}<circle class="nmda-dashboard-chart-dot" cx="${W-pad.r}" cy="${y(maxY).toFixed(1)}" r="3.2"/><text class="nmda-dashboard-chart-value" x="${W-pad.r-2}" y="${Math.max(9,y(maxY)-6).toFixed(1)}" text-anchor="end">${maxY} 位</text><text class="nmda-dashboard-chart-label" x="${pad.l}" y="${H-4}">${escapeHtml(dashboardDateLabel(min))}</text><text class="nmda-dashboard-chart-label" x="${W-pad.r}" y="${H-4}" text-anchor="end">${escapeHtml(dashboardDateLabel(max))}</text></svg>`;
-    if(range)range.textContent=`${dashboardDateLabel(min)} → ${dashboardDateLabel(max)}`;
-  }
-
-  function renderDashboardDepth(snapshot){
-    const host=$('nmda-dashboard-depth'),evidence=$('nmda-dashboard-evidence');if(!host)return;
-    const rows=[
-      ['首次触达',snapshot.reachedCount],
-      ['≥ 1 次跟进',snapshot.signals.filter(item=>item.followUps>=1).length],
-      ['≥ 2 次跟进',snapshot.signals.filter(item=>item.followUps>=2).length]
-    ];
-    const max=Math.max(1,...rows.map(row=>row[1]));
-    host.innerHTML=rows.map(([label,value])=>`<div class="nmda-dashboard-depth-row"><span>${escapeHtml(label)}</span><div class="nmda-dashboard-depth-track"><i style="width:${Math.max(0,Math.min(100,value/max*100)).toFixed(1)}%"></i></div><b>${value}</b></div>`).join('');
-    if(evidence){
-      const policy=snapshot.policy||{};const delay=Math.max(0,Number(policy.delayDays??7));const maxAttempts=Math.max(0,Number(policy.maxAttempts??2));
-      const strategy=`当前策略：首次 / 上次发送后等待 <strong>${delay} 天</strong>，无有效回复时最多继续 <strong>${maxAttempts} 次</strong>跟进。`;
-      let result='';
-      if(snapshot.activeAfterFollowUp>0)result=`其中 <strong>${snapshot.activeAfterFollowUp}</strong> 段持续往来的首次真人回复发生在跟进之后。`;
-      else if(snapshot.followUpEmergence>0)result=`已有 <strong>${snapshot.followUpEmergence}</strong> 位联系人的首次真人回复出现在跟进之后。`;
-      else result=snapshot.followedUp?`已有 <strong>${snapshot.followedUp}</strong> 位联系人完成至少一次跟进；继续按既定规则观察。`:'当前尚未进入跟进阶段。';
-      evidence.dataset.tone=(snapshot.activeAfterFollowUp||snapshot.followUpEmergence)?'signal':'';
-      evidence.innerHTML=`${strategy} ${result}`;
-    }
-  }
-
-  function renderDashboard(){
-    if(!Operations||!operationState.loaded)return;
-    const pane=ui.querySelector('[data-pane="dashboard"]');if(!pane)return;
-    pane.dataset.dashboardMode=dashboardState.mode;
-    ui.querySelectorAll('[data-dashboard-mode]').forEach(button=>button.classList.toggle('is-active',button.dataset.dashboardMode===dashboardState.mode));
-    const snapshot=dashboardSnapshot();
-    const set=(id,value)=>{const el=$(id);if(el)el.textContent=String(value)};
-    const deliveryValue=snapshot.mailboxKnown?(snapshot.plannedMode?`${snapshot.reachedCount} / ${snapshot.plannedCount}`:`${snapshot.reachedCount}`):(snapshot.plannedMode?`— / ${snapshot.plannedCount}`:'—');
-    set('nmda-dashboard-delivery-value',deliveryValue);
-    set('nmda-dashboard-delivery-copy',snapshot.plannedMode?(snapshot.mailboxKnown?`当前目标池已完成 ${snapshot.reachedCount} 位实际触达`:'目标池已载入；更新邮箱后核对实际触达'):(snapshot.mailboxKnown?'按邮箱事实统计唯一联系人':'更新邮箱后读取实际触达'));
-    const progress=$('nmda-dashboard-delivery-progress');if(progress)progress.style.width=snapshot.mailboxKnown&&snapshot.plannedCount?`${Math.min(100,snapshot.reachedCount/snapshot.plannedCount*100).toFixed(1)}%`:'0%';
-    const inst=snapshot.schoolCount?(snapshot.mailboxKnown?`${snapshot.reachedSchoolCount} / ${snapshot.schoolCount}`:`— / ${snapshot.schoolCount}`):(snapshot.reachedSchoolCount||'—');
-    set('nmda-dashboard-institution-value',inst);set('nmda-dashboard-institution-copy',snapshot.schoolCount?'按当前目标资料识别的院校覆盖':'当前资料未提供稳定院校字段');
-    set('nmda-dashboard-followup-value',snapshot.mailboxKnown?snapshot.followedUp:'—');set('nmda-dashboard-followup-copy',snapshot.mailboxKnown?`${snapshot.signals.filter(item=>item.followUps>=2).length} 位已完成两次及以上争取`:'更新邮箱后统计跟进深度');
-    set('nmda-dashboard-active-value',snapshot.mailboxKnown?snapshot.active:'—');set('nmda-dashboard-active-copy',snapshot.mailboxKnown?(snapshot.strong?`${snapshot.strong} 位已出现多轮真人往来`:`另有 ${snapshot.human} 位出现真人回复`):'更新邮箱后识别持续往来');
-    const period=$('nmda-dashboard-period-copy');if(period)period.textContent=dashboardState.mode==='student'?'阶段成果以实际触达、持续争取和真实往来为主，不以低基率回复制造成败判断。':'以联系人为主键核对履约、跟进深度与人工往来；自动回复不计入成果。';
-    const heading=pane.querySelector('.nmda-dashboard-heading h2');if(heading)heading.textContent=dashboardState.mode==='student'?'阶段外联成果':'成效看板';
-    renderDashboardOpportunities(snapshot);renderDashboardField(snapshot);renderDashboardTrajectory(snapshot);renderDashboardDepth(snapshot);
-  }
-
   function renderMonitoring() {
     if(!Operations || !operationState.loaded)return;
     const els=monitorEls();
@@ -879,7 +745,7 @@
       }
     }
     monitorState.lastRenderAt=Date.now();
-    if(currentWorkbenchTab()==='dashboard')renderDashboard();
+    if(currentWorkbenchTab()==='dashboard')State.changed();
   }
 
   async function loadMonitoring() {
@@ -1373,7 +1239,7 @@
     if (name === 'batch' && viewPerf.batchDirty) scheduleBatchRender();
     if (name === 'review') requestAnimationFrame(() => { if(reviewInlineEl)reviewInlineEl.hidden=false; void (async()=>{ await State.ensureOperations(); renderReviewPageOverview(); })(); });
     if (name === 'dispatch') requestAnimationFrame(() => { void (async()=>{ await State.ensureOperations(); scheduleBatchRender({aux:false,force:true}); })(); });
-    if (name === 'dashboard') requestAnimationFrame(() => { void (async()=>{ await State.ensureOperations(); renderDashboard(); })(); });
+    if (name === 'dashboard') requestAnimationFrame(() => { void (async()=>{ await State.ensureOperations(); State.changed(); })(); });
     if (name === 'utilities') requestAnimationFrame(() => { renderUtilityHubSummary(); if(activeUtilityView==='monitor')void loadMonitoring(); else if(activeUtilityView==='draft-attachments'){ if(!draftAttachmentTool.scanned&&!draftAttachmentTool.loading) void scanDraftAttachmentTool(); else renderDraftAttachmentTool(); } });
     if(name==='batch' && batch?.dataset && !mailboxDedupeSnapshotAvailable()) MailboxSync.schedule('history',{source:'batch'});
     else MailboxSync.schedule('quick',{source:`tab:${name}`});
@@ -1400,18 +1266,6 @@
     history.replaceState(null,'',`#${name}`);
   }));
   ui.querySelectorAll('[data-flow-step]').forEach(button => button.addEventListener('click', () => { void goToProcessStep(button.dataset.flowStep); }));
-  ui.querySelectorAll('[data-dashboard-mode]').forEach(button=>button.addEventListener('click',()=>{
-    dashboardState.mode=button.dataset.dashboardMode==='student'?'student':'operator';
-    Persistence.writeDashboardMode(dashboardState.mode);
-    renderDashboard();
-  }));
-  $('nmda-dashboard-refresh')?.addEventListener('click',()=>void (async()=>{
-    const button=$('nmda-dashboard-refresh');if(button){button.disabled=true;button.textContent='正在更新…';}
-    try{await State.ensureOperations();await MailboxSync.request('quick',{force:true,source:'tab:dashboard'});renderDashboard();}
-    catch(error){console.warn(`[${APP}] dashboard refresh failed`,error);}
-    finally{if(button){button.disabled=false;button.textContent='更新邮箱事实';}}
-  })());
-
   const batch = State.batch;
 
 

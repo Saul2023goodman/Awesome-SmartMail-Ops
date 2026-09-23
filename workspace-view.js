@@ -685,76 +685,7 @@
 
 
           <section class="nmda-tabpane nmda-page nmda-dashboard-page" data-pane="dashboard" hidden aria-label="成效看板">
-            <div class="nmda-dashboard-shell">
-              <header class="nmda-dashboard-head">
-                <div class="nmda-dashboard-heading">
-                  <span class="nmda-dashboard-eyebrow">OUTREACH PERFORMANCE</span>
-                  <div><h2>成效看板</h2><p id="nmda-dashboard-period-copy">用联系人事实呈现履约、持续争取与正在形成的真实沟通。</p></div>
-                </div>
-                <div class="nmda-dashboard-actions">
-                  <div class="nmda-dashboard-mode" role="group" aria-label="看板视图">
-                    <button type="button" data-dashboard-mode="operator" class="is-active">Operator</button>
-                    <button type="button" data-dashboard-mode="student">学生展示</button>
-                  </div>
-                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dashboard-refresh" type="button">更新邮箱事实</button>
-                </div>
-              </header>
-
-              <section class="nmda-dashboard-kpis" aria-label="履约与成效摘要">
-                <article class="nmda-dashboard-kpi is-delivery">
-                  <div><small>CONTACT DELIVERY</small><span>目标触达</span></div>
-                  <strong id="nmda-dashboard-delivery-value">—</strong>
-                  <p id="nmda-dashboard-delivery-copy">正在汇总当前目标池</p>
-                  <div class="nmda-dashboard-progress"><i id="nmda-dashboard-delivery-progress"></i></div>
-                </article>
-                <article class="nmda-dashboard-kpi">
-                  <div><small>INSTITUTION BREADTH</small><span>院校覆盖</span></div>
-                  <strong id="nmda-dashboard-institution-value">—</strong>
-                  <p id="nmda-dashboard-institution-copy">按当前资料识别</p>
-                </article>
-                <article class="nmda-dashboard-kpi">
-                  <div><small>PERSISTENCE</small><span>持续争取</span></div>
-                  <strong id="nmda-dashboard-followup-value">—</strong>
-                  <p id="nmda-dashboard-followup-copy">至少完成一次跟进</p>
-                </article>
-                <article class="nmda-dashboard-kpi is-signal">
-                  <div><small>ACTIVE CONVERSATIONS</small><span>持续往来</span></div>
-                  <strong id="nmda-dashboard-active-value">—</strong>
-                  <p id="nmda-dashboard-active-copy">真人回复后已进入人工沟通</p>
-                </article>
-              </section>
-
-              <section class="nmda-dashboard-core">
-                <article class="nmda-dashboard-panel nmda-dashboard-opportunities">
-                  <header class="nmda-dashboard-panel-head">
-                    <div><small>HIGH-SIGNAL CONTACTS</small><strong>正在形成的沟通</strong><span>把少数已经出现真实往来的联系人放在最前面。</span></div>
-                    <b id="nmda-dashboard-opportunity-count">0</b>
-                  </header>
-                  <div class="nmda-dashboard-opportunity-list" id="nmda-dashboard-opportunity-list"></div>
-                  <div class="nmda-dashboard-signal-ladder" id="nmda-dashboard-signal-ladder" aria-label="沟通信号层级"></div>
-                </article>
-
-                <article class="nmda-dashboard-panel nmda-dashboard-field-panel">
-                  <header class="nmda-dashboard-panel-head">
-                    <div><small>OUTREACH FIELD</small><strong>目标联系场</strong><span id="nmda-dashboard-field-copy">每个点是一位联系人；信号越明确，视觉权重越高。</span></div>
-                    <div class="nmda-dashboard-field-legend" aria-label="联系人状态图例"><span><i data-level="base"></i>已触达</span><span><i data-level="followup"></i>已跟进</span><span><i data-level="reply"></i>真人回复</span><span><i data-level="active"></i>持续往来</span></div>
-                  </header>
-                  <div class="nmda-dashboard-field" id="nmda-dashboard-field"></div>
-                </article>
-              </section>
-
-              <section class="nmda-dashboard-lower">
-                <article class="nmda-dashboard-panel nmda-dashboard-trajectory-panel">
-                  <header class="nmda-dashboard-panel-head is-compact"><div><small>DELIVERY TRAJECTORY</small><strong>履约轨迹</strong><span>累计触达是主线，持续跟进与真人回复作为过程证据。</span></div><b id="nmda-dashboard-trajectory-range">—</b></header>
-                  <div class="nmda-dashboard-trajectory" id="nmda-dashboard-trajectory"></div>
-                </article>
-                <article class="nmda-dashboard-panel nmda-dashboard-persistence-panel">
-                  <header class="nmda-dashboard-panel-head is-compact"><div><small>OUTREACH DEPTH</small><strong>争取深度</strong><span>不以低回复率定义表现，只呈现实际完成的触达层次。</span></div></header>
-                  <div class="nmda-dashboard-depth" id="nmda-dashboard-depth"></div>
-                  <div class="nmda-dashboard-evidence" id="nmda-dashboard-evidence"></div>
-                </article>
-              </section>
-            </div>
+            <div data-workspace-mount="dashboard"></div>
           </section>
 
           <section class="nmda-tabpane nmda-page nmda-utilities-page" data-pane="utilities" hidden data-utility-view="home">
