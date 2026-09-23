@@ -333,3 +333,36 @@ test('execution service constructs the canonical draft request without view stat
   assert.equal(submitted.task.scheduleDisplayAt, '2026-10-01 07:30');
   assert.equal(submitted.task.scheduleTimeZoneLabel, '本机时间');
 });
+
+test('follow-up service validates and saves templates through state and persistence', async () => {
+  let persisted;
+  let refreshed = 0;
+  const policy = { delayDays:7, maxAttempts:2, composeMode:'forward', templateBody:'Old body' };
+  const state = {
+    operations:{store:{followUpPolicies:{default:policy},derivedTasks:{one:{kind:'follow_up',state:'draft',templateManaged:true}}}},
+    batch:{tasks:[]},
+    ensureOperations:async () => {},
+    setStore(store) { this.operations.store = store; }
+  };
+  const context = {
+    NMDAOperations:{
+      DEFAULT_FOLLOWUP_POLICY:policy,
+      setFollowUpPolicy:(store, _root, patch) => ({store:{...store,followUpPolicies:{default:{...store.followUpPolicies.default,...patch}}}}),
+      refreshTemplateManagedFollowUps:store => { refreshed++; return {store,refreshed:[{id:'one'}],skipped:[]}; },
+      policyForRoot:store => store.followUpPolicies.default
+    },
+    NMDAWorkspaceRuntime:{},
+    NMDAWorkspaceState:state,
+    NMDAWorkspacePersistence:{writeFollowUpPrefs:value => {persisted = value;}},
+    NMDAWorkspaceMailboxSync:{}
+  };
+  runInNewContext(source('workspace-followup.js'), context);
+  const followUp = context.NMDAWorkspaceFollowUp;
+  assert.equal(followUp.validateTemplateBody('Dear Professor,\nBody').valid, false);
+  assert.equal(followUp.templateState('New body').syncable.length, 1);
+  const result = await followUp.saveTemplate('New body', true);
+  assert.equal(result.refreshedCount, 1);
+  assert.equal(refreshed, 1);
+  assert.equal(state.operations.store.followUpPolicies.default.templateBody, 'New body');
+  assert.equal(persisted.templateBody, 'New body');
+});

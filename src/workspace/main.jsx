@@ -2,6 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import MailboxConnection from './MailboxConnection.jsx';
 import Dashboard from './Dashboard.jsx';
+import Monitor from './Monitor.jsx';
+import UtilitiesHome from './UtilitiesHome.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -24,4 +26,12 @@ document.querySelectorAll('[data-workspace-mount="mailbox-connection"]').forEach
 
 document.querySelectorAll('[data-workspace-mount="dashboard"]').forEach(host => {
   createRoot(host).render(<StrictMode><Dashboard /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="monitor"]').forEach(host => {
+  createRoot(host).render(<StrictMode><Monitor /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="utilities-home"]').forEach(host => {
+  createRoot(host).render(<StrictMode><UtilitiesHome /></StrictMode>);
 });

@@ -264,8 +264,7 @@
   const MailboxSync = globalThis.NMDAWorkspaceMailboxSync;
   MailboxSync.onApplied(() => {
     if (batch.dataset) { rebuildTasks(); invalidateBatchView(true); renderDuplicateDecision(); renderRosterAudit(); renderProcessGuide(); }
-    renderMonitoring();
-    if (currentWorkbenchTab() === 'dashboard') State.changed();
+    State.changed();
     renderReviewPageOverview();
   });
   MailboxSync.start();
@@ -452,586 +451,9 @@
   }
 
 
-  const monitorState = { filter:'all', subfilter:'all', attempts:'all', search:'', syncing:false, lastRenderAt:0, selectedRootIds:new Set() };
-
-  function monitorEls() {
-    return {
-      stats:$('nmda-monitor-stats'), list:$('nmda-monitor-list'),
-      notice:$('nmda-monitor-notice'), syncCopy:$('nmda-monitor-sync-copy'), delay:$('nmda-monitor-delay'), max:$('nmda-monitor-max'), compose:$('nmda-monitor-compose-mode'), historyMonths:$('nmda-monitor-history-months'),
-      bulkbar:$('nmda-monitor-bulkbar'), selectVisible:$('nmda-monitor-select-visible'), selectionCopy:$('nmda-monitor-selection-copy'), batchCreate:$('nmda-monitor-batch-create'),
-      readyCard:$('nmda-monitor-due-summary'), readyTitle:$('nmda-monitor-ready-title'), readyCopy:$('nmda-monitor-ready-copy'), readyAction:$('nmda-monitor-ready-action'),
-      policySummary:$('nmda-monitor-policy-summary'), templateSummary:$('nmda-monitor-template-summary')
-    };
+  function reportMonitorNotice(text, tone = '') {
+    window.dispatchEvent(new CustomEvent('nmda:monitor-notice', { detail:{ text, tone } }));
   }
-
-  function setMonitorNotice(message='', tone='') {
-    const el=$('nmda-monitor-notice'); if(!el)return;
-    el.hidden=!message; el.textContent=message||''; if(tone)el.dataset.tone=tone;else delete el.dataset.tone;
-  }
-
-
-  function monitorFollowUpTemplateState() {
-    const policy=operationState.loaded?(operationState.store.followUpPolicies?.default||Operations.DEFAULT_FOLLOWUP_POLICY):Operations.DEFAULT_FOLLOWUP_POLICY;
-    const field=$('nmda-monitor-template-body');
-    const saved=String(policy?.templateBody||'').replace(/\r\n?/g,'\n').trim();
-    const initialized=field?.dataset.initialized==='1';
-    const value=String(initialized?field?.value:saved).replace(/\r\n?/g,'\n').trim();
-    const validation=validateFollowUpTemplateBody(value);
-    const changed=value!==saved;
-    const syncable=templateManagedPendingFollowUps();
-    const allDerived=operationState.loaded?Object.values(operationState.store?.derivedTasks||{}):[];
-    const protectedCount=allDerived.filter(task=>task?.kind==='follow_up'&&!['sent','cancelled','blocked','scheduled'].includes(task.state)&&!(task.templateManaged===true||(task.templateManaged===undefined&&Number(task.contentVersion||1)===1))).length;
-    const lockedCount=allDerived.filter(task=>task?.kind==='follow_up'&&task.state==='scheduled'&&(task.templateManaged===true||(task.templateManaged===undefined&&Number(task.contentVersion||1)===1))).length;
-    const syncEl=$('nmda-monitor-template-sync');
-    return {policy,saved,value,validation,changed,syncable,protectedCount,lockedCount,syncEnabled:!!syncEl?.checked&&changed&&!!value&&syncable.length>0};
-  }
-
-  function renderMonitorFollowUpTemplate() {
-    const field=$('nmda-monitor-template-body');if(!field)return;
-    const policy=operationState.loaded?(operationState.store.followUpPolicies?.default||Operations.DEFAULT_FOLLOWUP_POLICY):Operations.DEFAULT_FOLLOWUP_POLICY;
-    const saved=String(policy?.templateBody||'').replace(/\r\n?/g,'\n').trim();
-    const dirty=field.dataset.dirty==='1';
-    if(!dirty&&document.activeElement!==field)field.value=saved;
-    field.dataset.initialized='1';
-    const state=monitorFollowUpTemplateState();
-    const badge=$('nmda-monitor-template-badge'),summary=$('nmda-monitor-template-summary'),sync=$('nmda-monitor-template-sync'),syncCount=$('nmda-monitor-template-sync-count'),result=$('nmda-monitor-template-result'),save=$('nmda-monitor-save-template'),trigger=$('nmda-monitor-open-template');
-    if(badge)badge.textContent=state.changed?'待保存':(saved?'已设置':'未设置');
-    if(summary)summary.textContent=state.changed?'有未保存修改':(saved?'已设置 · 称呼与署名自动继承':'未设置 · 到期前建议配置');
-    if(syncCount)syncCount.textContent=state.syncable.length?`${state.syncable.length} 封可同步`:(state.protectedCount?`${state.protectedCount} 封人工正文受保护`:(state.lockedCount?`${state.lockedCount} 封已排期锁定`:'当前无待同步邮件'));
-    if(sync){sync.disabled=!state.changed||!state.value||!state.syncable.length;if(sync.disabled&&state.syncable.length===0)sync.checked=true;}
-    if(save)save.disabled=!state.changed||!state.validation.valid;
-    if(result){
-      if(!state.validation.valid)result.innerHTML=`<strong>模板结构不规范</strong><span>${escapeHtml(state.validation.reason)}</span>`;
-      else if(state.changed&&!state.value)result.innerHTML='<strong>将清空模板</strong><span>之后不会再用模板生成新的跟进邮件；已经生成或已定时的邮件不受影响。</span>';
-      else if(state.changed)result.innerHTML=`<strong>模板待保存</strong><span>保存后用于后续到期的跟进邮件${state.syncable.length?`；可同步 ${state.syncable.length} 封尚未发送的模板邮件`:''}${state.protectedCount?`；${state.protectedCount} 封人工改写正文不会覆盖`:''}${state.lockedCount?`；${state.lockedCount} 封已排期邮件保持现状`:''}。</span>`;
-      else if(saved)result.innerHTML='<strong>模板已生效</strong><span>到期后直接在邮件监测中生成；称呼与署名从各自初始邮件继承。</span>';
-      else result.innerHTML='<strong>未设置模板</strong><span>设置后，到期联系人可直接在这里生成跟进邮件。</span>';
-    }
-    if(trigger){
-      const due=(Operations?.monitoringRoots?.(operationState.store)||[]).some(group=>group?.eligibility?.eligible===true);
-      trigger.classList.toggle('is-attention',due&&!saved&&!state.changed);
-      trigger.setAttribute('aria-label',due&&!saved?'正文模板未设置；当前已有可跟进邮件':'打开跟进邮件正文模板设置');
-    }
-  }
-
-  async function saveMonitorFollowUpTemplate() {
-    await State.ensureOperations();
-    const state=monitorFollowUpTemplateState();
-    if(!state.changed){setMonitorNotice('跟进邮件模板没有变化。');return;}
-    if(!state.validation.valid){setMonitorNotice(state.validation.reason,'warn');renderMonitorFollowUpTemplate();return;}
-    try{
-      const result=Operations.setFollowUpPolicy(operationState.store,'',{templateBody:state.value});
-      let nextStore=result.store,refreshedCount=0,protectedCount=0;
-      if(state.syncEnabled&&state.value&&typeof Operations.refreshTemplateManagedFollowUps==='function'){
-        const refreshed=Operations.refreshTemplateManagedFollowUps(nextStore);nextStore=refreshed.store;refreshedCount=refreshed.refreshed?.length||0;protectedCount=(refreshed.skipped||[]).filter(item=>item.reason==='manually-edited').length;
-      }
-      State.setStore(nextStore);
-      writeFollowUpPrefs(Operations.policyForRoot(operationState.store,''));
-
-      const field=$('nmda-monitor-template-body');if(field)field.dataset.dirty='0';
-      renderMonitoring();renderReviewPageOverview();scheduleBatchRender({aux:true});
-      const parts=[state.value?'跟进邮件模板已保存':'跟进邮件模板已清空'];
-      if(refreshedCount)parts.push(`同步 ${refreshedCount} 封待发跟进邮件`);
-      if(protectedCount)parts.push(`${protectedCount} 封人工正文保持不变`);
-      setMonitorNotice(`${parts.join(' · ')}。`,'ok');
-    }catch(error){setMonitorNotice(`保存模板失败：${error?.message||String(error)}`,'error');}
-  }
-
-
-  function renderMonitorDecisionPath(group, state) {
-    const nodes=monitorDecisionPath(group,state);
-    return `<div class="nmda-monitor-decision-path" aria-label="本邮件判定路径">${nodes.map((node,index)=>`${index?'<span class="nmda-monitor-path-link" aria-hidden="true"></span>':''}<div class="nmda-monitor-path-node" data-kind="${escapeHtml(node.kind)}" data-tone="${escapeHtml(node.tone||'')}"><small>${escapeHtml(node.title)}</small><strong>${escapeHtml(node.value)}</strong></div>`).join('')}</div>`;
-  }
-
-
-  function monitorSelectedIds() {
-    return monitorState.selectedRootIds instanceof Set ? monitorState.selectedRootIds : (monitorState.selectedRootIds=new Set());
-  }
-
-  function pruneMonitorSelection(enriched) {
-    const valid=new Set((enriched||[]).filter(monitorCreatable).map(item=>item.rootTaskId));
-    const selected=monitorSelectedIds();
-    [...selected].forEach(id=>{if(!valid.has(id))selected.delete(id);});
-    return selected;
-  }
-
-
-  function syncMonitorFilterControls(enriched=[]) {
-    const counts={
-      all:enriched.length,
-      attention:enriched.filter(item=>monitorQueueFor(item)==='attention').length,
-      waiting:enriched.filter(item=>monitorQueueFor(item)==='waiting').length,
-      complete:enriched.filter(item=>monitorQueueFor(item)==='complete').length
-    };
-    ui.querySelectorAll('[data-monitor-filter-count]').forEach(el=>{const key=el.dataset.monitorFilterCount||'all';el.textContent=String(counts[key]||0);});
-    ui.querySelectorAll('[data-monitor-filter]').forEach(item=>item.classList.toggle('is-active',(item.dataset.monitorFilter||'all')===monitorState.filter));
-    const titles={all:'全部联系人',attention:'需要我处理',waiting:'等待中的联系人',complete:'本轮跟进已结束'};
-    const title=$('nmda-monitor-filter-title');if(title)title.textContent=titles[monitorState.filter]||titles.all;
-    const attempts=$('nmda-monitor-attempts');if(attempts&&document.activeElement!==attempts)attempts.value=monitorState.attempts||'all';
-    const sub=$('nmda-monitor-subfilters');
-    const showSub=monitorState.filter==='attention'||monitorState.filter==='waiting';
-    if(sub)sub.hidden=!showSub;
-    const subLabel=$('nmda-monitor-subfilter-label');if(subLabel)subLabel.textContent=monitorState.filter==='attention'?'待办类型':(monitorState.filter==='waiting'?'等待类型':'进一步查看');
-    const subCounts={
-      due:enriched.filter(item=>monitorQueueFor(item)==='attention'&&monitorMatchesSubfilter(item,'due')).length,
-      replied:enriched.filter(item=>monitorQueueFor(item)==='attention'&&monitorMatchesSubfilter(item,'replied')).length,
-      ambiguous:enriched.filter(item=>monitorQueueFor(item)==='attention'&&monitorMatchesSubfilter(item,'ambiguous')).length,
-      issue:enriched.filter(item=>monitorQueueFor(item)==='attention'&&monitorMatchesSubfilter(item,'issue')).length,
-      time:enriched.filter(item=>monitorQueueFor(item)==='waiting'&&monitorMatchesSubfilter(item,'time')).length,
-      scheduled:enriched.filter(item=>monitorQueueFor(item)==='waiting'&&monitorMatchesSubfilter(item,'scheduled')).length
-    };
-    ui.querySelectorAll('[data-monitor-subfilter-count]').forEach(el=>{const key=el.dataset.monitorSubfilterCount||'';el.textContent=String(subCounts[key]||0);});
-    ui.querySelectorAll('[data-monitor-subfilter]').forEach(button=>{
-      const forFilter=button.dataset.monitorSubfilterFor||'';
-      button.hidden=!!forFilter&&forFilter!==monitorState.filter;
-      button.classList.toggle('is-active',(button.dataset.monitorSubfilter||'all')===monitorState.subfilter);
-    });
-  }
-
-  function monitorMatchesCurrentFilters(item, query='') {
-    if(!monitorMatchesQueue(item,monitorState.filter))return false;
-    if(!monitorMatchesSubfilter(item,monitorState.subfilter))return false;
-    if(!monitorMatchesAttempts(item,monitorState.attempts))return false;
-    const normalized=String(query||'').toLocaleLowerCase('zh-CN').trim();
-    if(!normalized)return true;
-    const identity=monitorContactIdentity(item);
-    const replyText=(item.replies||[]).map(reply=>`${reply?.sender||''} ${monitorDisplayReplySubject(reply?.subject||'')}`).join(' ');
-    const hay=[identity.name,identity.email,item.lastOutbound?.subject,item.viewState?.label,item.viewState?.detail,replyText].join(' ').toLocaleLowerCase('zh-CN');
-    return normalized.split(/\s+/).every(token=>hay.includes(token));
-  }
-
-
-  function monitorContactHistory(group) {
-    const records=[...(group?.outbounds||[])].slice().sort((a,b)=>Operations.timeMs(b.sentAt)-Operations.timeMs(a.sentAt));
-    if(!records.length)return '';
-    const rows=records.slice(0,6).map(record=>{
-      const seq=Math.max(0,Number(record.effectiveSequence??record.sequence??0));
-      const kind=seq>0?`跟进 #${seq}`:'首次联系';
-      return `<div class="nmda-contact-history-row"><span><b>${escapeHtml(kind)}</b><small>${escapeHtml(record.subject||'(无主题)')}</small></span><time>${escapeHtml(Operations.formatDisplayTime(record.sentAt))}</time></div>`;
-    }).join('');
-    return `<details class="nmda-contact-history"><summary>查看联系记录 <b>${records.length}</b></summary><div>${rows}</div></details>`;
-  }
-
-
-  function renderMonitoring() {
-    if(!Operations || !operationState.loaded)return;
-    const els=monitorEls();
-    const groups=Operations.monitoringRoots(operationState.store);
-    const enriched=groups.map(group=>({...group,viewState:monitorGroupState(group)}));
-    const summary=monitorSummary(enriched);
-    const utilityMonitorMeta=$('nmda-utility-monitor-meta');
-    if(utilityMonitorMeta)utilityMonitorMeta.textContent=summary.due?`${summary.due} 位需跟进 · ${summary.replied} 位已回复`:(summary.replied?`${summary.replied} 位已回复 · ${summary.total} 位联系人`:`${summary.total} 位联系人`);
-
-    const setMonitorText=(id,value)=>{const el=$(id);if(el)el.textContent=String(value);};
-    setMonitorText('nmda-monitor-contact-total',summary.total);
-    setMonitorText('nmda-monitor-contact-replied',summary.replied);
-    setMonitorText('nmda-monitor-contact-unreplied',summary.unreplied);
-    setMonitorText('nmda-monitor-contact-due',summary.due);
-    setMonitorText('nmda-monitor-contact-waiting',summary.waiting);
-    setMonitorText('nmda-monitor-contact-scheduled',summary.scheduled);
-    setMonitorText('nmda-monitor-contact-complete',summary.complete);
-
-    const replyRate=summary.total?Math.round(summary.replied/summary.total*100):0;
-    if(els.stats)els.stats.innerHTML=`
-      <div class="nmda-monitor-stat"><span>已联系联系人</span><strong>${summary.total}</strong><small>按收件邮箱归并</small></div>
-      <div class="nmda-monitor-stat" data-tone="reply"><span>已有回复</span><strong>${summary.replied}</strong><small>${summary.total?`约 ${replyRate}%`:'暂无联系人'}</small></div>
-      <div class="nmda-monitor-stat" data-tone="due"><span>需要跟进</span><strong>${summary.due}</strong><small>${summary.creatable} 位可直接准备</small></div>
-      <div class="nmda-monitor-stat" data-tone="scheduled"><span>已完成跟进</span><strong>${summary.followUps}</strong><small>累计跟进次数</small></div>`;
-
-    if(els.readyCard){
-      els.readyCard.disabled=summary.due===0;
-      els.readyCard.dataset.state=summary.due>0?'ready':'clear';
-    }
-    if(els.readyTitle)els.readyTitle.textContent=summary.due>0?`${summary.due} 位联系人现在需要跟进`:(summary.replied>0?'当前没有到期联系人':'当前联系人都在等待中');
-    if(els.readyCopy)els.readyCopy.textContent=summary.due>0?`${summary.creatable} 位可直接准备跟进邮件${summary.prepared?`，${summary.prepared} 位已生成、等待审阅或排期`:''}。`:(summary.scheduled?`${summary.scheduled} 位已经安排后续发送；其余联系人继续按规则监测。`:'联系人会在达到等待间隔、且没有有效回复时自动进入“需要跟进”。');
-    if(els.readyAction)els.readyAction.textContent=summary.due>0?`查看 ${summary.due} 位`:'无需操作';
-
-    const policy=operationState.store.followUpPolicies?.default || Operations.DEFAULT_FOLLOWUP_POLICY;
-    if(els.delay && document.activeElement!==els.delay)els.delay.value=String(policy.delayDays ?? 7);
-    if(els.max && document.activeElement!==els.max)els.max.value=String(policy.maxAttempts ?? 2);
-    if(els.compose && document.activeElement!==els.compose)els.compose.value=policy.composeMode || 'forward';
-    const composeLabel=policy.composeMode==='reply'?'回复全部 · 保留附件':(policy.composeMode==='new'?'新建邮件':'转发原邮件');
-    if(els.policySummary)els.policySummary.textContent=`发送后 ${Math.max(0,Number(policy.delayDays??7))} 天 · 最多 ${Math.max(0,Number(policy.maxAttempts??2))} 次 · ${composeLabel}`;
-    renderMonitorFollowUpTemplate();
-    const configuredHistoryMonths=readMailboxHistoryMonths();
-    if(els.historyMonths && document.activeElement!==els.historyMonths)els.historyMonths.value=String(configuredHistoryMonths);
-    const sync=operationState.store.mailboxSync||{};
-    if(els.syncCopy){
-      const last=sync.lastQuickAt||sync.lastFullAt;
-      const historyCopy=configuredHistoryMonths?`最近 ${configuredHistoryMonths} 个月`:'全部历史';
-      els.syncCopy.textContent=last?`上次更新 ${Operations.formatDisplayTime(last)} · ${historyCopy}`:`尚未更新联系人状态 · ${historyCopy}`;
-    }
-
-    syncMonitorFilterControls(enriched);
-    const query=String(monitorState.search||'').toLocaleLowerCase('zh-CN').trim();
-    const visible=enriched.filter(item=>monitorMatchesCurrentFilters(item,query));
-    const selected=pruneMonitorSelection(enriched);
-    const visibleCreatable=visible.filter(monitorCreatable);
-    const allCreatable=enriched.filter(monitorCreatable);
-    if(els.bulkbar)els.bulkbar.hidden=allCreatable.length===0;
-    if(els.selectionCopy)els.selectionCopy.textContent=`当前列表待跟进 ${visibleCreatable.length} 位 · 已选择 ${selected.size} 位`;
-    if(els.batchCreate)els.batchCreate.disabled=selected.size===0;
-    if(els.selectVisible){
-      const selectedVisible=visibleCreatable.filter(item=>selected.has(item.rootTaskId)).length;
-      els.selectVisible.disabled=visibleCreatable.length===0;
-      els.selectVisible.checked=visibleCreatable.length>0 && selectedVisible===visibleCreatable.length;
-      els.selectVisible.indeterminate=selectedVisible>0 && selectedVisible<visibleCreatable.length;
-    }
-
-    if(els.list){
-      if(!visible.length){
-        els.list.innerHTML=`<div class="nmda-monitor-empty"><div><strong>${groups.length?'当前视图没有联系人':'尚无已联系联系人'}</strong><small>${groups.length?'切换工作视图、调整已跟进次数，或清空搜索。':'连接网易邮箱并更新状态后，这里会按联系人邮箱汇总联系与跟进进度。'}</small></div></div>`;
-      }else{
-        els.list.innerHTML=visible.map(group=>{
-          const last=group.lastOutbound, st=group.viewState, active=st.activeTask;
-          const identity=monitorContactIdentity(group);
-          const metrics=monitorContactMetrics(group);
-          const displaySubject=st.scheduledDraft?.subject || last.subject || '';
-          const actions=[];
-          const originalMessageId=String(last?.providerMessageId||'').trim();
-          if(st.key==='replied' && st.observation){
-            const messageId=String(st.observation?.providerMessageId||'').trim();
-            actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-open-mail="${escapeHtml(messageId)}">处理回复</button>`);
-          }
-          if(!group.humanManaged && active){
-            if(active.dispatch?.queued)actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-dispatch="${escapeHtml(active.id)}">查看排期</button>`);
-            else actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-monitor-review="${escapeHtml(active.id)}">处理跟进稿</button>`);
-            if(!['sent','cancelled'].includes(active.state))actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-monitor-cancel-followup="${escapeHtml(active.id)}">取消本次跟进</button>`);
-          }
-          else if(!group.humanManaged && group.eligibility?.eligible)actions.push(`<button class="nmda-btn nmda-btn-primary nmda-btn-small" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}">准备跟进</button>`);
-          else if(group.eligibility?.reason==='waiting')actions.push(`<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-monitor-create="${escapeHtml(group.rootTaskId)}" data-manual="1">提前跟进</button>`);
-          actions.push(originalMessageId
-            ? `<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-open-original-mail="${escapeHtml(originalMessageId)}" data-open-original-fid="3">查看最近邮件</button>`
-            : `<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" disabled>查看最近邮件</button>`);
-
-          let evidence='';
-          const ambiguous=st.observation?.kind==='ambiguous'?st.observation:null;
-          if(ambiguous){
-            const replyMessageId=String(ambiguous.providerMessageId||'').trim();
-            const replySubject=monitorDisplayReplySubject(ambiguous.subject||'',group,ambiguous);
-            const replyWhen=Operations.formatDisplayTime(ambiguous.receivedAt||'');
-            evidence=`<div class="nmda-monitor-reply-evidence"><div class="nmda-monitor-reply-evidence-copy"><small>需要你确认一封来信</small><strong>${escapeHtml(replySubject)}</strong><span>${escapeHtml(ambiguous.sender||identity.email)}${replyWhen&&replyWhen!=='—'?` · ${escapeHtml(replyWhen)}`:''}</span></div><div class="nmda-monitor-reply-evidence-actions"><button class="is-open" type="button" data-monitor-open-mail="${escapeHtml(replyMessageId)}">${replyMessageId?'查看这封来信':'打开收件箱'}</button><i aria-hidden="true"></i><span>确认后：</span><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="human">计为有效回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="automatic">这是自动回复</button><button type="button" data-reply-id="${escapeHtml(ambiguous.id)}" data-reply-disposition="unrelated">不属于这次联系</button></div></div>`;
-          }
-          const selectable=monitorCreatable(group);
-          const selectionCell=selectable?`<label class="nmda-monitor-card-select" title="选择这位联系人"><input type="checkbox" data-monitor-select="${escapeHtml(group.rootTaskId)}" ${selected.has(group.rootTaskId)?'checked':''}><span>选择</span></label>`:'';
-          const statusLabel=monitorContactStatusLabel(group);
-          const nextSequence=Math.max(1,Number(group.eligibility?.sequence||active?.sequence||metrics.followUps+1));
-          const contactTitle=identity.name||identity.email;
-          const contactSub=identity.name?identity.email:(displaySubject||'');
-          return `<article class="nmda-contact-card${selectable?' is-selectable':''}" data-tone="${escapeHtml(st.tone||'')}">
-            <header class="nmda-contact-card-head">
-              <div class="nmda-contact-identity">
-                <span class="nmda-contact-avatar" aria-hidden="true">${escapeHtml((contactTitle||'@').trim().charAt(0).toUpperCase()||'@')}</span>
-                <div><div class="nmda-contact-title"><strong>${escapeHtml(contactTitle)}</strong><span class="nmda-monitor-badge" data-tone="${escapeHtml(st.tone||'')}">${escapeHtml(statusLabel)}</span></div><small>${escapeHtml(contactSub)}</small></div>
-              </div>
-              <div class="nmda-contact-actions">${selectionCell}<div>${actions.join('')}</div></div>
-            </header>
-            <div class="nmda-contact-card-grid">
-              <div class="nmda-contact-metrics">
-                <div><small>联系次数</small><strong>${metrics.touches}</strong><span>封已发送</span></div>
-                <div><small>已跟进</small><strong>${metrics.followUps}</strong><span>次跟进</span></div>
-                <div><small>有效回复</small><strong>${metrics.replies? '有':'—'}</strong><span>${metrics.replies?`${metrics.replies} 封回复`:'尚未回复'}</span></div>
-                <div><small>${st.key==='due'?'下一次跟进':'最近联系'}</small><strong>${st.key==='due'?`#${nextSequence}`:'最近'}</strong><span>${escapeHtml(st.key==='due'?(st.activeTask?'已准备':Operations.formatDisplayTime(group.eligibility?.dueAt||last.sentAt)):Operations.formatDisplayTime(metrics.lastAt))}</span></div>
-              </div>
-              <div class="nmda-contact-decision">
-                <div class="nmda-contact-decision-head"><span>为什么是这个状态</span><small>${escapeHtml(st.detail||'')}</small></div>
-                ${renderMonitorDecisionPath(group,st)}
-              </div>
-            </div>
-            <div class="nmda-contact-evidence-bar"><span><small>最近主题</small><strong title="${escapeHtml(displaySubject)}">${escapeHtml(displaySubject||'(无主题)')}</strong></span>${monitorContactHistory(group)}</div>
-            ${evidence}
-          </article>`;
-        }).join('');
-      }
-    }
-    monitorState.lastRenderAt=Date.now();
-    if(currentWorkbenchTab()==='dashboard')State.changed();
-  }
-
-  async function loadMonitoring() {
-    await State.ensureOperations();
-    // Entering monitoring starts from the full contact set; secondary filters are
-    // explicit so the user is never silently dropped into a hidden subset.
-    monitorState.filter='all';
-    monitorState.subfilter='all';
-    monitorState.attempts='all';
-    monitorState.search='';
-    const search=$('nmda-monitor-search');if(search)search.value='';
-    const attempts=$('nmda-monitor-attempts');if(attempts)attempts.value='all';
-    renderMonitoring();
-  }
-
-  async function syncMonitoringMailbox(mode='quick') {
-    if(monitorState.syncing)return null;
-    monitorState.syncing=true;
-    const quick=$('nmda-monitor-sync'), full=$('nmda-monitor-full-sync'), historySelect=$('nmda-monitor-history-months');
-    if(quick)quick.disabled=true;if(full)full.disabled=true;if(historySelect)historySelect.disabled=true;
-    const historyMonths=readMailboxHistoryMonths();
-    const rangeCopy=historyMonths?`最近 ${historyMonths} 个月`:'全部历史';
-    setMonitorNotice(mode==='full'?`正在重新核对${rangeCopy}的联系人状态…`:`正在更新${rangeCopy}的联系人状态…`);
-    try{
-      const result=await MailboxSync.request(mode==='full'?'full':'quick',{source:'monitor-manual',force:true});
-      renderMonitoring();
-      const contactGroups=Operations.monitoringRoots(operationState.store).map(group=>({...group,viewState:monitorGroupState(group)}));
-      const contactSummary=monitorSummary(contactGroups);
-      setMonitorNotice(`联系人状态已更新：已联系 ${contactSummary.total} 位 · 已回复 ${contactSummary.replied} 位 · 需要跟进 ${contactSummary.due} 位 · 已跟进 ${contactSummary.followUps} 次。`,'ok');
-      renderReviewPageOverview();
-      return result;
-    }catch(error){
-      setMonitorNotice(`联系人状态更新失败：${error?.message||String(error)}`,'error');
-      throw error;
-    }finally{
-      monitorState.syncing=false;if(quick)quick.disabled=false;if(full)full.disabled=false;if(historySelect)historySelect.disabled=false;
-    }
-  }
-
-  function followUpTemplateReasonText(reason, detail='') {
-    const code=String(reason||'');
-    const labels={
-      'template-missing':'未配置跟进邮件模板',
-      'initial-outbound-missing':'找不到对应的初始邮件发送记录',
-      'initial-provider-id-missing':'无法定位对应的初始邮件',
-      'sent-read-unavailable':'当前 163 页面无法调用邮件读取接口',
-      'sent-read-failed':'读取初始邮件正文失败',
-      'sent-read-empty':'未读取到初始邮件内容',
-      'sent-readhtml-url-unavailable':'暂时无法读取初始邮件正文',
-      'sent-readhtml-failed':'读取初始邮件正文失败',
-      'sent-readhtml-parse-failed':'已打开初始邮件，但未能识别正文',
-      'initial-body-missing':'尚未读取到初始邮件正文',
-      'salutation-and-signature-missing':'初始邮件中未识别到称呼和署名',
-      'salutation-missing':'初始邮件中未识别到称呼',
-      'signature-missing':'初始邮件中未识别到署名'
-    };
-    const base=labels[code]||code||'无法生成跟进邮件';
-    return detail?`${base}：${detail}`:base;
-  }
-
-  async function hydrateInitialContentForRoots(rootTaskIds = []) {
-    await State.ensureOperations();
-    const roots=[...new Set((rootTaskIds||[]).map(value=>String(value||'').trim()).filter(Boolean))];
-    const remote=[];
-    for(const rootTaskId of roots){
-      let initial=Operations.initialOutboundForRoot(operationState.store,rootTaskId);
-      if(!initial)continue;
-      if(String(initial.body||'').trim())continue;
-
-      // Prefer the exact Initial task body when this message originated from the
-      // current SmartMail batch. Historical mailbox mail falls through to readMessage.
-      const local=(batch.tasks||[]).find(task=>String(task.editKey||task.id||'')===rootTaskId && String(task.body||'').trim());
-      if(local){
-        const updated=Operations.setOutboundContentSnapshot(operationState.store,initial.id,{body:local.body||'',bodyHtml:local.bodyHtml||'',bodyIsHtml:!!local.bodyIsHtml,source:'initial-task'});
-        State.setStore(updated.store);
-        initial=updated.record;
-      }
-      if(String(initial?.body||'').trim())continue;
-
-      if(!String(initial?.providerMessageId||'').trim()){
-        const failed=Operations.setOutboundContentReadFailure(operationState.store,initial.id,'initial-provider-id-missing','无法定位 163 已发送邮件详情');
-        State.setStore(failed.store);
-        continue;
-      }
-      remote.push({rootTaskId,outboundId:initial.id,providerMessageId:String(initial.providerMessageId)});
-    }
-
-    if(remote.length){
-      const response=await Runtime.readSentDetails(remote.map(item=>item.providerMessageId));
-      if(!response?.ok)throw new Error(response?.reason||'读取初始邮件正文失败。');
-      const byId=new Map((response.details||[]).map(item=>[String(item?.id||''),item]));
-      for(const item of remote){
-        const detail=byId.get(String(item.providerMessageId));
-        if(!detail){
-          const failed=Operations.setOutboundContentReadFailure(operationState.store,item.outboundId,'sent-read-failed','未找到对应的已发送邮件');
-          State.setStore(failed.store);
-          continue;
-        }
-        if(!detail.ok){
-          const code=String(detail.reasonCode||'sent-read-failed');
-          const failed=Operations.setOutboundContentReadFailure(operationState.store,item.outboundId,code,detail.reason||'');
-          State.setStore(failed.store);
-          continue;
-        }
-        const updated=Operations.setOutboundContentSnapshot(operationState.store,item.outboundId,{body:detail.body,bodyHtml:detail.bodyHtml||'',isHtml:detail.isHtml===true,source:`sent-message-detail:${detail.bodySource}`});
-        State.setStore(updated.store);
-      }
-    }
-
-
-    return roots.map(rootTaskId=>{
-      const rendered=Operations.renderFollowUpTemplate(operationState.store,rootTaskId);
-      return {rootTaskId,rendered,reasonText:rendered?.ok?'':followUpTemplateReasonText(rendered?.reason,rendered?.reasonDetail)};
-    });
-  }
-
-  async function createMonitorFollowUp(rootTaskId, manual=false) {
-    await State.ensureOperations();
-    const policy=Operations.policyForRoot(operationState.store,rootTaskId);
-    if(!String(policy.templateBody||'').trim()){setMonitorNotice('请先设置跟进邮件正文模板。','warn');return;}
-    try{
-      const hydrated=await hydrateInitialContentForRoots([rootTaskId]);
-      const prep=hydrated[0]?.rendered;
-      if(!prep?.ok){setMonitorNotice(`无法模板生成：${hydrated[0]?.reasonText||followUpTemplateReasonText(prep?.reason,prep?.reasonDetail)}`,'error');return;}
-      const created=Operations.createFollowUpTask(operationState.store,rootTaskId,{manual});
-      State.setStore(created.store);
-
-      renderMonitoring();
-      const autoPassed=created.task.reviewDecision==='auto' && created.task.dispatch?.queued===true;
-      setMonitorNotice(autoPassed
-        ? `跟进邮件 #${created.task.sequence} 已按模板生成并完成审阅，已进入“安排发送”。`
-        : `跟进邮件 #${created.task.sequence} 已按模板生成；检测到需要处理的内容，请到“审阅邮件”查看。`,autoPassed?'ok':'warn');
-      renderReviewPageOverview();
-    }catch(error){setMonitorNotice(error?.message||String(error),'error');}
-  }
-
-  async function batchCreateMonitorFollowUps() {
-    await State.ensureOperations();
-    const selected=[...monitorSelectedIds()];
-    if(!selected.length){setMonitorNotice('请先选择需要跟进的联系人。','warn');return;}
-    const policy=operationState.store.followUpPolicies?.default || Operations.DEFAULT_FOLLOWUP_POLICY;
-    if(!String(policy.templateBody||'').trim()){setMonitorNotice('请先设置跟进邮件正文模板，再批量准备联系人跟进。','warn');return;}
-    try{
-      setMonitorNotice(`正在准备 ${selected.length} 位联系人的跟进内容…`);
-      const hydrated=await hydrateInitialContentForRoots(selected);
-      const readyRoots=hydrated.filter(item=>item.rendered?.ok).map(item=>item.rootTaskId);
-      const hydrateSkipped=hydrated.filter(item=>!item.rendered?.ok).map(item=>({rootTaskId:item.rootTaskId,reason:item.rendered?.reason||'initial-body-missing',reasonText:item.reasonText||followUpTemplateReasonText(item.rendered?.reason,item.rendered?.reasonDetail)}));
-      const result=Operations.createFollowUpTasks(operationState.store,readyRoots);
-      State.setStore(result.store);
-
-      monitorSelectedIds().clear();
-      renderMonitoring();
-      const createSkipped=(result.skipped||[]).map(item=>({...item,reasonText:followUpTemplateReasonText(item.reason)}));
-      const allSkipped=[...hydrateSkipped,...createSkipped];
-      const reasons=[...new Set(allSkipped.map(item=>item.reasonText||item.reason).filter(Boolean))];
-      const autoPassed=result.created.filter(task=>task.reviewDecision==='auto'&&task.dispatch?.queued===true).length;
-      const needsReview=result.created.length-autoPassed;
-      const generatedCopy=`已生成 ${result.created.length} 封跟进邮件 · ${autoPassed} 封已就绪${needsReview?` · ${needsReview} 封需处理`:''}`;
-      setMonitorNotice(`${generatedCopy}${allSkipped.length?`；${allSkipped.length} 个未生成${reasons.length?`（${reasons.slice(0,4).join('；')}${reasons.length>4?'；…':''}）`:''}`:''}。`,result.created.length?'ok':'warn');
-      renderReviewPageOverview();
-    }catch(error){setMonitorNotice(`批量生成失败：${error?.message||String(error)}`,'error');}
-  }
-
-  async function cancelMonitorFollowUp(taskId) {
-    await State.ensureOperations();
-    const task=operationState.store.derivedTasks?.[taskId];
-    if(!task)return;
-    if(!confirm(`取消跟进邮件 #${task.sequence}？已创建的网易草稿不会被自动删除。`))return;
-    try{
-      const result=Operations.setDerivedTaskState(operationState.store,taskId,'cancelled');
-      State.setStore(result.store);renderMonitoring();renderReviewPageOverview();setMonitorNotice('本次跟进邮件已取消；如仍符合规则，可按当前模板重新生成。','ok');
-    }catch(error){setMonitorNotice(error?.message||String(error),'error');}
-  }
-
-
-  function setMonitorSettingsView(view='policy') {
-    const next=view==='template'?'template':'policy';
-    ui.querySelectorAll('[data-monitor-settings-tab]').forEach(button=>{
-      const active=(button.dataset.monitorSettingsTab||'policy')===next;
-      button.classList.toggle('is-active',active);
-      button.setAttribute('aria-selected',active?'true':'false');
-    });
-    ui.querySelectorAll('[data-monitor-settings-pane]').forEach(pane=>{
-      pane.hidden=(pane.dataset.monitorSettingsPane||'policy')!==next;
-    });
-    const dialog=$('nmda-monitor-settings-overlay');if(dialog)dialog.dataset.view=next;
-  }
-
-  function openMonitorSettings(view='policy') {
-    const overlay=$('nmda-monitor-settings-overlay');if(!overlay)return;
-    setMonitorSettingsView(view);
-    overlay.hidden=false;
-    requestAnimationFrame(()=>{
-      const target=view==='template'?$('nmda-monitor-template-body'):$('nmda-monitor-delay');
-      target?.focus?.({preventScroll:true});
-    });
-  }
-
-  function closeMonitorSettings() {
-    const overlay=$('nmda-monitor-settings-overlay');if(overlay)overlay.hidden=true;
-  }
-
-  function setMonitorFilter(filter='all',{subfilter='all',clearSearch=false,scrollToList=false}={}) {
-    monitorState.filter=['all','attention','waiting','complete'].includes(filter)?filter:'all';
-    monitorState.subfilter=subfilter||'all';
-    monitorState.attempts='all';
-    if(clearSearch){
-      monitorState.search='';
-      const search=$('nmda-monitor-search');if(search)search.value='';
-    }
-    renderMonitoring();
-    if(scrollToList){
-      requestAnimationFrame(()=>($('nmda-monitor-filterbar')||$('nmda-monitor-list'))?.scrollIntoView?.({behavior:'smooth',block:'start'}));
-    }
-  }
-
-  function setMonitorSubfilter(subfilter='all') {
-    monitorState.subfilter=subfilter||'all';
-    renderMonitoring();
-  }
-
-  function bindMonitoringUI() {
-    $('nmda-monitor-sync')?.addEventListener('click',()=>void syncMonitoringMailbox('quick'));
-    $('nmda-monitor-full-sync')?.addEventListener('click',()=>{const months=readMailboxHistoryMonths();const range=months?`最近 ${months} 个月`:'全部邮件';if(confirm(`将按“${range}”重新核对联系人历史、回复和后续安排，继续吗？`))void syncMonitoringMailbox('full');});
-    $('nmda-monitor-history-months')?.addEventListener('change',event=>{void (async()=>{
-      const months=writeMailboxHistoryMonths(event.currentTarget.value);
-      MailboxSync.invalidate();
-      renderMonitoring();
-      setMonitorNotice(months?`监测范围已改为最近 ${months} 个月；正在重新汇总联系人状态。`:'监测范围已改为全部历史；正在重新汇总联系人状态。');
-      try{await syncMonitoringMailbox('full');}catch(_){}
-    })();});
-    $('nmda-monitor-open-policy')?.addEventListener('click',()=>openMonitorSettings('policy'));
-    $('nmda-monitor-open-template')?.addEventListener('click',()=>openMonitorSettings('template'));
-    $('nmda-monitor-settings-close')?.addEventListener('click',closeMonitorSettings);
-    $('nmda-monitor-settings-done')?.addEventListener('click',closeMonitorSettings);
-    $('nmda-monitor-settings-overlay')?.addEventListener('click',event=>{if(event.target===event.currentTarget)closeMonitorSettings();});
-    ui.querySelectorAll('[data-monitor-settings-tab]').forEach(button=>button.addEventListener('click',()=>setMonitorSettingsView(button.dataset.monitorSettingsTab||'policy')));
-    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('nmda-monitor-settings-overlay')?.hidden)closeMonitorSettings();});
-    $('nmda-monitor-save-policy')?.addEventListener('click',async()=>{
-      await State.ensureOperations();
-      const result=Operations.setFollowUpPolicy(operationState.store,'',{delayDays:Number($('nmda-monitor-delay').value||0),maxAttempts:Number($('nmda-monitor-max').value||0),composeMode:$('nmda-monitor-compose-mode').value||'forward'});
-      State.setStore(result.store);writeFollowUpPrefs(result.policy);renderMonitoring();setMonitorNotice('跟进规则已保存，并已重新计算所有联系人状态。','ok');
-    });
-    $('nmda-monitor-template-body')?.addEventListener('input',event=>{
-      const field=event.currentTarget;const saved=String((operationState.store?.followUpPolicies?.default||Operations.DEFAULT_FOLLOWUP_POLICY)?.templateBody||'').replace(/\r\n?/g,'\n').trim();
-      field.dataset.dirty=String(field.value||'').replace(/\r\n?/g,'\n').trim()===saved?'0':'1';
-      renderMonitorFollowUpTemplate();
-    });
-    $('nmda-monitor-template-sync')?.addEventListener('change',renderMonitorFollowUpTemplate);
-    $('nmda-monitor-save-template')?.addEventListener('click',()=>void saveMonitorFollowUpTemplate());
-    ui.querySelectorAll('[data-monitor-filter]').forEach(button=>button.addEventListener('click',()=>setMonitorFilter(button.dataset.monitorFilter||'all')));
-    ui.querySelectorAll('[data-monitor-subfilter]').forEach(button=>button.addEventListener('click',()=>setMonitorSubfilter(button.dataset.monitorSubfilter||'all')));
-    ui.querySelectorAll('[data-monitor-summary-filter]').forEach(button=>button.addEventListener('click',()=>setMonitorFilter(button.dataset.monitorSummaryFilter||'all',{subfilter:button.dataset.monitorSummarySubfilter||'all',clearSearch:true,scrollToList:true})));
-    $('nmda-monitor-due-summary')?.addEventListener('click',event=>{
-      const summary=event.currentTarget;if(summary.disabled)return;
-      setMonitorFilter('attention',{subfilter:'due',clearSearch:true,scrollToList:true});
-    });
-    $('nmda-monitor-attempts')?.addEventListener('change',event=>{monitorState.attempts=event.currentTarget.value||'all';renderMonitoring();});
-    $('nmda-monitor-search')?.addEventListener('input',event=>{monitorState.search=event.currentTarget.value||'';renderMonitoring();});
-    $('nmda-monitor-select-visible')?.addEventListener('change',event=>{
-      const selected=monitorSelectedIds();
-      const groups=Operations.monitoringRoots(operationState.store).map(group=>({...group,viewState:monitorGroupState(group)}));
-      const query=String(monitorState.search||'').toLocaleLowerCase('zh-CN').trim();
-      const visible=groups.filter(item=>monitorMatchesCurrentFilters(item,query)&&monitorCreatable(item));
-      visible.forEach(item=>event.currentTarget.checked?selected.add(item.rootTaskId):selected.delete(item.rootTaskId));
-      renderMonitoring();
-    });
-    $('nmda-monitor-clear-selection')?.addEventListener('click',()=>{monitorSelectedIds().clear();renderMonitoring();});
-    $('nmda-monitor-batch-create')?.addEventListener('click',()=>void batchCreateMonitorFollowUps());
-    $('nmda-monitor-list')?.addEventListener('change',event=>{
-      const checkbox=event.target.closest('[data-monitor-select]');if(!checkbox)return;
-      const selected=monitorSelectedIds();
-      checkbox.checked?selected.add(checkbox.dataset.monitorSelect):selected.delete(checkbox.dataset.monitorSelect);
-      renderMonitoring();
-    });
-    $('nmda-monitor-list')?.addEventListener('click',event=>{
-      const openMail=event.target.closest('[data-monitor-open-mail]');if(openMail){void (async()=>{const messageId=String(openMail.dataset.monitorOpenMail||'').trim();const result=messageId?await Runtime.openMessage(messageId,1):await Runtime.openMail(true);if(!result?.ok)setMonitorNotice(result?.reason||'无法打开网易邮箱中的回复，请先确认邮箱已登录。','error');})();return;}
-      const create=event.target.closest('[data-monitor-create]');if(create){void createMonitorFollowUp(create.dataset.monitorCreate,create.dataset.manual==='1');return;}
-      const dispatch=event.target.closest('[data-monitor-dispatch]');if(dispatch){setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});return;}
-      const review=event.target.closest('[data-monitor-review]');if(review){void openReviewWorkspace({pendingOnly:false,taskKey:`fu-review:${review.dataset.monitorReview}`});return;}
-      const cancelFollowUp=event.target.closest('[data-monitor-cancel-followup]');if(cancelFollowUp){void cancelMonitorFollowUp(cancelFollowUp.dataset.monitorCancelFollowup);return;}
-      const disposition=event.target.closest('[data-reply-disposition]');if(disposition){void (async()=>{await State.ensureOperations();const result=Operations.setReplyObservationDisposition(operationState.store,disposition.dataset.replyId,disposition.dataset.replyDisposition);State.setStore(result.store);renderMonitoring();renderReviewPageOverview();setMonitorNotice('联系人回复状态已更新，并重新计算后续跟进。','ok');})();}
-    });
-  }
-
-  bindMonitoringUI();
 
   function taskBusinessTags(task) {
     return Operations?.parseTags?.(task?.tags || []) || [];
@@ -1120,7 +542,7 @@
     if(pane)pane.dataset.utilityView=normalized;
     const home=$('nmda-utilities-home');if(home)home.hidden=normalized!=='home';
     ui.querySelectorAll('[data-utility-workspace]').forEach(section=>{section.hidden=section.dataset.utilityWorkspace!==normalized;});
-    if(normalized==='monitor')requestAnimationFrame(()=>{void loadMonitoring();});
+    if(normalized==='monitor')requestAnimationFrame(()=>{window.dispatchEvent(new Event('nmda:monitor-open')); });
     if(normalized==='draft-attachments')requestAnimationFrame(()=>{ if(!draftAttachmentTool.scanned&&!draftAttachmentTool.loading) void scanDraftAttachmentTool(); else renderDraftAttachmentTool(); });
     if(options.syncHash!==false){
       const target=normalized==='home'?'#utilities':`#utilities/${normalized}`;
@@ -1132,6 +554,22 @@
     setWorkbenchTab('utilities');
     setUtilityView(view);
   }
+  window.addEventListener('nmda:open-utility', event => openUtilityView(event.detail || 'home'));
+
+  window.addEventListener('nmda:monitor-navigate', event => {
+    const { action, id } = event.detail || {};
+    if (action === 'dispatch') {
+      setWorkbenchTab('dispatch');
+      history.replaceState(null, '', '#dispatch');
+      scheduleBatchRender({aux:false,force:true});
+    } else if (action === 'review') {
+      void openReviewWorkspace({pendingOnly:false,taskKey:`fu-review:${id}`});
+    }
+  });
+  window.addEventListener('nmda:followup-updated', () => {
+    renderReviewPageOverview();
+    scheduleBatchRender({aux:true});
+  });
 
   function processStepAccess(step, options={}) {
     const n=Math.min(2,Math.max(1,Number(step||1)));
@@ -1240,7 +678,7 @@
     if (name === 'review') requestAnimationFrame(() => { if(reviewInlineEl)reviewInlineEl.hidden=false; void (async()=>{ await State.ensureOperations(); renderReviewPageOverview(); })(); });
     if (name === 'dispatch') requestAnimationFrame(() => { void (async()=>{ await State.ensureOperations(); scheduleBatchRender({aux:false,force:true}); })(); });
     if (name === 'dashboard') requestAnimationFrame(() => { void (async()=>{ await State.ensureOperations(); State.changed(); })(); });
-    if (name === 'utilities') requestAnimationFrame(() => { renderUtilityHubSummary(); if(activeUtilityView==='monitor')void loadMonitoring(); else if(activeUtilityView==='draft-attachments'){ if(!draftAttachmentTool.scanned&&!draftAttachmentTool.loading) void scanDraftAttachmentTool(); else renderDraftAttachmentTool(); } });
+    if (name === 'utilities') requestAnimationFrame(() => { renderUtilityHubSummary(); if(activeUtilityView==='monitor')window.dispatchEvent(new Event('nmda:monitor-open'));  else if(activeUtilityView==='draft-attachments'){ if(!draftAttachmentTool.scanned&&!draftAttachmentTool.loading) void scanDraftAttachmentTool(); else renderDraftAttachmentTool(); } });
     if(name==='batch' && batch?.dataset && !mailboxDedupeSnapshotAvailable()) MailboxSync.schedule('history',{source:'batch'});
     else MailboxSync.schedule('quick',{source:`tab:${name}`});
   }
@@ -1654,7 +1092,7 @@
       const result=await openOriginal163Message(trigger.dataset.openOriginalMail,trigger.dataset.openOriginalFid||3);
       if(!result?.ok){
         const message=result?.reason==='original-message-unavailable'?'该任务尚未匹配到 163 原信件。':`无法打开 163 原信件：${result?.reason||'未知错误'}`;
-        if(currentWorkbenchTab()==='utilities'&&activeUtilityView==='monitor')setMonitorNotice(message,'error');else setImportStatus(message,'warn');
+        if(currentWorkbenchTab()==='utilities'&&activeUtilityView==='monitor')reportMonitorNotice(message,'error');else setImportStatus(message,'warn');
       }
     })();
   });
@@ -2379,8 +1817,8 @@
   }
 
   function renderUtilityHubSummary(){
-    const meta=$('nmda-utility-draft-attachment-meta');
-    if(meta)meta.textContent=draftAttachmentTool.loading?'正在读取草稿箱':draftAttachmentTool.scanned?`${draftAttachmentTool.drafts.length} 封草稿 · ${draftAttachmentTool.groups.length} 组附件`:'读取草稿箱';
+    const summary=draftAttachmentTool.loading?'正在读取草稿箱':draftAttachmentTool.scanned?`${draftAttachmentTool.drafts.length} 封草稿 · ${draftAttachmentTool.groups.length} 组附件`:'读取草稿箱';
+    window.dispatchEvent(new CustomEvent('nmda:draft-attachment-summary',{detail:summary}));
   }
 
   async function scanDraftAttachmentTool(options={}){
@@ -3529,24 +2967,6 @@
     return analyzeGovernanceRule(rule);
   }
 
-  function validateFollowUpTemplateBody(value){
-    const templateBody=String(value||'').replace(/\r\n?/g,'\n').trim();
-    if(!templateBody)return{valid:true,empty:true,body:'',reason:''};
-    const lines=templateBody.split('\n').map(line=>line.trim()).filter(Boolean);
-    const first=lines[0]||'',last=lines[lines.length-1]||'';
-    if(/^(?:dear\b|hi\b|hello\b|prof(?:essor)?\.?\b|dr\.?\b|尊敬的|您好)/i.test(first))return{valid:false,empty:false,body:templateBody,reason:'称呼会从初始邮件自动带入；模板只填写中间正文。'};
-    if(/^(?:best(?:\s+regards)?|kind\s+regards|warm\s+regards|regards|sincerely|yours\s+sincerely|best\s+wishes|many\s+thanks|thank\s+you|谢谢|此致|祝好)[,!，！。]?$/i.test(last))return{valid:false,empty:false,body:templateBody,reason:'署名会从初始邮件自动带入；模板只填写中间正文。'};
-    return{valid:true,empty:false,body:templateBody,reason:''};
-  }
-
-  function templateManagedPendingFollowUps(){
-    if(!operationState.loaded||!operationState.store?.derivedTasks)return[];
-    return Object.values(operationState.store.derivedTasks||{}).filter(task=>{
-      if(!task||task.kind!=='follow_up'||['sent','cancelled','blocked','scheduled'].includes(task.state))return false;
-      return task.templateManaged===true||(task.templateManaged===undefined&&Number(task.contentVersion||1)===1);
-    });
-  }
-
   function currentBatchProcessingPlan(){
     const subjectState=batchSubjectGovernanceState();
     const formatAnalyses=queuedGovernanceRules().map(rule=>analyzeGovernanceRule(rule)).filter(analysis=>analysis.changeTasks>0);
@@ -3977,7 +3397,7 @@
         State.setStore(updated.store);
       }catch(error){setPreviewEditFeedback(key,error?.message||String(error),'error');return false;}
       batch.reviewEditingKey='';
-      renderReviewPageOverview();renderMonitoring();scheduleBatchRender({aux:false,force:true});
+      renderReviewPageOverview();State.changed();scheduleBatchRender({aux:false,force:true});
       setImportStatus('修改已保存；请核对当前版本后再安排发送。','warn');
       focusReviewTask(key,{behavior:'auto',block:'center'});
       return true;
@@ -4012,7 +3432,7 @@
       await State.ensureOperations();
       try{const passed=Operations.passDerivedTaskReview(operationState.store,task.derivedTaskId);State.setStore(passed.store);}
       catch(error){setImportStatus(error?.message||String(error),'error');return false;}
-      batch.reviewSelected?.delete?.(key);renderMonitoring();scheduleBatchRender({aux:false,force:true});
+      batch.reviewSelected?.delete?.(key);State.changed();scheduleBatchRender({aux:false,force:true});
       setImportStatus(`跟进邮件 #${Math.max(1,Number(task.sequence||1))} 已确认，并进入安排发送。`,'ok');
     }else{
       const previousEdit=batch.taskEdits.get(key)||{};
@@ -4035,7 +3455,7 @@
     batch.reviewSelected?.delete?.(key);
     if(isFollowUpReviewTask(task)){
       await State.ensureOperations();const result=Operations.setDerivedTaskState(operationState.store,task.derivedTaskId,'cancelled');State.setStore(result.store);
-      setImportStatus(`已取消跟进邮件 #${Math.max(1,Number(task.sequence||1))}。`,'ok');renderMonitoring();
+      setImportStatus(`已取消跟进邮件 #${Math.max(1,Number(task.sequence||1))}。`,'ok');State.changed();
     }else{
       batch.handoffComplete=false;setTaskEdit(task,{importExcluded:true});rebuildTasks();
       setImportStatus(`已将「${label}」移入垃圾箱；可随时恢复。`,'ok');
@@ -4071,7 +3491,7 @@
     batch.reviewSelected.clear();
     rebuildTasks();
     renderReviewPageOverview();
-    renderMonitoring();
+    State.changed();
     scheduleBatchRender({aux:false,force:true});
     const message=blocked
       ? `已通过 ${confirmed} 封；${blocked} 封仍有阻断或必填信息缺失。`
@@ -6793,17 +6213,12 @@
       Persistence.clearPreferences();
 
       dispatchRuntime?.clear?.();
-      monitorSelectedIds().clear();monitorState.filter='all';monitorState.subfilter='all';monitorState.attempts='all';monitorState.search='';monitorState.syncing=false;monitorState.lastRenderAt=0;
-      const monitorSearch=$('nmda-monitor-search');if(monitorSearch)monitorSearch.value='';
-      const template=$('nmda-monitor-template-body');if(template){template.value='';template.dataset.dirty='0';template.dataset.initialized='0';}
-      const syncTemplate=$('nmda-monitor-template-sync');if(syncTemplate)syncTemplate.checked=true;
-      const settingsOverlay=$('nmda-monitor-settings-overlay');if(settingsOverlay)settingsOverlay.hidden=true;
+      window.dispatchEvent(new Event('nmda:monitor-reset'));
 
       State.resetOperations(operationState.account || await State.detectAccount());
       resetImportWorkspace({clearStored:false,message:'SmartMail 已完全重置。可直接导入新的资料重新开始。'});
       syncScheduleRuleControls();
-      renderMonitorFollowUpTemplate();
-      renderMonitoring();
+      State.changed();
       renderReviewPageOverview();
       setWorkbenchTab('batch');history.replaceState(null,'','#batch');
       if(status){status.dataset.tone='ok';status.textContent='已清空全部 SmartMail 本地数据。';}
@@ -7122,7 +6537,6 @@
       ? '快速创建已开启：创建新邮件时优先使用快速模式；遇到不兼容情况会自动切换为标准模式。'
       : '快速创建已关闭：使用标准模式创建邮件。', 'ok');
   });
-  ui.querySelectorAll('[data-open-utility]').forEach(entry=>entry.addEventListener('click',()=>openUtilityView(entry.dataset.openUtility||'home')));
   ui.querySelectorAll('[data-utility-back]').forEach(entry=>entry.addEventListener('click',()=>setUtilityView('home')));
   $('nmda-draft-attachment-refresh')?.addEventListener('click',()=>void scanDraftAttachmentTool());
   $('nmda-draft-attachment-search')?.addEventListener('input',event=>{draftAttachmentTool.search=String(event.target.value||'');renderDraftAttachmentTool();});
