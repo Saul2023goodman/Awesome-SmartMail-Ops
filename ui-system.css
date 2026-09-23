@@ -78,20 +78,8 @@ html.nmda-app-document body.nmda-app-body {
 .nmda-title { color:var(--nmda-text); font-size:14px; font-weight:760; letter-spacing:-.01em; }
 .nmda-subtitle { display:none; }
 .nmda-head-actions { min-width:0; gap:8px; }
-.nmda-mail-connection {
-  min-width:250px;
-  min-height:34px;
-  grid-template-columns:10px minmax(0,1fr) auto;
-  gap:9px;
-  padding:3px 4px 3px 9px;
-  border-color:var(--nmda-border-strong);
-  border-radius:10px;
-  box-shadow:none;
-}
-.nmda-mail-connection-copy strong { color:var(--nmda-text); font-size:11px; font-weight:720; }
-.nmda-mail-connection-copy small { display:none; }
-.nmda-mail-open-button { min-height:28px !important; height:28px !important; padding:0 9px !important; font-size:10.5px !important; }
-
+/* Mailbox connection capsule styles moved to the React workspace component
+   (issue #2): src/workspace/mailbox-connection.css */
 
 /* ---------- primary navigation ---------- */
 #nmda-root.nmda-standalone .nmda-tabs {
@@ -554,8 +542,6 @@ html.nmda-app-document body.nmda-app-body {
 /* ---------- responsive behavior ---------- */
 @media (max-width:1180px) {
   #nmda-root.nmda-standalone #nmda-panel { grid-template-columns:176px minmax(0,1fr) !important; }
-  .nmda-mail-connection { min-width:230px; }
-  .nmda-mail-connection-copy small { display:none; }
   .nmda-process-guide { grid-template-columns:90px repeat(3,minmax(100px,1fr)); }
   .nmda-process-guide > button[data-flow-step] small { display:none !important; }
   .nmda-process-guide > button[data-flow-step] { grid-template-rows:1fr !important; }
@@ -570,9 +556,7 @@ html.nmda-app-document body.nmda-app-body {
   .nmda-nav-label,.nmda-tab > span:not(.nmda-tab-icon) { display:none !important; }
   .nmda-tab { grid-template-columns:1fr; justify-items:center; min-height:48px; padding:6px; }
   .nmda-tab-icon { width:34px; height:34px; }
-  .nmda-mail-connection { min-width:0; grid-template-columns:10px auto; }
-  .nmda-mail-connection-copy { display:none; }
-  
+
   .nmda-process-guide { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .nmda-process-guide-title { display:none !important; }
   .nmda-process-guide > button[data-flow-step] { grid-template-columns:26px minmax(0,1fr) !important; min-height:42px !important; }
@@ -593,8 +577,6 @@ html.nmda-app-document body.nmda-app-body {
   .nmda-brand-mark { width:32px; height:32px; }
   .nmda-title { font-size:13px; }
   .nmda-subtitle { display:none; }
-  .nmda-mail-connection { border:0; background:transparent !important; padding:0; }
-  .nmda-mail-open-button { min-height:34px !important; height:34px !important; }
   #nmda-root.nmda-standalone .nmda-main { grid-template-rows:54px minmax(0,1fr); }
   #nmda-root.nmda-standalone .nmda-page-head { min-height:54px; padding:8px 12px !important; }
   .nmda-page-head h2 { font-size:16px !important; }
@@ -1642,8 +1624,6 @@ html.nmda-app-document body.nmda-app-body {
 }
 #nmda-root.nmda-standalone .nmda-head { padding:0 12px !important; }
 
-#nmda-root.nmda-standalone .nmda-mail-connection { min-width:220px; min-height:34px; }
-#nmda-root.nmda-standalone .nmda-mail-connection-copy small { display:none !important; }
 #nmda-root.nmda-standalone .nmda-tabs { padding:9px 6px !important; }
 #nmda-root.nmda-standalone .nmda-nav-label { display:none !important; }
 #nmda-root.nmda-standalone .nmda-tab {
@@ -1811,8 +1791,6 @@ html.nmda-app-document body.nmda-app-body {
 @media (max-width:900px) {
   #nmda-root.nmda-standalone #nmda-panel { grid-template-columns:64px minmax(0,1fr) !important; }
   #nmda-root.nmda-standalone .nmda-title { font-size:13px; }
-  #nmda-root.nmda-standalone .nmda-mail-connection { min-width:0; grid-template-columns:10px auto !important; }
-  #nmda-root.nmda-standalone .nmda-mail-connection-copy { display:none !important; }
   #nmda-root.nmda-standalone .nmda-process-guide { grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
   #nmda-root.nmda-standalone .nmda-process-guide-title { display:none !important; }
   #nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid {

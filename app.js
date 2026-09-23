@@ -472,18 +472,7 @@
             </div>
           </div>
           <div class="nmda-head-actions">
-            <div class="nmda-mail-connection" id="nmda-mail-connection" data-state="checking">
-              <span class="nmda-mail-connection-dot"></span>
-              <span class="nmda-mail-connection-copy">
-                <strong id="nmda-mail-connection-title">正在检查网易邮箱</strong>
-                <small id="nmda-mail-connection-detail" class="nmda-mail-connection-detail">连接状态</small>
-                <span class="nmda-mail-auto-sync" id="nmda-mail-auto-sync" data-state="idle" aria-live="polite" title="SmartMail 会自动读取邮箱事实">
-                  <span class="nmda-mail-auto-sync-track" aria-hidden="true"><i></i><i></i><i></i><b></b></span>
-                  <span class="nmda-mail-auto-sync-copy"><strong id="nmda-mail-auto-sync-title">邮箱同步</strong><small id="nmda-mail-auto-sync-detail">保持最新</small></span>
-                </span>
-              </span>
-              <button class="nmda-btn nmda-btn-small nmda-mail-open-button" id="nmda-open-mail" type="button">连接邮箱</button>
-            </div>
+            <div id="nmda-connection-mount" data-workspace-mount="mailbox-connection"></div>
             <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-reset-all-entry" id="nmda-reset-all-data" type="button" title="清除当前工作内容并重新开始">重新开始</button>
             <button class="nmda-icon-btn" id="nmda-expand" type="button" title="全屏 / 还原">⛶</button>
             <button class="nmda-icon-btn nmda-close" id="nmda-close" type="button" title="关闭">×</button>
@@ -1368,6 +1357,23 @@
 
   const ui = buildUI();
 
+  // React workspace bridge (issue #2). The React mailbox connection widget
+  // emits 'nmda:connection-status' after every NMDA_CONNECTION_STATUS refresh
+  // and renders sync-cue state pushed through setSyncCue(). The React bundle
+  // creates a fallback bridge when app.js is absent.
+  window.NMDAWorkspaceBridge = {
+    syncCue: { state: 'idle', detail: '' },
+    listeners: new Set(),
+    setSyncCue(state = 'idle', detail = '') {
+      this.syncCue = { state: String(state || 'idle'), detail: String(detail || '') };
+      this.listeners.forEach(fn => { try { fn(this.syncCue); } catch (_) { /* subscriber gone */ } });
+    },
+    subscribe(fn) {
+      this.listeners.add(fn);
+      return () => { this.listeners.delete(fn); };
+    }
+  };
+
   // v3.8.82 · Global SmartMail data reset. Kept outside any single workflow page so a
   // stuck batch can be abandoned from Review / Dispatch / Monitoring without excluding
   // tasks one by one. This only clears SmartMail-owned local state; it never deletes
@@ -1561,15 +1567,10 @@
   window.addEventListener('resize',()=>{if(smartTemporalPopover&&!smartTemporalPopover.hidden)positionSmartTemporal();},{passive:true});
   panel.addEventListener('scroll',()=>{if(smartTemporalPopover&&!smartTemporalPopover.hidden)closeSmartTemporal();},{passive:true,capture:true});
 
-  const connectionEl=$('nmda-mail-connection'), connectionTitleEl=$('nmda-mail-connection-title'), connectionDetailEl=$('nmda-mail-connection-detail'), openMailEl=$('nmda-open-mail');
-  const mailboxAutoSyncEl=$('nmda-mail-auto-sync'), mailboxAutoSyncTitleEl=$('nmda-mail-auto-sync-title'), mailboxAutoSyncDetailEl=$('nmda-mail-auto-sync-detail');
   const mailboxAutoSyncState={running:null,runningKind:'',lastQuickAt:0,lastHistoryAt:0,lastFullAt:0,generation:0};
+  // The sync cue is rendered by the React mailbox connection widget.
   function setMailboxAutoSyncCue(state='idle',detail=''){
-    if(!mailboxAutoSyncEl)return;
-    mailboxAutoSyncEl.dataset.state=state;
-    const titles={idle:'自动同步',syncing:'正在读取邮箱',success:'邮箱已同步',error:'同步异常',waiting:'等待邮箱连接'};
-    if(mailboxAutoSyncTitleEl)mailboxAutoSyncTitleEl.textContent=titles[state]||titles.idle;
-    if(mailboxAutoSyncDetailEl)mailboxAutoSyncDetailEl.textContent=detail||({idle:'保持最新',syncing:'已发送 · 草稿 · 收件',success:'邮箱已更新',error:'稍后自动重试',waiting:'登录后自动开始'}[state]||'');
+    window.NMDAWorkspaceBridge?.setSyncCue?.(state,detail);
   }
   function mailboxSyncKindPriority(kind='quick'){
     return ({quick:1,history:2,full:3})[kind]||1;
@@ -1577,30 +1578,21 @@
   function scheduleMailboxAutoSync(kind='quick',options={}){
     queueMicrotask(()=>{ requestAutoMailboxSync(kind,options).catch(()=>{}); });
   }
-  async function refreshMailboxConnection(){
-    if(!connectionEl)return null;
-    try{
-      const state=await chrome.runtime.sendMessage({type:'NMDA_CONNECTION_STATUS'});
-      const connected=!!state?.connected, authenticated=!!state?.authenticated;
-      connectionEl.dataset.state=authenticated?'connected':connected?'login':'offline';
-      connectionTitleEl.textContent=authenticated?(state.account?`网易邮箱 · ${state.account}`:'网易邮箱已连接'):connected?'网易邮箱已打开 · 待登录':'网易邮箱未连接';
-      connectionDetailEl.textContent=authenticated?'已连接':connected?'请先登录':'未连接';
-      openMailEl.textContent=connected?'切换邮箱':'连接邮箱';
-      if(authenticated && state.account && Operations) {
-        const normalized=Operations.normalizeEmail(state.account)||String(state.account).toLowerCase();
-        if(operationState.loaded && operationState.account!==normalized){await ensureOperationStore(true);invalidateBatchView(true);}
-        scheduleMailboxAutoSync('quick',{source:'connection'});
-      } else if(!authenticated) {
-        setMailboxAutoSyncCue(connected?'waiting':'waiting',connected?'完成登录后自动读取':'连接网易邮箱后自动读取');
-      }
-      return state;
-    }catch(error){
-      connectionEl.dataset.state='offline'; connectionTitleEl.textContent='连接状态不可用'; connectionDetailEl.textContent=error?.message||String(error); return null;
+  // Connection polling, rendering and the "open mailbox" button are owned by
+  // the React <MailboxConnection> workspace component (issue #2). Keep only the
+  // non-visual side effects here, driven by the status events it emits.
+  async function handleMailboxConnectionStatus(state){
+    const connected=!!state?.connected, authenticated=!!state?.authenticated;
+    if(authenticated && state.account && Operations) {
+      const normalized=Operations.normalizeEmail(state.account)||String(state.account).toLowerCase();
+      if(operationState.loaded && operationState.account!==normalized){await ensureOperationStore(true);invalidateBatchView(true);}
+      scheduleMailboxAutoSync('quick',{source:'connection'});
+    } else if(!authenticated) {
+      setMailboxAutoSyncCue('waiting',connected?'完成登录后自动读取':'连接网易邮箱后自动读取');
     }
   }
-  openMailEl?.addEventListener('click',async()=>{openMailEl.disabled=true;try{await chrome.runtime.sendMessage({type:'NMDA_OPEN_MAIL',focus:true});}finally{openMailEl.disabled=false;setTimeout(refreshMailboxConnection,500);}});
+  window.addEventListener('nmda:connection-status',event=>{void handleMailboxConnectionStatus(event.detail);});
   chrome.runtime.onMessage.addListener(message=>{
-    if(message?.type==='NMDA_CONNECTION_CHANGED') refreshMailboxConnection();
     if(message?.type==='NMDA_EXECUTION_PROGRESS_BROADCAST'||message?.type==='NMDA_DRAFT_ATTACHMENT_PROGRESS_BROADCAST'){
       const handler=executionProgressHandlers.get(String(message.executionId||'')); if(handler) handler(message);
     }
@@ -1620,9 +1612,6 @@
       setBatchStatus('网易邮箱已请求停止：当前这一封完成后不会继续下一封。','warn');
     }
   });
-  window.addEventListener('focus',refreshMailboxConnection);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshMailboxConnection();});
-  refreshMailboxConnection();
   setTimeout(()=>scheduleMailboxAutoSync('quick',{source:'startup'}),120);
 
   const MAILBOX_HISTORY_MONTHS_KEY = 'nmda.mailbox.historyMonths';

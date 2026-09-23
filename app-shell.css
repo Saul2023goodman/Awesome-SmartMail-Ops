@@ -12,17 +12,9 @@ body.nmda-app-body{min-width:640px;}
 #nmda-root.nmda-standalone #nmda-expand,#nmda-root.nmda-standalone #nmda-close{display:none!important;}
 #nmda-root.nmda-standalone .nmda-tabpane{contain:none!important;}
 #nmda-root.nmda-standalone .nmda-supplement-preflight,#nmda-root.nmda-standalone .nmda-attachment-manager-overlay{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;z-index:2147483647!important;}
-.nmda-mail-connection{min-width:250px;display:grid;grid-template-columns:10px minmax(0,1fr) auto;align-items:center;gap:8px;padding:6px 7px 6px 9px;border:1px solid #d0d7de;border-radius:10px;background:#fff;}
-.nmda-mail-connection-dot{width:8px;height:8px;border-radius:999px;background:#8c959f;box-shadow:0 0 0 3px #f0f2f4;}
-.nmda-mail-connection-copy{min-width:0;display:grid;gap:1px;line-height:1.25;}
-.nmda-mail-connection-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#24292f;font-size:10px;font-weight:760;}
-.nmda-mail-connection-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6e7781;font-size:8.5px;}
-.nmda-mail-connection[data-state="connected"]{border-color:#a7d9b4;background:#f4fbf6;}.nmda-mail-connection[data-state="connected"] .nmda-mail-connection-dot{background:#1a7f37;box-shadow:0 0 0 3px #dafbe1;}
-.nmda-mail-connection[data-state="login"]{border-color:#f0c36d;background:#fffaf0;}.nmda-mail-connection[data-state="login"] .nmda-mail-connection-dot{background:#bf8700;box-shadow:0 0 0 3px #fff1c2;}
-.nmda-mail-connection[data-state="offline"] .nmda-mail-connection-dot{background:#cf222e;box-shadow:0 0 0 3px #ffebe9;}
-.nmda-mail-open-button{min-height:28px!important;height:28px;padding:4px 8px!important;white-space:nowrap;font-size:9px!important;}
-@media (max-width:1120px){.nmda-mail-connection{min-width:210px;}.nmda-mail-connection-copy small{display:none;}}
-@media (max-width:880px){#nmda-root.nmda-standalone #nmda-panel{grid-template-columns:64px minmax(0,1fr)!important;}.nmda-tabs .nmda-nav-label{display:none!important;}.nmda-mail-connection{min-width:0;grid-template-columns:10px auto;}.nmda-mail-connection-copy{display:none;}#nmda-root.nmda-standalone .nmda-head{padding-left:10px;padding-right:10px;}}
+/* The mailbox connection capsule migrated to the React workspace (issue #2);
+   its styles live in src/workspace/mailbox-connection.css. */
+@media (max-width:880px){#nmda-root.nmda-standalone #nmda-panel{grid-template-columns:64px minmax(0,1fr)!important;}.nmda-tabs .nmda-nav-label{display:none!important;}#nmda-root.nmda-standalone .nmda-head{padding-left:10px;padding-right:10px;}}
 /* Standalone pages do not need host-page layout containment. Keeping it would turn
    descendant position:fixed dialogs into main-column-relative overlays. */
 #nmda-root.nmda-standalone #nmda-panel,
