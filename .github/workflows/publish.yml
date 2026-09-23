@@ -1,0 +1,82 @@
+name: Publish SmartMail Ops
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(jq -r '.version' manifest.json)"
+          test -n "$VERSION"
+          test "$VERSION" != "null"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release already exists
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate extension
+        if: steps.release.outputs.exists != 'true'
+        shell: bash
+        run: |
+          jq empty manifest.json
+          find . -maxdepth 1 -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Package extension
+        if: steps.release.outputs.exists != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          mkdir -p package dist
+
+          while IFS= read -r file; do
+            case "$file" in
+              .github/*|*.md|dist/*|package/*)
+                continue
+                ;;
+            esac
+
+            mkdir -p "package/$(dirname "$file")"
+            cp "$file" "package/$file"
+          done < <(git ls-files)
+
+          (
+            cd package
+            zip -qr "../dist/smartmail-ops-$VERSION.zip" .
+          )
+
+      - name: Create GitHub Release
+        if: steps.release.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          gh release create "$TAG"             "dist/smartmail-ops-$VERSION.zip"             --target "$GITHUB_SHA"             --title "SmartMail Ops $TAG"             --notes "Packaged release of SmartMail Ops $VERSION. Built from main after manifest and JavaScript validation."
