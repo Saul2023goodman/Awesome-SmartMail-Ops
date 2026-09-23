@@ -1,15 +1,16 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// The extension root is the repository root (manifest.json lives here), so the
-// React workspace is built into ./workspace with stable, hash-free names and is
-// loaded directly by app.html / planner.html as a packaged resource.
-// `base: './'` keeps every URL relative to the extension page.
+// dist-extension/ is the only Chrome-loadable package root (see
+// scripts/copy-runtime.mjs). The React workspace is built into its
+// workspace/ subfolder with stable, hash-free names; app.html / planner.html
+// load it as a packaged resource. `base: './'` keeps every URL relative to the
+// extension page.
 export default defineConfig({
   plugins: [react()],
   base: './',
   build: {
-    outDir: 'workspace',
+    outDir: 'dist-extension/workspace',
     emptyOutDir: true,
     sourcemap: false,
     rollupOptions: {
