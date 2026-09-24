@@ -1553,17 +1553,12 @@
   }
 
   function renderPreflightSourceRoles() {
-    const details=$('nmda-preflight-source-routing'),summary=$('nmda-preflight-source-routing-summary');
+    const details=$('nmda-preflight-source-routing');
     const files=uniqueFiles(batch.dataset?.sourceFiles||[]),decisions=files.map(sourcePurposeDecision);
     batch.preflightReviewOnly=false;
     const counts={mail:0,roster:0,attachment:0,ignored:0,review:0};
     for(const decision of decisions){if(decision.needsReview)counts.review++;else counts[decision.purpose]=(counts[decision.purpose]||0)+1;}
     const visible=sourceVisibleDecisions(decisions),folder=batch.preflightFolderPath||'',folderName=folder?folder.split('/').pop():'全部文件';
-    const searchInput=$('nmda-preflight-source-search');if(searchInput&&searchInput.value!==String(batch.preflightSearch||''))searchInput.value=String(batch.preflightSearch||'');
-    if(summary)summary.textContent='文件列表';
-    const subtitle=$('nmda-preflight-source-routing-subtitle');if(subtitle)subtitle.textContent=counts.review?`有 ${counts.review} 个待确认；点击文件查看内容并修改用途。`:'分类无误可直接继续。';
-    const dirTitle=$('nmda-preflight-directory-title'),dirCount=$('nmda-preflight-directory-count');if(dirTitle)dirTitle.textContent=folderName;if(dirCount)dirCount.textContent=folder?`${visible.length}`:`${decisions.length}`;
-    for(const key of Object.keys(counts)){const target=$('nmda-preflight-dropzones')?.querySelector(`[data-drop-count="${key}"]`);if(target)target.textContent=counts[key]||0;}
     const folderTree=buildSourceFolderTree(decisions);
     const folders=(node,depth=0)=>[...node.folders.values()].sort((a,b)=>a.name.localeCompare(b.name,'zh-CN')).map(item=>({name:item.name,path:item.path,count:item.count,depth,children:folders(item,depth+1)}));
     const rows=visible.map(decision=>{
@@ -1571,7 +1566,7 @@
       const path=sourceDirectoryPath(decision.sourceName);
       return {source:decision.sourceName,fileName,fileVisual:sourceFileVisual(fileName),meta:[path||'根目录',humanFileSize(decision.file?.size)].filter(Boolean).join(' · '),tone:visual.tone,icon:visual.icon,label:visual.label,needsReview:decision.needsReview,selected:batch.sourceInspectName===decision.sourceName};
     });
-    globalThis.NMDAWorkspaceImportUi.publishPatch({sourceUi:{counts,filter:batch.preflightPurposeFilter||'',folder:batch.preflightFolderPath||'',total:decisions.length,folders:folders(folderTree),rows}});
+    globalThis.NMDAWorkspaceImportUi.publishPatch({sourceUi:{counts,filter:batch.preflightPurposeFilter||'',folder,folderName,visibleCount:visible.length,search:batch.preflightSearch||'',total:decisions.length,folders:folders(folderTree),rows}});
     if(details)details.hidden=!decisions.length;
     const selected=decisions.find(item=>item.sourceName===batch.sourceInspectName);renderSourceInspector(selected||null);
   }
@@ -1580,8 +1575,14 @@
     const {action,value,source}=event.detail||{};
     if(action==='filter'){batch.preflightPurposeFilter=batch.preflightPurposeFilter===value?'':value;renderPreflightSourceRoles();}
     else if(action==='folder'){batch.preflightFolderPath=String(value||'');renderPreflightSourceRoles();}
+    else if(action==='search'){batch.preflightSearch=String(value||'');renderPreflightSourceRoles();}
     else if(action==='inspect')inspectSourceInPreflight(source);
     else if(action==='purpose'){if(value==='review')setSourceNeedsReview(source);else setSourcePurpose(source,value);}
+    else if(action==='drop-purpose'){
+      document.querySelector('.nmda-classify-dialog')?.classList.remove('is-drag-classifying');
+      const selectedSource=source||batch.sourceInspectName;
+      if(selectedSource){if(value==='review')setSourceNeedsReview(selectedSource);else setSourcePurpose(selectedSource,value);}
+    }
     else if(action==='close-inspector'){batch.sourceInspectName='';renderPreflightSourceRoles();}
     else if(action==='drag-start'){batch.sourceInspectName=source;document.querySelector('.nmda-classify-dialog')?.classList.add('is-drag-classifying');}
     else if(action==='drag-end')document.querySelector('.nmda-classify-dialog')?.classList.remove('is-drag-classifying');
@@ -5684,7 +5685,6 @@
     else if(action==='support-view')setSupportView(view);
     else if(action==='attachments')openAttachmentManager();
   });
-  $('nmda-preflight-source-search')?.addEventListener('input',event=>{batch.preflightSearch=String(event.target.value||'');renderPreflightSourceRoles();});
   ui.querySelectorAll('[data-planning-view]').forEach(button=>button.addEventListener('click',()=>setPlanningView(button.dataset.planningView)));
   $('nmda-open-schedule-modal')?.addEventListener('click',openScheduleModal);
   $('nmda-schedule-open-priority')?.addEventListener('click',()=>openRosterPlannerView({returnToSchedule:true}));
@@ -5722,11 +5722,6 @@
     if(batch?.rosterPlannerOpen){event.preventDefault();closeRosterPlannerView();}
   });
 
-  $('nmda-preflight-dropzones')?.querySelectorAll('[data-drop-purpose]').forEach(zone=>{
-    zone.addEventListener('dragover',event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='move';zone.classList.add('is-over');});
-    zone.addEventListener('dragleave',event=>{if(!zone.contains(event.relatedTarget))zone.classList.remove('is-over');});
-    zone.addEventListener('drop',event=>{event.preventDefault();zone.classList.remove('is-over');document.querySelector('.nmda-classify-dialog')?.classList.remove('is-drag-classifying');const source=event.dataTransfer?.getData('text/plain')||batch.sourceInspectName;if(!source)return;const purpose=zone.dataset.dropPurpose||'';if(purpose==='review')setSourceNeedsReview(source);else setSourcePurpose(source,purpose);});
-  });
   $('nmda-attachment-later')?.addEventListener('click',()=>{
     batch.attachmentPromptDeferred=true;
     setImportStatus('附件检查已保留；可先处理邮件内容。','ok');

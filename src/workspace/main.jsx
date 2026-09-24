@@ -11,7 +11,7 @@ import PlanningBoard, { PlanningOverview, DispatchSummary, ExecutionPreflight } 
 import ImportIntake from './ImportIntake.jsx';
 import SourceInventory from './SourceInventory.jsx';
 import { PreflightHead, PreflightNav, PreflightFoot } from './PreflightFrame.jsx';
-import { PreflightChips, PreflightFolders, PreflightFiles } from './PreflightSources.jsx';
+import { PreflightChips, PreflightDirectoryHead, PreflightFolders, PreflightSourceTools, PreflightFiles } from './PreflightSources.jsx';
 import PreflightInspector from './PreflightInspector.jsx';
 import PreflightSupport from './PreflightSupport.jsx';
 import './mailbox-connection.css';
@@ -94,7 +94,7 @@ for (const [name, Component] of [['preflight-head', PreflightHead], ['preflight-
   });
 }
 
-for (const [name, Component] of [['preflight-chips', PreflightChips], ['preflight-folders', PreflightFolders], ['preflight-files', PreflightFiles]]) {
+for (const [name, Component] of [['preflight-chips', PreflightChips], ['preflight-directory-head', PreflightDirectoryHead], ['preflight-folders', PreflightFolders], ['preflight-source-tools', PreflightSourceTools], ['preflight-files', PreflightFiles]]) {
   document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
     createRoot(host).render(<StrictMode><Component /></StrictMode>);
   });

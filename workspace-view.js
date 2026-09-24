@@ -177,33 +177,14 @@
                   <div class="nmda-classify-workspace" data-preflight-view="files">
                     <div class="nmda-classify-files-view" data-preflight-panel="files">
                     <aside class="nmda-classify-sidebar">
-                      <div class="nmda-classify-pane-head">
-                        <div><span>目录 / 批次</span><strong id="nmda-preflight-directory-title">全部文件</strong></div>
-                        <span id="nmda-preflight-directory-count">0</span>
-                      </div>
+                      <div data-workspace-mount="preflight-directory-head" style="display:contents"></div>
                       <div data-workspace-mount="preflight-folders" style="display:contents"></div>
 
 
                     </aside>
 
                     <section class="nmda-preflight-source-routing nmda-classify-main" id="nmda-preflight-source-routing">
-                      <div class="nmda-classify-toolbar">
-                        <div class="nmda-classify-toolbar-title">
-                          <strong id="nmda-preflight-source-routing-summary">文件列表</strong>
-                          <small id="nmda-preflight-source-routing-subtitle">点击文件在右侧查看内容；用途不对时再修改。</small>
-                        </div>
-                        <div class="nmda-classify-toolbar-actions">
-                          <label class="nmda-classify-search"><span>⌕</span><input id="nmda-preflight-source-search" type="search" placeholder="搜索文件名或目录"></label>
-                        </div>
-                      </div>
-
-                      <div class="nmda-classify-dropzones" id="nmda-preflight-dropzones" aria-label="拖拽文件重新分类">
-                        <button class="nmda-classify-dropzone" data-drop-purpose="mail" data-tone="mail" type="button"><span class="nmda-drop-icon">✉</span><span><strong>邮件</strong><small>拖到这里</small></span><b data-drop-count="mail">0</b></button>
-                        <button class="nmda-classify-dropzone" data-drop-purpose="roster" data-tone="roster" type="button"><span class="nmda-drop-icon">名</span><span><strong>总名单</strong><small>拖到这里</small></span><b data-drop-count="roster">0</b></button>
-                        <button class="nmda-classify-dropzone" data-drop-purpose="attachment" data-tone="attachment" type="button"><span class="nmda-drop-icon">附</span><span><strong>附件</strong><small>拖到这里</small></span><b data-drop-count="attachment">0</b></button>
-                        <button class="nmda-classify-dropzone" data-drop-purpose="review" data-tone="review" type="button"><span class="nmda-drop-icon">!</span><span><strong>待确认</strong><small>稍后再看</small></span><b data-drop-count="review">0</b></button>
-                        <button class="nmda-classify-dropzone" data-drop-purpose="ignored" data-tone="ignored" type="button"><span class="nmda-drop-icon">×</span><span><strong>暂不使用</strong><small>本批次忽略</small></span><b data-drop-count="ignored">0</b></button>
-                      </div>
+                      <div data-workspace-mount="preflight-source-tools" style="display:contents"></div>
 
                       <div class="nmda-preflight-routing-tip" hidden><span>↕</span><small>拖动文件时会出现快速归类区域。</small></div>
                       <div data-workspace-mount="preflight-files" style="display:contents"></div>

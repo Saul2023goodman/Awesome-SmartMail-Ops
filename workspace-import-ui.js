@@ -6,7 +6,7 @@
     inventory:{visible:false,summary:'',rows:[],containerNames:'',duplicateCount:0,embeddedCount:0,warnings:[]},
     status:{message:'还没有添加资料。',kind:''},
     preflight:{view:'files',reviewCount:0,taskCount:0},
-    sourceUi:{counts:{mail:0,roster:0,attachment:0,review:0,ignored:0},filter:'',folder:'',total:0,folders:[],rows:[]},
+    sourceUi:{counts:{mail:0,roster:0,attachment:0,review:0,ignored:0},filter:'',folder:'',folderName:'全部文件',visibleCount:0,search:'',total:0,folders:[],rows:[]},
     inspector:null,
     support:{view:'roster',roster:{state:'pending',count:0},attachment:{state:'pending',total:0,issues:0,count:0,requirements:[]}} };
   function publishPatch(patch) {
