@@ -732,7 +732,6 @@
 
 
   const importFileEl = $('nmda-import-file'), importDirEl = $('nmda-import-dir'), rosterFileEl = $('nmda-roster-file');
-  const pasteSourceEl = $('nmda-paste-source');
   const reviewQueueEl = $('nmda-review-queue'), reviewBoardHost=ui.querySelector('[data-workspace-mount="review-board"]'), reviewPreviewPagesEl=$('nmda-review-preview-pages'), reviewPreviewRailEl=$('nmda-review-preview-rail'), reviewPreviewRailListEl=$('nmda-review-preview-rail-list'), reviewPreviewRailCountEl=$('nmda-review-preview-rail-count'), reviewProgressEl = $('nmda-review-progress');
   const activeReviewList=()=>batch.reviewSurface==='preview'?reviewPreviewPagesEl:reviewBoardHost;
   const reviewInlineEl=$('nmda-inline-review');
@@ -742,7 +741,7 @@
   const duplicateDecisionEl=$('nmda-duplicate-decision'), duplicateDecisionTitleEl=$('nmda-duplicate-decision-title'), duplicateDecisionCopyEl=$('nmda-duplicate-decision-copy'), duplicateDecisionKindEl=$('nmda-duplicate-decision-kind'), duplicateCandidatesEl=$('nmda-duplicate-candidates'), duplicateDecisionHintEl=$('nmda-duplicate-decision-hint'), duplicateKeepSelectedEl=$('nmda-duplicate-keep-selected'), duplicateKeepAllEl=$('nmda-duplicate-keep-all');
   const draftHistoryFilterEl=$('nmda-draft-history-filter'), draftHistoryCountEl=$('nmda-draft-history-count'), draftHistoryListEl=$('nmda-draft-history-list'), draftHistoryHintEl=$('nmda-draft-history-hint'), draftHistoryExcludeEl=$('nmda-draft-history-exclude'), draftHistoryKeepEl=$('nmda-draft-history-keep');
   const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files');
-  const draftImportEl = $('nmda-import-drafts'), preSendMatchFilesEl = $('nmda-pre-send-match-files'), preSendSharedFilesEl = $('nmda-pre-send-shared-files');
+  const preSendMatchFilesEl = $('nmda-pre-send-match-files'), preSendSharedFilesEl = $('nmda-pre-send-shared-files');
   const previewBodyEl = $('nmda-preview-body'), batchStatusEl = $('nmda-batch-status'), importStatusEl = $('nmda-import-status');
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time'), batchParagraphSpacingEl = $('nmda-compose-paragraph-spacing'), batchFastComposeEl = $('nmda-fast-compose');
   const scheduleStartDateEl = $('nmda-rule-start-date'), scheduleLocalTimeEl = $('nmda-rule-local-time'), scheduleTimeZoneEl = $('nmda-rule-time-zone'), scheduleWeekdayEls = [...ui.querySelectorAll('[data-schedule-weekday]')], scheduleSkipStartEl = $('nmda-rule-skip-start'), scheduleSkipEndEl = $('nmda-rule-skip-end'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), scheduleSchoolIntervalEl = $('nmda-rule-school-interval'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleMailboxExistingEl = $('nmda-rule-include-mailbox-scheduled'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
@@ -750,7 +749,6 @@
   const rosterPlannerViewEl=$('nmda-roster-planner-view'), rosterPlannerSourceEl=$('nmda-roster-planner-source'), rosterPlannerSummaryEl=$('nmda-roster-planner-summary'), rosterVisualGroupsEl=$('nmda-roster-visual-groups'), rosterSheetViewportEl=$('nmda-roster-sheet-viewport'), rosterSheetTableEl=$('nmda-roster-sheet-table'), rosterSelectionMiniEl=$('nmda-roster-selection-mini'), rosterColumnFocusEl=$('nmda-roster-column-focus'), rosterColumnToggleEl=$('nmda-roster-column-toggle'), rosterSelectionLabelEl=$('nmda-roster-selection-label'), rosterSelectionDetailEl=$('nmda-roster-selection-detail'), rosterActiveBatchEl=$('nmda-roster-active-batch'), rosterActiveBatchLabelEl=$('nmda-roster-active-batch-label'), rosterBatchAddEl=$('nmda-roster-batch-add'), rosterBatchCreateEl=$('nmda-roster-batch-create'), rosterBatchClearEl=$('nmda-roster-batch-clear'), rosterIntentSummaryEl=$('nmda-roster-intent-summary');
   const batchSearchEl = $('nmda-batch-search');
   const batchTagIncludeEl = $('nmda-batch-tag-include');
-  const importBusyBadgeEl = $('nmda-import-busy-badge'), resetImportEl = $('nmda-reset-import');
   function isCurrentBatchSession(token) { return Number(token) === Number(batch.sessionId); }
 
   batch.composeParagraphSpacing = Persistence.readParagraphSpacing();
@@ -2294,32 +2292,17 @@
   function renderImportLifecycleState() {
     if (typeof renderProcessGuide === 'function') renderProcessGuide();
     const active = !!batch.dataset || !!batch.importBusy || !!batch.roster?.entries?.length;
-    if (resetImportEl) resetImportEl.hidden = !active;
-    if (importBusyBadgeEl) importBusyBadgeEl.hidden = !batch.importBusy;
-    const savedBadge=$('nmda-workspace-saved-badge');if(savedBadge)savedBadge.hidden=!batch.dataset;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({ active, loaded:!!batch.dataset, busy:!!batch.importBusy });
     const sourceCard = $('nmda-import-card');
     if (sourceCard) {
       sourceCard.dataset.busy = batch.importBusy ? '1' : '0';
       sourceCard.dataset.loaded = batch.dataset ? '1' : '0';
-      const title = $('nmda-import-card-title');
-      const desc = $('nmda-import-card-desc');
-      if (title) title.textContent = batch.dataset ? '邮件资料已导入' : '导入邮件资料';
-      if (desc) desc.textContent = batch.dataset
-        ? '邮件资料已加入，可继续添加或进入批次资料。'
-        : '把本批次邮件资料放进来。';
-      const fileAction=ui.querySelector('label.nmda-source-action[for="nmda-import-file"] strong');
-      const dirAction=ui.querySelector('label.nmda-source-action[for="nmda-import-dir"] strong');
-      const pasteAction=$('nmda-show-paste')?.querySelector('strong');
-      if(fileAction)fileAction.textContent=batch.dataset?'添加文件':'选择文件';
-      if(dirAction)dirAction.textContent=batch.dataset?'添加文件夹':'选择文件夹';
-      if(pasteAction)pasteAction.textContent=batch.dataset?'粘贴补充':'粘贴内容';
     }
     const workbench = ui.querySelector('.nmda-bulk-workbench');
     if (workbench) {
       workbench.dataset.phase = !batch.dataset ? 'empty' : (batch.handoffComplete ? 'ready' : 'review');
       if(!batch.dataset)batch.uiStep=1;
     }
-    const prepButton=$('nmda-open-supplement-preflight');if(prepButton)prepButton.hidden=!batch.dataset;
     renderRosterContextCue();
     renderBatchPrepStrip();
     renderSupplementPreflight();
@@ -5534,7 +5517,7 @@
 
   async function importMailboxDrafts() {
     if(batch.running){setImportStatus('正在执行当前批次，暂时不能读取草稿箱。','warn');return;}
-    if(draftImportEl)draftImportEl.disabled=true;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({draftBusy:true});
     let token=null;
     try{
       // Authenticate before replacing the current import workspace. A failed login check must never erase
@@ -5560,7 +5543,7 @@
       else setImportStatus(`草稿箱读取失败：${error.message}`,'error');
     }finally{
       if(token!=null)finishImportSession(token);
-      if(draftImportEl)draftImportEl.disabled=false;
+      globalThis.NMDAWorkspaceImportUi.publishPatch({draftBusy:false});
     }
   }
 
@@ -5616,7 +5599,7 @@
     const sourceCount=importedDataset.sourceFiles?.length || 0;
     const containerCount=importedDataset.meta?.containerFiles?.length||0;
     const duplicateSourceCount=Number(importedDataset.meta?.duplicateSourceCount||0);
-    $('nmda-import-format-info').textContent = `${containerCount?`已展开 ${containerCount} 个资料包 · `:''}${sourceCount?`${sourceCount} 个内容文件 · `:''}${batch.tasks.length} 封邮件${referenceRosterCount()?` · 参考名单 ${referenceRosterCount()} 条`:''}${duplicateSourceCount?` · 已忽略 ${duplicateSourceCount} 个重复副本`:''}`;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({formatInfo:`${containerCount?`已展开 ${containerCount} 个资料包 · `:''}${sourceCount?`${sourceCount} 个内容文件 · `:''}${batch.tasks.length} 封邮件${referenceRosterCount()?` · 参考名单 ${referenceRosterCount()} 条`:''}${duplicateSourceCount?` · 已忽略 ${duplicateSourceCount} 个重复副本`:''}`});
     const addedTaskCount=Math.max(0,(batch.tasks||[]).length-previousTaskCount);
     setImportStatus(routedCounts.mail
       ? `${append?`已加入当前批次${addedTaskCount?` · 新增 ${addedTaskCount} 封邮件`:''}`:'邮件已加入本批次'}。${duplicateSourceCount?`已忽略 ${duplicateSourceCount} 个完全相同的重复来源。`:''}${referenceRosterCount()?'参考总名单已匹配当前邮件，后续新增邮件也会继续匹配。':'有参考总名单可现在补充；没有可直接继续。'}`
@@ -5686,8 +5669,8 @@
 
     batch.reviewEditingKey='';
     [importFileEl, importDirEl, rosterFileEl, dirEl, taskFilesEl].forEach(el => { if (el) el.value = ''; });
-    if (pasteSourceEl) pasteSourceEl.value = '';
-    const pastePanel = $('nmda-paste-panel'); if (pastePanel) pastePanel.hidden = true;
+    const importUiSnapshot=globalThis.NMDAWorkspaceImportUi.getSnapshot();
+    globalThis.NMDAWorkspaceImportUi.publishPatch({clearVersion:importUiSnapshot.clearVersion+1});
 
     if (batchSearchEl) batchSearchEl.value = '';
     if (batchTagIncludeEl) batchTagIncludeEl.value = '';
@@ -5713,7 +5696,7 @@
     const readySummary = $('nmda-import-ready-summary'); if (readySummary) readySummary.textContent = '还没有准备好邮件。';
 
     $('nmda-batch-empty').hidden = false;
-    $('nmda-import-format-info').textContent = '可直接加入常见文档、表格和文本。';
+    globalThis.NMDAWorkspaceImportUi.publishPatch({formatInfo:'可直接加入常见文档、表格和文本。'});
     const rosterStatus=$('nmda-roster-source-status'); if(rosterStatus)rosterStatus.textContent='尚未载入总套磁名单。';
     const rosterRemove=$('nmda-roster-remove'); if(rosterRemove)rosterRemove.hidden=true;
     const rosterSummary=$('nmda-roster-audit-summary'); if(rosterSummary)rosterSummary.innerHTML='';
@@ -5779,13 +5762,24 @@
     finally{finishImportSession(token);}
   }
 
-  const importDropZone=$('nmda-import-drop-zone');
-  importDropZone?.addEventListener('click',()=>{if(!batch.importBusy)importFileEl?.click();});
-  importDropZone?.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&!batch.importBusy){event.preventDefault();importFileEl?.click();}});
-  importDropZone?.addEventListener('dragenter',event=>{event.preventDefault();importDropZone.classList.add('is-dragging');});
-  importDropZone?.addEventListener('dragover',event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='copy';importDropZone.classList.add('is-dragging');});
-  importDropZone?.addEventListener('dragleave',event=>{if(!importDropZone.contains(event.relatedTarget))importDropZone.classList.remove('is-dragging');});
-  importDropZone?.addEventListener('drop',async event=>{event.preventDefault();importDropZone.classList.remove('is-dragging');if(batch.importBusy)return;const files=await filesFromDrop(event.dataTransfer);if(!files.length){setImportStatus('没有识别到可导入的文件。','warn');return;}await importDroppedFiles(files);});
+  window.addEventListener('nmda:import-action', event => {
+    const {action, text, dataTransfer}=event.detail||{};
+    if(action==='drop'){
+      if(batch.importBusy||batch.running)return;
+      void (async()=>{const files=await filesFromDrop(dataTransfer);if(!files.length){setImportStatus('没有识别到可导入的文件。','warn');return;}await importDroppedFiles(files);})();
+    }else if(action==='paste'){
+      void importPastedText(text);
+    }else if(action==='drafts'){
+      void importMailboxDrafts();
+    }else if(action==='reset'){
+      if(batch.running){setImportStatus('正在创建草稿，暂时不能开始新批次。','warn');return;}
+      resetImportWorkspace({ message:'当前批次已彻底清空，可以载入新的来源。' });
+    }else if(action==='supplement'){
+      openSupplementPreflight('files');
+    }else if(action==='template'){
+      downloadImportTemplate();
+    }
+  });
 
   importFileEl.addEventListener('change', async () => {
     const files = [...(importFileEl.files || [])];
@@ -5817,7 +5811,6 @@
     if(files.length)await loadRosterFiles(files);
   });
   $('nmda-roster-remove')?.addEventListener('click', removeRoster);
-  $('nmda-open-supplement-preflight')?.addEventListener('click',()=>openSupplementPreflight('files'));
   $('nmda-edit-batch-prep')?.addEventListener('click',()=>openSupplementPreflight('support'));
   $('nmda-close-supplement-preflight')?.addEventListener('click',()=>{batch.supplementPreflightOpen=false;renderSupplementPreflight();setImportStatus('已返回上传区。','ok');});
   $('nmda-preflight-source-search')?.addEventListener('input',event=>{batch.preflightSearch=String(event.target.value||'');renderPreflightSourceRoles();});
@@ -5898,14 +5891,8 @@
     if(batch.dataset)rebuildTasks();else renderRosterAudit();
   });
 
-  $('nmda-show-paste')?.addEventListener('click', () => {
-    const panel = $('nmda-paste-panel');
-    panel.hidden = !panel.hidden;
-    if (!panel.hidden) pasteSourceEl?.focus();
-  });
-
-  $('nmda-paste-import')?.addEventListener('click', async () => {
-    const text = String(pasteSourceEl?.value || '').trim();
+  async function importPastedText(value) {
+    const text = String(value || '').trim();
     if (!text) { setImportStatus('请先粘贴需要导入的内容。', 'warn'); return; }
     const token = beginImportSession('正在读取粘贴内容…');
     try {
@@ -5916,14 +5903,7 @@
       await applyImportedDataset(dataset, '粘贴内容', token);
     } catch (error) { clearImportOnError(error, token); }
     finally { finishImportSession(token); }
-  });
-
-  draftImportEl?.addEventListener('click',()=>void importMailboxDrafts());
-
-  $('nmda-reset-import')?.addEventListener('click', () => {
-    if (batch.running) { setImportStatus('正在创建草稿，暂时不能开始新批次。', 'warn'); return; }
-    resetImportWorkspace({ message: '当前批次已彻底清空，可以载入新的来源。' });
-  });
+  }
 
   function setResetAllDialog(open){
     const overlay=$('nmda-reset-all-overlay'),confirm=$('nmda-reset-all-confirm'),action=$('nmda-reset-all-confirm-button'),status=$('nmda-reset-all-status');
@@ -6147,12 +6127,12 @@
     if(event.target.closest?.('[data-open-attachment-manager]'))openAttachmentManager();
   });
 
-  $('nmda-template').addEventListener('click', () => {
+  function downloadImportTemplate() {
     const csv = '\ufeff编号,收件人,学校,主题,正文,附件,定时时间,任务标记\r\n001,professor@example.edu,示例大学,示例主题,这是示例正文,该封材料.pdf,2026-08-25 09:30,第一批;重点\r\n002,professor2@example.edu,示例大学,示例主题2,这是示例正文2,,,第二批\r\n';
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a'); a.href = url; a.download = 'netease-mail-batch-template.csv'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
+  }
 
   scheduleApplyEl?.addEventListener('click', () => {
     void (async()=>{
@@ -6298,7 +6278,7 @@
     if (batchParagraphSpacingEl) batchParagraphSpacingEl.disabled = true;
     if (batchFastComposeEl) batchFastComposeEl.disabled = true;
     await updateMailboxBatchMonitor({action:'start',total:executable.length,succeeded:0,failed:0,remaining:executable.length,items:executable.map((task,index)=>({key:task.editKey,id:task.id,index:index+1,kind:task.dispatchKind||'initial',recipient:task.recipients||'',subject:task.subject||'',scheduleAt:task.scheduleAt||'',status:'queued'}))});
-    importFileEl.disabled = true; if (importDirEl) importDirEl.disabled = true; if (rosterFileEl) rosterFileEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=true;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=true;if(draftImportEl)draftImportEl.disabled=true; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=true; });
+    importFileEl.disabled = true; if (importDirEl) importDirEl.disabled = true; if (rosterFileEl) rosterFileEl.disabled = true; dirEl.disabled = true; taskFilesEl.disabled = true; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=true;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=true;globalThis.NMDAWorkspaceImportUi.publishPatch({locked:true});
     setBatchPlanningLocked(true);
     let succeeded = 0, failed = 0;
     let cleanupStopReason = '';
@@ -6408,7 +6388,7 @@
       if (batchPauseEveryTimeEl) batchPauseEveryTimeEl.disabled = false;
       if (batchParagraphSpacingEl) batchParagraphSpacingEl.disabled = false;
       if (batchFastComposeEl) batchFastComposeEl.disabled = false;
-      importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (rosterFileEl) rosterFileEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=false;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=false;if(draftImportEl)draftImportEl.disabled=false; ['nmda-paste-import','nmda-reset-import','nmda-show-paste'].forEach(id => { const el=$(id); if(el) el.disabled=false; });
+      importFileEl.disabled = false; if (importDirEl) importDirEl.disabled = false; if (rosterFileEl) rosterFileEl.disabled = false; dirEl.disabled = false; taskFilesEl.disabled = false; if(preSendMatchFilesEl)preSendMatchFilesEl.disabled=false;if(preSendSharedFilesEl)preSendSharedFilesEl.disabled=false;globalThis.NMDAWorkspaceImportUi.publishPatch({locked:false});
       setBatchPlanningLocked(false);
       scheduleBatchRender({aux:false,force:true});
     }

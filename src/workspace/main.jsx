@@ -8,6 +8,7 @@ import { WorkspaceTabs, WorkspacePageHeads } from './Navigation.jsx';
 import ReviewBoard, { ReviewPreview, ReviewRail } from './ReviewBoard.jsx';
 import { ReviewTop, ReviewBoardbar, ReviewBatchbar, ReviewEmpty, ReviewPreviewToolbar } from './ReviewControls.jsx';
 import PlanningBoard, { PlanningOverview, DispatchSummary, ExecutionPreflight } from './PlanningBoard.jsx';
+import ImportIntake from './ImportIntake.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -73,3 +74,7 @@ for (const [name, Component] of [['dispatch-summary', DispatchSummary], ['execut
     createRoot(host).render(<StrictMode><Component /></StrictMode>);
   });
 }
+
+document.querySelectorAll('[data-workspace-mount="import-intake"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ImportIntake /></StrictMode>);
+});
