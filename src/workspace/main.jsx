@@ -6,6 +6,7 @@ import Monitor from './Monitor.jsx';
 import UtilitiesHome from './UtilitiesHome.jsx';
 import { WorkspaceTabs, WorkspacePageHeads } from './Navigation.jsx';
 import ReviewBoard, { ReviewPreview, ReviewRail } from './ReviewBoard.jsx';
+import { ReviewTop, ReviewBoardbar, ReviewBatchbar, ReviewEmpty } from './ReviewControls.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -51,3 +52,9 @@ document.querySelectorAll('[data-workspace-mount="review-preview"]').forEach(hos
 document.querySelectorAll('[data-workspace-mount="review-rail"]').forEach(host => {
   createRoot(host).render(<StrictMode><ReviewRail /></StrictMode>);
 });
+
+for (const [name, Component] of [['review-top', ReviewTop], ['review-boardbar', ReviewBoardbar], ['review-batchbar', ReviewBatchbar], ['review-empty', ReviewEmpty]]) {
+  document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
+    createRoot(host).render(<StrictMode><Component /></StrictMode>);
+  });
+}

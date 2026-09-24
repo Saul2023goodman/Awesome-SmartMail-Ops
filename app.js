@@ -735,11 +735,7 @@
   const pasteSourceEl = $('nmda-paste-source');
   const reviewQueueEl = $('nmda-review-queue'), reviewBoardHost=ui.querySelector('[data-workspace-mount="review-board"]'), reviewPreviewPagesEl=$('nmda-review-preview-pages'), reviewPreviewRailEl=$('nmda-review-preview-rail'), reviewPreviewRailListEl=$('nmda-review-preview-rail-list'), reviewPreviewRailCountEl=$('nmda-review-preview-rail-count'), reviewProgressEl = $('nmda-review-progress');
   const activeReviewList=()=>batch.reviewSurface==='preview'?reviewPreviewPagesEl:reviewBoardHost;
-  const reviewInlineEl=$('nmda-inline-review'), reviewPageEmptyEl=$('nmda-review-page-empty');
-  const reviewWorkspaceTitleEl=$('nmda-review-workspace-title'), reviewWorkspaceDescEl=$('nmda-review-workspace-desc');
-  const reviewFilterEl=$('nmda-review-filter'), reviewSearchEl=$('nmda-review-search');
-  const reviewBatchbarEl=$('nmda-review-batchbar'), reviewSelectedCountEl=$('nmda-review-selected-count');
-  const reviewBatchLaunchEl=$('nmda-review-batch-launch'), reviewBatchLaunchMetaEl=$('nmda-review-batch-launch-meta'), reviewBatchLaunchCountEl=$('nmda-review-batch-launch-count');
+  const reviewInlineEl=$('nmda-inline-review');
   const formatGovernanceEntryEl=$('nmda-review-format-governance'), formatGovernanceEntryCountEl=$('nmda-preview-format-drift-count'), formatGovernanceEl=$('nmda-format-governance'), formatGovernancePhraseEl=$('nmda-format-governance-phrase'), formatGovernanceCaseEl=$('nmda-format-governance-case'), formatGovernanceResultEl=$('nmda-format-governance-result'), formatGovernanceListEl=$('nmda-format-governance-list'), formatGovernanceApplyEl=$('nmda-format-governance-apply'), formatGovernanceSuggestionsEl=$('nmda-format-governance-suggestions'), formatGovernanceQueueEl=$('nmda-format-governance-queue'), formatGovernanceAddEl=$('nmda-format-governance-add'), formatGovernanceHistoryEl=$('nmda-format-governance-history');
   const batchStandardSubjectCountEl=$('nmda-batch-standard-subject-count'), batchStandardFormatCountEl=$('nmda-batch-standard-format-count'), batchStandardSubjectBadgeEl=$('nmda-batch-standard-subject-badge'), batchStandardSubjectInputEl=$('nmda-batch-standard-subject-input'), batchStandardSubjectSuggestionEl=$('nmda-batch-standard-subject-suggestion'), batchStandardSubjectResultEl=$('nmda-batch-standard-subject-result'), batchStandardPlanSummaryEl=$('nmda-batch-standard-plan-summary');
   const batchStandardsEl=$('nmda-format-governance'), batchStandardsDescEl=$('nmda-batch-standards-desc');
@@ -1140,15 +1136,6 @@
     if(key)focusReviewTask(key,{behavior:'smooth',block:'start'});
   });
 
-  reviewQueueEl?.addEventListener('change',event=>{
-    const input=event.target.closest?.('[data-review-select]');if(!input)return;
-    const key=input.dataset.reviewSelect;if(!key)return;
-    if(input.checked)batch.reviewSelected.add(key);else batch.reviewSelected.delete(key);
-    input.closest('.nmda-review-preview-page, .nmda-mail-review-card')?.classList.toggle('is-selected',input.checked);
-    renderReviewBatchActions();
-    const visible=reviewVisibleTasks().filter(taskCanBatchConfirm),allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
-    const selectButton=$('nmda-review-select-filtered');if(selectButton){const batchMode=batch.reviewFilter==='pending'&&reviewTasks().length>0;selectButton.hidden=!batchMode||visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
-  });
   window.addEventListener('nmda:review-board-select',event=>{
     const key=String(event.detail?.key||'');if(!key)return;
     if(event.detail.checked)batch.reviewSelected.add(key);else batch.reviewSelected.delete(key);
@@ -1164,7 +1151,7 @@
       if(batch.reviewSurface==='preview')syncReviewPreviewActiveFromScroll();
       const remaining=reviewQueueEl.scrollHeight-reviewQueueEl.scrollTop-reviewQueueEl.clientHeight;
       if(remaining>Math.max(420,reviewQueueEl.clientHeight*.55))return;
-      const total=reviewQueueItems(reviewVisibleTasks()).length;
+      const total=reviewVisibleTasks().length;
       const current=Math.max(REVIEW_RENDER_CHUNK,viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK);
       if(current>=total)return;
       viewPerf.reviewRenderLimit=Math.min(total,current+REVIEW_RENDER_CHUNK);
@@ -1173,16 +1160,17 @@
   },{passive:true});
 
 
-  reviewSearchEl?.addEventListener('input',()=>{
-    batch.reviewSearch=String(reviewSearchEl.value||'');
+  function setReviewSearch(value){
+    if(batch.reviewEditingKey){globalThis.NMDAWorkspaceReviewBoard.publishControls({search:String(batch.reviewSearch||'')});setImportStatus('请先保存或取消当前邮件的编辑，再搜索。','warn');return;}
+    batch.reviewSearch=String(value||'');
+    globalThis.NMDAWorkspaceReviewBoard.publishControls({search:batch.reviewSearch});
     viewPerf.reviewRenderLimit=REVIEW_RENDER_CHUNK;
     if(reviewQueueEl)reviewQueueEl.scrollTop=0;
-    if(batch.reviewEditingKey){reviewSearchEl.value=String(batch.reviewSearch||'');setImportStatus('请先保存或取消当前邮件的编辑，再搜索。','warn');return;}
     const currentKey=batch.reviewPreviewKey||'';
     renderReviewQueue(currentKey);
     const visible=reviewVisibleTasks();
     if(currentKey && !visible.some(task=>task.editKey===currentKey)){batch.reviewPreviewKey='';if(batch.reviewSurface==='preview'&&visible[0])focusReviewTask(visible[0].editKey,{behavior:'auto'});}
-  });
+  }
   planningOverviewEl?.addEventListener('click', event=>{
     const scheduleGuide=event.target.closest?.('[data-open-schedule-guide]');
     if(scheduleGuide){openScheduleModal();return;}
@@ -2692,24 +2680,7 @@
   }
 
   function renderReviewTrash() {
-    const items=excludedImportItems();
-    const details=$('nmda-review-trash');
-    const countEl=$('nmda-review-trash-count');
-    const listEl=$('nmda-review-trash-list');
-    const emptyEl=$('nmda-review-trash-empty');
-    const restoreAll=$('nmda-review-trash-restore-all');
-    if(countEl){countEl.textContent=String(items.length);countEl.dataset.empty=items.length?'0':'1';}
-    if(details)details.dataset.empty=items.length?'0':'1';
-    if(restoreAll)restoreAll.disabled=!items.length;
-    if(emptyEl)emptyEl.hidden=!!items.length;
-    if(listEl){
-      listEl.innerHTML=items.map(item=>{
-        const primary=String(item.subject||item.recipients||item.id||'已排除邮件').trim();
-        const secondary=[item.recipients&&item.recipients!==primary?item.recipients:'',item.sourceFile].filter(Boolean).join(' · ');
-        return `<article class="nmda-review-trash-item" data-trash-key="${escapeHtml(item.editKey)}"><span class="nmda-review-trash-item-mark" aria-hidden="true">${iconSvg('mail')}</span><div><strong title="${escapeHtml(primary)}">${escapeHtml(primary)}</strong>${secondary?`<small title="${escapeHtml(secondary)}">${escapeHtml(secondary)}</small>`:''}</div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-restore-excluded="${escapeHtml(item.editKey)}">恢复</button></article>`;
-      }).join('');
-      decorateUnifiedIcons(listEl);
-    }
+    globalThis.NMDAWorkspaceReviewBoard.publishControls({trash:excludedImportItems()});
   }
 
   function restoreExcludedTask(editKey) {
@@ -3010,25 +2981,13 @@
   }
 
   function syncReviewBatchLaunch(){
-    if(!reviewBatchLaunchEl)return;
-    const tasks=allReviewTasks().filter(task=>!task?.importExcluded),subjectCount=missingSubjectTasks().length,queuedCount=queuedGovernanceRules().length;
-    // Keep the batch-processing entry visible on the Review board at all times.
-    // An empty board should explain where batch processing lives instead of making
-    // the capability disappear and then jump into the toolbar after import.
-    reviewBatchLaunchEl.hidden=false;
-    reviewBatchLaunchEl.classList.toggle('is-empty',!tasks.length);
-    reviewBatchLaunchEl.classList.toggle('needs-subject',subjectCount>0);
-    reviewBatchLaunchEl.classList.toggle('has-queued-rules',queuedCount>0);
-    if(reviewBatchLaunchCountEl){reviewBatchLaunchCountEl.hidden=!subjectCount;reviewBatchLaunchCountEl.textContent=String(subjectCount||0);}
-    if(reviewBatchLaunchMetaEl){
-      if(!tasks.length)reviewBatchLaunchMetaEl.textContent='导入邮件后可用';
-      else if(subjectCount)reviewBatchLaunchMetaEl.textContent=`${subjectCount} 封缺主题 · 点击批量补齐`;
-      else if(queuedCount)reviewBatchLaunchMetaEl.textContent=`已选 ${queuedCount} 条格式处理 · 继续`;
-      else reviewBatchLaunchMetaEl.textContent='查看格式偏移推荐';
-    }
-    reviewBatchLaunchEl.title=!tasks.length?'准备好邮件后可使用批量处理':subjectCount?`有 ${subjectCount} 封初始邮件缺少主题；点击批量补齐`:'查看格式偏移建议与批量处理';
-    reviewBatchLaunchEl.setAttribute('aria-label',reviewBatchLaunchEl.title);
-    reviewBatchLaunchEl.setAttribute('aria-disabled',tasks.length?'false':'true');
+    const tasks=allReviewTasks().filter(task=>!task?.importExcluded);
+    const subjectCount=missingSubjectTasks().length,queuedCount=queuedGovernanceRules().length;
+    globalThis.NMDAWorkspaceReviewBoard.publishControls({batchLaunch:{
+      empty:!tasks.length,subjectCount,queuedCount,
+      meta:!tasks.length?'导入邮件后可用':subjectCount?`${subjectCount} 封缺主题 · 点击批量补齐`:queuedCount?`已选 ${queuedCount} 条格式处理 · 继续`:'查看格式偏移推荐',
+      title:!tasks.length?'准备好邮件后可使用批量处理':subjectCount?`有 ${subjectCount} 封初始邮件缺少主题；点击批量补齐`:'查看格式偏移建议与批量处理'
+    }});
   }
 
   function renderBatchSubjectGovernance(){
@@ -3288,8 +3247,7 @@
     pruneReviewSelection();
     const selected=selectedReviewTasks().filter(taskCanBatchConfirm);
     const batchMode=batch.reviewFilter==='pending' && reviewTasks().length>0;
-    if(reviewBatchbarEl) reviewBatchbarEl.hidden=!batchMode||!selected.length;
-    if(reviewSelectedCountEl) reviewSelectedCountEl.textContent=selected.length?`已选 ${selected.length} 封需确认邮件`:'已选 0 封';
+    globalThis.NMDAWorkspaceReviewBoard.publishControls({selectedCount:selected.length,batchbarVisible:!!(batchMode&&selected.length)});
   }
 
   function setReviewSurface(mode='board') {
@@ -3512,8 +3470,6 @@
     if(allSelected) for(const task of visible)batch.reviewSelected.delete(task.editKey);
     else for(const task of visible)batch.reviewSelected.add(task.editKey);
     renderReviewQueue(batch.reviewEditingKey||'');
-    renderReviewBatchActions();
-    const button=$('nmda-review-select-filtered');if(button)button.textContent=allSelected?`批量确认 ${visible.length} 封…`:'取消批量选择';
   }
 
 
@@ -3728,8 +3684,6 @@
   function renderReviewPageOverview(options={}) {
     renderReviewTrash();
     const tasks=allReviewTasks();
-    const initialCount=tasks.filter(task=>!isFollowUpReviewTask(task)).length;
-    const followUpCount=tasks.filter(isFollowUpReviewTask).length;
     let checked=0,actionCount=0,autoPassed=0;
     for(const task of tasks){
       const visual=reviewVisualState(task);
@@ -3738,35 +3692,18 @@
       else autoPassed++;
     }
     const pendingCount=actionCount;
-    if(reviewWorkspaceTitleEl)reviewWorkspaceTitleEl.textContent='审阅邮件';
-    if(reviewWorkspaceDescEl)reviewWorkspaceDescEl.textContent=tasks.length?`${tasks.length} 封 · ${pendingCount} 需处理`:'暂无审阅任务';
     if(reviewInlineEl)reviewInlineEl.dataset.reviewState=tasks.length&&pendingCount===0?'complete':pendingCount?'pending':'empty';
     Navigation.setReviewCount(pendingCount);
     const reviewCounts={all:tasks.length,auto:autoPassed,pending:actionCount,confirmed:checked};
-    ui.querySelectorAll('#nmda-review-filter [data-review-filter]').forEach(button=>{
-      const key=button.dataset.reviewFilter||'all';
-      const value=Number(reviewCounts[key]||0);
-      const countEl=button.querySelector('strong');
-      if(countEl)countEl.textContent=String(value);
-    });
-    if(reviewPageEmptyEl){
-      reviewPageEmptyEl.hidden=!!tasks.length;
-      const hint=$('nmda-review-empty-hint');
-      if(hint)hint.textContent=batch.dataset?'当前还没有可审阅邮件。可以返回“准备邮件”继续补充，或到邮件监测查看跟进邮件。':'准备初始邮件，或从邮件监测生成跟进邮件后，会出现在这里。';
-    }
     if(!formatGovernanceEl?.hidden)renderBatchFollowUpTemplate();
-    const nextPendingBtn=$('nmda-review-next-pending');
-    if(nextPendingBtn){
-      const pendingMails=reviewTasks();
-      nextPendingBtn.hidden=!tasks.length;
-      nextPendingBtn.dataset.mode=pendingMails.length?'next':'dispatch';
-      nextPendingBtn.textContent=pendingMails.length?'下一个需处理':(batch.handoffComplete?'查看安排发送 →':'正在同步到安排发送…');
-      nextPendingBtn.disabled=!pendingMails.length&&!batch.handoffComplete;
-      nextPendingBtn.classList.toggle('nmda-btn-primary',!pendingMails.length&&batch.handoffComplete);
-    }
-    if(reviewFilterEl)reviewFilterEl.hidden=false;
-    ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter===batch.reviewFilter));
-    if(reviewSearchEl && reviewSearchEl.value!==String(batch.reviewSearch||''))reviewSearchEl.value=String(batch.reviewSearch||'');
+    const pendingMails=reviewTasks();
+    globalThis.NMDAWorkspaceReviewBoard.publishControls({
+      count:tasks.length,pending:pendingCount,counts:reviewCounts,filter:batch.reviewFilter,search:String(batch.reviewSearch||''),
+      emptyHint:batch.dataset?'当前还没有可审阅邮件。可以返回“准备邮件”继续补充，或到邮件监测查看跟进邮件。':'准备初始邮件，或从邮件监测生成跟进邮件后，会出现在这里。',
+      nextMode:pendingMails.length?'next':'dispatch',
+      nextLabel:pendingMails.length?'下一个需处理':batch.handoffComplete?'查看安排发送 →':'正在同步到安排发送…',
+      nextDisabled:!pendingMails.length&&!batch.handoffComplete
+    });
     syncReviewBatchLaunch();
     if(!tasks.length){batch.reviewEditingKey='';setReviewSurface('board');renderReviewBatchActions();return;}
     renderReviewBatchActions();
@@ -4008,8 +3945,6 @@
     return {key:'auto',label:'已就绪',detail:'',icon:'✓',issues:[]};
   }
 
-  function reviewQueueItems(tasks=[]) { return (tasks||[]).map(task=>({kind:'mail',task})); }
-
   function renderReviewCardGrid(activeKey='',options={}) {
     const visible=reviewVisibleTasks();
     const limit=Math.max(50,viewPerf.reviewRenderLimit||REVIEW_RENDER_CHUNK);
@@ -4121,7 +4056,8 @@
     else renderReviewCardGrid(activeKey,options);
     renderReviewBatchActions();
     const visible=reviewVisibleTasks().filter(taskCanBatchConfirm),allSelected=visible.length&&visible.every(task=>batch.reviewSelected.has(task.editKey));
-    const selectButton=$('nmda-review-select-filtered');if(selectButton){const batchMode=batch.reviewFilter==='pending'&&reviewTasks().length>0;selectButton.hidden=surface==='preview'||!batchMode||visible.length<2;selectButton.textContent=allSelected?'取消批量选择':`批量确认 ${visible.length} 封…`;}
+    const batchMode=batch.reviewFilter==='pending'&&reviewTasks().length>0;
+    globalThis.NMDAWorkspaceReviewBoard.publishControls({selectVisibleCount:visible.length,selectVisibleHidden:surface==='preview'||!batchMode||visible.length<2,allVisibleSelected:!!allSelected});
   }
 
   function openReviewBatchProcessing(){
@@ -4132,8 +4068,7 @@
       // 批量处理作用于整批邮件；进入时切回完整视图，避免筛选状态造成范围误解。
       batch.reviewFilter='all';
       batch.reviewSearch='';
-      if(reviewSearchEl)reviewSearchEl.value='';
-      ui.querySelectorAll('[data-review-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.reviewFilter==='all'));
+      globalThis.NMDAWorkspaceReviewBoard.publishControls({filter:'all',search:''});
       const target=missingSubjectTasks()[0]||tasks[0];
       openReviewPreview(target?.editKey||'');
       requestAnimationFrame(()=>openFormatGovernance({fromBoard:true}));
@@ -5880,10 +5815,9 @@
     const inventory = $('nmda-source-inventory'); if (inventory) { inventory.hidden = true; inventory.innerHTML = ''; }
     globalThis.NMDAWorkspaceReviewBoard.publishPreview({items:[],total:0,filter:'all',activeKey:'',preserveScroll:false});
     globalThis.NMDAWorkspaceReviewBoard.publish({items:[],total:0,filter:'all',activeKey:'',limit:0,preserveScroll:false});
+    globalThis.NMDAWorkspaceReviewBoard.publishControls({count:0,pending:0,counts:{all:0,auto:0,pending:0,confirmed:0},filter:'all',search:'',selectedCount:0,batchbarVisible:false,selectVisibleCount:0,selectVisibleHidden:true,allVisibleSelected:false});
     if (reviewProgressEl) reviewProgressEl.textContent = '';
     Navigation.setReviewCount(0);
-    if (reviewPageEmptyEl) reviewPageEmptyEl.hidden=false;
-    if (reviewBatchbarEl) reviewBatchbarEl.hidden=true;
     if(schedulerCardEl){schedulerCardEl.open=true;schedulerCardEl.hidden=true;}
     if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent='收起';
     const trashDetails = $('nmda-review-trash'); if (trashDetails) trashDetails.open = false;
@@ -6166,32 +6100,35 @@
 
 
   $('nmda-go-batch')?.addEventListener('click',()=>void openReviewWorkspace({pendingOnly:false,fromImport:true}));
-  $('nmda-review-go-dispatch')?.addEventListener('click',()=>void (async()=>{
-    const ready=await enterSelectionAndSchedule('邮件已审阅');
-    if(!ready)return;
-    setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});
-  })());
-  $('nmda-review-next-pending')?.addEventListener('click',event=>{
-    if(event.currentTarget?.dataset?.mode==='dispatch'){void (async()=>{const ready=await enterSelectionAndSchedule('邮件已审阅');if(!ready)return;setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});})();return;}
-    openNextReviewTask();
+  window.addEventListener('nmda:review-action',event=>{
+    const {action,key,filter,value}=event.detail||{};
+    if(action==='next'){
+      if(reviewTasks().length){openNextReviewTask();return;}
+      void (async()=>{const ready=await enterSelectionAndSchedule('邮件已审阅');if(!ready)return;setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});})();
+      return;
+    }
+    if(action==='prepare'){setWorkbenchTab('batch');batch.uiStep=1;renderProcessGuide();renderRosterAudit();renderImportHandoff();history.replaceState(null,'','#batch');return;}
+    if(action==='monitor'){openUtilityView('monitor');return;}
+    if(action==='filter'){
+      if(batch.reviewEditingKey){setImportStatus('请先保存或取消当前邮件的编辑，再切换筛选。','warn');return;}
+      batch.reviewFilter=['all','auto','pending','confirmed'].includes(filter)?filter:'all';
+      viewPerf.reviewRenderLimit=REVIEW_RENDER_CHUNK;
+      if(reviewQueueEl)reviewQueueEl.scrollTop=0;
+      setReviewSurface('board');batch.reviewPreviewKey='';
+      renderReviewPageOverview();
+      return;
+    }
+    if(action==='search'){setReviewSearch(value);return;}
+    if(action==='select-visible'){selectVisibleReviewTasks();return;}
+    if(action==='clear-selected'){batch.reviewSelected.clear();renderReviewQueue(batch.reviewPreviewKey||'');return;}
+    if(action==='confirm-selected'){void confirmSelectedReviewTasks();return;}
+    if(action==='restore'){restoreExcludedTask(key);return;}
+    if(action==='restore-all'){restoreAllExcludedTasks();return;}
+    if(action==='batch'){openReviewBatchProcessing();}
   });
-  $('nmda-review-empty-import')?.addEventListener('click',()=>{
-    setWorkbenchTab('batch');batch.uiStep=1;renderProcessGuide();renderRosterAudit();renderImportHandoff();history.replaceState(null,'','#batch');
-  });
-  $('nmda-review-empty-monitor')?.addEventListener('click',()=>{ openUtilityView('monitor'); });
   $('nmda-review-preview-back')?.addEventListener('click',closeReviewPreview);
-  ui.querySelectorAll('[data-review-filter]').forEach(button=>button.addEventListener('click',()=>{
-    if(batch.reviewEditingKey){setImportStatus('请先保存或取消当前邮件的编辑，再切换筛选。','warn');return;}
-    batch.reviewFilter=['all','auto','pending','confirmed'].includes(button.dataset.reviewFilter)?button.dataset.reviewFilter:'all';
-    viewPerf.reviewRenderLimit=REVIEW_RENDER_CHUNK;
-    if(reviewQueueEl)reviewQueueEl.scrollTop=0;
-    setReviewSurface('board');batch.reviewPreviewKey='';
-    renderReviewPageOverview();
-  }));
-  $('nmda-review-select-filtered')?.addEventListener('click',selectVisibleReviewTasks);
   batchStandardSubjectInputEl?.addEventListener('input',()=>{renderBatchSubjectGovernance();syncBatchProcessingApply();});
   batchStandardSubjectSuggestionEl?.addEventListener('click',()=>{const suggestion=suggestedBulkSubject();if(!suggestion)return;if(batchStandardSubjectInputEl)batchStandardSubjectInputEl.value=suggestion;renderBatchSubjectGovernance();batchStandardSubjectInputEl?.focus?.({preventScroll:true});});
-  reviewBatchLaunchEl?.addEventListener('click',openReviewBatchProcessing);
   formatGovernanceEntryEl?.addEventListener('click',openReviewBatchProcessing);
   $('nmda-format-governance-close')?.addEventListener('click',closeFormatGovernance);
   formatGovernancePhraseEl?.addEventListener('input',scheduleFormatGovernancePreview);
@@ -6228,8 +6165,6 @@
   });
   formatGovernanceApplyEl?.addEventListener('click',()=>{void applyBatchProcessing();});
 
-  $('nmda-review-clear-selected')?.addEventListener('click',()=>{batch.reviewSelected.clear();renderReviewQueue(batch.reviewPreviewKey||'');renderReviewBatchActions();});
-  $('nmda-review-confirm-selected')?.addEventListener('click',confirmSelectedReviewTasks);
   duplicateCandidatesEl?.addEventListener('change',event=>{
     const input=event.target?.closest?.('[data-duplicate-pick]');if(!input)return;
     const groupId=duplicateDecisionEl?.dataset.groupId||'';
@@ -6280,25 +6215,6 @@
     finally{if(button)button.disabled=false;}
   })());
   schedulerCardEl?.addEventListener('toggle',()=>{if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent=schedulerCardEl.open?'收起':'展开';});
-  $('nmda-review-trash-list')?.addEventListener('click', event => {
-    const button=event.target?.closest?.('[data-restore-excluded]');
-    if(!button)return;
-    event.preventDefault();event.stopPropagation();
-    restoreExcludedTask(button.dataset.restoreExcluded||'');
-  });
-  $('nmda-review-trash-restore-all')?.addEventListener('click', event => {
-    event.preventDefault();event.stopPropagation();
-    restoreAllExcludedTasks();
-  });
-  document.addEventListener('click', event => {
-    const trash=$('nmda-review-trash');
-    if(trash?.open && !trash.contains(event.target))trash.open=false;
-  });
-  document.addEventListener('keydown', event => {
-    if(event.key!=='Escape')return;
-    const trash=$('nmda-review-trash');
-    if(trash?.open){trash.open=false;event.preventDefault();}
-  });
 
   dirEl?.addEventListener('change', () => {
     const files=uniqueFiles([...(dirEl.files||[])]);for(const file of files)batch.ignoredAttachmentIdentities.delete(Importer.fileIdentity(file));

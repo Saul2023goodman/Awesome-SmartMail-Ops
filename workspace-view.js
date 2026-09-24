@@ -373,28 +373,8 @@
               </div>
 
               <div class="nmda-card nmda-inline-review" id="nmda-inline-review" hidden>
-                <div class="nmda-inline-review-top">
-                  <div><div class="nmda-card-title" id="nmda-review-workspace-title">审阅邮件</div><div class="nmda-card-desc" id="nmda-review-workspace-desc"></div></div>
-                  <div class="nmda-inline-review-actions"><details class="nmda-review-trash" id="nmda-review-trash"><summary class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-trash-trigger" id="nmda-review-trash-trigger" title="查看被排除的邮件"><span class="nmda-review-trash-icon" aria-hidden="true"></span><span>垃圾箱</span><strong id="nmda-review-trash-count">0</strong></summary><div class="nmda-review-trash-popover"><header><div><strong>垃圾箱</strong><small>排除只影响后续排期与发送，邮件内容仍保留。</small></div><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-trash-restore-all" type="button">全部恢复</button></header><div class="nmda-review-trash-list" id="nmda-review-trash-list"></div><div class="nmda-review-trash-empty" id="nmda-review-trash-empty">垃圾箱为空</div></div></details><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-next-pending" type="button">下一个需处理</button></div>
-                </div>
-                <div class="nmda-review-boardbar nmda-review-boardbar-unified">
-                  <div class="nmda-review-filter nmda-review-status-tabs" id="nmda-review-filter" role="group" aria-label="邮件状态筛选">
-                    <button class="is-active" type="button" data-review-filter="all"><span>全部</span><strong>0</strong></button>
-                    <button type="button" data-review-filter="auto"><span>已就绪</span><strong>0</strong></button>
-                    <button type="button" data-review-filter="pending"><span>需处理</span><strong>0</strong></button>
-                    <button type="button" data-review-filter="confirmed"><span>已检查</span><strong>0</strong></button>
-                  </div>
-                  <div class="nmda-review-queue-tools">
-                    <button class="nmda-review-batch-launch" id="nmda-review-batch-launch" type="button" title="打开批量处理">
-                      <span class="nmda-review-batch-launch-glyph" aria-hidden="true"><i></i><b></b></span>
-                      <span class="nmda-review-batch-launch-copy"><strong>批量处理</strong><small id="nmda-review-batch-launch-meta">格式偏移推荐与主题补齐</small></span>
-                      <b class="nmda-review-batch-launch-count" id="nmda-review-batch-launch-count" hidden>0</b>
-                      <i class="nmda-review-batch-launch-arrow" aria-hidden="true">→</i>
-                    </button>
-                    <label class="nmda-review-search"><span aria-hidden="true">⌕</span><input id="nmda-review-search" type="search" placeholder="搜索收件人 / 邮箱 / 主题" autocomplete="off"></label>
-                    <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-bulk-entry" id="nmda-review-select-filtered" type="button">批量确认…</button>
-                  </div>
-                </div>
+                <div class="nmda-inline-review-top" data-workspace-mount="review-top"></div>
+                <div class="nmda-review-boardbar nmda-review-boardbar-unified" data-workspace-mount="review-boardbar"></div>
                 <section class="nmda-format-governance nmda-batch-standards" id="nmda-format-governance" hidden aria-label="批量处理">
                   <header class="nmda-format-governance-head nmda-batch-standards-head">
                     <div><strong>批量处理</strong><small id="nmda-batch-standards-desc">只显示当前真正需要处理的批量事项：补齐主题、处理检测到的格式偏移。</small></div>
@@ -441,16 +421,8 @@
                   </footer>
                 </section>
 
-                <div class="nmda-review-batchbar" id="nmda-review-batchbar" hidden>
-                  <div><strong id="nmda-review-selected-count">已选 0 封</strong></div>
-                  <div class="nmda-row"><button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-review-confirm-selected" type="button">确认所选</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-review-clear-selected" type="button">取消</button></div>
-                </div>
-                <div class="nmda-review-page-empty" id="nmda-review-page-empty">
-                  <div class="nmda-review-empty-visual" aria-hidden="true"><span></span><i></i><b></b></div>
-                  <div class="nmda-review-empty-copy"><span class="nmda-review-empty-kicker">审阅邮件</span><strong>当前没有需要审阅的邮件</strong><small id="nmda-review-empty-hint">准备好初始邮件，或在邮件监测中生成跟进邮件后，会出现在这里。</small></div>
-                  <div class="nmda-review-empty-actions"><button class="nmda-btn nmda-btn-primary" id="nmda-review-empty-import" type="button">去准备邮件</button><button class="nmda-btn nmda-btn-quiet" id="nmda-review-empty-monitor" type="button">查看邮件监测</button></div>
-                  <div class="nmda-review-empty-foot"><span>初始邮件</span><i>→</i><span>审阅</span><i>→</i><span>安排发送</span><b>·</b><span>跟进邮件也在这里统一审阅</span></div>
-                </div>
+                <div class="nmda-review-batchbar" id="nmda-review-batchbar" data-workspace-mount="review-batchbar" hidden></div>
+                <div class="nmda-review-page-empty" id="nmda-review-page-empty" data-workspace-mount="review-empty"></div>
                 <div class="nmda-review-preview-toolbar" id="nmda-review-preview-toolbar" hidden>
                   <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-preview-back" id="nmda-review-preview-back" type="button">← 返回邮件列表</button>
                   <div class="nmda-review-preview-toolbar-copy"><strong>查看邮件</strong><small id="nmda-review-preview-meta">逐封核对 · 可直接编辑当前邮件</small></div>
