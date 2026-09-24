@@ -132,34 +132,13 @@
                 <div data-workspace-mount="import-intake" style="display:contents"></div>
                 <div data-workspace-mount="source-inventory" style="display:contents"></div>
                 <section class="nmda-import-dedupe-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
-                  <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>批次重复 + 邮箱历史防重</strong></div><div class="nmda-import-dedupe-head-actions"><small id="nmda-import-dedupe-state">正在核验</small><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">重新核验</button></div></div>
+                  <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>批次重复 + 邮箱历史防重</strong></div><div class="nmda-import-dedupe-head-actions"><span data-workspace-mount="import-audit-status" style="display:contents"></span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">重新核验</button></div></div>
                   <input id="nmda-roster-enabled" type="checkbox" checked hidden>
                   <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
                   <input id="nmda-roster-strict" type="checkbox" hidden>
                   <div id="nmda-roster-audit-summary" class="nmda-ingest-health"></div>
                   <div id="nmda-roster-audit-note" class="nmda-review-guidance"></div>
-                  <section class="nmda-draft-history-filter" id="nmda-draft-history-filter" hidden>
-                    <div class="nmda-draft-history-filter-head">
-                      <div><strong>已有草稿命中 <span id="nmda-draft-history-count">0</span> 封</strong><small>这些邮件在网易草稿箱中已有对应收件人，不做正文版本对比。</small></div>
-                      <span>草稿防重</span>
-                    </div>
-                    <div class="nmda-draft-history-filter-list" id="nmda-draft-history-list"></div>
-                    <div class="nmda-draft-history-filter-actions">
-                      <small id="nmda-draft-history-hint">默认勾选全部命中项；筛除后可直接到草稿箱继续处理已有 Draft。</small>
-                      <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary" id="nmda-draft-history-exclude" type="button">筛除所选</button><button class="nmda-btn" id="nmda-draft-history-keep" type="button">仍保留所选</button></div>
-                    </div>
-                  </section>
-                  <section class="nmda-duplicate-decision nmda-import-duplicate-decision" id="nmda-duplicate-decision" hidden>
-                    <div class="nmda-duplicate-decision-head">
-                      <div><strong id="nmda-duplicate-decision-title">发现重复邮件</strong><small id="nmda-duplicate-decision-copy">在导入阶段决定实际进入本批次的版本。</small></div>
-                      <span class="nmda-duplicate-kind" id="nmda-duplicate-decision-kind">重复</span>
-                    </div>
-                    <div class="nmda-duplicate-candidates" id="nmda-duplicate-candidates"></div>
-                    <div class="nmda-duplicate-actions">
-                      <span class="nmda-hint" id="nmda-duplicate-decision-hint">默认勾选信息更完整的一封；也可以明确保留多封。</span>
-                      <div class="nmda-row nmda-wrap"><button class="nmda-btn nmda-btn-primary" id="nmda-duplicate-keep-selected" type="button">保留所选（1）</button><button class="nmda-btn" id="nmda-duplicate-keep-all" type="button">全部保留</button></div>
-                    </div>
-                  </section>
+                  <div data-workspace-mount="import-audit" style="display:contents"></div>
                   <details class="nmda-roster-details"><summary>查看查重依据</summary><div id="nmda-roster-audit-details" class="nmda-roster-audit-details"></div></details>
                 </section>
 

@@ -8,7 +8,8 @@
     preflight:{view:'files',reviewCount:0,taskCount:0},
     sourceUi:{counts:{mail:0,roster:0,attachment:0,review:0,ignored:0},filter:'',folder:'',folderName:'全部文件',visibleCount:0,search:'',total:0,folders:[],rows:[]},
     inspector:null,
-    support:{view:'roster',roster:{state:'pending',count:0},attachment:{state:'pending',total:0,issues:0,count:0,requirements:[]}} };
+    support:{view:'roster',roster:{state:'pending',count:0},attachment:{state:'pending',total:0,issues:0,count:0,requirements:[]}},
+    audit:{draftHistory:{visible:false,hits:[]},duplicate:{visible:false},dedupeStatus:''} };
   function publishPatch(patch) {
     snapshot = { ...snapshot, ...patch };
     for (const listener of listeners) listener();

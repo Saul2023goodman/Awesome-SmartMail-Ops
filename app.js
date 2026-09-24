@@ -738,8 +738,6 @@
   const formatGovernanceEntryEl=$('nmda-review-format-governance'), formatGovernanceEntryCountEl=$('nmda-preview-format-drift-count'), formatGovernanceEl=$('nmda-format-governance'), formatGovernancePhraseEl=$('nmda-format-governance-phrase'), formatGovernanceCaseEl=$('nmda-format-governance-case'), formatGovernanceResultEl=$('nmda-format-governance-result'), formatGovernanceListEl=$('nmda-format-governance-list'), formatGovernanceApplyEl=$('nmda-format-governance-apply'), formatGovernanceSuggestionsEl=$('nmda-format-governance-suggestions'), formatGovernanceQueueEl=$('nmda-format-governance-queue'), formatGovernanceAddEl=$('nmda-format-governance-add'), formatGovernanceHistoryEl=$('nmda-format-governance-history');
   const batchStandardSubjectCountEl=$('nmda-batch-standard-subject-count'), batchStandardFormatCountEl=$('nmda-batch-standard-format-count'), batchStandardSubjectBadgeEl=$('nmda-batch-standard-subject-badge'), batchStandardSubjectInputEl=$('nmda-batch-standard-subject-input'), batchStandardSubjectSuggestionEl=$('nmda-batch-standard-subject-suggestion'), batchStandardSubjectResultEl=$('nmda-batch-standard-subject-result'), batchStandardPlanSummaryEl=$('nmda-batch-standard-plan-summary');
   const batchStandardsEl=$('nmda-format-governance'), batchStandardsDescEl=$('nmda-batch-standards-desc');
-  const duplicateDecisionEl=$('nmda-duplicate-decision'), duplicateDecisionTitleEl=$('nmda-duplicate-decision-title'), duplicateDecisionCopyEl=$('nmda-duplicate-decision-copy'), duplicateDecisionKindEl=$('nmda-duplicate-decision-kind'), duplicateCandidatesEl=$('nmda-duplicate-candidates'), duplicateDecisionHintEl=$('nmda-duplicate-decision-hint'), duplicateKeepSelectedEl=$('nmda-duplicate-keep-selected'), duplicateKeepAllEl=$('nmda-duplicate-keep-all');
-  const draftHistoryFilterEl=$('nmda-draft-history-filter'), draftHistoryCountEl=$('nmda-draft-history-count'), draftHistoryListEl=$('nmda-draft-history-list'), draftHistoryHintEl=$('nmda-draft-history-hint'), draftHistoryExcludeEl=$('nmda-draft-history-exclude'), draftHistoryKeepEl=$('nmda-draft-history-keep');
   const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files');
   const preSendMatchFilesEl = $('nmda-pre-send-match-files'), preSendSharedFilesEl = $('nmda-pre-send-shared-files');
   const previewBodyEl = $('nmda-preview-body'), batchStatusEl = $('nmda-batch-status');
@@ -3380,111 +3378,43 @@
   }
 
   function renderDraftHistoryFilter() {
-    if(!draftHistoryFilterEl||!draftHistoryListEl)return;
     const hits=unresolvedDraftHistoryHits();
-    if(!hits.length){
-      draftHistoryFilterEl.hidden=true;
-      draftHistoryListEl.innerHTML='';
-      return;
-    }
-    draftHistoryFilterEl.hidden=false;
-    if(draftHistoryCountEl)draftHistoryCountEl.textContent=String(hits.length);
-    draftHistoryListEl.innerHTML=hits.map(({task,history})=>{
-      const recent=Operations.formatDisplayTime(history.lastDraftAt)||'时间未知';
-      const subject=String(history.lastDraftSubject||'').trim();
-      return `<label class="nmda-draft-history-filter-row"><input type="checkbox" data-draft-history-pick="${escapeHtml(task.editKey)}" checked><span><strong>${escapeHtml(task.recipients||task.id||'当前邮件')}</strong><small>已有草稿 ${history.draftCount} · 最近 ${escapeHtml(recent)}${subject?` · ${escapeHtml(subject)}`:''}</small></span><em>建议筛除</em></label>`;
-    }).join('');
-    if(draftHistoryExcludeEl)draftHistoryExcludeEl.textContent=`筛除所选（${hits.length}）`;
-    if(draftHistoryKeepEl)draftHistoryKeepEl.textContent=`仍保留所选（${hits.length}）`;
-    if(draftHistoryHintEl)draftHistoryHintEl.textContent='默认勾选全部命中项；这里仅按“邮箱中已存在 Draft”筛选，不比较正文版本。';
+    const current=globalThis.NMDAWorkspaceImportUi.getSnapshot().audit;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({audit:{...current,draftHistory:{visible:!!hits.length,hits:hits.map(({task,history})=>({key:task.editKey,recipient:task.recipients||task.id||'当前邮件',description:`已有草稿 ${history.draftCount} · 最近 ${Operations.formatDisplayTime(history.lastDraftAt)||'时间未知'}${String(history.lastDraftSubject||'').trim()?` · ${String(history.lastDraftSubject||'').trim()}`:''}`}))}}});
   }
 
   function renderDuplicateDecision() {
-    if(!duplicateDecisionEl||!duplicateCandidatesEl)return;
-    const groups=unresolvedDuplicateAuditGroups();
-    const group=groups[0]||null;
-    const draftHits=unresolvedDraftHistoryHits();
-    const stateEl=$('nmda-import-dedupe-state');
+    const groups=unresolvedDuplicateAuditGroups(),group=groups[0]||null,draftHits=unresolvedDraftHistoryHits();
     const syncAt=operationState.store?.mailboxSync?.lastDedupeAt||operationState.store?.mailboxSync?.lastFullAt||'';
     const checkable=(batch.tasks||[]).filter(task=>!task?.importExcluded&&taskNeedsDuplicateGate(task));
-    const mailboxUnread=checkable.length>0&&!syncAt;
-    const pendingCount=groups.length+draftHits.length;
-    if(stateEl)stateEl.textContent=mailboxUnread?'邮箱历史自动读取中':pendingCount?`${pendingCount} 项待处理`:`查重完成 · 邮箱 ${Operations.formatDisplayTime(syncAt)}`;
+    const mailboxUnread=checkable.length>0&&!syncAt,pendingCount=groups.length+draftHits.length;
+    const dedupeStatus=mailboxUnread?'邮箱历史自动读取中':pendingCount?`${pendingCount} 项待处理`:`查重完成 · 邮箱 ${Operations.formatDisplayTime(syncAt)}`;
+    const current=globalThis.NMDAWorkspaceImportUi.getSnapshot().audit;
     if(mailboxUnread){
-      duplicateDecisionEl.hidden=false;delete duplicateDecisionEl.dataset.groupId;duplicateDecisionEl.dataset.scope='mailbox-read';
-      if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent='历史检查';duplicateDecisionKindEl.dataset.tone='strong';}
-      if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent='正在检查是否已联系过';
-      if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent='新导入的初始邮件会先对照网易邮箱中的草稿和已发送记录，避免重复联系。';
-      if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent='从草稿箱导入的邮件会直接沿用现有草稿。';
-      duplicateCandidatesEl.dataset.count='0';
-      duplicateCandidatesEl.innerHTML='<article class="nmda-duplicate-candidate nmda-history-evidence is-auto-sync"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>自动读取中</strong></div></div><div class="nmda-duplicate-preview-body"><pre>检查范围：已有草稿 · 已发送</pre></div></article>';
-      if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.hidden=true;
-      if(duplicateKeepAllEl)duplicateKeepAllEl.hidden=true;
+      globalThis.NMDAWorkspaceImportUi.publishPatch({audit:{...current,dedupeStatus,duplicate:{visible:true,scope:'mailbox-read',kind:'历史检查',tone:'strong',title:'正在检查是否已联系过',copy:'新导入的初始邮件会先对照网易邮箱中的草稿和已发送记录，避免重复联系。',hint:'从草稿箱导入的邮件会直接沿用现有草稿。',showSelected:false,showAll:false,candidates:[{key:'mailbox-read',title:'自动读取中',body:'检查范围：已有草稿 · 已发送',history:true}]}});
       return;
     }
     if(!group){
-      duplicateDecisionEl.hidden=true;delete duplicateDecisionEl.dataset.groupId;delete duplicateDecisionEl.dataset.scope;
-      if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.hidden=false;
-      if(duplicateKeepAllEl)duplicateKeepAllEl.hidden=false;
+      globalThis.NMDAWorkspaceImportUi.publishPatch({audit:{...current,dedupeStatus,duplicate:{visible:false}}});
       return;
     }
-    duplicateDecisionEl.hidden=false;duplicateDecisionEl.dataset.groupId=group.id;duplicateDecisionEl.dataset.scope=group.scope||'batch';
-    if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.hidden=false;
-    if(duplicateKeepAllEl)duplicateKeepAllEl.hidden=false;
-
     if(group.scope==='mailbox-history'){
       const task=group.task||group.tasks?.[0];
       const facts=[group.sentCount?`已发送 ${group.sentCount}`:'',group.draftCount?`另有草稿 ${group.draftCount}`:''].filter(Boolean).join(' · ');
-      if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent='已发送';duplicateDecisionKindEl.dataset.tone='strong';}
-      if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent=`${String(task?.recipients||'该收件人')} 已有发送历史`;
-      if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent=`${facts}。已发送记录代表该联系人已经发生过外联；若这是继续联系，应从“邮件监测”创建跟进邮件。`;
-      if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=groups.length>1?`明确本封后继续处理剩余 ${groups.length-1} 组。`:'这是最后一组历史冲突；处理后即可进入审阅邮件。';
-      if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.textContent='排除当前新邮件';
-      if(duplicateKeepAllEl)duplicateKeepAllEl.textContent='仍保留本封';
-      duplicateCandidatesEl.dataset.count='1';
-      const currentBody=String(task?.body||'').trim();
-      const current=`<article class="nmda-duplicate-candidate is-selected"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>本次导入 · 新初始邮件</strong><em>待决策</em></div><span class="nmda-duplicate-preview-recipient">${escapeHtml(task?.recipients||'')}</span></div><div class="nmda-duplicate-preview-body"><pre>${escapeHtml(currentBody||task?.subject||'正文为空')}</pre></div></article>`;
-      const records=[...(group.sent||[]).slice(0,3).map(record=>({kind:'已发送',time:record.sentAt,subject:record.subject,id:record.providerMessageId||record.id}))];
-      const history=records.map(record=>`<article class="nmda-duplicate-candidate nmda-history-evidence"><div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>${escapeHtml(record.kind)}</strong></div><span class="nmda-duplicate-preview-recipient">${escapeHtml(Operations.formatDisplayTime(record.time)||'时间未知')}</span></div><div class="nmda-duplicate-preview-body"><pre>${escapeHtml(record.subject||'(无主题)')}</pre></div></article>`).join('');
-      duplicateCandidatesEl.innerHTML=current+history;
+      const candidates=[{key:`new:${task?.editKey||group.id}`,title:'本次导入 · 新初始邮件',badge:'待决策',recipient:task?.recipients||'',body:String(task?.body||'').trim()||task?.subject||'正文为空',selected:true}];
+      candidates.push(...(group.sent||[]).slice(0,3).map((record,index)=>({key:`sent:${record.providerMessageId||record.id||index}`,title:'已发送',recipient:Operations.formatDisplayTime(record.sentAt)||'时间未知',body:record.subject||'(无主题)',history:true})));
+      globalThis.NMDAWorkspaceImportUi.publishPatch({audit:{...current,dedupeStatus,duplicate:{visible:true,groupId:group.id,scope:group.scope||'mailbox-history',kind:'已发送',tone:'strong',title:`${String(task?.recipients||'该收件人')} 已有发送历史`,copy:`${facts}。已发送记录代表该联系人已经发生过外联；若这是继续联系，应从“邮件监测”创建跟进邮件。`,hint:groups.length>1?`明确本封后继续处理剩余 ${groups.length-1} 组。`:'这是最后一组历史冲突；处理后即可进入审阅邮件。',keepSelectedLabel:'排除当前新邮件',keepAllLabel:'仍保留本封',showSelected:true,showAll:true,candidates}});
       return;
     }
-
-    const recommended=recommendedDuplicateTask(group);
-    const validKeys=new Set((group.tasks||[]).filter(item=>!item?.importExcluded).map(item=>item.editKey));
-    const savedRaw=batch.duplicateSelections?.get?.(group.id);
-    const savedList=Array.isArray(savedRaw)?savedRaw:(savedRaw?[savedRaw]:[]);
-    const selectedKeys=new Set(savedList.filter(key=>validKeys.has(key)));
+    const recommended=recommendedDuplicateTask(group),validKeys=new Set((group.tasks||[]).filter(item=>!item?.importExcluded).map(item=>item.editKey));
+    const savedRaw=batch.duplicateSelections?.get?.(group.id),savedList=Array.isArray(savedRaw)?savedRaw:(savedRaw?[savedRaw]:[]),selectedKeys=new Set(savedList.filter(key=>validKeys.has(key)));
     if(!selectedKeys.size){const fallback=recommended?.editKey||[...validKeys][0]||'';if(fallback)selectedKeys.add(fallback);}
     if(batch.duplicateSelections instanceof Map)batch.duplicateSelections.set(group.id,[...selectedKeys]);
-    if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.textContent=`保留所选（${selectedKeys.size}）`;
-    if(duplicateDecisionKindEl){duplicateDecisionKindEl.textContent=group.type==='exact-email'?'同一邮箱':'疑似同一联系人';duplicateDecisionKindEl.dataset.tone=group.type==='exact-email'?'strong':'soft';}
-    if(duplicateKeepAllEl)duplicateKeepAllEl.textContent=group.type==='exact-email'?'明确全部保留':'不是同一联系人，全部保留';
-    if(duplicateDecisionTitleEl)duplicateDecisionTitleEl.textContent=group.type==='exact-email'
-      ? `同一收件人有 ${group.tasks?.length||0} 封邮件`
-      : `可能是同一联系人：${group.tasks?.length||0} 封邮件`;
-    if(duplicateDecisionCopyEl)duplicateDecisionCopyEl.textContent=group.type==='exact-email'
-      ? `${group.email||group.label||'该收件人'}。导入阶段先决定哪些版本真正进入本批次。`
-      : `${group.label||'姓名与院校相同'}。请根据收件人和正文确认是否属于同一联系人。`;
-    if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=groups.length>1
-      ? `当前还有 ${groups.length} 组待处理；确认本组后自动显示下一组。`
-      : '这是最后一组；确认后即可进入审阅邮件。';
     const compareTasks=(group.tasks||[]).filter(item=>!item?.importExcluded);
-    duplicateCandidatesEl.dataset.count=String(compareTasks.length);
-    duplicateCandidatesEl.innerHTML=compareTasks.map((candidate,index)=>{
-      const isRecommended=candidate.editKey===recommended?.editKey;
-      const isSelected=selectedKeys.has(candidate.editKey);
-      const body=String(candidate.body||'').trim();
-      const title=String(candidate.subject||candidate.id||`邮件 ${index+1}`).trim()||`邮件 ${index+1}`;
-      const recipient=String(candidate.recipients||'').trim()||'未填写收件人';
-      return `<article class="nmda-duplicate-candidate ${isSelected?'is-selected':''}" data-duplicate-row="${escapeHtml(candidate.editKey)}">
-        <label class="nmda-duplicate-pick-line"><input type="checkbox" data-duplicate-pick="${escapeHtml(candidate.editKey)}" ${isSelected?'checked':''}><span><strong>保留此封</strong><small>${escapeHtml(duplicateCandidateMeta(candidate))}</small></span></label>
-        <div class="nmda-duplicate-preview-head"><div class="nmda-duplicate-candidate-title"><strong>${escapeHtml(title)}</strong>${isRecommended?'<em>信息更完整</em>':''}</div><span class="nmda-duplicate-preview-recipient">${escapeHtml(recipient)}</span></div>
-        <div class="nmda-duplicate-preview-body"><pre>${escapeHtml(body||'正文为空')}</pre></div>
-      </article>`;
-    }).join('');
+    const candidates=compareTasks.map((candidate,index)=>({key:candidate.editKey,selectable:true,selected:selectedKeys.has(candidate.editKey),title:String(candidate.subject||candidate.id||`邮件 ${index+1}`).trim()||`邮件 ${index+1}`,recipient:String(candidate.recipients||'').trim()||'未填写收件人',body:String(candidate.body||'').trim()||'正文为空',meta:duplicateCandidateMeta(candidate),badge:candidate.editKey===recommended?.editKey?'信息更完整':''}));
+    const exact=group.type==='exact-email';
+    globalThis.NMDAWorkspaceImportUi.publishPatch({audit:{...current,dedupeStatus,duplicate:{visible:true,groupId:group.id,scope:group.scope||'batch',kind:exact?'同一邮箱':'疑似同一联系人',tone:exact?'strong':'soft',title:exact?`同一收件人有 ${group.tasks?.length||0} 封邮件`:`可能是同一联系人：${group.tasks?.length||0} 封邮件`,copy:exact?`${group.email||group.label||'该收件人'}。导入阶段先决定哪些版本真正进入本批次。`:`${group.label||'姓名与院校相同'}。请根据收件人和正文确认是否属于同一联系人。`,hint:selectedKeys.size?'未勾选的邮件将在确认后排除。':'至少保留一封；当前尚未选择任何邮件。',keepSelectedLabel:`保留所选（${selectedKeys.size}）`,keepAllLabel:exact?'明确全部保留':'不是同一联系人，全部保留',showSelected:true,showAll:true,selectedKeys:[...selectedKeys],candidates}});
   }
-
   function finishImportDuplicateDecision(summary='导入查重已更新') {
     batch.reviewSelected?.clear?.();
     rebuildTasks();
@@ -3493,8 +3423,8 @@
     setImportStatus(remaining?`${summary}；还有 ${remaining} 项查重待处理。`:`${summary}；导入查重完成，可以进入审阅邮件。`,remaining?'warn':'ok');
   }
 
-  async function keepSelectedDuplicateCandidate() {
-    const groupId=duplicateDecisionEl?.dataset.groupId||'';if(!groupId)return;
+  async function keepSelectedDuplicateCandidate(selectedKeysFromUi=[]) {
+    const groupId=globalThis.NMDAWorkspaceImportUi.getSnapshot().audit.duplicate.groupId||'';if(!groupId)return;
     const group=(batch.duplicateAudit?.groups||[]).find(item=>item.id===groupId);
     if(!group){finishImportDuplicateDecision('重复信息已变化，已重新核验');return;}
     if(group.scope==='mailbox-history'){
@@ -3504,8 +3434,8 @@
       finishImportDuplicateDecision('已排除命中邮箱历史的当前新邮件');
       return;
     }
-    const selectedKeys=[...(duplicateCandidatesEl?.querySelectorAll('input[data-duplicate-pick]:checked')||[])].map(input=>input.dataset.duplicatePick).filter(Boolean);
-    if(!selectedKeys.length){if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent='至少保留一封；如果本组都不需要，请回到来源分类中移除相应邮件。';return;}
+    const selectedKeys=[...(selectedKeysFromUi||[])].filter(Boolean);
+    if(!selectedKeys.length)return;
     const selectedSet=new Set(selectedKeys),retained=(group.tasks||[]).filter(item=>selectedSet.has(item.editKey));
     for(const candidate of group.tasks||[]){
       if(selectedSet.has(candidate.editKey)){
@@ -3519,7 +3449,7 @@
   }
 
   async function keepAllDuplicateCandidates() {
-    const groupId=duplicateDecisionEl?.dataset.groupId||'';if(!groupId)return;
+    const groupId=globalThis.NMDAWorkspaceImportUi.getSnapshot().audit.duplicate.groupId||'';if(!groupId)return;
     const group=(batch.duplicateAudit?.groups||[]).find(item=>item.id===groupId);
     if(!group){finishImportDuplicateDecision('重复信息已变化，已重新核验');return;}
     if(group.scope==='mailbox-history'){
@@ -5880,43 +5810,30 @@
   });
   formatGovernanceApplyEl?.addEventListener('click',()=>{void applyBatchProcessing();});
 
-  duplicateCandidatesEl?.addEventListener('change',event=>{
-    const input=event.target?.closest?.('[data-duplicate-pick]');if(!input)return;
-    const groupId=duplicateDecisionEl?.dataset.groupId||'';
-    const selected=[...duplicateCandidatesEl.querySelectorAll('input[data-duplicate-pick]:checked')].map(item=>item.dataset.duplicatePick).filter(Boolean);
-    if(groupId&&batch.duplicateSelections instanceof Map)batch.duplicateSelections.set(groupId,selected);
-    duplicateCandidatesEl.querySelectorAll('[data-duplicate-row]').forEach(row=>row.classList.toggle('is-selected',selected.includes(row.dataset.duplicateRow)));
-    if(duplicateKeepSelectedEl)duplicateKeepSelectedEl.textContent=`保留所选（${selected.length}）`;
-    if(duplicateDecisionHintEl)duplicateDecisionHintEl.textContent=selected.length?'未勾选的邮件将在确认后排除。':'至少保留一封；当前尚未选择任何邮件。';
-  });
-  $('nmda-duplicate-keep-selected')?.addEventListener('click',()=>void keepSelectedDuplicateCandidate());
-  $('nmda-duplicate-keep-all')?.addEventListener('click',()=>void keepAllDuplicateCandidates());
-  draftHistoryListEl?.addEventListener('change',event=>{
-    if(!event.target?.closest?.('[data-draft-history-pick]'))return;
-    const selected=[...(draftHistoryListEl.querySelectorAll('input[data-draft-history-pick]:checked')||[])].length;
-    if(draftHistoryExcludeEl)draftHistoryExcludeEl.textContent=`筛除所选（${selected}）`;
-    if(draftHistoryKeepEl)draftHistoryKeepEl.textContent=`仍保留所选（${selected}）`;
-    if(draftHistoryHintEl)draftHistoryHintEl.textContent=selected?'所选任务只按“已有 Draft”事实处理，不进行正文版本比较。':'至少选择一封需要处理的命中邮件。';
-  });
-  draftHistoryExcludeEl?.addEventListener('click',()=>{
-    const selected=new Set([...(draftHistoryListEl?.querySelectorAll('input[data-draft-history-pick]:checked')||[])].map(input=>input.dataset.draftHistoryPick).filter(Boolean));
-    if(!selected.size){if(draftHistoryHintEl)draftHistoryHintEl.textContent='至少选择一封需要筛除的邮件。';return;}
-    const hits=unresolvedDraftHistoryHits();let changed=0;
-    for(const hit of hits){
-      if(!selected.has(hit.task.editKey))continue;
-      setTaskEdit(hit.task,{importExcluded:true,draftHistoryDecision:'exclude',draftHistoryDecisionKey:hit.key});changed++;
+  window.addEventListener('nmda:import-audit-action',event=>{
+    const {action,keys,key,checked}=event.detail||{};
+    if(action==='selection'){
+      const duplicate=globalThis.NMDAWorkspaceImportUi.getSnapshot().audit.duplicate,groupId=duplicate.groupId||'';
+      if(!groupId)return;
+      const selected=new Set(batch.duplicateSelections?.get?.(groupId)||duplicate.selectedKeys||[]);
+      checked?selected.add(key):selected.delete(key);
+      if(batch.duplicateSelections instanceof Map)batch.duplicateSelections.set(groupId,[...selected]);
+      renderDuplicateDecision();
+    }else if(action==='keep-selected'){
+      void keepSelectedDuplicateCandidate(keys||[]);
+    }else if(action==='keep-all'){
+      void keepAllDuplicateCandidates();
+    }else if(action==='exclude-draft-history'||action==='keep-draft-history'){
+      const selected=new Set(keys||[]);if(!selected.size)return;
+      const hits=unresolvedDraftHistoryHits();let changed=0;
+      for(const hit of hits){
+        if(!selected.has(hit.task.editKey))continue;
+        if(action==='exclude-draft-history')setTaskEdit(hit.task,{importExcluded:true,draftHistoryDecision:'exclude',draftHistoryDecisionKey:hit.key});
+        else setTaskEdit(hit.task,{draftHistoryDecision:'keep',draftHistoryDecisionKey:hit.key,importExcluded:false});
+        changed++;
+      }
+      finishImportDuplicateDecision(action==='exclude-draft-history'?`已排除 ${changed} 封与现有草稿重复的新邮件`:`已明确保留 ${changed} 封命中已有草稿的新邮件`);
     }
-    finishImportDuplicateDecision(`已排除 ${changed} 封与现有草稿重复的新邮件`);
-  });
-  draftHistoryKeepEl?.addEventListener('click',()=>{
-    const selected=new Set([...(draftHistoryListEl?.querySelectorAll('input[data-draft-history-pick]:checked')||[])].map(input=>input.dataset.draftHistoryPick).filter(Boolean));
-    if(!selected.size){if(draftHistoryHintEl)draftHistoryHintEl.textContent='至少选择一封需要保留的邮件。';return;}
-    const hits=unresolvedDraftHistoryHits();let changed=0;
-    for(const hit of hits){
-      if(!selected.has(hit.task.editKey))continue;
-      setTaskEdit(hit.task,{draftHistoryDecision:'keep',draftHistoryDecisionKey:hit.key,importExcluded:false});changed++;
-    }
-    finishImportDuplicateDecision(`已明确保留 ${changed} 封命中已有草稿的新邮件`);
   });
   $('nmda-dedupe-refresh-mailbox')?.addEventListener('click',()=>void (async()=>{
     const button=$('nmda-dedupe-refresh-mailbox');if(button)button.disabled=true;
