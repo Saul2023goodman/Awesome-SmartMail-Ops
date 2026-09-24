@@ -743,8 +743,7 @@
   const draftHistoryFilterEl=$('nmda-draft-history-filter'), draftHistoryCountEl=$('nmda-draft-history-count'), draftHistoryListEl=$('nmda-draft-history-list'), draftHistoryHintEl=$('nmda-draft-history-hint'), draftHistoryExcludeEl=$('nmda-draft-history-exclude'), draftHistoryKeepEl=$('nmda-draft-history-keep');
   const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files');
   const draftImportEl = $('nmda-import-drafts'), preSendMatchFilesEl = $('nmda-pre-send-match-files'), preSendSharedFilesEl = $('nmda-pre-send-shared-files');
-  const previewBodyEl = $('nmda-preview-body'), batchSummaryEl = $('nmda-batch-summary'), batchStatusEl = $('nmda-batch-status'), importStatusEl = $('nmda-import-status');
-  const planningOverviewEl = $('nmda-planning-overview');
+  const previewBodyEl = $('nmda-preview-body'), batchStatusEl = $('nmda-batch-status'), importStatusEl = $('nmda-import-status');
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time'), batchParagraphSpacingEl = $('nmda-compose-paragraph-spacing'), batchFastComposeEl = $('nmda-fast-compose');
   const scheduleStartDateEl = $('nmda-rule-start-date'), scheduleLocalTimeEl = $('nmda-rule-local-time'), scheduleTimeZoneEl = $('nmda-rule-time-zone'), scheduleWeekdayEls = [...ui.querySelectorAll('[data-schedule-weekday]')], scheduleSkipStartEl = $('nmda-rule-skip-start'), scheduleSkipEndEl = $('nmda-rule-skip-end'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), scheduleSchoolIntervalEl = $('nmda-rule-school-interval'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleMailboxExistingEl = $('nmda-rule-include-mailbox-scheduled'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
   const scheduleApplyEl = $('nmda-apply-schedule'), scheduleApplyHintEl=$('nmda-apply-schedule-hint'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleOutcomeEl=$('nmda-schedule-outcome'), scheduleGuideEl=$('nmda-schedule-guide'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
@@ -1171,14 +1170,7 @@
     const visible=reviewVisibleTasks();
     if(currentKey && !visible.some(task=>task.editKey===currentKey)){batch.reviewPreviewKey='';if(batch.reviewSurface==='preview'&&visible[0])focusReviewTask(visible[0].editKey,{behavior:'auto'});}
   }
-  planningOverviewEl?.addEventListener('click', event=>{
-    const scheduleGuide=event.target.closest?.('[data-open-schedule-guide]');
-    if(scheduleGuide){openScheduleModal();return;}
-    const show=event.target.closest?.('[data-show-unscheduled]');
-    if(show){
-      window.dispatchEvent(new Event('nmda:planning-show-unscheduled'));
-    }
-  });
+  window.addEventListener('nmda:planning-open-schedule-guide',openScheduleModal);
 
   function referenceRosterCount() {
     return Number(State.rosterState()?.entries?.length || 0);
@@ -5182,35 +5174,19 @@
     const skip=scheduleSkipText(rules);if(skip)parts.push(skip);if(rules?.skipHolidays!==false)parts.push('避开可识别的当地节假日');return parts.join(' · ');
   }
 
-  function renderPlanningOverview(tasks, snapshot=batchSummarySnapshot(dispatchTasks())) {
-    if(!planningOverviewEl) return;
-    const data=derivePlanningGroups(tasks);
+  function planningOverviewModel(data,snapshot){
     const warnings=[];
     if(data.audit.conflicts?.length)warnings.push(`${data.audit.conflicts.length} 个同校当日限额冲突`);
     if(data.audit.intervalConflicts?.length)warnings.push(`${data.audit.intervalConflicts.length} 个同校间隔冲突`);
     if(data.audit.holidayConflicts?.length)warnings.push(`${data.audit.holidayConflicts.length} 个日历规则问题`);
-    const externalWarnings=(data.audit.externalConflicts?.length||0)+(data.audit.timeConflicts?.length||0);if(externalWarnings)warnings.push(`${externalWarnings} 个已有排期冲突`);
-    const ruleSummary=scheduleRuleHumanText(data.rules);
-    const unscheduled=data.unscheduled.length;
-    const lockedCount=data.rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?batch.existingScheduleAnchors.length:null;
-    const issueText=warnings.length?warnings.join(' · '):'规则正常';
-    planningOverviewEl.innerHTML=`
-      <section class="nmda-plan-commandbar">
-        <div class="nmda-plan-command-main">
-          <strong>排期矩阵</strong>
-          <span>${escapeHtml(ruleSummary)}</span>
-        </div>
-        <div class="nmda-plan-command-stats">
-          <span>学校 <strong>${data.schoolRows.length}</strong></span>
-          <span>发送日 <strong>${data.rounds.length}</strong></span>
-          <span>本次 <strong>${snapshot.selectedTotal}</strong></span>
-          ${data.rules.includeMailboxScheduled!==false?`<span>已有排期 <strong>${lockedCount==null?'—':lockedCount}</strong></span>`:''}
-          <span>可创建 <strong>${snapshot.selectedReady}</strong></span>
-          <span data-tone="${warnings.length?'warn':'ok'}">${escapeHtml(issueText)}</span>
-        </div>
-      </section>
-      ${unscheduled?`<section class="nmda-time-plan-prompt"><span class="nmda-time-plan-prompt-step">下一步</span><div><strong>先设置时间安排，再进入网易执行</strong><span>${unscheduled} 封还没有发送时间。只需设置一次地区、开始日期、工作日和当地时间，系统会自动安排到符合规则的发送日，所有自动任务保持你设定的同一当地时间。</span></div><button type="button" data-open-schedule-guide>设置时间安排</button><button type="button" class="is-secondary" data-show-unscheduled>查看未排期</button></section>`:''}
-    `;
+    const externalWarnings=(data.audit.externalConflicts?.length||0)+(data.audit.timeConflicts?.length||0);
+    if(externalWarnings)warnings.push(`${externalWarnings} 个已有排期冲突`);
+    return {
+      schools:data.schoolRows.length,rounds:data.rounds.length,selected:snapshot.selectedTotal,ready:snapshot.selectedReady,
+      unscheduled:data.unscheduled.length,showMailbox:data.rules.includeMailboxScheduled!==false,
+      lockedCount:data.rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?batch.existingScheduleAnchors.length:null,
+      ruleSummary:scheduleRuleHumanText(data.rules),warnings
+    };
   }
 
 
@@ -5464,57 +5440,19 @@
 
   function renderBatchSummaryControls(tasks = dispatchTasks(), snapshot = batchSummarySnapshot(tasks)) {
     const sources=Dispatch?.sourceCounts?.(tasks)||{initial:tasks.filter(t=>t.dispatchKind!=='follow_up').length,followUp:tasks.filter(t=>t.dispatchKind==='follow_up').length};
-    const summaryParts=[`共 <strong>${tasks.length}</strong> 封`,`初始 <strong>${sources.initial}</strong>`,`跟进 <strong>${sources.followUp}</strong>`,`本次 <strong>${snapshot.selectedTotal}</strong>`,`可创建 <strong>${snapshot.selectedReady}</strong>`];
-    if(snapshot.selectedScheduled)summaryParts.push(`定时 ${snapshot.selectedScheduled}`);
-    if(snapshot.errors)summaryParts.push(`<span class="nmda-danger">异常 ${snapshot.errors}</span>`);
-    if(snapshot.done)summaryParts.push(`已完成 ${snapshot.done}`);
-    batchSummaryEl.innerHTML=summaryParts.join(' · ');
-    if(batchStartEl)batchStartEl.textContent=snapshot.selectedReady?`前往网易邮箱 · 创建 ${snapshot.selectedReady} 封`:'前往网易邮箱并创建所选草稿';
-    const selectionChip=$('nmda-planning-selection-chip');
-    if(selectionChip)selectionChip.textContent=snapshot.selectedReady?`本次已选择 ${snapshot.selectedReady} 封${snapshot.selectedScheduled?` · 已定时 ${snapshot.selectedScheduled} 封`:''}`:'尚未选择可创建邮件';
-    const attachmentChip=$('nmda-planning-attachment-chip');
-    if(attachmentChip){
-      const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{issues:0};
-      const localCount=attachmentPreparedFileCount();
-      attachmentChip.textContent=stats.issues?`附件提醒 ${stats.issues} 项 · 不阻断`:localCount?`初始邮件附件 ${localCount} 个`:'本次发送不含本地附件';
-      attachmentChip.dataset.state=stats.issues?'warn':localCount?'ok':'idle';
-    }
-
-    batchStartEl.disabled=batch.running||!snapshot.selectedReady;
-    const preflight=$('nmda-create-preflight');
-    if(preflight){
-      const selected=(tasks||[]).filter(task=>task.enabled&&task.status==='ready');
-      const fileCount=selected.reduce((sum,task)=>sum+(task.files?.length||0),0);
-      const attachmentlessCount=selected.filter(task=>!(task.files?.length||0)).length;
-      const unscheduledCount=Math.max(0,snapshot.selectedReady-snapshot.selectedScheduled);
-      const excluded=typeof excludedImportCount==='function'?excludedImportCount():0;
-      const facts=[`本次 ${snapshot.selectedReady} 封`,snapshot.selectedScheduled?`定时 ${snapshot.selectedScheduled} 封`:'',fileCount?`附件 ${fileCount} 份`:'',excluded?`已排除 ${excluded} 封`:''].filter(Boolean);
-      const alerts=[];
-      if(unscheduledCount){
-        alerts.push(`<div class="nmda-execution-alert" data-risk="schedule"><span class="nmda-execution-alert-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.25"/><path d="M10 6.4v4l2.9 1.8"/></svg></span><div><strong>${unscheduledCount} 封未定时</strong><small>将保存为普通草稿，不会按计划自动发送</small></div><b>${unscheduledCount===snapshot.selectedReady?'全部':'检查'}</b></div>`);
-      }
-      if(attachmentlessCount){
-        alerts.push(`<div class="nmda-execution-alert" data-risk="attachment"><span class="nmda-execution-alert-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M7.2 9.8 11 6a2.25 2.25 0 1 1 3.2 3.2l-5 5a3.25 3.25 0 0 1-4.6-4.6l5.25-5.25"/></svg></span><div><strong>${attachmentlessCount} 封无附件</strong><small>${attachmentlessCount===snapshot.selectedReady?'当前所选邮件均不带附件，请确认这是预期':'这些邮件未携带附件，执行前请确认'}</small></div><b>${attachmentlessCount===snapshot.selectedReady?'全部':'检查'}</b></div>`);
-      }
-      const safeCopy=alerts.length?'':'<span class="nmda-execution-safe"><i></i>执行检查通过</span>';
-      preflight.innerHTML=`<div class="nmda-preflight-facts"><span>${facts.map(item=>`<em>${escapeHtml(item)}</em>`).join('')}</span><strong>执行时自动切到网易邮箱</strong>${safeCopy}</div>${alerts.length?`<div class="nmda-execution-alerts">${alerts.join('')}</div>`:''}`;
-      const handoff=$('nmda-mail-handoff-bar');
-      if(handoff)handoff.dataset.attention=alerts.length?'true':'false';
-      const riskSignature=`${unscheduledCount}:${attachmentlessCount}:${snapshot.selectedReady}`;
-      if(alerts.length&&preflight.dataset.riskSignature!==riskSignature){
-        preflight.dataset.riskSignature=riskSignature;
-        if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-          requestAnimationFrame(()=>preflight.querySelectorAll('.nmda-execution-alert').forEach((el,index)=>{
-            el.animate([
-              {opacity:0,transform:'translateY(7px) scale(.985)',backgroundPosition:'100% 0'},
-              {opacity:1,transform:'translateY(-1px) scale(1.002)',backgroundPosition:'38% 0',offset:.72},
-              {opacity:1,transform:'translateY(0) scale(1)',backgroundPosition:'0% 0'}
-            ],{duration:420,delay:index*65,easing:'cubic-bezier(.2,.78,.2,1)'});
-          }));
-        }
-      }else if(!alerts.length){
-        preflight.dataset.riskSignature=riskSignature;
-      }
+    const selected=(tasks||[]).filter(task=>task.enabled&&task.status==='ready');
+    const fileCount=selected.reduce((sum,task)=>sum+(task.files?.length||0),0);
+    const attachmentlessCount=selected.filter(task=>!(task.files?.length||0)).length;
+    const unscheduledCount=Math.max(0,snapshot.selectedReady-snapshot.selectedScheduled);
+    const excluded=excludedImportCount();
+    const facts=[`本次 ${snapshot.selectedReady} 封`,snapshot.selectedScheduled?`定时 ${snapshot.selectedScheduled} 封`:'',fileCount?`附件 ${fileCount} 份`:'',excluded?`已排除 ${excluded} 封`:''].filter(Boolean);
+    globalThis.NMDAWorkspacePlanningUi.publishPatch({
+      summary:{total:tasks.length,initial:sources.initial,followUp:sources.followUp,selectedTotal:snapshot.selectedTotal,ready:snapshot.selectedReady,scheduled:snapshot.selectedScheduled,errors:snapshot.errors,done:snapshot.done},
+      preflight:{facts,unscheduled:unscheduledCount,attachmentless:attachmentlessCount,ready:snapshot.selectedReady}
+    });
+    if(batchStartEl){
+      batchStartEl.textContent=snapshot.selectedReady?`前往网易邮箱 · 创建 ${snapshot.selectedReady} 封`:'前往网易邮箱并创建所选草稿';
+      batchStartEl.disabled=batch.running||!snapshot.selectedReady;
     }
     return snapshot;
   }
@@ -5534,7 +5472,6 @@
     const matched=filteredBatchTasks();
     const snapshot=renderBatchSummaryControls(tasks);
     const planning=derivePlanningGroups(matched);
-    renderPlanningOverview(matched,snapshot);
 
     const rules=batch.scheduleRules||State.freshScheduleRules();
     const zoneText=scheduleZoneText(rules);
@@ -5545,8 +5482,9 @@
       school:Scheduler?.groupForTask?.(task)?.label||task.school||'未识别学校',
       origin:original163MailRef(task)
     }]));
-    globalThis.NMDAWorkspacePlanningUi.publish({
-      planning,taskViews,running:!!batch.running,maxPerGroupPerRound:rules.maxPerGroupPerRound||1
+    globalThis.NMDAWorkspacePlanningUi.publishPatch({
+      planning,taskViews,running:!!batch.running,maxPerGroupPerRound:rules.maxPerGroupPerRound||1,
+      overview:planningOverviewModel(planning,snapshot)
     });
 
     const hasTasks=tasks.length>0;

@@ -7,7 +7,7 @@ import UtilitiesHome from './UtilitiesHome.jsx';
 import { WorkspaceTabs, WorkspacePageHeads } from './Navigation.jsx';
 import ReviewBoard, { ReviewPreview, ReviewRail } from './ReviewBoard.jsx';
 import { ReviewTop, ReviewBoardbar, ReviewBatchbar, ReviewEmpty, ReviewPreviewToolbar } from './ReviewControls.jsx';
-import PlanningBoard from './PlanningBoard.jsx';
+import PlanningBoard, { PlanningOverview, DispatchSummary, ExecutionPreflight } from './PlanningBoard.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -63,3 +63,13 @@ for (const [name, Component] of [['review-top', ReviewTop], ['review-boardbar', 
 document.querySelectorAll('[data-workspace-mount="planning-board"]').forEach(host => {
   createRoot(host).render(<StrictMode><PlanningBoard /></StrictMode>);
 });
+
+document.querySelectorAll('[data-workspace-mount="planning-overview"]').forEach(host => {
+  createRoot(host).render(<StrictMode><PlanningOverview /></StrictMode>);
+});
+
+for (const [name, Component] of [['dispatch-summary', DispatchSummary], ['execution-preflight', ExecutionPreflight]]) {
+  document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
+    createRoot(host).render(<StrictMode><Component /></StrictMode>);
+  });
+}

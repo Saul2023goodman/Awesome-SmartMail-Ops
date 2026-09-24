@@ -458,11 +458,11 @@
               <div class="nmda-card-head nmda-list-head nmda-planning-head">
                 <div><div class="nmda-card-title">安排本次邮件</div><div class="nmda-card-desc"></div></div>
                 <div class="nmda-planning-head-actions">
-                  <div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline"></div>
+                  <div id="nmda-batch-summary" class="nmda-summary nmda-summary-inline" data-workspace-mount="dispatch-summary"></div>
                   <button class="nmda-btn nmda-btn-small nmda-btn-primary nmda-schedule-entry" id="nmda-open-schedule-modal" type="button" title="设置本次发送的地区、日期、工作日与当地时间"><span>设置时间安排</span><small>日期 · 工作日 · 当地时间</small></button>
                 </div>
               </div>
-              <div class="nmda-planning-overview" id="nmda-planning-overview"></div>
+              <div class="nmda-planning-overview" id="nmda-planning-overview" data-workspace-mount="planning-overview"></div>
               <details class="nmda-scope-tools" id="nmda-scope-tools">
                 <summary><span><strong>筛选邮件</strong></span><span class="nmda-scope-toggle">展开</span></summary>
                 <div class="nmda-task-toolbar">
@@ -475,7 +475,7 @@
               <input id="nmda-bulk-tag-value" type="hidden"><button id="nmda-bulk-add-tag" type="button" hidden></button><button id="nmda-bulk-remove-tag" type="button" hidden></button><button id="nmda-bulk-disable" type="button" hidden></button>
               <div class="nmda-table-wrap nmda-batch-table-wrap"><div class="nmda-planning-board" id="nmda-preview-body" data-workspace-mount="planning-board"></div></div>
               <div class="nmda-mail-handoff-bar" id="nmda-mail-handoff-bar">
-                <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备在网易邮箱创建草稿</strong><div class="nmda-create-preflight" id="nmda-create-preflight">确认本次邮件与发送时间后，创建过程会在网易邮箱页面同步显示。</div></div></div>
+                <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备在网易邮箱创建草稿</strong><div class="nmda-create-preflight" id="nmda-create-preflight" data-workspace-mount="execution-preflight"></div></div></div>
                 <label class="nmda-execution-mode" title="创建 163 草稿时，确保相邻正文段落之间至少保留一个空行；不会改变这里的正文内容"><input id="nmda-compose-paragraph-spacing" type="checkbox" checked><span>段落间留空行</span></label>
                 <label class="nmda-execution-mode nmda-execution-mode-fast" title="优先使用快速创建；遇到不兼容情况会自动切换为标准模式。"><input id="nmda-fast-compose" type="checkbox"><span>快速创建</span></label>
                 <label class="nmda-execution-mode" title="每封邮件填写完成后暂停，人工检查后再保存"><input id="nmda-pause-every-time" type="checkbox"><span>每封填写后暂停</span></label>
