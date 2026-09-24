@@ -249,7 +249,7 @@
 
   const MailboxSync = globalThis.NMDAWorkspaceMailboxSync;
   MailboxSync.onApplied(() => {
-    if (batch.dataset) { rebuildTasks(); invalidateBatchView(true); renderDuplicateDecision(); renderRosterAudit(); renderProcessGuide(); }
+    if (batch.dataset) { rebuildTasks(); invalidateBatchView(true); renderDuplicateDecision(); renderRosterAudit(); syncStageSurfaceVisibility(); }
     State.changed();
     renderReviewPageOverview();
   });
@@ -557,99 +557,12 @@
     scheduleBatchRender({aux:true});
   });
 
-  function processStepAccess(step, options={}) {
-    const n=Math.min(2,Math.max(1,Number(step||1)));
-    const from=Math.min(2,Math.max(1,Number(options.fromStep ?? batch.uiStep ?? 1)));
-    const hasSource=!!batch.dataset;
-    const contextPending=hasSource && typeof supplementPreflightNeedsDecision==='function' && supplementPreflightNeedsDecision();
-    const attachmentIssues=hasSource && typeof importAttachmentStats==='function' ? Number(importAttachmentStats().issues||0) : 0;
-    const blockers=hasSource && Array.isArray(batch.tasks) ? batch.tasks.filter(task=>typeof taskHasPrePlanningBlocker==='function' && taskHasPrePlanningBlocker(task)).length : 0;
-    let ready=true, reason='';
-    if(n===2 && !hasSource){ready=false;reason='尚未准备邮件。';}
-    return {allowed:true,ready,reason,hasSource,contextPending,attachmentIssues,blockers,fromStep:from,direction:n<from?'backward':n>from?'forward':'current'};
-  }
-
-  function renderProcessGuide() {
-    const guides = ui.querySelectorAll('.nmda-process-guide');
-    if (!guides.length || typeof batch === 'undefined') return;
-    const hasSource = !!batch.dataset;
-    const attachmentIssues=hasSource && typeof importAttachmentStats==='function' ? Number(importAttachmentStats().issues||0) : 0;
-    const duplicateIssues=hasSource && typeof unresolvedDuplicateGroupCount==='function' ? Number(unresolvedDuplicateGroupCount()||0) : 0;
-    let review = 0, other = 0;
-    for (const task of (batch.tasks || [])) {
-      if (hasSource && typeof taskNeedsImportReview === 'function' && taskNeedsImportReview(task)) review++;
-      if (hasSource && typeof taskIssueState === 'function' && taskIssueState(task).other.length) other++;
-
-    }
-    const blockers=review+other;
-    const contextPending=hasSource && typeof supplementPreflightNeedsDecision==='function' && supplementPreflightNeedsDecision();
-    const viewing=Math.min(2,Math.max(1,Number(batch.uiStep||1)));
-    guides.forEach(guide => {
-      guide.dataset.currentStep = String(viewing);
-      const title = guide.querySelector('.nmda-process-guide-title strong');
-      if (title) title.textContent = `步骤 ${viewing} / 2`;
-      const workbench=guide.closest('.nmda-bulk-workbench');
-      if(workbench)workbench.dataset.viewStep=String(viewing);
-      guide.querySelectorAll('[data-flow-step]').forEach(button => {
-        const step = Number(button.dataset.flowStep || 0);
-        const access=processStepAccess(step);
-        let state='ready';
-        if(step===1) state=hasSource&&!contextPending&&!duplicateIssues?'done':'ready';
-        else if(step===2) state=hasSource&&!duplicateIssues&&!blockers?'done':'ready';
-        button.dataset.state=state;
-        button.classList.toggle('is-viewing',step===viewing);
-        button.setAttribute('aria-current',step===viewing?'step':'false');
-        button.disabled=false;
-        button.setAttribute('aria-disabled','false');
-        if(access.reason)button.title=`可查看 · ${access.reason}`;else button.removeAttribute('title');
-        const small=button.querySelector('small');
-        if(!small) return;
-        if(step===1) small.textContent=!hasSource?'先准备邮件':contextPending?'完成导入核对':duplicateIssues?`查重待处理 ${duplicateIssues} 组`:attachmentIssues?`导入完成 · 附件提醒 ${attachmentIssues} 项`:'导入准备已完成';
-        if(step===2) small.textContent=!hasSource?'添加资料后审阅':contextPending?'先完成导入准备':duplicateIssues?'先完成导入查重':blockers?`${blockers} 项待审阅`:'审阅完成';
-      });
-    });
-    syncStageSurfaceVisibility(viewing);
-  }
-
-  function syncBatchStageHash(step) {
-    const target='#batch';
-    if(location.hash!==target)history.replaceState(null,'',target);
-  }
-
   function syncStageSurfaceVisibility(step=batch.uiStep) {
     const n=Math.min(2,Math.max(1,Number(step||1)));
     const workbench=ui.querySelector('.nmda-bulk-workbench');
     const ingest=ui.querySelector('.nmda-ingest-workspace-v2');
     if(workbench)workbench.dataset.viewStep=String(n);
     if(ingest)ingest.hidden=false;
-  }
-
-  async function goToProcessStep(step, options={}) {
-    const n = Math.min(2,Math.max(1,Number(step || 1)));
-    setWorkbenchTab('batch');
-    closeScheduleModal({restoreFocus:false});
-    closeRosterPlannerView({restoreFocus:false});
-    if(n!==1){
-      if(batch.supplementPreflightOpen){batch.supplementPreflightOpen=false;renderSupplementPreflight();}
-      if(attachmentUiState().visible)closeAttachmentManager();
-    }
-    if(n!==2 && reviewInlineEl && !reviewInlineEl.hidden){
-      if(batch.reviewEditingKey){setImportStatus('请先保存或取消当前邮件的编辑，再离开审阅邮件。','warn');return false;}
-      hideReviewWorkspaceWithoutStash();
-    }
-    if(n===2 && unresolvedDuplicateGroupCount()>0){
-      batch.uiStep=1;
-      renderProcessGuide();
-      renderRosterAudit();
-      setImportStatus(`导入查重还有 ${unresolvedDuplicateGroupCount()} 组未处理；先决定保留版本，再进入审阅邮件。`,'warn');
-      requestAnimationFrame(()=>$('nmda-roster-audit-card')?.scrollIntoView?.({block:'nearest',behavior:'smooth'}));
-      return false;
-    }
-    batch.uiStep=1;
-    renderProcessGuide();
-    if(options.syncHash!==false)syncBatchStageHash(1);
-    if(n===1){scheduleBatchRender({aux:true,force:true});return true;}
-    return !!openReviewWorkspace({pendingOnly:false,fromStageNav:true});
   }
 
   function setWorkbenchTab(name) {
@@ -685,7 +598,6 @@
     setWorkbenchTab(name);
     history.replaceState(null,'',`#${name}`);
   });
-  ui.querySelectorAll('[data-flow-step]').forEach(button => button.addEventListener('click', () => { void goToProcessStep(button.dataset.flowStep); }));
   const batch = State.batch;
 
 
@@ -1614,7 +1526,7 @@
       attachments:{...snapshot.attachments,...attachmentPatch}
     });
     renderBatchPrepStrip();
-    renderProcessGuide();
+    syncStageSurfaceVisibility();
     syncModalState();
   }
 
@@ -2122,13 +2034,13 @@
     if(stats.issues)setImportStatus(`准备邮件已整理；有 ${stats.issues} 项附件提示未匹配，但不会阻断后续审阅或排期。`,'warn');
     const duplicatePending=unresolvedDuplicateGroupCount();
     if(duplicatePending){
-      batch.uiStep=1;renderProcessGuide();renderRosterAudit();
+      batch.uiStep=1;syncStageSurfaceVisibility();renderRosterAudit();
       setImportStatus(`文件分类已完成；发现 ${duplicatePending} 项查重待处理，请先完成批次版本取舍或历史筛选。`,'warn');
       requestAnimationFrame(()=>$('nmda-roster-audit-card')?.scrollIntoView?.({block:'nearest',behavior:'smooth'}));
       return;
     }
     batch.uiStep=1;
-    renderProcessGuide();
+    syncStageSurfaceVisibility();
     const missingCount=missingSubjectTasks().length;
     const attachmentNote=stats.issues?`；${stats.issues} 项附件提示未匹配（不阻断）`:'';
     if(missingCount>=3)setImportStatus(`导入准备已完成。审阅邮件可用；其中 ${missingCount} 封缺少主题${attachmentNote}。`,'warn');
@@ -2139,7 +2051,7 @@
   }
 
   function renderImportLifecycleState() {
-    if (typeof renderProcessGuide === 'function') renderProcessGuide();
+    syncStageSurfaceVisibility();
     const active = !!batch.dataset || !!batch.importBusy || !!batch.roster?.entries?.length;
     globalThis.NMDAWorkspaceImportUi.publishPatch({ active, loaded:!!batch.dataset, busy:!!batch.importBusy });
     const sourceCard = $('nmda-import-card');
@@ -3185,7 +3097,7 @@
     rebuildTasks();
     batch.reviewEditingKey='';
     if(unresolvedDuplicateGroupCount()>0){
-      hideReviewWorkspaceWithoutStash();setWorkbenchTab('batch');batch.uiStep=1;renderProcessGuide();renderRosterAudit();renderImportHandoff();
+      hideReviewWorkspaceWithoutStash();setWorkbenchTab('batch');batch.uiStep=1;syncStageSurfaceVisibility();renderRosterAudit();renderImportHandoff();
       history.replaceState(null,'','#batch');
       setImportStatus('邮件修改改变了查重结果；请先回到导入查重处理新的重复关系。','warn');
       requestAnimationFrame(()=>$('nmda-roster-audit-card')?.scrollIntoView?.({block:'nearest',behavior:'smooth'}));
@@ -3379,7 +3291,7 @@
   function finishImportDuplicateDecision(summary='导入查重已更新') {
     batch.reviewSelected?.clear?.();
     rebuildTasks();
-    renderImportTaskPreview();renderImportHandoff();renderRosterAudit();renderProcessGuide();
+    renderImportTaskPreview();renderImportHandoff();renderRosterAudit();syncStageSurfaceVisibility();
     const remaining=unresolvedDuplicateGroupCount();
     setImportStatus(remaining?`${summary}；还有 ${remaining} 项查重待处理。`:`${summary}；导入查重完成，可以进入审阅邮件。`,remaining?'warn':'ok');
   }
@@ -3481,7 +3393,7 @@
       const followUps=followUpReviewTasks();
       if(!followUps.length){
         setWorkbenchTab('batch');
-        batch.uiStep=1;renderProcessGuide();renderRosterAudit();renderImportHandoff();
+        batch.uiStep=1;syncStageSurfaceVisibility();renderRosterAudit();renderImportHandoff();
         const reasons=[];
         if(contextPending)reasons.push('导入准备未完成');
         if(duplicatePending)reasons.push(`查重待处理 ${duplicatePending} 项`);
@@ -3574,7 +3486,7 @@
     setBatchStatus(`${reason}。安排发送已就绪。`,'ok');
     setImportStatus(`${reason}。已同步到“安排发送”。`,'ok');
     scheduleBatchRender({aux:true,force:true});
-    renderProcessGuide();
+    syncStageSurfaceVisibility();
     return true;
   }
 
@@ -3921,7 +3833,7 @@
   }
 
   function renderImportTaskPreview() {
-    if (typeof renderProcessGuide === 'function') renderProcessGuide();
+    syncStageSurfaceVisibility();
     renderReviewTrash();
   }
 
@@ -4917,7 +4829,7 @@
   }
 
   function renderScheduleCenter() {
-    if (typeof renderProcessGuide === 'function') renderProcessGuide();
+    syncStageSurfaceVisibility();
     const card=$('nmda-scheduler-card'); if(!card)return;
     const tasks=dispatchTasks(), hasTasks=tasks.length>0;
     card.hidden=!hasTasks; if(!hasTasks)return;
@@ -5669,7 +5581,7 @@
       void (async()=>{const ready=await enterSelectionAndSchedule('邮件已审阅');if(!ready)return;setWorkbenchTab('dispatch');history.replaceState(null,'','#dispatch');scheduleBatchRender({aux:false,force:true});})();
       return;
     }
-    if(action==='prepare'){setWorkbenchTab('batch');batch.uiStep=1;renderProcessGuide();renderRosterAudit();renderImportHandoff();history.replaceState(null,'','#batch');return;}
+    if(action==='prepare'){setWorkbenchTab('batch');batch.uiStep=1;syncStageSurfaceVisibility();renderRosterAudit();renderImportHandoff();history.replaceState(null,'','#batch');return;}
     if(action==='monitor'){openUtilityView('monitor');return;}
     if(action==='back'){closeReviewPreview();return;}
     if(action==='filter'){
@@ -5760,7 +5672,7 @@
     try{
       setImportStatus('正在重新核验邮箱历史，用于核对已有草稿和已发送记录…');
       const result=await MailboxSync.request('history',{source:'manual-dedupe',force:true});
-      renderRosterAudit();renderProcessGuide();
+      renderRosterAudit();syncStageSurfaceVisibility();
       const pending=unresolvedDuplicateGroupCount();
       setImportStatus(`邮箱历史已更新${result?`：已发送 ${result.outboundRead||0} · 草稿 ${result.draftsRead||0}`:''}${pending?`；还有 ${pending} 项查重待处理。`:'；当前查重已完成。'}`,pending?'warn':'ok');
     }catch(error){setImportStatus(`邮箱历史读取失败：${error.message}`,'error');}
