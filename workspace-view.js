@@ -184,51 +184,7 @@
               <div class="nmda-card nmda-inline-review" id="nmda-inline-review" hidden>
                 <div class="nmda-inline-review-top" data-workspace-mount="review-top"></div>
                 <div class="nmda-review-boardbar nmda-review-boardbar-unified" data-workspace-mount="review-boardbar"></div>
-                <section class="nmda-format-governance nmda-batch-standards" id="nmda-format-governance" hidden aria-label="批量处理">
-                  <header class="nmda-format-governance-head nmda-batch-standards-head">
-                    <div><strong>批量处理</strong><small id="nmda-batch-standards-desc">只显示当前真正需要处理的批量事项：补齐主题、处理检测到的格式偏移。</small></div>
-                    <button class="nmda-icon-btn" id="nmda-format-governance-close" type="button" aria-label="关闭批量处理">×</button>
-                  </header>
-                  <div class="nmda-batch-standards-overview" aria-label="批量处理检查结果">
-                    <span data-standard-summary="subject"><i>T</i><b>主题补齐</b><strong id="nmda-batch-standard-subject-count">0</strong><small>缺失</small></span>
-                    <span data-standard-summary="format"><i>✦</i><b>格式偏移</b><strong id="nmda-batch-standard-format-count">0</strong><small>推荐</small></span>
-                  </div>
-                  <section class="nmda-batch-standard-card is-subject" id="nmda-batch-standard-subject">
-                    <header><div><strong>主题完整性</strong><small>只补齐缺失的初始邮件主题；已有主题与跟进邮件主题保持不变。</small></div><b id="nmda-batch-standard-subject-badge">0 封</b></header>
-                    <label class="nmda-batch-standard-subject-field"><span>补齐为</span><input id="nmda-batch-standard-subject-input" type="text" maxlength="240" placeholder="输入统一主题" autocomplete="off"></label>
-                    <button class="nmda-batch-standard-suggestion" id="nmda-batch-standard-subject-suggestion" type="button" hidden></button>
-                    <div class="nmda-batch-standard-result" id="nmda-batch-standard-subject-result">正在检查主题完整性…</div>
-                  </section>
-                  <section class="nmda-batch-standard-card is-format" id="nmda-batch-standard-format">
-                    <header><div><strong>格式偏移</strong><small>默认只展示系统从当前邮件中检测到的偏移推荐；选择后一次批量修复。</small></div></header>
-                    <div class="nmda-format-governance-suggestions" id="nmda-format-governance-suggestions"></div>
-                    <div class="nmda-format-governance-queue" id="nmda-format-governance-queue" hidden></div>
-                    <details class="nmda-format-governance-custom" id="nmda-format-governance-custom">
-                      <summary><span><strong>自定义格式规则</strong><small>仅在推荐无法覆盖时使用</small></span><i aria-hidden="true">⌄</i></summary>
-                      <div class="nmda-format-governance-custom-body">
-                        <div class="nmda-format-governance-builder">
-                          <label class="nmda-format-governance-phrase"><span>固定文本</span><input id="nmda-format-governance-phrase" type="text" maxlength="240" placeholder="例如：Computational Imaging" autocomplete="off"><small>精确匹配正文中的固定表达。</small></label>
-                          <div class="nmda-format-governance-formats" role="group" aria-label="需要统一的格式">
-                            <span>统一为</span>
-                            <button class="is-active" type="button" data-governance-format="italic" aria-pressed="true" title="斜体"><em>I</em><small>斜体</small></button>
-                            <button type="button" data-governance-format="bold" aria-pressed="false" title="加粗"><strong>B</strong><small>加粗</small></button>
-                            <button type="button" data-governance-format="underline" aria-pressed="false" title="下划线"><u>U</u><small>下划线</small></button>
-                            <button type="button" data-governance-format="strike" aria-pressed="false" title="删除线"><s>S</s><small>删除线</small></button>
-                          </div>
-                          <label class="nmda-format-governance-case"><input id="nmda-format-governance-case" type="checkbox" checked><span>区分大小写</span></label>
-                          <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-format-governance-add" id="nmda-format-governance-add" type="button" disabled>加入本次处理</button>
-                        </div>
-                        <div class="nmda-format-governance-result" id="nmda-format-governance-result">输入固定文本后检查命中范围。</div>
-                        <div class="nmda-format-governance-list" id="nmda-format-governance-list" hidden></div>
-                        <div id="nmda-format-governance-history" class="nmda-format-governance-history"></div>
-                      </div>
-                    </details>
-                  </section>
-                  <footer class="nmda-format-governance-actions nmda-batch-standards-actions">
-                    <div id="nmda-batch-standard-plan-summary" class="nmda-batch-standard-plan-summary">尚未配置可执行批量处理</div>
-                    <button class="nmda-btn nmda-btn-primary nmda-btn-small" id="nmda-format-governance-apply" type="button" disabled>应用批量处理</button>
-                  </footer>
-                </section>
+                <div data-workspace-mount="batch-governance-panel" style="display:contents"></div>
 
                 <div class="nmda-review-batchbar" id="nmda-review-batchbar" data-workspace-mount="review-batchbar" hidden></div>
                 <div class="nmda-review-page-empty" id="nmda-review-page-empty" data-workspace-mount="review-empty"></div>
@@ -239,11 +195,7 @@
                 </aside>
                 <div id="nmda-review-queue" class="nmda-review-queue nmda-review-mail-grid"><div data-workspace-mount="review-board"></div><div id="nmda-review-preview-pages" data-workspace-mount="review-preview" hidden></div></div>
                 <div class="nmda-preview-format-dock" id="nmda-preview-format-dock" aria-label="批量处理">
-                  <button class="nmda-review-format-entry nmda-preview-format-entry" id="nmda-review-format-governance" type="button" aria-expanded="false" title="处理可批量执行的规范与派生规则">
-                    <span class="nmda-preview-format-glyph nmda-preview-standard-glyph" aria-hidden="true"><i></i><b></b></span>
-                    <span class="nmda-preview-format-label">批量处理</span>
-                    <strong id="nmda-preview-format-drift-count" hidden>0</strong>
-                  </button>
+                  <div data-workspace-mount="batch-governance-entry" style="display:contents"></div>
                 </div>
 
               </div>
@@ -263,8 +215,9 @@
               <div><strong>待发送邮件</strong><small></small></div>
               <div class="nmda-dispatch-source-summary" data-workspace-mount="dispatch-source-summary"></div>
             </div>
-            <div class="nmda-batch-empty" id="nmda-batch-empty" hidden></div>
+            <div data-workspace-mount="dispatch-empty" style="display:contents"></div>
             <div class="nmda-card nmda-list-card nmda-planning-workspace" id="nmda-preview-card" hidden>
+              <div data-workspace-mount="schedule-applied-toast" style="display:contents"></div>
               <div class="nmda-card-head nmda-list-head nmda-planning-head">
                 <div><div class="nmda-card-title">安排本次邮件</div><div class="nmda-card-desc"></div></div>
                 <div class="nmda-planning-head-actions">
@@ -275,14 +228,8 @@
               <div class="nmda-planning-overview" id="nmda-planning-overview" data-workspace-mount="planning-overview"></div>
               <details class="nmda-scope-tools" id="nmda-scope-tools">
                 <summary><span><strong>筛选邮件</strong></span><span class="nmda-scope-toggle">展开</span></summary>
-                <div class="nmda-task-toolbar">
-                  <label class="nmda-search-field"><input id="nmda-batch-search" type="search" placeholder="搜索收件人 / 学校 / 邮箱"></label>
-                  <button class="nmda-btn nmda-btn-small" id="nmda-bulk-enable" type="button">纳入筛选结果</button>
-                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-clear-selection" type="button">排除全部</button>
-                </div>
+                <div class="nmda-task-toolbar" data-workspace-mount="batch-task-toolbar"></div>
               </details>
-              <input id="nmda-batch-tag-include" type="hidden"><button id="nmda-clear-tag-filter" type="button" hidden></button><div id="nmda-batch-tag-chips" hidden></div>
-              <input id="nmda-bulk-tag-value" type="hidden"><button id="nmda-bulk-add-tag" type="button" hidden></button><button id="nmda-bulk-remove-tag" type="button" hidden></button><button id="nmda-bulk-disable" type="button" hidden></button>
               <div class="nmda-table-wrap nmda-batch-table-wrap"><div class="nmda-planning-board" id="nmda-preview-body" data-workspace-mount="planning-board"></div></div>
               <div class="nmda-mail-handoff-bar" id="nmda-mail-handoff-bar">
                 <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备在网易邮箱创建草稿</strong><div class="nmda-create-preflight" id="nmda-create-preflight" data-workspace-mount="execution-preflight"></div></div></div>
@@ -303,68 +250,18 @@
                   <button class="nmda-dialog-close" id="nmda-close-schedule-modal" type="button" aria-label="关闭时间安排">×</button>
                 </header>
                 <section class="nmda-schedule-dialog-body" id="nmda-scheduler-card">
-                  <div class="nmda-schedule-guide" id="nmda-schedule-guide" aria-label="时间安排步骤">
-                    <div class="nmda-schedule-guide-step" data-schedule-guide-step="1"><b>1</b><span><strong>确定发送窗口</strong><small>地区、开始日期、工作日、当地时间</small></span></div>
-                    <i aria-hidden="true">→</i>
-                    <div class="nmda-schedule-guide-step" data-schedule-guide-step="2"><b>2</b><span><strong>按需设置保护</strong><small>同校间隔 / 限额、已有时间、假期与跳过区间</small></span></div>
-                    <i aria-hidden="true">→</i>
-                    <div class="nmda-schedule-guide-step" data-schedule-guide-step="3"><b>3</b><span><strong>生成本批时间</strong><small>按规则安排日期，时间保持一致</small></span></div>
-                  </div>
-                  <div class="nmda-schedule-dialog-summary" id="nmda-schedule-summary"></div>
-                  <div class="nmda-schedule-outcome" id="nmda-schedule-outcome" aria-live="polite"></div>
-                  <div class="nmda-schedule-priority-card" id="nmda-schedule-priority-card">
-                    <div class="nmda-schedule-priority-copy">
-                      <span>可选约束</span>
-                      <strong>同校优先级</strong>
-                      <small id="nmda-schedule-priority-summary">未设置时按现有名单顺序排期。</small>
-                    </div>
-                    <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-schedule-open-priority" type="button">设置优先级</button>
-                  </div>
-                  <div class="nmda-scheduler-grid nmda-scheduler-calendar-grid">
-                    <div class="nmda-schedule-section-title"><span>1</span><div><strong>发送窗口</strong><small>这四项决定“从什么时候开始、在哪些日子、按哪里的几点发送”。</small></div></div>
-                    <label class="nmda-field nmda-schedule-region-field"><span class="nmda-label">收件人地区 · Local time <em>关键</em></span><select id="nmda-rule-time-zone">
-                      <option value="system">本机 / 网易当前时区</option>
-                      <option value="Asia/Shanghai">中国 · 上海</option>
-                      <option value="Asia/Hong_Kong">中国香港</option>
-                      <option value="Asia/Singapore">新加坡</option>
-                      <option value="Asia/Kuala_Lumpur">马来西亚 · 吉隆坡</option>
-                      <option value="Australia/Sydney">澳大利亚 · Sydney / Melbourne</option>
-                      <option value="Australia/Brisbane">澳大利亚 · Brisbane</option>
-                      <option value="Australia/Adelaide">澳大利亚 · Adelaide</option>
-                      <option value="Australia/Perth">澳大利亚 · Perth</option>
-                      <option value="Pacific/Auckland">新西兰 · Auckland</option>
-                      <option value="Europe/London">英国 · London</option>
-                      <option value="America/New_York">美国 / 加拿大 · Eastern</option>
-                      <option value="America/Chicago">美国 · Central</option>
-                      <option value="America/Denver">美国 · Mountain</option>
-                      <option value="America/Los_Angeles">美国 / 加拿大 · Pacific</option>
-                      <option value="America/Toronto">加拿大 · Toronto</option>
-                      <option value="America/Vancouver">加拿大 · Vancouver</option>
-                    </select><small class="nmda-field-hint">选择收件人所在地区。你填写的是当地时间，执行时会自动换算到网易当前时区。</small></label>
-                    <label class="nmda-field"><span class="nmda-label">开始日期 <em>关键</em></span><span class="nmda-smart-temporal"><input id="nmda-rule-start-date" type="date" data-smart-temporal="date" data-smart-role="schedule-start"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置开始日期" title="快速设置">⌄</button></span></label>
-                    <label class="nmda-field"><span class="nmda-label">当地发送时间 <em>关键</em></span><span class="nmda-smart-temporal"><input id="nmda-rule-local-time" type="time" step="300" value="07:30" data-smart-temporal="time" data-smart-role="schedule-time"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置发送时间" title="快速设置">⌄</button></span></label>
-                    <label class="nmda-field"><span class="nmda-label">每校同一天最多联系</span><input id="nmda-rule-max-school" type="number" min="1" max="20" step="1" value="1"><small class="nmda-field-hint">建议保持 1；用于避免同一学校同一天集中联系多人。</small></label>
-                    <label class="nmda-field"><span class="nmda-label">同校联系至少间隔</span><div class="nmda-smart-duration"><input id="nmda-rule-school-interval" type="number" min="0" max="365" step="1" value="7"><b>天</b></div><small class="nmda-field-hint">只约束同一学校；例如 7 天表示同校两次联系至少相隔 7 个自然日。不同学校仍可在同一天、同一时间发送。</small></label>
-                    <div class="nmda-field nmda-workday-field"><span class="nmda-label">发送工作日 <em>关键</em></span><div class="nmda-workday-picker" role="group" aria-label="选择发送工作日">
-                      <label><input type="checkbox" data-schedule-weekday value="1"><span>周一</span></label>
-                      <label><input type="checkbox" data-schedule-weekday value="2"><span>周二</span></label>
-                      <label><input type="checkbox" data-schedule-weekday value="3"><span>周三</span></label>
-                      <label><input type="checkbox" data-schedule-weekday value="4" checked><span>周四</span></label>
-                      <label><input type="checkbox" data-schedule-weekday value="5"><span>周五</span></label>
-                    </div><small class="nmda-field-hint">系统只会把新邮件放到这些工作日；例如只选周四，就会按每个可用周四向后排。</small></div>
-                    <div class="nmda-schedule-section-title nmda-schedule-section-title-secondary"><span>2</span><div><strong>避让与保护</strong><small>通常保持默认即可；只有遇到假期、已有排期或特殊空档时再调整。</small></div></div>
-                    <div class="nmda-field nmda-skip-range-field"><span class="nmda-label">不发送的日期范围 · 可选</span><div class="nmda-skip-range-inputs"><span class="nmda-smart-temporal"><input id="nmda-rule-skip-start" type="date" aria-label="跳过开始日期" data-smart-temporal="date" data-smart-role="skip-start"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置跳过开始日期" title="快速设置">⌄</button></span><span>至</span><span class="nmda-smart-temporal"><input id="nmda-rule-skip-end" type="date" aria-label="跳过结束日期" data-smart-temporal="date" data-smart-role="skip-end"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速设置跳过结束日期" title="快速设置">⌄</button></span></div><small class="nmda-field-hint">例如学校假期、圣诞节或你明确不希望发送的一段时间；留空即不额外跳过。</small></div>
-                    <label class="nmda-check-card"><input id="nmda-rule-preserve-existing" type="checkbox" checked><span><strong>保留已经手工设置的时间</strong><small>重排时不覆盖你已经明确指定的单封时间。</small></span></label>
-                    <label class="nmda-check-card"><input id="nmda-rule-include-mailbox-scheduled" type="checkbox" checked><span><strong>避开网易里已经定时的邮件</strong><small>读取现有定时草稿，只用于同校日期间隔 / 当日限额校验；不同学校同一分钟可同时排期。</small></span></label>
-                    <label class="nmda-check-card nmda-schedule-wide-check"><input id="nmda-rule-skip-holidays" type="checkbox" checked><span><strong>避开可识别的当地节假日</strong><small>按收件人地区尽量跳过可识别的公共假期。</small></span></label>
-                  </div>
-                  <div class="nmda-schedule-rule-preview" id="nmda-schedule-rule-preview">周四 · 07:30 当地时间 · 同校至少间隔 7 天 · 每校每个发送日最多 1 位。</div>
+                  <div data-workspace-mount="schedule-guide" style="display:contents"></div>
+                  <div data-workspace-mount="schedule-summary" style="display:contents"></div>
+                  <div data-workspace-mount="schedule-outcome" style="display:contents"></div>
+                  <div data-workspace-mount="schedule-priority" style="display:contents"></div>
+                  <div class="nmda-scheduler-grid nmda-scheduler-calendar-grid"><div data-workspace-mount="schedule-controls" style="display:contents"></div></div>
+                  <div data-workspace-mount="schedule-rule-preview" style="display:contents"></div>
                 </section>
                 <footer class="nmda-workflow-dialog-foot">
-                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-clear-auto-schedule" type="button">清除自动时间</button>
+                  <div data-workspace-mount="schedule-clear" style="display:contents"></div>
                   <div class="nmda-dialog-foot-spacer"></div>
                   <button class="nmda-btn nmda-btn-small" id="nmda-cancel-schedule-modal" type="button">取消</button>
-                  <button class="nmda-btn nmda-btn-primary nmda-btn-small nmda-schedule-apply" id="nmda-apply-schedule" type="button"><span>生成本批时间</span><small id="nmda-apply-schedule-hint">按上方规则自动安排</small></button>
+                  <div data-workspace-mount="schedule-apply" style="display:contents"></div>
                 </footer>
               </section>
             </div>
@@ -391,6 +288,8 @@
           </section>
 
         </main>
+        <div data-workspace-mount="reset-all-dialog" style="display:contents"></div>
+        <div data-workspace-mount="smart-temporal-popover" style="display:contents"></div>
       </section>`;
     document.documentElement.appendChild(root);
     decorateUnifiedIcons(root);

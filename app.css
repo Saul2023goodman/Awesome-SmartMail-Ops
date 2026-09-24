@@ -261,8 +261,6 @@
 
 
 
-.nmda-tag-chip { min-height:24px; padding:2px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font:650 9.5px/1.2 system-ui,sans-serif; cursor:pointer; }
-.nmda-tag-chip small { margin-left:2px; color:#64748b; font-size:8px; }
 
 
 .nmda-table-wrap { min-width:0; overflow:auto; border:1px solid var(--nmda-border); border-radius:9px; background:#fff; }
@@ -961,7 +959,6 @@
 
 .nmda-batch-empty { border-style:dashed; background:#fbfcfe; }
 
-#nmda-bulk-disable[hidden] { display:none !important; }
 
 
 

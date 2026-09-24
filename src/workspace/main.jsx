@@ -18,6 +18,14 @@ import ImportAudit from './ImportAudit.jsx';
 import AttachmentManager from './AttachmentManager.jsx';
 import ImportHandoff from './ImportHandoff.jsx';
 import RosterPlanner from './RosterPlanner.jsx';
+import { BatchGovernanceEntry, BatchGovernancePanel } from './BatchGovernance.jsx';
+import { ScheduleApply, ScheduleClear, ScheduleGuide, ScheduleOutcome, SchedulePriority, ScheduleRulePreview, ScheduleSummary } from './ScheduleCenter.jsx';
+import ScheduleControls from './ScheduleControls.jsx';
+import BatchTaskToolbar from './BatchTaskToolbar.jsx';
+import ResetAllDialog from './ResetAllDialog.jsx';
+import DispatchEmpty from './DispatchEmpty.jsx';
+import SmartTemporalPopover from './SmartTemporalPopover.jsx';
+import ScheduleAppliedToast from './ScheduleAppliedToast.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -134,4 +142,42 @@ document.querySelectorAll('[data-workspace-mount="roster-planner"]').forEach(hos
 
 document.querySelectorAll('[data-workspace-mount="draft-attachment-tool"]').forEach(host => {
   createRoot(host).render(<StrictMode><DraftAttachmentTool /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="batch-governance-entry"]').forEach(host => {
+  createRoot(host).render(<StrictMode><BatchGovernanceEntry /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="batch-governance-panel"]').forEach(host => {
+  createRoot(host).render(<StrictMode><BatchGovernancePanel /></StrictMode>);
+});
+
+for (const [name, Component] of [['schedule-guide',ScheduleGuide],['schedule-summary',ScheduleSummary],['schedule-outcome',ScheduleOutcome],['schedule-priority',SchedulePriority],['schedule-rule-preview',ScheduleRulePreview],['schedule-clear',ScheduleClear],['schedule-apply',ScheduleApply]]) {
+  document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
+    createRoot(host).render(<StrictMode><Component /></StrictMode>);
+  });
+}
+
+document.querySelectorAll('[data-workspace-mount="schedule-controls"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ScheduleControls /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="batch-task-toolbar"]').forEach(host => {
+  createRoot(host).render(<StrictMode><BatchTaskToolbar /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="reset-all-dialog"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ResetAllDialog /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="dispatch-empty"]').forEach(host => {
+  createRoot(host).render(<StrictMode><DispatchEmpty /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="smart-temporal-popover"]').forEach(host => {
+  createRoot(host).render(<StrictMode><SmartTemporalPopover /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="schedule-applied-toast"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ScheduleAppliedToast /></StrictMode>);
 });

@@ -1146,7 +1146,8 @@ html.nmda-app-document body.nmda-app-body {
   margin:10px 10px 0 !important;
   padding:0 !important;
 }
-#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="3"] .nmda-scheduler-grid > :first-child { grid-column:1 / -1; }
+#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="3"] .nmda-scheduler-grid > :first-child,
+#nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="3"] .nmda-scheduler-grid [data-workspace-mount="schedule-controls"] > :first-child { grid-column:1 / -1; }
 #nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="3"] .nmda-scheduler-grid .nmda-check-card { grid-column:1 / -1; min-height:38px; }
 #nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="3"] .nmda-scheduler-grid .nmda-label { font-size:10px; }
 #nmda-root.nmda-standalone .nmda-bulk-workbench[data-view-step="3"] .nmda-scheduler-grid input,
@@ -1474,6 +1475,7 @@ html.nmda-app-document body.nmda-app-body {
   gap:12px !important;
 }
 #nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid > :first-child,
+#nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid [data-workspace-mount="schedule-controls"] > :first-child,
 #nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid .nmda-check-card { grid-column:auto !important; }
 #nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid .nmda-field,
 #nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid .nmda-check-card {
@@ -1730,6 +1732,7 @@ html.nmda-app-document body.nmda-app-body {
   align-items:stretch !important;
 }
 #nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid > :first-child,
+#nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid [data-workspace-mount="schedule-controls"] > :first-child,
 #nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid .nmda-check-card { grid-column:auto !important; }
 #nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid .nmda-field,
 #nmda-root.nmda-standalone #nmda-preview-card[data-planning-view="rules"] .nmda-scheduler-grid .nmda-check-card {

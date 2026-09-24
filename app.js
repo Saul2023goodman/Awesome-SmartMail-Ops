@@ -69,32 +69,6 @@
   const ui = View.buildUI();
 
 
-  // v3.8.82 · Global SmartMail data reset. Kept outside any single workflow page so a
-  // stuck batch can be abandoned from Review / Dispatch / Monitoring without excluding
-  // tasks one by one. This only clears SmartMail-owned local state; it never deletes
-  // messages or drafts in the real 163 mailbox.
-  {
-    const resetDialog=document.createElement('div');
-    resetDialog.id='nmda-reset-all-overlay';
-    resetDialog.className='nmda-workflow-modal-overlay nmda-reset-all-overlay';
-    resetDialog.hidden=true;
-    resetDialog.innerHTML=`
-      <section class="nmda-workflow-dialog nmda-reset-all-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-reset-all-title">
-        <header class="nmda-workflow-dialog-head">
-          <div><span class="nmda-dialog-eyebrow">重新开始</span><h3 id="nmda-reset-all-title">清除当前工作内容？</h3><p>清除后可以重新准备邮件并开始新一批邮件。</p></div>
-          <button class="nmda-dialog-close" id="nmda-reset-all-close" type="button" aria-label="关闭">×</button>
-        </header>
-        <div class="nmda-reset-all-body">
-          <div class="nmda-reset-all-warning"><strong>将清除</strong><span>已准备邮件、审阅邮件结果、附件设置、发送安排，以及当前跟进设置。</span></div>
-          <div class="nmda-reset-all-safe"><strong>网易邮箱不受影响</strong><span>已发送邮件、收件、草稿和定时邮件都会保留。</span></div>
-          <label class="nmda-reset-all-confirm"><input id="nmda-reset-all-confirm" type="checkbox"><span>我确认清除当前工作内容并重新开始</span></label>
-          <div class="nmda-reset-all-status" id="nmda-reset-all-status" hidden></div>
-        </div>
-        <footer class="nmda-workflow-dialog-foot"><button class="nmda-btn nmda-btn-quiet" id="nmda-reset-all-cancel" type="button">取消</button><div class="nmda-dialog-foot-spacer"></div><button class="nmda-btn nmda-btn-danger" id="nmda-reset-all-confirm-button" type="button" disabled>清除并重新开始</button></footer>
-      </section>`;
-    ui.querySelector('#nmda-panel')?.appendChild(resetDialog);
-  }
-
   let unifiedIconRefreshQueued = false;
   const queueUnifiedIconRefresh = () => {
     if (unifiedIconRefreshQueued) return;
@@ -142,7 +116,7 @@
     }
   }
   function syncModalState(){
-    const modalOpen=[$('nmda-supplement-preflight'),$('nmda-schedule-modal'),$('nmda-reset-all-overlay')].some(el=>el&&!el.hidden);
+    const modalOpen=[$('nmda-supplement-preflight'),$('nmda-schedule-modal')].some(el=>el&&!el.hidden)||resetUi.getSnapshot().open;
     panel.classList.toggle('has-modal',modalOpen);
   }
   function setPanelOpen(open){panel.hidden=!open;setHostScrollLocked(open);if(open)syncModalState();}
@@ -150,7 +124,9 @@
   // v3.8.80 · Smart Time Field
   // Keep native date/time inputs for reliability, but add one compact quick-set surface
   // everywhere a user has to choose a date, local time, datetime, or waiting interval.
-  let smartTemporalTarget=null, smartTemporalTrigger=null, smartTemporalPopover=null;
+  let smartTemporalTarget=null, smartTemporalTrigger=null, smartTemporalHeight=180;
+  const smartTemporalUi=globalThis.NMDAWorkspaceSmartTemporalUi;
+  const smartTemporalMount=ui.querySelector('[data-workspace-mount="smart-temporal-popover"]');
   const smartPad=n=>String(n).padStart(2,'0');
   function smartDateAdd(dayKey,days){
     const m=String(dayKey||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return'';
@@ -162,12 +138,12 @@
     return new Date(Date.UTC(+m[1],+m[2]-1,+m[3])).getUTCDay();
   }
   function smartTodayKey(){
-    const zone=$('nmda-rule-time-zone')?.value||'system';
+    const zone=globalThis.NMDAWorkspaceScheduleUi.getSnapshot().controls.timeZone||'system';
     return Scheduler?.defaultStartDate?.(new Date(),zone)||new Date().toISOString().slice(0,10);
   }
-  function smartRuleTime(){return $('nmda-rule-local-time')?.value||batch?.scheduleRules?.localTime||'07:30';}
+  function smartRuleTime(){return globalThis.NMDAWorkspaceScheduleUi.getSnapshot().controls.localTime||batch?.scheduleRules?.localTime||'07:30';}
   function smartSelectedWeekdays(){
-    const chosen=[...ui.querySelectorAll('[data-schedule-weekday]:checked')].map(el=>Number(el.value)).filter(n=>n>=1&&n<=5);
+    const chosen=(globalThis.NMDAWorkspaceScheduleUi.getSnapshot().controls.weekdays||[]).map(Number).filter(n=>n>=1&&n<=5);
     return chosen.length?chosen:[4];
   }
   function smartNextSendDate(fromKey,strict=true){
@@ -192,14 +168,14 @@
     ];
     if(mode==='date'){
       if(role==='skip-end'){
-        const start=$('nmda-rule-skip-start')?.value||today;
+        const start=globalThis.NMDAWorkspaceScheduleUi.getSnapshot().controls.skipStart||today;
         return [{label:'与开始同日',value:start},{label:'开始 + 7 天',value:smartDateAdd(start,7),accent:true},{label:'开始 + 14 天',value:smartDateAdd(start,14)},{label:'清除',value:'',clear:true}];
       }
       if(role==='skip-start')return [{label:'今天',value:today},{label:'明天',value:smartDateAdd(today,1)},{label:'+ 7 天',value:smartDateAdd(today,7)},{label:'+ 14 天',value:smartDateAdd(today,14)},{label:'清除',value:'',clear:true}];
       return [{label:'今天',value:today},{label:'明天',value:smartDateAdd(today,1)},{label:'下个发送日',value:smartNextSendDate(today,true),accent:true},{label:'+ 1 周',value:smartDateAdd(today,7)}];
     }
     if(mode==='datetime'){
-      const raw=String(input.value||''),m=raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/),baseDate=m?.[1]||($('nmda-rule-start-date')?.value||today),baseTime=m?.[2]||ruleTime;
+      const raw=String(input.value||''),m=raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/),baseDate=m?.[1]||(globalThis.NMDAWorkspaceScheduleUi.getSnapshot().controls.startDate||today),baseTime=m?.[2]||ruleTime;
       const presets=m?
         [{label:'后移 1 天',value:`${smartDateAdd(baseDate,1)}T${baseTime}`},{label:'下个发送日',value:`${smartNextSendDate(baseDate,true)}T${baseTime}`,accent:true},{label:'后移 1 周',value:`${smartDateAdd(baseDate,7)}T${baseTime}`},{label:`改为 ${ruleTime}`,value:`${baseDate}T${ruleTime}`},{label:'清除',value:'',clear:true}]:
         [{label:`今天 · ${ruleTime}`,value:`${today}T${ruleTime}`},{label:`明天 · ${ruleTime}`,value:`${smartDateAdd(today,1)}T${ruleTime}`},{label:'下个发送日',value:`${smartNextSendDate(today,true)}T${ruleTime}`,accent:true},{label:'+ 1 周',value:`${smartDateAdd(today,7)}T${ruleTime}`},{label:'清除',value:'',clear:true}];
@@ -207,45 +183,39 @@
     }
     return [];
   }
-  function ensureSmartTemporalPopover(){
-    if(smartTemporalPopover)return smartTemporalPopover;
-    const pop=document.createElement('div');pop.id='nmda-smart-temporal-popover';pop.className='nmda-smart-temporal-popover';pop.hidden=true;
-    pop.innerHTML='<div class="nmda-smart-temporal-pophead"><div><small>快捷时间</small><strong data-smart-temporal-title>快速设置时间</strong></div><button type="button" data-smart-temporal-close aria-label="关闭">×</button></div><div class="nmda-smart-temporal-presets" data-smart-temporal-presets></div><div class="nmda-smart-temporal-popfoot"><span>可直接输入，也可打开日期时间选择器</span><button type="button" data-smart-temporal-native>打开选择器</button></div>';
-    ui.appendChild(pop);smartTemporalPopover=pop;
-    return pop;
-  }
-  function closeSmartTemporal(){if(smartTemporalPopover)smartTemporalPopover.hidden=true;smartTemporalTarget=null;smartTemporalTrigger=null;}
-  function positionSmartTemporal(){
-    if(!smartTemporalPopover||smartTemporalPopover.hidden||!smartTemporalTrigger)return;
-    const r=smartTemporalTrigger.getBoundingClientRect(),w=Math.min(330,window.innerWidth-24),h=smartTemporalPopover.offsetHeight||180;
+  function closeSmartTemporal(){smartTemporalUi.publishPatch({visible:false});smartTemporalTarget=null;smartTemporalTrigger=null;}
+  function positionSmartTemporal(height=smartTemporalHeight){
+    if(!smartTemporalTrigger||!smartTemporalUi.getSnapshot().visible)return;
+    if(Number(height)>0)smartTemporalHeight=Number(height);
+    const r=smartTemporalTrigger.getBoundingClientRect(),w=Math.min(330,window.innerWidth-24),h=smartTemporalHeight||180;
     let left=Math.min(Math.max(12,r.right-w),window.innerWidth-w-12),top=r.bottom+7;
     if(top+h>window.innerHeight-12)top=Math.max(12,r.top-h-7);
-    smartTemporalPopover.style.width=`${w}px`;smartTemporalPopover.style.left=`${left}px`;smartTemporalPopover.style.top=`${top}px`;
+    smartTemporalUi.publishPatch({position:{width:w,left,top}});
   }
   function openSmartTemporal(input,trigger){
-    if(!input||input.disabled||input.readOnly)return;const pop=ensureSmartTemporalPopover();smartTemporalTarget=input;smartTemporalTrigger=trigger;
-    pop.querySelector('[data-smart-temporal-title]').textContent=smartTemporalTitle(input);
-    const list=pop.querySelector('[data-smart-temporal-presets]');list.innerHTML='';
-    for(const preset of smartTemporalPresets(input)){
-      const btn=document.createElement('button');btn.type='button';btn.dataset.smartTemporalValue=preset.value;btn.textContent=preset.label;if(preset.accent)btn.classList.add('is-accent');if(preset.clear)btn.classList.add('is-clear');list.appendChild(btn);
-    }
-    const native=pop.querySelector('[data-smart-temporal-native]');native.hidden=input.dataset.smartTemporal==='duration-days';
-    pop.hidden=false;requestAnimationFrame(positionSmartTemporal);
+    if(!input||input.disabled||input.readOnly)return;
+    smartTemporalTarget=input;smartTemporalTrigger=trigger;
+    smartTemporalUi.publish({visible:true,title:smartTemporalTitle(input),presets:smartTemporalPresets(input),showNative:input.dataset.smartTemporal!=='duration-days',position:{left:12,top:12,width:330}});
+    requestAnimationFrame(()=>positionSmartTemporal());
   }
   function applySmartTemporalValue(value){
     const input=smartTemporalTarget;if(!input)return;input.value=String(value??'');input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));closeSmartTemporal();input.focus({preventScroll:true});
   }
   ui.addEventListener('click',event=>{
     const opener=event.target.closest?.('[data-smart-temporal-open]');
-    if(opener){event.preventDefault();event.stopPropagation();const host=opener.closest('.nmda-smart-temporal,.nmda-smart-duration')||opener.parentElement;const input=host?.querySelector?.('[data-smart-temporal]');if(smartTemporalTarget===input&&!ensureSmartTemporalPopover().hidden)closeSmartTemporal();else openSmartTemporal(input,opener);return;}
-    const preset=event.target.closest?.('[data-smart-temporal-value]');if(preset&&smartTemporalPopover?.contains(preset)){event.preventDefault();applySmartTemporalValue(preset.dataset.smartTemporalValue);return;}
-    if(event.target.closest?.('[data-smart-temporal-close]')){event.preventDefault();closeSmartTemporal();return;}
-    const native=event.target.closest?.('[data-smart-temporal-native]');if(native&&smartTemporalTarget){event.preventDefault();const input=smartTemporalTarget;closeSmartTemporal();requestAnimationFrame(()=>{try{input.showPicker?.();}catch(_){input.focus();}});return;}
+    if(opener){event.preventDefault();event.stopPropagation();const host=opener.closest('.nmda-smart-temporal,.nmda-smart-duration')||opener.parentElement;const input=host?.querySelector?.('[data-smart-temporal]');if(smartTemporalTarget===input&&smartTemporalUi.getSnapshot().visible)closeSmartTemporal();else openSmartTemporal(input,opener);}
   });
-  document.addEventListener('pointerdown',event=>{if(smartTemporalPopover&&!smartTemporalPopover.hidden&&!smartTemporalPopover.contains(event.target)&&!event.target.closest?.('[data-smart-temporal-open]'))closeSmartTemporal();},true);
-  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&smartTemporalPopover&&!smartTemporalPopover.hidden)closeSmartTemporal();});
-  window.addEventListener('resize',()=>{if(smartTemporalPopover&&!smartTemporalPopover.hidden)positionSmartTemporal();},{passive:true});
-  panel.addEventListener('scroll',()=>{if(smartTemporalPopover&&!smartTemporalPopover.hidden)closeSmartTemporal();},{passive:true,capture:true});
+  window.addEventListener('nmda:smart-temporal-action',event=>{
+    const {action,value,height}=event.detail||{};
+    if(action==='measure')positionSmartTemporal(height);
+    else if(action==='preset')applySmartTemporalValue(value);
+    else if(action==='close')closeSmartTemporal();
+    else if(action==='native'&&smartTemporalTarget){const input=smartTemporalTarget;closeSmartTemporal();requestAnimationFrame(()=>{try{input.showPicker?.();}catch(_){input.focus();}});}
+  });
+  document.addEventListener('pointerdown',event=>{if(smartTemporalUi.getSnapshot().visible&&!smartTemporalMount?.contains(event.target)&&!event.target.closest?.('[data-smart-temporal-open]'))closeSmartTemporal();},true);
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&smartTemporalUi.getSnapshot().visible)closeSmartTemporal();});
+  window.addEventListener('resize',()=>{if(smartTemporalUi.getSnapshot().visible)positionSmartTemporal();},{passive:true});
+  panel.addEventListener('scroll',()=>{if(smartTemporalUi.getSnapshot().visible)closeSmartTemporal();},{passive:true,capture:true});
 
   const MailboxSync = globalThis.NMDAWorkspaceMailboxSync;
   MailboxSync.onApplied(() => {
@@ -625,17 +595,14 @@
   const reviewQueueEl = $('nmda-review-queue'), reviewBoardHost=ui.querySelector('[data-workspace-mount="review-board"]'), reviewPreviewPagesEl=$('nmda-review-preview-pages'), reviewPreviewRailEl=$('nmda-review-preview-rail'), reviewPreviewRailListEl=$('nmda-review-preview-rail-list'), reviewPreviewRailCountEl=$('nmda-review-preview-rail-count'), reviewProgressEl = $('nmda-review-progress');
   const activeReviewList=()=>batch.reviewSurface==='preview'?reviewPreviewPagesEl:reviewBoardHost;
   const reviewInlineEl=$('nmda-inline-review');
-  const formatGovernanceEntryEl=$('nmda-review-format-governance'), formatGovernanceEntryCountEl=$('nmda-preview-format-drift-count'), formatGovernanceEl=$('nmda-format-governance'), formatGovernancePhraseEl=$('nmda-format-governance-phrase'), formatGovernanceCaseEl=$('nmda-format-governance-case'), formatGovernanceResultEl=$('nmda-format-governance-result'), formatGovernanceListEl=$('nmda-format-governance-list'), formatGovernanceApplyEl=$('nmda-format-governance-apply'), formatGovernanceSuggestionsEl=$('nmda-format-governance-suggestions'), formatGovernanceQueueEl=$('nmda-format-governance-queue'), formatGovernanceAddEl=$('nmda-format-governance-add'), formatGovernanceHistoryEl=$('nmda-format-governance-history');
-  const batchStandardSubjectCountEl=$('nmda-batch-standard-subject-count'), batchStandardFormatCountEl=$('nmda-batch-standard-format-count'), batchStandardSubjectBadgeEl=$('nmda-batch-standard-subject-badge'), batchStandardSubjectInputEl=$('nmda-batch-standard-subject-input'), batchStandardSubjectSuggestionEl=$('nmda-batch-standard-subject-suggestion'), batchStandardSubjectResultEl=$('nmda-batch-standard-subject-result'), batchStandardPlanSummaryEl=$('nmda-batch-standard-plan-summary');
-  const batchStandardsEl=$('nmda-format-governance'), batchStandardsDescEl=$('nmda-batch-standards-desc');
+  const batchGovernanceUi=globalThis.NMDAWorkspaceBatchGovernanceUi;
+  const batchFilterUi=globalThis.NMDAWorkspaceBatchFilterUi;
+  const resetUi=globalThis.NMDAWorkspaceResetUi;
   const dirEl = $('nmda-attachment-dir'), taskFilesEl = $('nmda-attachment-files');
   const preSendMatchFilesEl = $('nmda-pre-send-match-files'), preSendSharedFilesEl = $('nmda-pre-send-shared-files');
   const previewBodyEl = $('nmda-preview-body'), batchStatusEl = $('nmda-batch-status');
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time'), batchParagraphSpacingEl = $('nmda-compose-paragraph-spacing'), batchFastComposeEl = $('nmda-fast-compose');
-  const scheduleStartDateEl = $('nmda-rule-start-date'), scheduleLocalTimeEl = $('nmda-rule-local-time'), scheduleTimeZoneEl = $('nmda-rule-time-zone'), scheduleWeekdayEls = [...ui.querySelectorAll('[data-schedule-weekday]')], scheduleSkipStartEl = $('nmda-rule-skip-start'), scheduleSkipEndEl = $('nmda-rule-skip-end'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), scheduleSchoolIntervalEl = $('nmda-rule-school-interval'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleMailboxExistingEl = $('nmda-rule-include-mailbox-scheduled'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
-  const scheduleApplyEl = $('nmda-apply-schedule'), scheduleApplyHintEl=$('nmda-apply-schedule-hint'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleOutcomeEl=$('nmda-schedule-outcome'), scheduleGuideEl=$('nmda-schedule-guide'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
-  const batchSearchEl = $('nmda-batch-search');
-  const batchTagIncludeEl = $('nmda-batch-tag-include');
+  const schedulerCardEl = $('nmda-scheduler-card');
   function isCurrentBatchSession(token) { return Number(token) === Number(batch.sessionId); }
 
   batch.composeParagraphSpacing = Persistence.readParagraphSpacing();
@@ -645,41 +612,34 @@
   if (batchFastComposeEl) batchFastComposeEl.checked = batch.fastCompose;
 
   const saveScheduleRulePrefs = Persistence.writeScheduleRules;
+  function scheduleRuleControlValues(rules){
+    return {timeZone:String(rules.timeZone||'system'),startDate:String(rules.startDate||''),localTime:String(rules.localTime||'07:30'),maxPerGroupPerRound:String(rules.maxPerGroupPerRound||1),sameGroupIntervalDays:String(rules.sameGroupIntervalDays??7),weekdays:[...(rules.weekdays||[])].map(Number),skipStart:String(rules.skipStart||''),skipEnd:String(rules.skipEnd||''),preserveExisting:rules.preserveExisting!==false,includeMailboxScheduled:rules.includeMailboxScheduled!==false,skipHolidays:rules.skipHolidays!==false};
+  }
   function syncScheduleRuleControls() {
     if(!batch.scheduleRules) batch.scheduleRules=State.freshScheduleRules();
     const rules=Scheduler?.normalizeRules?.(batch.scheduleRules)||batch.scheduleRules;
     batch.scheduleRules=rules;
-    if(scheduleStartDateEl && document.activeElement!==scheduleStartDateEl) scheduleStartDateEl.value=rules.startDate||'';
-    if(scheduleLocalTimeEl && document.activeElement!==scheduleLocalTimeEl) scheduleLocalTimeEl.value=rules.localTime||'07:30';
-    if(scheduleTimeZoneEl && document.activeElement!==scheduleTimeZoneEl) scheduleTimeZoneEl.value=rules.timeZone||'system';
-    if(scheduleMaxSchoolEl && document.activeElement!==scheduleMaxSchoolEl) scheduleMaxSchoolEl.value=String(rules.maxPerGroupPerRound||1);
-    if(scheduleSchoolIntervalEl && document.activeElement!==scheduleSchoolIntervalEl) scheduleSchoolIntervalEl.value=String(rules.sameGroupIntervalDays??7);
-    for(const el of scheduleWeekdayEls) el.checked=(rules.weekdays||[]).includes(Number(el.value));
-    if(scheduleSkipStartEl && document.activeElement!==scheduleSkipStartEl) scheduleSkipStartEl.value=rules.skipStart||'';
-    if(scheduleSkipEndEl && document.activeElement!==scheduleSkipEndEl) scheduleSkipEndEl.value=rules.skipEnd||'';
-    if(schedulePreserveEl) schedulePreserveEl.checked=rules.preserveExisting!==false;
-    if(scheduleMailboxExistingEl) scheduleMailboxExistingEl.checked=rules.includeMailboxScheduled!==false;
-    if(scheduleHolidayEl) scheduleHolidayEl.checked=rules.skipHolidays!==false;
+    globalThis.NMDAWorkspaceScheduleUi.publishPatch({controls:scheduleRuleControlValues(rules)});
   }
-  function readScheduleRuleControls() {
-    const weekdays=scheduleWeekdayEls.filter(el=>el.checked).map(el=>Number(el.value));
+  function readScheduleRuleControls(controls=globalThis.NMDAWorkspaceScheduleUi.getSnapshot().controls) {
+    const weekdays=(controls.weekdays||[]).map(Number);
     if(!weekdays.length){
-      const fallback=scheduleWeekdayEls.find(el=>Number(el.value)===4)||scheduleWeekdayEls[0];if(fallback)fallback.checked=true;weekdays.push(Number(fallback?.value||4));
+      weekdays.push(4);
     }
     const rules=Scheduler?.normalizeRules?.({
-      startDate:scheduleStartDateEl?.value||batch.scheduleRules?.startDate||Scheduler?.defaultStartDate?.(new Date(),scheduleTimeZoneEl?.value||batch.scheduleRules?.timeZone||'system')||'',
-      localTime:scheduleLocalTimeEl?.value||batch.scheduleRules?.localTime||'07:30',
-      timeZone:scheduleTimeZoneEl?.value||batch.scheduleRules?.timeZone||'system',
+      startDate:controls.startDate||batch.scheduleRules?.startDate||Scheduler?.defaultStartDate?.(new Date(),controls.timeZone||batch.scheduleRules?.timeZone||'system')||'',
+      localTime:controls.localTime||batch.scheduleRules?.localTime||'07:30',
+      timeZone:controls.timeZone||batch.scheduleRules?.timeZone||'system',
       weekdays,
-      skipStart:scheduleSkipStartEl?.value||'',
-      skipEnd:scheduleSkipEndEl?.value||'',
-      maxPerGroupPerRound:scheduleMaxSchoolEl?.value||1,
-      sameGroupIntervalDays:scheduleSchoolIntervalEl?.value??batch.scheduleRules?.sameGroupIntervalDays??7,
-      preserveExisting:schedulePreserveEl?.checked!==false,
-      includeMailboxScheduled:scheduleMailboxExistingEl?.checked!==false,
+      skipStart:controls.skipStart||'',
+      skipEnd:controls.skipEnd||'',
+      maxPerGroupPerRound:controls.maxPerGroupPerRound||1,
+      sameGroupIntervalDays:controls.sameGroupIntervalDays??batch.scheduleRules?.sameGroupIntervalDays??7,
+      preserveExisting:controls.preserveExisting!==false,
+      includeMailboxScheduled:controls.includeMailboxScheduled!==false,
       intraRoundMinutes:0,
-      skipHolidays:scheduleHolidayEl?.checked!==false
-    }) || {startDate:scheduleStartDateEl?.value||'',localTime:scheduleLocalTimeEl?.value||'07:30',timeZone:scheduleTimeZoneEl?.value||'system',weekdays,skipStart:scheduleSkipStartEl?.value||'',skipEnd:scheduleSkipEndEl?.value||'',maxPerGroupPerRound:Number(scheduleMaxSchoolEl?.value||1),sameGroupIntervalDays:Number(scheduleSchoolIntervalEl?.value??7),preserveExisting:schedulePreserveEl?.checked!==false,includeMailboxScheduled:scheduleMailboxExistingEl?.checked!==false,skipHolidays:scheduleHolidayEl?.checked!==false};
+      skipHolidays:controls.skipHolidays!==false
+    }) || {startDate:controls.startDate||'',localTime:controls.localTime||'07:30',timeZone:controls.timeZone||'system',weekdays,skipStart:controls.skipStart||'',skipEnd:controls.skipEnd||'',maxPerGroupPerRound:Number(controls.maxPerGroupPerRound||1),sameGroupIntervalDays:Number(controls.sameGroupIntervalDays??7),preserveExisting:controls.preserveExisting!==false,includeMailboxScheduled:controls.includeMailboxScheduled!==false,skipHolidays:controls.skipHolidays!==false};
     batch.scheduleRules=rules; saveScheduleRulePrefs(rules); return rules;
   }
   batch.scheduleRules = State.freshScheduleRules();
@@ -1795,7 +1755,7 @@
     overlay.hidden=false;
     syncModalState();
     renderScheduleCenter();
-    requestAnimationFrame(()=>scheduleTimeZoneEl?.focus?.({preventScroll:true}));
+    requestAnimationFrame(()=>ui.querySelector('#nmda-rule-time-zone')?.focus?.({preventScroll:true}));
   }
 
   function closeScheduleModal({restoreFocus=true} = {}) {
@@ -1928,7 +1888,6 @@
     }
     const token = batch.sessionId;
     if(schedulerCardEl)schedulerCardEl.open=true;
-    if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent='收起';
     renderImportLifecycleState();
     setImportStatus(append ? `正在追加：${message || '读取新来源…'}` : (message || '正在读取来源…'));
     return token;
@@ -2350,8 +2309,9 @@
   }
 
   function currentGovernanceRule(){
-    const formats=[...ui.querySelectorAll('[data-governance-format][aria-pressed="true"]')].map(button=>button.dataset.governanceFormat).filter(key=>MAIL_GOVERNANCE_FORMATS[key]);
-    return{phrase:normalizeGovernancePhrase(formatGovernancePhraseEl?.value||''),formats,caseSensitive:!!formatGovernanceCaseEl?.checked};
+    const editor=batchGovernanceUi.getSnapshot();
+    const formats=[...new Set((editor.formats||[]).filter(key=>MAIL_GOVERNANCE_FORMATS[key]))];
+    return{phrase:normalizeGovernancePhrase(editor.phrase||''),formats,caseSensitive:!!editor.caseSensitive};
   }
 
   function normalizeGovernanceRule(rule){
@@ -2410,11 +2370,7 @@
 
   function loadGovernanceRuleIntoEditor(rule){
     const normalized=normalizeGovernanceRule(rule);
-    if(formatGovernancePhraseEl)formatGovernancePhraseEl.value=normalized.phrase;
-    if(formatGovernanceCaseEl)formatGovernanceCaseEl.checked=normalized.caseSensitive;
-    ui.querySelectorAll('[data-governance-format]').forEach(el=>{
-      const active=normalized.formats.includes(el.dataset.governanceFormat);el.setAttribute('aria-pressed',active?'true':'false');el.classList.toggle('is-active',active);
-    });
+    batchGovernanceUi.publishPatch({phrase:normalized.phrase,formats:normalized.formats,caseSensitive:normalized.caseSensitive,customOpen:true});
     scheduleFormatGovernancePreview();
   }
 
@@ -2462,35 +2418,31 @@
   }
 
   function renderFormatGovernanceQueue(){
-    if(!formatGovernanceQueueEl)return;
     const rules=queuedGovernanceRules();
-    if(!rules.length){formatGovernanceQueueEl.hidden=true;formatGovernanceQueueEl.innerHTML='';return;}
     const analyses=rules.map(rule=>analyzeGovernanceRule(rule));
     const affected=new Set();for(const analysis of analyses)for(const row of analysis.records||[])if(row.needed>0)affected.add(row.task.editKey);
-    formatGovernanceQueueEl.hidden=false;
-    formatGovernanceQueueEl.innerHTML=`<div class="nmda-format-governance-queue-head"><span><strong>本次格式处理 ${rules.length} 条</strong><small>一次执行，不逐条等待；当前共影响 ${affected.size} 封邮件。</small></span><button type="button" data-governance-queue-clear>清空</button></div><div class="nmda-format-governance-queue-list">${rules.map((rule,index)=>{
-      const analysis=analyses[index],labels=rule.formats.map(key=>MAIL_GOVERNANCE_FORMATS[key]?.label||key).join('+');
-      const state=analysis.changeTasks?`${analysis.changeTasks} 封待统一`:(analysis.matchedTasks?'已一致':'未命中');
-      return `<span class="nmda-format-governance-queued-rule" data-state="${analysis.changeTasks?'pending':'idle'}" data-governance-queue-rule="${index}" title="点击查看这条规则"><b>${escapeHtml(labels)}</b><i>${escapeHtml(rule.phrase)}</i><small>${escapeHtml(state)}</small><button type="button" data-governance-queue-remove="${index}" aria-label="移除此格式规则">×</button></span>`;
-    }).join('')}</div>`;
+    const queueRules=rules.map((rule,index)=>{
+      const analysis=analyses[index];
+      return {key:governanceRuleKey(rule),rule,phrase:rule.phrase,labels:rule.formats.map(key=>MAIL_GOVERNANCE_FORMATS[key]?.label||key).join('+'),state:analysis.changeTasks?`${analysis.changeTasks} 封待统一`:(analysis.matchedTasks?'已一致':'未命中'),pending:!!analysis.changeTasks};
+    });
+    batchGovernanceUi.publishPatch({queue:{visible:!!rules.length,count:rules.length,affected:affected.size,rules:queueRules}});
   }
 
   function syncFormatGovernanceAddButton(analysis=formatGovernanceAnalysis){
-    if(!formatGovernanceAddEl)return;
     const rule=currentGovernanceRule(),valid=governanceRuleIsRunnable(rule),queued=valid&&governanceRuleQueued(rule),hasChanges=!!(analysis&&analysis.changeTasks>0);
-    formatGovernanceAddEl.disabled=!valid||queued||!hasChanges;
-    formatGovernanceAddEl.textContent=queued?'已加入本次处理':(hasChanges?'加入本次处理':'无待处理漂移');
+    const view=batchGovernanceUi.getSnapshot();
+    batchGovernanceUi.publishPatch({analysis:{...view.analysis,addDisabled:!valid||queued||!hasChanges,addLabel:queued?'已加入本次处理':(hasChanges?'加入本次处理':'无待处理漂移')}});
   }
 
   function renderFormatGovernanceHistory(){
-    if(!formatGovernanceHistoryEl)return;const rules=(batch.formatGovernanceRules||[]).slice(0,4);
-    formatGovernanceHistoryEl.innerHTML=rules.length?`<span>最近规则</span>${rules.map(rule=>`<button type="button" data-governance-history="${escapeHtml(rule.id)}" title="重新检查这条规则"><b>${escapeHtml((rule.formats||[]).map(key=>MAIL_GOVERNANCE_FORMATS[key]?.label||key).join('+'))}</b><i>${escapeHtml(rule.phrase)}</i><small>${Number(rule.changedTasks||0)} 封</small></button>`).join('')}`:'';
+    const rules=(batch.formatGovernanceRules||[]).slice(0,4).map(rule=>({...rule,labels:(rule.formats||[]).map(key=>MAIL_GOVERNANCE_FORMATS[key]?.label||key).join('+'),changedTasks:Number(rule.changedTasks||0)}));
+    batchGovernanceUi.publishPatch({history:rules});
   }
 
   function batchSubjectGovernanceState(){
     const missing=missingSubjectTasks();
     const suggestion=suggestedBulkSubject();
-    const value=String(batchStandardSubjectInputEl?.value||'').trim();
+    const value=String(batchGovernanceUi.getSnapshot().subjectValue||'').trim();
     return {missing,suggestion,value,ready:missing.length>0&&!!value};
   }
 
@@ -2522,23 +2474,16 @@
   }
 
   function syncBatchProcessingApply(){
-    if(!formatGovernanceApplyEl)return;
     if(batchProcessingBusy){
-      formatGovernanceApplyEl.disabled=true;
-      formatGovernanceApplyEl.setAttribute('aria-busy','true');
-      formatGovernanceApplyEl.textContent='正在应用…';
+      const view=batchGovernanceUi.getSnapshot();
+      batchGovernanceUi.publishPatch({apply:{disabled:true,busy:true,label:'正在应用…'}});
       return;
     }
-    formatGovernanceApplyEl.removeAttribute('aria-busy');
     const plan=currentBatchProcessingPlan(),total=plan.rows.length;
-    formatGovernanceApplyEl.disabled=!total;
-    formatGovernanceApplyEl.textContent=total?`应用批量处理 · ${total} 封`:'应用批量处理';
-    if(batchStandardPlanSummaryEl){
-      const parts=[];
-      if(plan.subjectCount)parts.push(`补主题 ${plan.subjectCount} 封`);
-      if(plan.formatCount)parts.push(`统一格式 ${plan.formatRuleCount} 条 / ${plan.formatCount} 封`);
-      batchStandardPlanSummaryEl.textContent=parts.length?`${parts.join(' · ')} · 当前影响 ${total} 封`:'尚未配置可执行批量处理';
-    }
+    const parts=[];
+    if(plan.subjectCount)parts.push(`补主题 ${plan.subjectCount} 封`);
+    if(plan.formatCount)parts.push(`统一格式 ${plan.formatRuleCount} 条 / ${plan.formatCount} 封`);
+    batchGovernanceUi.publishPatch({planSummary:parts.length?`${parts.join(' · ')} · 当前影响 ${total} 封`:'尚未配置可执行批量处理',apply:{disabled:!total,busy:false,label:total?`应用批量处理 · ${total} 封`:'应用批量处理'}});
   }
 
   function syncReviewBatchLaunch(){
@@ -2553,20 +2498,10 @@
 
   function renderBatchSubjectGovernance(){
     const state=batchSubjectGovernanceState(),count=state.missing.length;
-    if(batchStandardSubjectCountEl)batchStandardSubjectCountEl.textContent=String(count);
-    if(batchStandardSubjectBadgeEl)batchStandardSubjectBadgeEl.textContent=count?`${count} 封`:'完整';
-    if(batchStandardSubjectSuggestionEl){
-      batchStandardSubjectSuggestionEl.hidden=!count||!state.suggestion;
-      batchStandardSubjectSuggestionEl.textContent=state.suggestion?`使用参考主题 · ${state.suggestion}`:'';
-      batchStandardSubjectSuggestionEl.title=state.suggestion||'';
-    }
-    if(batchStandardSubjectInputEl)batchStandardSubjectInputEl.disabled=!count;
-    if(batchStandardSubjectResultEl){
-      if(!count)batchStandardSubjectResultEl.innerHTML='<strong>主题完整</strong><span>当前所有初始邮件均已有主题。</span>';
-      else if(state.value)batchStandardSubjectResultEl.innerHTML=`<strong>待补齐 ${count} 封</strong><span>只写入空白主题，不覆盖已有主题。</span>`;
-      else if(state.suggestion)batchStandardSubjectResultEl.innerHTML=`<strong>${count} 封缺少主题</strong><span>已从现有草稿中找到高一致度参考主题；采用后才会应用到本次处理。</span>`;
-      else batchStandardSubjectResultEl.innerHTML=`<strong>${count} 封缺少主题</strong><span>现有主题不够一致，请输入确认后的统一主题。</span>`;
-    }
+    const subject={count,badge:count?`${count} 封`:'完整',suggestionVisible:!!count&&!!state.suggestion,suggestionLabel:state.suggestion?`使用参考主题 · ${state.suggestion}`:'',suggestionTitle:state.suggestion||'',disabled:!count,
+      resultTitle:!count?'主题完整':state.value?`待补齐 ${count} 封`:`${count} 封缺少主题`,
+      resultCopy:!count?'当前所有初始邮件均已有主题。':state.value?'只写入空白主题，不覆盖已有主题。':state.suggestion?'已从现有草稿中找到高一致度参考主题；采用后才会应用到本次处理。':'现有主题不够一致，请输入确认后的统一主题。'};
+    batchGovernanceUi.publishPatch({subject});
     syncBatchProcessingApply();
     syncReviewBatchLaunch();
   }
@@ -2574,43 +2509,30 @@
   function syncFormatGovernancePreviewBadge(suggestions=[]){
     const formatCount=Array.isArray(suggestions)?suggestions.length:0,subjectCount=missingSubjectTasks().length;
     const count=(subjectCount?1:0)+(formatCount?1:0);
-    if(batchStandardFormatCountEl)batchStandardFormatCountEl.textContent=String(formatCount);
-    if(batchStandardSubjectCountEl)batchStandardSubjectCountEl.textContent=String(subjectCount);
-    if(formatGovernanceEntryCountEl){formatGovernanceEntryCountEl.hidden=!count;formatGovernanceEntryCountEl.textContent=String(count||0);}
-    if(formatGovernanceEntryEl){
-      formatGovernanceEntryEl.classList.toggle('has-drift',!!count);
-      const details=[];if(subjectCount)details.push(`主题缺失 ${subjectCount} 封`);if(formatCount)details.push(`格式漂移 ${formatCount} 组`);
-      formatGovernanceEntryEl.title=count?`批量处理：${details.join(' · ')}`:'当前批次未发现待处理的确定性批量事项';
-    }
+    const details=[];if(subjectCount)details.push(`主题缺失 ${subjectCount} 封`);if(formatCount)details.push(`格式漂移 ${formatCount} 组`);
+    batchGovernanceUi.publishPatch({formatCount,entryCount:count,entryTitle:count?`批量处理：${details.join(' · ')}`:'当前批次未发现待处理的确定性批量事项'});
     syncReviewBatchLaunch();
   }
 
   function renderFormatDriftSuggestions(){
-    if(!formatGovernanceSuggestionsEl)return;const suggestions=collectFormatDriftSuggestions();syncFormatGovernancePreviewBadge(suggestions);renderBatchSubjectGovernance();
-    if(!suggestions.length){formatGovernanceSuggestionsEl.hidden=false;formatGovernanceSuggestionsEl.innerHTML='<div class="nmda-format-governance-recommendation-empty"><strong>未发现明确格式偏移</strong><span>当前邮件之间没有形成可可靠推荐的格式差异。</span></div>';formatGovernanceSuggestionsEl._nmdaSuggestions=[];renderFormatGovernanceQueue();syncBatchProcessingApply();return;}
+    const suggestions=collectFormatDriftSuggestions();syncFormatGovernancePreviewBadge(suggestions);renderBatchSubjectGovernance();
     const queued=queuedGovernanceRules(),queuedKeys=new Set(queued.map(governanceRuleKey));
-    const selectedCount=suggestions.reduce((count,item)=>count+(queuedKeys.has(governanceRuleKey({phrase:item.phrase,formats:[item.format],caseSensitive:true}))?1:0),0);
-    formatGovernanceSuggestionsEl.hidden=false;
-    formatGovernanceSuggestionsEl.innerHTML=`<div class="nmda-format-governance-suggestion-head"><span><strong>推荐修复 ${suggestions.length} 组格式偏移</strong><small>${selectedCount?`已加入 ${selectedCount} 组；可继续多选，最后一次执行。`:'点击需要处理的推荐，或一次加入全部。'}</small></span><span class="nmda-format-governance-suggestion-actions"><button type="button" data-governance-add-all ${selectedCount===suggestions.length?'disabled':''}>全部加入</button>${selectedCount?'<button type="button" data-governance-clear-suggestions>取消已选</button>':''}</span></div><div class="nmda-format-governance-suggestion-list">${suggestions.map((item,index)=>{const rule={phrase:item.phrase,formats:[item.format],caseSensitive:true},selected=queuedKeys.has(governanceRuleKey(rule));return `<button type="button" class="${selected?'is-selected':''}" data-governance-suggestion="${index}" aria-pressed="${selected?'true':'false'}"><i aria-hidden="true">${selected?'✓':'+'}</i><b>${escapeHtml(MAIL_GOVERNANCE_FORMATS[item.format]?.label||item.format)}</b><span>${escapeHtml(item.phrase)}</span><small>${item.missing} / ${item.total} 封偏移</small></button>`;}).join('')}</div>`;
-    formatGovernanceSuggestionsEl._nmdaSuggestions=suggestions;renderFormatGovernanceQueue();syncBatchProcessingApply();
+    const suggestionView=suggestions.map(item=>({...item,label:MAIL_GOVERNANCE_FORMATS[item.format]?.label||item.format,selected:queuedKeys.has(governanceRuleKey({phrase:item.phrase,formats:[item.format],caseSensitive:true}))}));
+    batchGovernanceUi.publishPatch({suggestions:suggestionView});
+    renderFormatGovernanceQueue();syncBatchProcessingApply();
   }
 
   function renderFormatGovernanceAnalysis(){
-    if(!formatGovernanceEl||formatGovernanceEl.hidden)return;const rule=currentGovernanceRule();renderFormatGovernanceHistory();
-    if(rule.phrase.length<2){formatGovernanceAnalysis=null;if(formatGovernanceResultEl)formatGovernanceResultEl.textContent='输入至少 2 个字符的固定文本；系统只会修改实际命中的草稿。';if(formatGovernanceListEl){formatGovernanceListEl.hidden=true;formatGovernanceListEl.innerHTML='';}syncFormatGovernanceAddButton(null);syncBatchProcessingApply();return;}
-    if(rule.phrase.includes('\n')){formatGovernanceAnalysis=null;if(formatGovernanceResultEl)formatGovernanceResultEl.textContent='自定义文本请使用单行内容；跨段落格式不做批量改写。';syncFormatGovernanceAddButton(null);syncBatchProcessingApply();return;}
-    if(!rule.formats.length){formatGovernanceAnalysis=null;if(formatGovernanceResultEl)formatGovernanceResultEl.textContent='至少选择一种要统一的格式。';syncFormatGovernanceAddButton(null);syncBatchProcessingApply();return;}
+    if(!batchGovernanceUi.getSnapshot().open)return;const rule=currentGovernanceRule();renderFormatGovernanceHistory();
+    if(rule.phrase.length<2){formatGovernanceAnalysis=null;batchGovernanceUi.publishPatch({analysis:{headline:'',copy:'输入至少 2 个字符的固定文本；系统只会修改实际命中的草稿。',rows:[],moreCount:0,addDisabled:true,addLabel:'加入本次处理'}});syncFormatGovernanceAddButton(null);syncBatchProcessingApply();return;}
+    if(rule.phrase.includes('\n')){formatGovernanceAnalysis=null;batchGovernanceUi.publishPatch({analysis:{headline:'',copy:'自定义文本请使用单行内容；跨段落格式不做批量改写。',rows:[],moreCount:0,addDisabled:true,addLabel:'加入本次处理'}});syncFormatGovernanceAddButton(null);syncBatchProcessingApply();return;}
+    if(!rule.formats.length){formatGovernanceAnalysis=null;batchGovernanceUi.publishPatch({analysis:{headline:'',copy:'至少选择一种要统一的格式。',rows:[],moreCount:0,addDisabled:true,addLabel:'加入本次处理'}});syncFormatGovernanceAddButton(null);syncBatchProcessingApply();return;}
     const analysis=analyzeGovernanceRule(rule);formatGovernanceAnalysis=analysis;
     const labels=rule.formats.map(key=>MAIL_GOVERNANCE_FORMATS[key]?.label||key).join(' + ');
-    if(formatGovernanceResultEl){
-      if(!analysis.matchedTasks)formatGovernanceResultEl.innerHTML=`<strong>未命中</strong><span>当前 ${analysis.totalTasks} 封草稿中没有找到“${escapeHtml(rule.phrase)}”。</span>`;
-      else if(!analysis.changeTasks)formatGovernanceResultEl.innerHTML=`<strong>格式已一致</strong><span>${analysis.matchedTasks} 封 · ${analysis.matches} 处均已是${escapeHtml(labels)}，无需改动。</span>`;
-      else formatGovernanceResultEl.innerHTML=`<strong>待统一 ${analysis.changeTasks} 封</strong><span>共命中 ${analysis.matchedTasks} / ${analysis.totalTasks} 封、${analysis.matches} 处；${analysis.changedOccurrences} 处需要补齐${escapeHtml(labels)}，${analysis.compliant} 处已经规范${analysis.skipped?`，${analysis.skipped} 处因跨段落结构跳过`:''}。</span>`;
-    }
-    if(formatGovernanceListEl){
-      const rows=analysis.records.filter(row=>row.needed>0||row.skipped>0).slice(0,24);formatGovernanceListEl.hidden=!rows.length;
-      formatGovernanceListEl.innerHTML=rows.map(row=>`<div class="nmda-format-governance-row" data-state="${row.needed?'repair':'skip'}" data-governance-row-key="${escapeHtml(row.task.editKey)}"><span><strong>${escapeHtml(row.task.subject||'（无主题）')}</strong><small>${escapeHtml(row.task.recipients||'')}</small></span><p>${escapeHtml(row.context||rule.phrase)}</p><b>${row.needed?`${row.needed} 处待修复`:'结构复杂 · 跳过'}</b></div>`).join('')+(analysis.records.length>rows.length?`<div class="nmda-format-governance-more">另有 ${analysis.records.length-rows.length} 封命中邮件未展开</div>`:'');
-    }
+    const headline=!analysis.matchedTasks?'未命中':analysis.changeTasks?`待统一 ${analysis.changeTasks} 封`:'格式已一致';
+    const copy=!analysis.matchedTasks?`当前 ${analysis.totalTasks} 封草稿中没有找到“${rule.phrase}”。`:!analysis.changeTasks?`${analysis.matchedTasks} 封 · ${analysis.matches} 处均已是${labels}，无需改动。`:`共命中 ${analysis.matchedTasks} / ${analysis.totalTasks} 封、${analysis.matches} 处；${analysis.changedOccurrences} 处需要补齐${labels}，${analysis.compliant} 处已经规范${analysis.skipped?`，${analysis.skipped} 处因跨段落结构跳过`:''}。`;
+    const rows=analysis.records.filter(row=>row.needed>0||row.skipped>0).slice(0,24).map(row=>({key:row.task.editKey,state:row.needed?'repair':'skip',subject:row.task.subject||'（无主题）',recipients:row.task.recipients||'',context:row.context||rule.phrase,status:row.needed?`${row.needed} 处待修复`:'结构复杂 · 跳过'}));
+    batchGovernanceUi.publishPatch({analysis:{headline,copy,rows,moreCount:Math.max(0,analysis.records.length-rows.length),addDisabled:true,addLabel:'加入本次处理'}});
     syncFormatGovernanceAddButton(analysis);
     syncBatchProcessingApply();
   }
@@ -2620,20 +2542,15 @@
   }
 
   function openFormatGovernance(options={}){
-    if(!formatGovernanceEl||batch.reviewSurface!=='preview')return;
-    formatGovernanceEl.hidden=false;
+    if(batch.reviewSurface!=='preview')return;
+    batchGovernanceUi.publishPatch({open:true});
     if(reviewInlineEl)reviewInlineEl.dataset.formatGovernanceOpen='1';
-    if(formatGovernanceEntryEl){formatGovernanceEntryEl.setAttribute('aria-expanded','true');formatGovernanceEntryEl.classList.add('is-open');}
     renderBatchSubjectGovernance();renderFormatDriftSuggestions();renderFormatGovernanceHistory();renderFormatGovernanceAnalysis();
-    requestAnimationFrame(()=>{
-      if(missingSubjectTasks().length){batchStandardSubjectInputEl?.focus?.({preventScroll:true});return;}const recommended=formatGovernanceSuggestionsEl?.querySelector?.('[data-governance-suggestion]');recommended?.focus?.({preventScroll:true});
-    });
   }
 
   function closeFormatGovernance(){
-    if(formatGovernanceEl)formatGovernanceEl.hidden=true;
+    batchGovernanceUi.publishPatch({open:false});
     if(reviewInlineEl)delete reviewInlineEl.dataset.formatGovernanceOpen;
-    if(formatGovernanceEntryEl){formatGovernanceEntryEl.setAttribute('aria-expanded','false');formatGovernanceEntryEl.classList.remove('is-open');}
     formatGovernanceAnalysis=null;
   }
 
@@ -2651,7 +2568,7 @@
       batchGovernanceRefreshTimer=0;
       if(batchProcessingBusy||batch.reviewSurface!=='preview')return;
       renderFormatDriftSuggestions();
-      if(!formatGovernanceEl?.hidden)renderFormatGovernanceAnalysis();
+      if(batchGovernanceUi.getSnapshot().open)renderFormatGovernanceAnalysis();
     },40);
   }
 
@@ -3187,7 +3104,7 @@
     if(reviewInlineEl)reviewInlineEl.dataset.reviewState=tasks.length&&pendingCount===0?'complete':pendingCount?'pending':'empty';
     Navigation.setReviewCount(pendingCount);
     const reviewCounts={all:tasks.length,auto:autoPassed,pending:actionCount,confirmed:checked};
-    if(!formatGovernanceEl?.hidden)renderBatchFollowUpTemplate();
+    if(batchGovernanceUi.getSnapshot().open)renderBatchFollowUpTemplate();
     const pendingMails=reviewTasks();
     globalThis.NMDAWorkspaceReviewBoard.publishControls({
       count:tasks.length,pending:pendingCount,counts:reviewCounts,filter:batch.reviewFilter,search:String(batch.reviewSearch||''),
@@ -3564,7 +3481,7 @@
       requestAnimationFrame(()=>openFormatGovernance({fromBoard:true}));
       return;
     }
-    if(formatGovernanceEl?.hidden)openFormatGovernance();else closeFormatGovernance();
+    if(!batchGovernanceUi.getSnapshot().open)openFormatGovernance();else closeFormatGovernance();
   }
 
   function openReviewPreview(editKey='') {
@@ -3692,29 +3609,20 @@
     return String(value || '').toLocaleLowerCase('zh-CN').replace(/\s+/g, ' ').trim();
   }
 
+  function resetBatchFilterQuery() {
+    batchFilterUi.publishPatch({query:''});
+  }
+
   function taskMatchesSearch(task) {
-    const query = normalizedSearchText(batchSearchEl?.value || '');
+    const query = normalizedSearchText(batchFilterUi.getSnapshot().query);
     if (!query) return true;
     const dynamic = normalizedSearchText([taskBusinessTags(task).join(' '), statusLabel(task)].join(' '));
     const haystack = `${task._searchStatic || ''} ${dynamic}`;
     return query.split(/\s+/).filter(Boolean).every(token => haystack.includes(token));
   }
 
-  function normalizedTagSet(tags) {
-    return new Set((Operations?.parseTags?.(tags) || []).map(tag => tag.toLocaleLowerCase('zh-CN')));
-  }
-
-  function taskMatchesTagFilter(task) {
-    if (!taskMatchesSearch(task)) return false;
-    const include = Operations?.parseTags?.(batchTagIncludeEl?.value || '') || [];
-    if (!include.length) return true;
-    const own = normalizedTagSet(taskBusinessTags(task));
-    const includeKeys = include.map(tag => tag.toLocaleLowerCase('zh-CN'));
-    return includeKeys.every(tag => own.has(tag));
-  }
-
   function filteredBatchTasks() {
-    return dispatchTasks().filter(taskMatchesTagFilter);
+    return dispatchTasks().filter(taskMatchesSearch);
   }
 
   function refreshTaskCoreValidation(task) {
@@ -4454,25 +4362,6 @@
   }
 
 
-  function renderTagChips() {
-    const box = $('nmda-batch-tag-chips');
-    if (!box || !Operations) return;
-    const counts = new Map();
-    for (const task of batch.tasks || []) {
-      for (const tag of taskBusinessTags(task)) counts.set(tag, (counts.get(tag) || 0) + 1);
-    }
-    const tags = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-CN'));
-    box.innerHTML = tags.length ? tags.slice(0, 50).map(([tag, count]) => `<button type="button" class="nmda-tag-chip" data-tag-chip="${escapeHtml(tag)}">${escapeHtml(tag)} <small>${count}</small></button>`).join('') : '<span class="nmda-hint">当前任务没有业务标记。运行状态和跟进状态不会混入标记。</span>';
-    box.querySelectorAll('[data-tag-chip]').forEach(button => button.addEventListener('click', () => {
-      const tagsNow = Operations.parseTags(batchTagIncludeEl.value);
-      const clicked = button.dataset.tagChip;
-      const key = clicked.toLocaleLowerCase('zh-CN');
-      const exists = tagsNow.some(tag => tag.toLocaleLowerCase('zh-CN') === key);
-      batchTagIncludeEl.value = exists ? tagsNow.filter(tag => tag.toLocaleLowerCase('zh-CN') !== key).join(';') : Operations.mergeTags(tagsNow, [clicked]).join(';');
-      scheduleBatchRender({aux:false});
-    }));
-  }
-
   function importAttachmentStats() {
     const items=attachmentRequirementOverview();
     const matched=items.filter(item=>item.total>0&&item.matched>=item.total).length;
@@ -4645,35 +4534,26 @@
   }
 
 
-  function schedulePreviewRange(plan,rules){
+  function schedulePreviewRange(plan){
     const local=(plan?.assignments||[]).map(item=>String(item?.localScheduleAt||'')).filter(Boolean).sort();
     if(!local.length)return '';
     const compact=value=>{const d=String(value||'').slice(0,10);return d?d.slice(5).replace('-','/'):' ';};
     const first=compact(local[0]),last=compact(local[local.length-1]);
     return first===last?first:`${first} → ${last}`;
   }
-  function paintScheduleGuide({ready=true,previewPlan=null,error='' }={}){
-    if(!scheduleGuideEl)return;
-    const steps=[...scheduleGuideEl.querySelectorAll('[data-schedule-guide-step]')];
-    steps.forEach(step=>step.classList.remove('is-done','is-active','is-warning'));
-    if(steps[0])steps[0].classList.add(ready?'is-done':'is-warning');
-    if(steps[1])steps[1].classList.add(ready?'is-done':'');
-    if(steps[2])steps[2].classList.add(error?'is-warning':'is-active');
-  }
-
   function renderScheduleCenter() {
     syncStageSurfaceVisibility();
-    const card=$('nmda-scheduler-card'); if(!card)return;
+    const card=schedulerCardEl; if(!card)return;
     const tasks=dispatchTasks(), hasTasks=tasks.length>0;
     card.hidden=!hasTasks; if(!hasTasks)return;
-    if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent=card.open?'收起':'展开';
-    if(!Scheduler){if(scheduleRulePreviewEl)scheduleRulePreviewEl.textContent='自动安排暂不可用。';if(scheduleApplyEl)scheduleApplyEl.disabled=true;return;}
+    if(!Scheduler){
+      globalThis.NMDAWorkspaceScheduleUi.publishPatch({rulePreview:'自动安排暂不可用。',applyDisabled:true});
+      return;
+    }
     syncScheduleRuleControls();
     const selected=tasks.filter(t=>t.enabled&&t.status==='ready');
-    const groups=new Map(); let fallback=0, auto=0, protectedCount=0, unscheduled=0;
+    let auto=0, protectedCount=0, unscheduled=0;
     for(const task of selected){
-      const group=Scheduler.groupForTask(task); groups.set(group.key,group);
-      if(group.source==='domain'||group.source==='unknown')fallback++;
       if(task.scheduleSource==='auto'&&task.scheduleAt)auto++;
       else if(task.scheduleAt)protectedCount++;
       else unscheduled++;
@@ -4683,54 +4563,30 @@
     const audit=Scheduler.audit?.(selected,rules,{externalAnchors})||{conflicts:[],externalConflicts:[],intervalConflicts:[],timeConflicts:[],holidayConflicts:[]};
     const conflictCount=audit.conflicts?.length||0, intervalConflictCount=audit.intervalConflicts?.length||0, externalConflictCount=audit.externalConflicts?.length||0, holidayConflictCount=audit.holidayConflicts?.length||0;
     const mailboxInfo=rules.includeMailboxScheduled===false?'网易已有排期关闭':batch.existingScheduleStatus==='loading'?'正在读取网易已有排期':batch.existingScheduleStatus==='ok'?`网易锁定 ${externalAnchors.length}`:batch.existingScheduleStatus==='error'?'网易已有排期读取失败':'网易已有排期：应用时读取';
-    if(scheduleSummaryEl)scheduleSummaryEl.innerHTML=`<strong>${selected.length} 封</strong>参与本次安排 · <span>${unscheduled} 封待生成时间</span> · <span>${protectedCount} 封已有时间</span>${rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?` · <span>网易已有排期 ${externalAnchors.length} 封</span>`:''}${externalConflictCount?` · <span class="nmda-danger">已有排期冲突 ${externalConflictCount}</span>`:''}${conflictCount?` · <span class="nmda-danger">同校当日限额 ${conflictCount}</span>`:''}${intervalConflictCount?` · <span class="nmda-danger">同校间隔 ${intervalConflictCount}</span>`:''}${holidayConflictCount?` · <span class="nmda-danger">日历规则 ${holidayConflictCount}</span>`:''}`;
     let previewPlan=null,previewError='';
     const basicsReady=!!(rules.startDate&&rules.localTime&&(rules.weekdays||[]).length&&rules.timeZone);
     if(basicsReady&&selected.length){
       try{previewPlan=Scheduler.buildPlan(selected,rules,new Date(),{externalAnchors});}
       catch(error){previewError=String(error?.message||error||'无法生成预览');}
     }
-    paintScheduleGuide({ready:basicsReady,previewPlan,error:previewError});
-    if(scheduleOutcomeEl){
-      if(previewError){
-        scheduleOutcomeEl.dataset.tone='warn';
-        scheduleOutcomeEl.innerHTML=`<div class="nmda-schedule-outcome-mark">!</div><div><span>当前设置还不能生成完整排期</span><strong>${escapeHtml(previewError)}</strong><small>调整上方关键时间项后，这里会立即重新预览；不会修改任何邮件。</small></div>`;
-      }else if(previewPlan){
-        const ps=previewPlan.summary||{},range=schedulePreviewRange(previewPlan,rules),mailboxPending=rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus!=='ok';
-        scheduleOutcomeEl.dataset.tone='ok';
-        scheduleOutcomeEl.innerHTML=`<div class="nmda-schedule-outcome-mark">✓</div><div><span>按当前设置，点击“生成本批时间”后</span><strong>${ps.auto?`将自动安排 ${ps.auto} 封邮件`:'不需要新增自动时间'}${ps.preserved?`，保留 ${ps.preserved} 封已有时间`:''}</strong><small>${ps.scheduleDays?`预计使用 ${ps.scheduleDays} 个发送日${range?` · ${range}`:''}`:'当前邮件已有可用时间'}${mailboxPending?'；正式应用时会先读取网易已有排期，再做最终避让。':'。'} </small></div>`;
-      }else{
-        scheduleOutcomeEl.dataset.tone='neutral';
-        scheduleOutcomeEl.innerHTML=`<div class="nmda-schedule-outcome-mark">→</div><div><span>先完成发送窗口</span><strong>地区、开始日期、工作日和当地时间</strong><small>完成后这里会直接告诉你将安排多少封、覆盖多少个发送日。</small></div>`;
-      }
-    }
+    const guide=[basicsReady?'is-done':'is-warning',basicsReady?'is-done':'',previewError?'is-warning':'is-active'];
+    let outcome;
+    if(previewError)outcome={tone:'warn',marker:'!',lead:'当前设置还不能生成完整排期',headline:previewError,detail:'调整上方关键时间项后，这里会立即重新预览；不会修改任何邮件。'};
+    else if(previewPlan){
+      const ps=previewPlan.summary||{},range=schedulePreviewRange(previewPlan),mailboxPending=rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus!=='ok';
+      outcome={tone:'ok',marker:'✓',lead:'按当前设置，点击“生成本批时间”后',headline:`${ps.auto?`将自动安排 ${ps.auto} 封邮件`:'不需要新增自动时间'}${ps.preserved?`，保留 ${ps.preserved} 封已有时间`:''}`,detail:`${ps.scheduleDays?`预计使用 ${ps.scheduleDays} 个发送日${range?` · ${range}`:''}`:'当前邮件已有可用时间'}${mailboxPending?'；正式应用时会先读取网易已有排期，再做最终避让。':'。'} `};
+    }else outcome={tone:'neutral',marker:'→',lead:'先完成发送窗口',headline:'地区、开始日期、工作日和当地时间',detail:'完成后这里会直接告诉你将安排多少封、覆盖多少个发送日。'};
     const priorityTasks=selected.filter(task=>Scheduler.priorityRoundForTask?.(task)?.has);
     const prioritySchools=new Set(priorityTasks.map(task=>Scheduler.groupForTask(task).key)).size;
-    const prioritySummary=$('nmda-schedule-priority-summary'),priorityButton=$('nmda-schedule-open-priority');
     const prioritySources=typeof rosterPlannerSources==='function'?rosterPlannerSources():[];
-    if(prioritySummary)prioritySummary.textContent=priorityTasks.length?`${priorityTasks.length} 封已设置 R1/R2… · ${prioritySchools} 所学校；仅用于同校先后。`:(prioritySources.length?'未设置时按现有名单顺序排期；需要时再补 R1/R2…。':'未导入可编辑总名单；不设置优先级也可正常排期。');
-    if(priorityButton){priorityButton.textContent=priorityTasks.length?'调整优先级':'设置优先级';priorityButton.disabled=!prioritySources.length;priorityButton.title=prioritySources.length?'可选：设置同一学校内联系人先后':'未导入可编辑 XLSX 总名单；这不会阻止时间安排';}
-    if(scheduleRulePreviewEl){
-      const conflictText=conflictCount?` · ${conflictCount} 个同校当日限额冲突`:'';const intervalText=intervalConflictCount?` · ${intervalConflictCount} 个同校间隔冲突`:'';const externalText=externalConflictCount?` · ${externalConflictCount} 个与网易已有排期同校冲突`:'';const holidayText=holidayConflictCount?` · ${holidayConflictCount} 个已有时间不符合当前日历规则`:'';
-      scheduleRulePreviewEl.textContent=`${scheduleRuleHumanText(rules)} · ${mailboxInfo}${conflictText}${intervalText}${externalText}${holidayText}`;
-    }
-    const ruleChip=$('nmda-planning-rule-chip');
-    if(ruleChip)ruleChip.textContent=`${scheduleWeekdayText(rules)} · ${rules.localTime||'07:30'} 当地时间 · 同校间隔 ${rules.sameGroupIntervalDays??7} 天 · 每校 ${rules.maxPerGroupPerRound||1} 位${scheduleSkipText(rules)?` · ${scheduleSkipText(rules)}`:''}${rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok'?` · 锁定 ${externalAnchors.length}`:''}${conflictCount+intervalConflictCount+externalConflictCount?` · ${conflictCount+intervalConflictCount+externalConflictCount} 个冲突`:''}`;
-    const scheduleContextCopy=$('nmda-schedule-context-copy');
-    if(scheduleContextCopy){
-      const rosterCount=referenceRosterCount();
-      const schoolKnown=selected.filter(task=>String(task.school||'').trim()).length;
-      const priorityKnown=selected.filter(task=>Scheduler.priorityForTask?.(task)?.has).length;
-      const contextText=rosterCount?`已加入 ${rosterCount} 条参考名单；${schoolKnown} 封已有院校信息${priorityKnown?`，其中 ${priorityKnown} 封有明确顺序`:''}。`:`${schoolKnown} / ${selected.length} 封已有院校信息。`;
-      scheduleContextCopy.textContent=`${contextText} 选择地区、工作日与当地时间后应用。`;
-    }
-    if(scheduleApplyEl){
-      scheduleApplyEl.disabled=batch.running||!selected.length||!!previewError;
-      const main=scheduleApplyEl.querySelector('span');
-      if(main)main.textContent=previewPlan?.summary?.auto?`生成 ${previewPlan.summary.auto} 封邮件时间`:(auto||unscheduled?'生成本批时间':'重新计算时间');
-      if(scheduleApplyHintEl)scheduleApplyHintEl.textContent=previewError?'请先修正上方时间设置':previewPlan?`${previewPlan.summary.preserved?`保留 ${previewPlan.summary.preserved} 封 · `:''}${previewPlan.summary.scheduleDays||0} 个发送日`:'按上方规则自动安排';
-    }
-    if(scheduleClearEl)scheduleClearEl.disabled=batch.running||!tasks.some(t=>t.scheduleSource==='auto'&&t.scheduleAt);
+    const prioritySummary=priorityTasks.length?`${priorityTasks.length} 封已设置 R1/R2… · ${prioritySchools} 所学校；仅用于同校先后。`:(prioritySources.length?'未设置时按现有名单顺序排期；需要时再补 R1/R2…。':'未导入可编辑总名单；不设置优先级也可正常排期。');
+    const conflictText=conflictCount?` · ${conflictCount} 个同校当日限额冲突`:'';const intervalText=intervalConflictCount?` · ${intervalConflictCount} 个同校间隔冲突`:'';const externalText=externalConflictCount?` · ${externalConflictCount} 个与网易已有排期同校冲突`:'';const holidayText=holidayConflictCount?` · ${holidayConflictCount} 个已有时间不符合当前日历规则`:'';
+    const rulePreview=`${scheduleRuleHumanText(rules)} · ${mailboxInfo}${conflictText}${intervalText}${externalText}${holidayText}`;
+    const ps=previewPlan?.summary||{};
+    globalThis.NMDAWorkspaceScheduleUi.publishPatch({guide,outcome,
+      summary:{selected:selected.length,unscheduled,protected:protectedCount,showExternal:rules.includeMailboxScheduled!==false&&batch.existingScheduleStatus==='ok',external:externalAnchors.length,conflicts:[...(externalConflictCount?[{label:'已有排期冲突',count:externalConflictCount}]:[]),...(conflictCount?[{label:'同校当日限额',count:conflictCount}]:[]),...(intervalConflictCount?[{label:'同校间隔',count:intervalConflictCount}]:[]),...(holidayConflictCount?[{label:'日历规则',count:holidayConflictCount}]:[])]},
+      prioritySummary,priorityLabel:priorityTasks.length?'调整优先级':'设置优先级',priorityDisabled:!prioritySources.length,priorityTitle:prioritySources.length?'可选：设置同一学校内联系人先后':'未导入可编辑 XLSX 总名单；这不会阻止时间安排',rulePreview,
+      applyDisabled:batch.running||!selected.length||!!previewError,applyLabel:previewPlan?.summary?.auto?`生成 ${previewPlan.summary.auto} 封邮件时间`:(auto||unscheduled?'生成本批时间':'重新计算时间'),applyHint:previewError?'请先修正上方时间设置':previewPlan?`${ps.preserved?`保留 ${ps.preserved} 封 · `:''}${ps.scheduleDays||0} 个发送日`:'按上方规则自动安排',clearDisabled:batch.running||!tasks.some(t=>t.scheduleSource==='auto'&&t.scheduleAt)});
   }
 
   function captureSchedulePlanMotionState() {
@@ -4772,11 +4628,7 @@
       card.classList.add('is-plan-settling');
       window.setTimeout(()=>card.classList.remove('is-plan-settling'),900);
     }
-    const toast=document.createElement('div');
-    toast.className='nmda-plan-motion-toast';
-    toast.innerHTML=`<span class="nmda-plan-motion-check" aria-hidden="true">✓</span><span><strong>Plan applied</strong><small>${escapeHtml(schedulePlanMotionSummary(plan))}</small></span>`;
-    card?.appendChild(toast);
-    window.setTimeout(()=>toast.remove(),1800);
+    globalThis.NMDAWorkspaceScheduleUi.publishPatch({toast:{id:Date.now(),summary:schedulePlanMotionSummary(plan)}});
     if(reduceMotion)return;
 
     const viewport=previewBodyEl.getBoundingClientRect();
@@ -4937,27 +4789,21 @@
       school:Scheduler?.groupForTask?.(task)?.label||task.school||'未识别学校',
       origin:original163MailRef(task)
     }]));
-    globalThis.NMDAWorkspacePlanningUi.publishPatch({
-      planning,taskViews,running:!!batch.running,maxPerGroupPerRound:rules.maxPerGroupPerRound||1,
-      overview:planningOverviewModel(planning,snapshot)
-    });
-
     const hasTasks=tasks.length>0;
     const viewingPlanning=currentWorkbenchTab()==='dispatch';
-    const emptyCard=$('nmda-batch-empty');
-    if(emptyCard){
-      let kicker='安排发送',title='等待邮件',desc='审阅完成的初始邮件和跟进邮件会出现在这里。';
-      if(!tasks.length){kicker='安排发送';title='还没有可安排的邮件';desc='先在“审阅邮件”确认邮件已就绪。';}
-      emptyCard.innerHTML=`<div class="nmda-card-kicker">${escapeHtml(kicker)}</div><div class="nmda-card-title">${escapeHtml(title)}</div><div class="nmda-card-desc">${escapeHtml(desc)}</div>`;
-      emptyCard.hidden=!(viewingPlanning&&!hasTasks);
-    }
+    globalThis.NMDAWorkspacePlanningUi.publishPatch({
+      planning,taskViews,running:!!batch.running,maxPerGroupPerRound:rules.maxPerGroupPerRound||1,
+      overview:planningOverviewModel(planning,snapshot),
+      dispatchEmpty:{visible:viewingPlanning&&!hasTasks,kicker:'安排发送',title:hasTasks?'等待邮件':'还没有可安排的邮件',description:hasTasks?'审阅完成的初始邮件和跟进邮件会出现在这里。':'先在“审阅邮件”确认邮件已就绪。'}
+    });
+
     $('nmda-preview-card').hidden=!(viewingPlanning&&hasTasks);
     $('nmda-scheduler-card').hidden=!hasTasks;
     renderScheduleCenter();
     setPlanningView('mails');
     if(currentWorkbenchTab()==='batch')syncStageSurfaceVisibility(batch.uiStep);
     if(aux){
-      renderTagChips(); publishAttachmentWorkspace(); renderImportTaskPreview(); renderRosterAudit(); renderImportHandoff(); renderReviewPageOverview(); viewPerf.batchAuxDirty=false;
+      publishAttachmentWorkspace(); renderImportTaskPreview(); renderRosterAudit(); renderImportHandoff(); renderReviewPageOverview(); viewPerf.batchAuxDirty=false;
     }
     viewPerf.batchDirty=false;
     return {matched:matched.length,...snapshot};
@@ -5029,7 +4875,7 @@
       batch.directoryFiles=[]; batch.routedAttachmentFiles=[]; batch.attachmentOverrides.clear(); batch.attachmentPolicies=new Map(); batch.ignoredAttachmentIdentities=new Set();
     }
     batch.reviewSurface='board';batch.reviewPreviewKey='';batch.reviewEditingKey='';
-    if(batchStandardSubjectInputEl)batchStandardSubjectInputEl.value='';
+    batchGovernanceUi.publishPatch({subjectValue:''});
     batch.attachmentAttentionShown=false;
     batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.attachmentPrepChoice='pending';batch.sourceInspectName='';batch.preflightFolderPath='';batch.preflightSearch='';batch.preflightReviewOnly=false;batch.preflightPurposeFilter='';
     batch.reviewEditingKey='';
@@ -5037,8 +4883,7 @@
     for(const file of batch.taskFiles)ensureAttachmentPolicy(file,'task',{source:'随资料导入',mode:'all'});
     batch.fileIndex = Importer.buildFileIndex(batch.taskFiles);
     dirEl.value = ''; taskFilesEl.value = '';
-    if (batchSearchEl) batchSearchEl.value = '';
-    if (batchTagIncludeEl) batchTagIncludeEl.value = '';
+    resetBatchFilterQuery();
     try{await State.ensureOperations();}catch(error){console.warn(`[${APP}] duplicate history store load failed`,error);}
     const sets = recordSets();
     sets.forEach((_, index) => { if(!append || index>=previousSetCount) ensureCollectionConfig(index, { reset: true }); else ensureCollectionConfig(index); });
@@ -5109,7 +4954,7 @@
     batch.reviewFilter='all';
     batch.reviewSearch='';
     batch.reviewSurface='board';batch.reviewPreviewKey='';batch.reviewEditingKey='';
-    if(batchStandardSubjectInputEl)batchStandardSubjectInputEl.value='';
+    batchGovernanceUi.publishPatch({subjectValue:''});
     batch.attachmentAttentionShown=false;
     batch.rosterPromptChoice='idle';
     batch.attachmentPromptDeferred=false;
@@ -5130,9 +4975,7 @@
     const importUiSnapshot=globalThis.NMDAWorkspaceImportUi.getSnapshot();
     globalThis.NMDAWorkspaceImportUi.publishPatch({clearVersion:importUiSnapshot.clearVersion+1});
 
-    if (batchSearchEl) batchSearchEl.value = '';
-    if (batchTagIncludeEl) batchTagIncludeEl.value = '';
-    const bulkTag = $('nmda-bulk-tag-value'); if (bulkTag) bulkTag.value = '';
+    resetBatchFilterQuery();
 
     ['nmda-preview-card','nmda-scheduler-card'].forEach(id => {
       const el = $(id); if (el) el.hidden = true;
@@ -5145,12 +4988,10 @@
     if (reviewProgressEl) reviewProgressEl.textContent = '';
     Navigation.setReviewCount(0);
     if(schedulerCardEl){schedulerCardEl.open=true;schedulerCardEl.hidden=true;}
-    if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent='收起';
     const trashDetails = $('nmda-review-trash'); if (trashDetails) trashDetails.open = false;
     renderReviewTrash();
     patchAttachmentUi({fileIndexInfo:'尚未选择本地附件。'});
 
-    $('nmda-batch-empty').hidden = false;
     globalThis.NMDAWorkspaceImportUi.publishPatch({formatInfo:'可直接加入常见文档、表格和文本。'});
     setBatchStatus('请先添加资料并检查解析结果。');
     renderImportLifecycleState();
@@ -5276,7 +5117,6 @@
   });
   ui.querySelectorAll('[data-planning-view]').forEach(button=>button.addEventListener('click',()=>setPlanningView(button.dataset.planningView)));
   $('nmda-open-schedule-modal')?.addEventListener('click',openScheduleModal);
-  $('nmda-schedule-open-priority')?.addEventListener('click',()=>openRosterPlannerView({returnToSchedule:true}));
   function scrollRosterPlannerRow(row){if(!Number.isFinite(row))return;requestAnimationFrame(()=>ui.querySelector(`#nmda-roster-sheet-table [data-row="${row}"]`)?.scrollIntoView?.({block:'nearest',inline:'nearest'}));}
   window.addEventListener('nmda:roster-planner-action',event=>{
     const {action,...detail}=event.detail||{};
@@ -5360,25 +5200,19 @@
   }
 
   function setResetAllDialog(open){
-    const overlay=$('nmda-reset-all-overlay'),confirm=$('nmda-reset-all-confirm'),action=$('nmda-reset-all-confirm-button'),status=$('nmda-reset-all-status');
-    if(!overlay)return;
-    overlay.hidden=!open;
     if(open){
-      if(confirm)confirm.checked=false;
-      if(action){action.disabled=true;action.textContent='清空全部数据';}
-      if(status){status.hidden=true;status.textContent='';delete status.dataset.tone;}
-    }
+      resetUi.publish({open:true,confirmed:false,status:{visible:false,tone:'',message:''},actionLabel:'清空全部数据',actionDisabled:true});
+    }else resetUi.publishPatch({open:false});
     syncModalState();
   }
 
   async function resetAllSmartMailData(){
+    if(!resetUi.getSnapshot().confirmed)return false;
     if(batch.running){
-      const status=$('nmda-reset-all-status');if(status){status.hidden=false;status.dataset.tone='warn';status.textContent='正在创建草稿，不能在执行过程中重置。请先停止当前执行。';}
+      resetUi.publishPatch({status:{visible:true,tone:'warn',message:'正在创建草稿，不能在执行过程中重置。请先停止当前执行。'}});
       return false;
     }
-    const action=$('nmda-reset-all-confirm-button'),status=$('nmda-reset-all-status');
-    if(action){action.disabled=true;action.textContent='正在清空…';}
-    if(status){status.hidden=false;status.dataset.tone='';status.textContent='正在清空 SmartMail 本地数据…';}
+    resetUi.publishPatch({actionDisabled:true,actionLabel:'正在清空…',status:{visible:true,tone:'',message:'正在清空 SmartMail 本地数据…'}});
     try{
       // Let any in-flight mailbox read finish first, then discard its result. This avoids
       // a late async response repopulating the freshly reset operation store.
@@ -5395,13 +5229,12 @@
       State.changed();
       renderReviewPageOverview();
       setWorkbenchTab('batch');history.replaceState(null,'','#batch');
-      if(status){status.dataset.tone='ok';status.textContent='已清空全部 SmartMail 本地数据。';}
+      resetUi.publishPatch({status:{visible:true,tone:'ok',message:'已清空全部 SmartMail 本地数据。'}});
       setTimeout(()=>setResetAllDialog(false),350);
       return true;
     }catch(error){
       console.error(`[${APP}] reset all data`,error);
-      if(status){status.hidden=false;status.dataset.tone='error';status.textContent=`清空失败：${error?.message||String(error)}`;}
-      if(action){action.disabled=false;action.textContent='重新尝试清空';}
+      resetUi.publishPatch({status:{visible:true,tone:'error',message:`清空失败：${error?.message||String(error)}`},actionDisabled:false,actionLabel:'重新尝试清空'});
       return false;
     }
   }
@@ -5410,11 +5243,12 @@
     if(batch.running){setBatchStatus('正在创建草稿，请先停止执行后再重置 SmartMail。','warn');return;}
     setResetAllDialog(true);
   });
-  $('nmda-reset-all-close')?.addEventListener('click',()=>setResetAllDialog(false));
-  $('nmda-reset-all-cancel')?.addEventListener('click',()=>setResetAllDialog(false));
-  $('nmda-reset-all-overlay')?.addEventListener('click',event=>{if(event.target===event.currentTarget)setResetAllDialog(false);});
-  $('nmda-reset-all-confirm')?.addEventListener('change',event=>{const action=$('nmda-reset-all-confirm-button');if(action)action.disabled=!event.currentTarget.checked;});
-  $('nmda-reset-all-confirm-button')?.addEventListener('click',()=>{if($('nmda-reset-all-confirm')?.checked)void resetAllSmartMailData();});
+  window.addEventListener('nmda:reset-all-action',event=>{
+    const {action,confirmed}=event.detail||{};
+    if(action==='close')setResetAllDialog(false);
+    else if(action==='confirm-change')resetUi.publishPatch({confirmed:!!confirmed,actionDisabled:!confirmed});
+    else if(action==='confirm')void resetAllSmartMailData();
+  });
 
 
   window.addEventListener('nmda:import-handoff-action',event=>{
@@ -5447,43 +5281,60 @@
     if(action==='restore-all'){restoreAllExcludedTasks();return;}
     if(action==='batch'){openReviewBatchProcessing();}
   });
-  batchStandardSubjectInputEl?.addEventListener('input',()=>{renderBatchSubjectGovernance();syncBatchProcessingApply();});
-  batchStandardSubjectSuggestionEl?.addEventListener('click',()=>{const suggestion=suggestedBulkSubject();if(!suggestion)return;if(batchStandardSubjectInputEl)batchStandardSubjectInputEl.value=suggestion;renderBatchSubjectGovernance();batchStandardSubjectInputEl?.focus?.({preventScroll:true});});
-  formatGovernanceEntryEl?.addEventListener('click',openReviewBatchProcessing);
-  $('nmda-format-governance-close')?.addEventListener('click',closeFormatGovernance);
-  formatGovernancePhraseEl?.addEventListener('input',scheduleFormatGovernancePreview);
-  formatGovernanceCaseEl?.addEventListener('change',scheduleFormatGovernancePreview);
-  ui.querySelectorAll('[data-governance-format]').forEach(button=>button.addEventListener('click',()=>{
-    const active=button.getAttribute('aria-pressed')==='true';button.setAttribute('aria-pressed',active?'false':'true');button.classList.toggle('is-active',!active);scheduleFormatGovernancePreview();
-  }));
-  formatGovernanceAddEl?.addEventListener('click',()=>{
-    const rule=currentGovernanceRule(),analysis=validFormatGovernanceAnalysis();if(!analysis?.changeTasks)return;
-    if(addGovernanceRuleToQueue(rule)){
-      renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncFormatGovernanceAddButton(analysis);syncBatchProcessingApply();
+  window.addEventListener('nmda:batch-governance-action',event=>{
+    const {action,value,checked,format,index,id}=event.detail||{};
+    const view=batchGovernanceUi.getSnapshot();
+    if(action==='close'){closeFormatGovernance();return;}
+    if(action==='subject-input'){
+      batchGovernanceUi.publishPatch({subjectValue:String(value||'')});renderBatchSubjectGovernance();return;
     }
-  });
-  formatGovernanceSuggestionsEl?.addEventListener('click',event=>{
-    const suggestions=formatGovernanceSuggestionsEl._nmdaSuggestions||[];
-    if(event.target.closest?.('[data-governance-add-all]')){
-      const next=[...queuedGovernanceRules()];for(const suggestion of suggestions){const rule={phrase:suggestion.phrase,formats:[suggestion.format],caseSensitive:true};if(!next.some(item=>governanceRuleKey(item)===governanceRuleKey(rule)))next.push(rule);}setQueuedGovernanceRules(next);renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();return;
+    if(action==='use-subject-suggestion'){
+      const suggestion=suggestedBulkSubject();if(!suggestion)return;
+      batchGovernanceUi.publishPatch({subjectValue:suggestion,subjectFocusToken:view.subjectFocusToken+1});renderBatchSubjectGovernance();return;
     }
-    if(event.target.closest?.('[data-governance-clear-suggestions]')){
-      const suggestionKeys=new Set(suggestions.map(item=>governanceRuleKey({phrase:item.phrase,formats:[item.format],caseSensitive:true})));
-      setQueuedGovernanceRules(queuedGovernanceRules().filter(rule=>!suggestionKeys.has(governanceRuleKey(rule))));renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();return;
+    if(action==='phrase-input'){
+      batchGovernanceUi.publishPatch({phrase:String(value||'')});scheduleFormatGovernancePreview();return;
     }
-    const button=event.target.closest?.('[data-governance-suggestion]');if(!button)return;const suggestion=suggestions[Number(button.dataset.governanceSuggestion)];if(!suggestion)return;
-    const rule={phrase:suggestion.phrase,formats:[suggestion.format],caseSensitive:true};toggleGovernanceRuleInQueue(rule);renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncBatchProcessingApply();
+    if(action==='case-sensitive'){
+      batchGovernanceUi.publishPatch({caseSensitive:!!checked});scheduleFormatGovernancePreview();return;
+    }
+    if(action==='toggle-format'){
+      const formats=new Set(view.formats||[]);if(formats.has(format))formats.delete(format);else formats.add(format);
+      batchGovernanceUi.publishPatch({formats:[...formats]});scheduleFormatGovernancePreview();return;
+    }
+    if(action==='toggle-custom'){
+      batchGovernanceUi.publishPatch({customOpen:!view.customOpen});return;
+    }
+    if(action==='add-custom-rule'){
+      const rule=currentGovernanceRule(),analysis=validFormatGovernanceAnalysis();if(!analysis?.changeTasks)return;
+      if(addGovernanceRuleToQueue(rule)){renderFormatDriftSuggestions();syncFormatGovernanceAddButton(analysis);syncBatchProcessingApply();}return;
+    }
+    if(action==='add-all-suggestions'){
+      const next=[...queuedGovernanceRules()];for(const suggestion of view.suggestions){const rule={phrase:suggestion.phrase,formats:[suggestion.format],caseSensitive:true};if(!next.some(item=>governanceRuleKey(item)===governanceRuleKey(rule)))next.push(rule);}
+      setQueuedGovernanceRules(next);renderFormatDriftSuggestions();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();return;
+    }
+    if(action==='clear-suggestions'){
+      const suggestionKeys=new Set(view.suggestions.map(item=>governanceRuleKey({phrase:item.phrase,formats:[item.format],caseSensitive:true})));
+      setQueuedGovernanceRules(queuedGovernanceRules().filter(rule=>!suggestionKeys.has(governanceRuleKey(rule))));renderFormatDriftSuggestions();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();return;
+    }
+    if(action==='toggle-suggestion'){
+      const suggestion=view.suggestions[Number(index)];if(!suggestion)return;
+      toggleGovernanceRuleInQueue({phrase:suggestion.phrase,formats:[suggestion.format],caseSensitive:true});renderFormatDriftSuggestions();syncBatchProcessingApply();return;
+    }
+    if(action==='clear-queue'){
+      setQueuedGovernanceRules([]);renderFormatDriftSuggestions();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();return;
+    }
+    if(action==='remove-queued-rule'){
+      const rules=queuedGovernanceRules(),at=Number(index);if(Number.isInteger(at)&&rules[at]){rules.splice(at,1);setQueuedGovernanceRules(rules);renderFormatDriftSuggestions();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();}return;
+    }
+    if(action==='edit-queued-rule'){
+      const rule=view.queue.rules[Number(index)]?.rule;if(rule)loadGovernanceRuleIntoEditor(rule);return;
+    }
+    if(action==='load-history-rule'){
+      const rule=(batch.formatGovernanceRules||[]).find(item=>item.id===id);if(rule){loadGovernanceRuleIntoEditor(rule);syncBatchProcessingApply();}return;
+    }
+    if(action==='apply')void applyBatchProcessing();
   });
-  formatGovernanceQueueEl?.addEventListener('click',event=>{
-    if(event.target.closest?.('[data-governance-queue-clear]')){setQueuedGovernanceRules([]);renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();return;}
-    const remove=event.target.closest?.('[data-governance-queue-remove]');if(remove){const rules=queuedGovernanceRules(),index=Number(remove.dataset.governanceQueueRemove);if(Number.isInteger(index)&&rules[index]){rules.splice(index,1);setQueuedGovernanceRules(rules);renderFormatDriftSuggestions();renderFormatGovernanceQueue();syncFormatGovernanceAddButton(validFormatGovernanceAnalysis());syncBatchProcessingApply();}return;}
-    const chip=event.target.closest?.('[data-governance-queue-rule]');if(!chip)return;const rule=queuedGovernanceRules()[Number(chip.dataset.governanceQueueRule)];if(!rule)return;const custom=$('nmda-format-governance-custom');if(custom)custom.open=true;loadGovernanceRuleIntoEditor(rule);
-  });
-  formatGovernanceHistoryEl?.addEventListener('click',event=>{
-    const button=event.target.closest?.('[data-governance-history]');if(!button)return;const rule=(batch.formatGovernanceRules||[]).find(item=>item.id===button.dataset.governanceHistory);if(!rule)return;
-    const custom=$('nmda-format-governance-custom');if(custom)custom.open=true;loadGovernanceRuleIntoEditor(rule);syncBatchProcessingApply();
-  });
-  formatGovernanceApplyEl?.addEventListener('click',()=>{void applyBatchProcessing();});
 
   window.addEventListener('nmda:import-audit-action',event=>{
     const {action,keys,key,checked}=event.detail||{};
@@ -5524,7 +5375,6 @@
     }catch(error){setImportStatus(`邮箱历史读取失败：${error.message}`,'error');}
     finally{const current=globalThis.NMDAWorkspaceImportUi.getSnapshot().audit;globalThis.NMDAWorkspaceImportUi.publishPatch({audit:{...current,refreshing:false}});}
   }
-  schedulerCardEl?.addEventListener('toggle',()=>{if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent=schedulerCardEl.open?'收起':'展开';});
 
   dirEl?.addEventListener('change', () => {
     const files=uniqueFiles([...(dirEl.files||[])]);for(const file of files)batch.ignoredAttachmentIdentities.delete(Importer.fileIdentity(file));
@@ -5586,8 +5436,16 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  scheduleApplyEl?.addEventListener('click', () => {
-    void (async()=>{
+  window.addEventListener('nmda:schedule-ui-action',event=>{
+    const {action,name,value}=event.detail||{};
+    if(action==='control-change'){
+      const controls={...globalThis.NMDAWorkspaceScheduleUi.getSnapshot().controls,[name]:name==='weekdays'?(value||[]):value};
+      globalThis.NMDAWorkspaceScheduleUi.publishPatch({controls});
+      readScheduleRuleControls(controls);batch.schedulePlan=null;renderScheduleCenter();return;
+    }
+    if(action==='open-priority'){openRosterPlannerView({returnToSchedule:true});return;}
+    if(action==='clear'){void clearAutoSchedule();return;}
+    if(action==='apply')void (async()=>{
       const motionState=captureSchedulePlanMotionState();
       const ok=await applySmartSchedule();
       if(!ok)return;
@@ -5597,46 +5455,31 @@
       requestAnimationFrame(()=>$('nmda-open-schedule-modal')?.focus?.({preventScroll:true}));
     })();
   });
-  scheduleClearEl?.addEventListener('click',()=>void clearAutoSchedule());
-  [scheduleStartDateEl,scheduleLocalTimeEl,scheduleTimeZoneEl,scheduleSkipStartEl,scheduleSkipEndEl,scheduleMaxSchoolEl,scheduleSchoolIntervalEl,schedulePreserveEl,scheduleMailboxExistingEl,scheduleHolidayEl,...scheduleWeekdayEls].forEach(el=>el?.addEventListener('change',()=>{readScheduleRuleControls();batch.schedulePlan=null;renderScheduleCenter();}));
   syncScheduleRuleControls();
 
   const renderBatchFilterDebounced=debounce(()=>scheduleBatchRender({aux:false}),100);
-  [batchSearchEl,batchTagIncludeEl].forEach(el=>el?.addEventListener('input',renderBatchFilterDebounced));
+  window.addEventListener('nmda:batch-filter-action',event=>{
+    const {action,value}=event.detail||{};
+    if(action==='search'){
+      batchFilterUi.publishPatch({query:String(value||'')});
+      renderBatchFilterDebounced();
+    }else if(action==='enable-filtered')void enableFilteredTasks();
+    else if(action==='clear-selection')void clearDispatchSelection();
+  });
 
-  async function bulkEditFiltered(kind) {
+  async function enableFilteredTasks() {
     const targets = filteredBatchTasks().filter(task => task.status !== 'running' && task.status !== 'done');
     if (!targets.length) { setBatchStatus('当前检索/筛选结果没有可编辑任务。', 'warn'); return; }
-    const tagValue = $('nmda-bulk-tag-value').value;
-    const parsed = parseTaskClassifications(tagValue);
-    if ((kind === 'addTag' || kind === 'removeTag') && !parsed.length) {
-      setBatchStatus('请输入有效的业务标记。发送状态和跟进状态不能作为业务标记。', 'warn'); return;
-    }
-    let affected = 0, blockedSkipped = 0, followUpTagSkipped = 0;
+    let affected = 0, blockedSkipped = 0;
     for (const task of targets) {
-      if (kind === 'enable') {
-        if (task.policyBlocked) { blockedSkipped++; continue; }
-        await updateDispatchTask(task, { enabled: true }); affected++;
-      }
-      else if (kind === 'disable') { await updateDispatchTask(task, { enabled: false }); affected++; }
-      else if (task.dispatchKind === 'follow_up') { followUpTagSkipped++; }
-      else if (kind === 'addTag') { setTaskEdit(task, { tags: Operations.mergeTags(task.tags || [], parsed) }); affected++; }
-      else if (kind === 'removeTag') {
-        const remove = new Set(parsed.map(tag => tag.toLocaleLowerCase('zh-CN')));
-        setTaskEdit(task, { tags: parseTaskClassifications(task.tags || []).filter(tag => !remove.has(tag.toLocaleLowerCase('zh-CN'))) }); affected++;
-      }
+      if (task.policyBlocked) { blockedSkipped++; continue; }
+      await updateDispatchTask(task, { enabled: true }); affected++;
     }
-    const actionText = { enable: '纳入筛选结果', disable: '排除筛选结果', addTag: `添加标记“${tagsText(parsed)}”`, removeTag: `移除标记“${tagsText(parsed)}”` }[kind];
-    const skippedText = [blockedSkipped ? `${blockedSkipped} 封受联系保护规则拦截` : '', followUpTagSkipped ? `${followUpTagSkipped} 封跟进邮件不使用批次标记` : ''].filter(Boolean);
-    setBatchStatus(`已对 ${affected} 封任务执行：${actionText}${skippedText.length ? `；跳过 ${skippedText.join('、')}` : ''}。`, skippedText.length ? 'warn' : 'ok');
+    setBatchStatus(`已对 ${affected} 封任务执行：纳入筛选结果${blockedSkipped ? `；跳过 ${blockedSkipped} 封受联系保护规则拦截` : ''}。`, blockedSkipped ? 'warn' : 'ok');
     scheduleBatchRender({aux:false,force:true});
   }
 
-  $('nmda-bulk-add-tag').addEventListener('click', () => { void bulkEditFiltered('addTag'); });
-  $('nmda-bulk-remove-tag').addEventListener('click', () => { void bulkEditFiltered('removeTag'); });
-  $('nmda-bulk-enable').addEventListener('click', () => { void bulkEditFiltered('enable'); });
-  $('nmda-bulk-disable').addEventListener('click', () => { void bulkEditFiltered('disable'); });
-  $('nmda-clear-selection').addEventListener('click', () => { void (async()=>{
+  async function clearDispatchSelection() {
     let affected = 0;
     for (const task of dispatchTasks()) {
       if (task.status === 'running' || task.status === 'done' || !task.enabled) continue;
@@ -5644,12 +5487,7 @@
     }
     setBatchStatus(`已排除 ${affected} 封任务；可逐封重新纳入，或使用“纳入筛选结果”。`, 'ok');
     scheduleBatchRender({aux:false,force:true});
-  })(); });
-  $('nmda-clear-tag-filter').addEventListener('click', () => {
-    if (batchSearchEl) batchSearchEl.value = '';
-    if(batchTagIncludeEl)batchTagIncludeEl.value = '';
-    scheduleBatchRender({aux:false});
-  });
+  }
 
   batchStopEl?.addEventListener('click', () => {
     batch.stopRequested = true;
@@ -5658,12 +5496,8 @@
   });
 
   function setBatchPlanningLocked(locked) {
-    [batchSearchEl, batchTagIncludeEl].forEach(el => { if (el) el.disabled = !!locked; });
-    ['nmda-clear-tag-filter','nmda-bulk-add-tag','nmda-bulk-remove-tag','nmda-bulk-enable','nmda-bulk-disable','nmda-clear-selection','nmda-rule-time-zone','nmda-rule-start-date','nmda-rule-local-time','nmda-rule-skip-start','nmda-rule-skip-end','nmda-rule-max-school','nmda-rule-preserve-existing','nmda-rule-include-mailbox-scheduled','nmda-rule-skip-holidays','nmda-apply-schedule','nmda-clear-auto-schedule'].forEach(id => {
-      const el = $(id); if (el) el.disabled = !!locked;
-    });
-    scheduleWeekdayEls.forEach(el=>{el.disabled=!!locked;});
-    ['nmda-rule-start-date','nmda-rule-local-time','nmda-rule-skip-start','nmda-rule-skip-end'].forEach(id=>{const input=$(id),trigger=input?.closest('.nmda-smart-temporal')?.querySelector('[data-smart-temporal-open]');if(trigger)trigger.disabled=!!locked;});
+    batchFilterUi.publishPatch({locked:!!locked});
+    globalThis.NMDAWorkspaceScheduleUi.publishPatch({locked:!!locked});
     if(locked){
       closeSmartTemporal();
       // Do not force a complete planning-matrix rebuild just to lock runtime controls.
