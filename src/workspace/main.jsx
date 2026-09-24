@@ -11,6 +11,7 @@ import PlanningBoard, { PlanningOverview, DispatchSummary, ExecutionPreflight } 
 import ImportIntake from './ImportIntake.jsx';
 import SourceInventory from './SourceInventory.jsx';
 import { PreflightHead, PreflightNav, PreflightFoot } from './PreflightFrame.jsx';
+import { PreflightChips, PreflightFolders, PreflightFiles } from './PreflightSources.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -86,6 +87,12 @@ document.querySelectorAll('[data-workspace-mount="source-inventory"]').forEach(h
 });
 
 for (const [name, Component] of [['preflight-head', PreflightHead], ['preflight-nav', PreflightNav], ['preflight-foot', PreflightFoot]]) {
+  document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
+    createRoot(host).render(<StrictMode><Component /></StrictMode>);
+  });
+}
+
+for (const [name, Component] of [['preflight-chips', PreflightChips], ['preflight-folders', PreflightFolders], ['preflight-files', PreflightFiles]]) {
   document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
     createRoot(host).render(<StrictMode><Component /></StrictMode>);
   });

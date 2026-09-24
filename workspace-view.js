@@ -169,7 +169,7 @@
                 <section class="nmda-supplement-dialog nmda-classify-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-supplement-title">
                   <header class="nmda-classify-head">
                     <div data-workspace-mount="preflight-head" style="display:contents"></div>
-                    <div class="nmda-classify-head-summary" id="nmda-preflight-routing-chips" aria-label="分类概览"></div>
+                    <div data-workspace-mount="preflight-chips" style="display:contents"></div>
                   </header>
 
                   <div data-workspace-mount="preflight-nav" style="display:contents"></div>
@@ -181,7 +181,7 @@
                         <div><span>目录 / 批次</span><strong id="nmda-preflight-directory-title">全部文件</strong></div>
                         <span id="nmda-preflight-directory-count">0</span>
                       </div>
-                      <div class="nmda-classify-directory-nav" id="nmda-preflight-directory-nav"></div>
+                      <div data-workspace-mount="preflight-folders" style="display:contents"></div>
 
 
                     </aside>
@@ -206,7 +206,7 @@
                       </div>
 
                       <div class="nmda-preflight-routing-tip" hidden><span>↕</span><small>拖动文件时会出现快速归类区域。</small></div>
-                      <div class="nmda-preflight-source-routing-list nmda-classify-file-list" id="nmda-preflight-source-routing-list"></div>
+                      <div data-workspace-mount="preflight-files" style="display:contents"></div>
                     </section>
 
                     <aside class="nmda-classify-inspector-pane" aria-label="当前文件核验">

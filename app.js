@@ -1407,13 +1407,6 @@
     return root;
   }
 
-  function sourceFolderNavHtml(node,depth=0) {
-    return [...node.folders.values()].sort((a,b)=>a.name.localeCompare(b.name,'zh-CN')).map(folder=>{
-      const active=batch.preflightFolderPath===folder.path;
-      return `<div class="nmda-classify-folder-branch"><button class="nmda-classify-folder-row${active?' is-active':''}" type="button" data-preflight-folder="${escapeHtml(encodeURIComponent(folder.path))}" style="--depth:${depth}"><span class="nmda-classify-folder-chevron">›</span><span class="nmda-classify-folder-icon">▰</span><span class="nmda-classify-folder-name" title="${escapeHtml(folder.name)}">${escapeHtml(folder.name)}</span><b>${folder.count}</b></button>${sourceFolderNavHtml(folder,depth+1)}</div>`;
-    }).join('');
-  }
-
   function sourceFileVisual(fileName) {
     const ext=String(fileName||'').split('.').pop().toLowerCase();
     if(['doc','docx','docm','rtf'].includes(ext))return{kind:'word',glyph:'W',label:ext==='rtf'?'RTF':'DOCX'};
@@ -1495,16 +1488,6 @@
       if(query&&!`${decision.sourceName} ${decision.file?.name||''}`.toLowerCase().includes(query))return false;
       return true;
     });
-  }
-
-  function sourceFileRowsHtml(decisions) {
-    if(!decisions.length)return'<div class="nmda-classify-empty"><span>⌕</span><strong>当前范围没有文件</strong><small>可以切换目录、清除筛选，或返回上传继续添加资料。</small></div>';
-    return decisions.map(decision=>{
-      const visual=sourceRoleVisual(decision.purpose,decision.needsReview),fileName=String(decision.sourceName||'').replace(/\\/g,'/').split('/').pop()||'未命名来源';
-      const active=batch.sourceInspectName===decision.sourceName;
-      const path=sourceDirectoryPath(decision.sourceName),meta=[path||'根目录',humanFileSize(decision.file?.size)].filter(Boolean).join(' · ');
-      return `<div class="nmda-classify-file-row${active?' is-selected':''}" data-tone="${escapeHtml(visual.tone)}" data-review="${decision.needsReview?'1':'0'}" data-inspect-source="${escapeHtml(encodeURIComponent(decision.sourceName))}" data-source-row="${escapeHtml(encodeURIComponent(decision.sourceName))}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(fileName)}"><span class="nmda-classify-drag" draggable="true" data-source-drag="${escapeHtml(encodeURIComponent(decision.sourceName))}" title="拖动可快速归类" aria-label="拖动 ${escapeHtml(fileName)} 重新归类">⠿</span>${sourceFileIconHtml(fileName)}<div class="nmda-classify-file-main"><strong>${escapeHtml(fileName)}</strong><small>${escapeHtml(meta)}</small></div><span class="nmda-classify-purpose-pill" data-tone="${escapeHtml(visual.tone)}"><i>${escapeHtml(visual.icon)}</i><span>${escapeHtml(visual.label)}</span></span></div>`;
-    }).join('');
   }
 
   function setSourceNeedsReview(sourceName,fileName='') {
@@ -1595,37 +1578,37 @@
   }
 
   function renderPreflightSourceRoles() {
-    const details=$('nmda-preflight-source-routing'),list=$('nmda-preflight-source-routing-list'),summary=$('nmda-preflight-source-routing-summary'),chips=$('nmda-preflight-routing-chips'),dirNav=$('nmda-preflight-directory-nav');
-    if(!details||!list||!summary)return;
+    const details=$('nmda-preflight-source-routing'),summary=$('nmda-preflight-source-routing-summary');
     const files=uniqueFiles(batch.dataset?.sourceFiles||[]),decisions=files.map(sourcePurposeDecision);
     batch.preflightReviewOnly=false;
     const counts={mail:0,roster:0,attachment:0,ignored:0,review:0};
     for(const decision of decisions){if(decision.needsReview)counts.review++;else counts[decision.purpose]=(counts[decision.purpose]||0)+1;}
     const visible=sourceVisibleDecisions(decisions),folder=batch.preflightFolderPath||'',folderName=folder?folder.split('/').pop():'全部文件';
     const searchInput=$('nmda-preflight-source-search');if(searchInput&&searchInput.value!==String(batch.preflightSearch||''))searchInput.value=String(batch.preflightSearch||'');
-    summary.textContent='文件列表';
+    if(summary)summary.textContent='文件列表';
     const subtitle=$('nmda-preflight-source-routing-subtitle');if(subtitle)subtitle.textContent=counts.review?`有 ${counts.review} 个待确认；点击文件查看内容并修改用途。`:'分类无误可直接继续。';
     const dirTitle=$('nmda-preflight-directory-title'),dirCount=$('nmda-preflight-directory-count');if(dirTitle)dirTitle.textContent=folderName;if(dirCount)dirCount.textContent=folder?`${visible.length}`:`${decisions.length}`;
-    if(chips){
-      const chip=(tone,label,count,icon)=>`<button type="button" data-preflight-filter="${tone}" data-tone="${tone}" class="${batch.preflightPurposeFilter===tone?'is-active':''}"><i>${icon}</i><span>${label}</span><b>${count}</b></button>`;
-      chips.innerHTML=chip('mail','邮件',counts.mail,'✉')+chip('roster','总名单',counts.roster,'名')+chip('attachment','附件',counts.attachment,'附')+chip('review','待确认',counts.review,'!')+chip('ignored','暂不使用',counts.ignored,'×');
-      chips.querySelectorAll('[data-preflight-filter]').forEach(button=>button.addEventListener('click',()=>{const value=button.dataset.preflightFilter||'';batch.preflightPurposeFilter=batch.preflightPurposeFilter===value?'':value;renderPreflightSourceRoles();}));
-    }
     for(const key of Object.keys(counts)){const target=$('nmda-preflight-dropzones')?.querySelector(`[data-drop-count="${key}"]`);if(target)target.textContent=counts[key]||0;}
-    if(dirNav){const tree=buildSourceFolderTree(decisions);dirNav.innerHTML=`<button class="nmda-classify-folder-row nmda-classify-folder-all${!batch.preflightFolderPath?' is-active':''}" type="button" data-preflight-folder=""><span class="nmda-classify-folder-icon">▦</span><span class="nmda-classify-folder-name">全部文件</span><b>${decisions.length}</b></button>${sourceFolderNavHtml(tree)}`;dirNav.querySelectorAll('[data-preflight-folder]').forEach(button=>button.addEventListener('click',()=>{batch.preflightFolderPath=decodeURIComponent(button.dataset.preflightFolder||'');renderPreflightSourceRoles();}));}
-    details.hidden=!decisions.length;
-    list.innerHTML=sourceFileRowsHtml(visible);
-    list.querySelectorAll('[data-inspect-source]').forEach(row=>{
-      row.addEventListener('click',event=>{if(event.target.closest('[data-source-drag]'))return;event.preventDefault();inspectSourceInPreflight(decodeURIComponent(row.dataset.inspectSource||''));});
-      row.addEventListener('keydown',event=>{if(event.key!=='Enter'&&event.key!==' ')return;event.preventDefault();inspectSourceInPreflight(decodeURIComponent(row.dataset.inspectSource||''));});
+    const folderTree=buildSourceFolderTree(decisions);
+    const folders=(node,depth=0)=>[...node.folders.values()].sort((a,b)=>a.name.localeCompare(b.name,'zh-CN')).map(item=>({name:item.name,path:item.path,count:item.count,depth,children:folders(item,depth+1)}));
+    const rows=visible.map(decision=>{
+      const visual=sourceRoleVisual(decision.purpose,decision.needsReview),fileName=String(decision.sourceName||'').replace(/\\/g,'/').split('/').pop()||'未命名来源';
+      const path=sourceDirectoryPath(decision.sourceName);
+      return {source:decision.sourceName,fileName,fileVisual:sourceFileVisual(fileName),meta:[path||'根目录',humanFileSize(decision.file?.size)].filter(Boolean).join(' · '),tone:visual.tone,icon:visual.icon,label:visual.label,needsReview:decision.needsReview,selected:batch.sourceInspectName===decision.sourceName};
     });
-    list.querySelectorAll('[data-source-drag]').forEach(handle=>{
-      handle.addEventListener('click',event=>event.stopPropagation());
-      handle.addEventListener('dragstart',event=>{const source=decodeURIComponent(handle.dataset.sourceDrag||'');batch.sourceInspectName=source;event.dataTransfer?.setData('text/plain',source);if(event.dataTransfer)event.dataTransfer.effectAllowed='move';handle.closest('.nmda-classify-file-row')?.classList.add('is-dragging');document.querySelector('.nmda-classify-dialog')?.classList.add('is-drag-classifying');});
-      handle.addEventListener('dragend',()=>{handle.closest('.nmda-classify-file-row')?.classList.remove('is-dragging');document.querySelector('.nmda-classify-dialog')?.classList.remove('is-drag-classifying');});
-    });
+    globalThis.NMDAWorkspaceImportUi.publishPatch({sourceUi:{counts,filter:batch.preflightPurposeFilter||'',folder:batch.preflightFolderPath||'',total:decisions.length,folders:folders(folderTree),rows}});
+    if(details)details.hidden=!decisions.length;
     const selected=decisions.find(item=>item.sourceName===batch.sourceInspectName);renderSourceInspector(selected||null);
   }
+
+  window.addEventListener('nmda:preflight-source-action',event=>{
+    const {action,value,source}=event.detail||{};
+    if(action==='filter'){batch.preflightPurposeFilter=batch.preflightPurposeFilter===value?'':value;renderPreflightSourceRoles();}
+    else if(action==='folder'){batch.preflightFolderPath=String(value||'');renderPreflightSourceRoles();}
+    else if(action==='inspect')inspectSourceInPreflight(source);
+    else if(action==='drag-start'){batch.sourceInspectName=source;document.querySelector('.nmda-classify-dialog')?.classList.add('is-drag-classifying');}
+    else if(action==='drag-end')document.querySelector('.nmda-classify-dialog')?.classList.remove('is-drag-classifying');
+  });
 
   function attachmentAssetRowsHtml(entries,{compact=false}={}) {
     const totalTasks=(batch.tasks||[]).filter(task=>task.enabled&&!task.policyBlocked).length;
