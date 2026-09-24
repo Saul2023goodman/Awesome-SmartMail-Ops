@@ -128,16 +128,10 @@
     next.innerHTML='<div class="nmda-next-step-copy"><span class="nmda-next-step-kicker">导入完成</span><strong>进入审阅邮件</strong><small id="nmda-handoff-hint"></small></div><div class="nmda-import-ready-summary" id="nmda-import-ready-summary"></div><button class="nmda-btn nmda-btn-primary nmda-next-step-action" id="nmda-go-batch" type="button">审阅邮件 →</button>';
     batchPaneHost.appendChild(next);
   }
-  // Attachments belong to import, so their single workspace is physically mounted
-  // inside the import card instead of a portal.
-  const attachmentWorkspace=ui.querySelector('#nmda-attachment-manager-overlay');
-  const importCardHost=ui.querySelector('#nmda-import-card');
-  if(attachmentWorkspace&&importCardHost){
-    attachmentWorkspace.classList.add('nmda-attachment-manager-inline');
-    importCardHost.appendChild(attachmentWorkspace);
-  }
   const $ = id => ui.querySelector(`#${id}`);
   const launcher = $('nmda-launcher'), panel = $('nmda-panel');
+  const attachmentUiState=()=>globalThis.NMDAWorkspaceImportUi.getSnapshot().attachments;
+  const patchAttachmentUi=patch=>globalThis.NMDAWorkspaceImportUi.publishPatch({attachments:{...attachmentUiState(),...patch}});
   document.documentElement.classList.add('nmda-app-document');
   document.body?.classList.add('nmda-app-body');
   ui.classList.add('nmda-standalone');
@@ -646,7 +640,7 @@
     closeRosterPlannerView({restoreFocus:false});
     if(n!==1){
       if(batch.supplementPreflightOpen){batch.supplementPreflightOpen=false;renderSupplementPreflight();}
-      if(batch.attachmentManagerOpen)closeAttachmentManager();
+      if(attachmentUiState().visible)closeAttachmentManager();
     }
     if(n!==2 && reviewInlineEl && !reviewInlineEl.hidden){
       if(batch.reviewEditingKey){setImportStatus('请先保存或取消当前邮件的编辑，再离开审阅邮件。','warn');return false;}
@@ -713,7 +707,7 @@
       configureCollection(batch.collectionIndex,false);
       renderSourceInventory();
       renderImportLifecycleState();
-      renderAttachmentAssetViews();
+      publishAttachmentWorkspace();
       renderSupplementPreflight();
       syncScheduleRuleControls();
       setImportStatus(`已恢复上次处理的 ${batch.tasks.length} 封邮件。可继续添加文件、文件夹、名单或附件。`,'ok');
@@ -1265,16 +1259,16 @@
     const file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===identity);if(!file)return;
     const policy=ensureAttachmentPolicy(file,attachmentKindForFile(file));
     policy.mode=['smart','all','selected'].includes(mode)?mode:'all';
-    if(policy.mode!=='selected')batch.attachmentTargetEditing='';
+    if(policy.mode!=='selected')patchAttachmentUi({targetIdentity:''});
     batch.attachmentPolicies.set(identity,policy);batch.handoffComplete=false;
-    rebuildTasks();renderAttachmentAssetViews();
+    rebuildTasks();publishAttachmentWorkspace();
   }
 
   function setAttachmentTarget(identity,taskKey,checked){
     const file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===identity);if(!file)return;
     const policy=ensureAttachmentPolicy(file,attachmentKindForFile(file));policy.mode='selected';
     const targets=new Set(policy.targets||[]);checked?targets.add(taskKey):targets.delete(taskKey);policy.targets=[...targets];
-    batch.attachmentPolicies.set(identity,policy);batch.handoffComplete=false;rebuildTasks();renderAttachmentAssetViews();
+    batch.attachmentPolicies.set(identity,policy);batch.handoffComplete=false;rebuildTasks();publishAttachmentWorkspace();
   }
 
   function addAttachmentFiles(files,{source='手动添加',mode=''}={}){
@@ -1330,7 +1324,7 @@
     clearStaleOverrides();
     batch.fileIndex=Importer.buildFileIndex(allAttachmentFiles());
     rebuildTasks();
-    renderSourceInventory();renderPreflightSourceRoles();renderAttachmentAssetViews();renderSupplementPreflight();
+    renderSourceInventory();renderPreflightSourceRoles();publishAttachmentWorkspace();renderSupplementPreflight();
     const label={mail:'邮件',roster:'参考总名单',attachment:'附件',ignored:'暂不使用'}[purpose];
     setImportStatus(`已将 ${resolvedFileName||sourceName} 调整为${label}，本批次结果已重新整理。`,'ok');
   }
@@ -1493,7 +1487,7 @@
       collection.meta={...(collection.meta||{}),purposeOverride:'',sourcePurpose:'ambiguous',purposeConfidence:0,purposeReasons:['已标记为待确认']};
     }
     batch.handoffComplete=false;syncRoutedSources();clearStaleOverrides();batch.fileIndex=Importer.buildFileIndex(allAttachmentFiles());rebuildTasks();
-    renderSourceInventory();renderPreflightSourceRoles();renderAttachmentAssetViews();renderSupplementPreflight();
+    renderSourceInventory();renderPreflightSourceRoles();publishAttachmentWorkspace();renderSupplementPreflight();
     setImportStatus(`已将 ${resolvedFileName||sourceName} 标记为待确认。`,'ok');
   }
 
@@ -1586,17 +1580,6 @@
     else if(action==='drag-end')document.querySelector('.nmda-classify-dialog')?.classList.remove('is-drag-classifying');
   });
 
-  function attachmentAssetRowsHtml(entries,{compact=false}={}) {
-    const totalTasks=(batch.tasks||[]).filter(task=>task.enabled&&!task.policyBlocked).length;
-    return (entries||[]).map(entry=>{
-      const policy=entry.policy||ensureAttachmentPolicy(entry.file,entry.kind);
-      const scope=policy.mode==='all'?`全部 ${totalTasks} 封`:policy.mode==='selected'?`指定 ${(policy.targets||[]).length} 封`:(entry.used?`自动匹配 ${entry.used} 封`:'自动匹配 · 尚未命中');
-      const tone=policy.mode==='smart'&&!entry.used?'warn':'ok';
-      const targetButton=policy.mode==='selected'?`<button class="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" data-attachment-target-config="${escapeHtml(encodeURIComponent(entry.identity))}">选择邮件</button>`:'';
-      return `<div class="nmda-attachment-asset-row nmda-attachment-workspace-row${compact?' is-compact':''}" data-attachment-identity="${escapeHtml(encodeURIComponent(entry.identity))}"><span class="nmda-attachment-file-icon" aria-hidden="true">↗</span><div class="nmda-attachment-file-main"><strong title="${escapeHtml(entry.file.name||'附件')}">${escapeHtml(entry.file.name||'附件')}</strong><small>${escapeHtml(formatAttachmentSize(entry.file))} · ${escapeHtml(entry.source||'附件')}</small></div><div class="nmda-attachment-scope"><label><span>适用范围</span><select data-attachment-policy="${escapeHtml(encodeURIComponent(entry.identity))}"><option value="all" ${policy.mode==='all'?'selected':''}>全部邮件（默认）</option><option value="smart" ${policy.mode==='smart'?'selected':''}>按邮件提示匹配</option><option value="selected" ${policy.mode==='selected'?'selected':''}>指定邮件…</option></select></label><span class="nmda-attachment-scope-state" data-tone="${tone}">${escapeHtml(scope)}</span></div><div class="nmda-attachment-asset-actions">${targetButton}<button class="nmda-text-action nmda-attachment-remove" type="button" data-attachment-remove="${escapeHtml(encodeURIComponent(entry.identity))}" aria-label="移除 ${escapeHtml(entry.file.name||'附件')}">移除</button></div></div>`;
-    }).join('');
-  }
-
   function attachmentRequirementOverview(){
     const map=new Map();
     for(const task of batch.tasks||[])for(const detail of task.attachmentDetails||[]){
@@ -1608,50 +1591,37 @@
     return [...map.values()];
   }
 
-  function attachmentRequirementRowsHtml(){
-    const items=attachmentRequirementOverview();if(!items.length)return '<div class="nmda-attachment-assets-empty">当前邮件没有点名附件提示。新加入的附件仍默认适用于全部邮件，也可改为指定邮件。</div>';
-    const pool=allAttachmentFiles();
-    return items.map(item=>{
-      const complete=item.matched>=item.total,tone=complete?'ok':item.ambiguous?'warn':'danger';
-      const status=complete?`已覆盖 ${item.matched}/${item.total}`:`未匹配 ${item.total-item.matched}/${item.total} · 不阻断`;
-      let control='';
-      if(!complete&&pool.length){
-        const options=pool.map(file=>`<option value="${escapeHtml(Importer.fileIdentity(file))}">${escapeHtml(file.webkitRelativePath||file._nmdaPath||file.name)}</option>`).join('');
-        control=`<select data-attachment-ref="${escapeHtml(item.key)}"><option value="">使用现有附件…</option>${options}</select>`;
-      }
-      return `<div class="nmda-attachment-requirement-row"><div><strong>${escapeHtml(item.ref)}</strong><small>${item.files.size?`已使用：${escapeHtml([...item.files].join('、'))}`:'来源中提到此附件；未匹配也可继续'}</small></div><span data-tone="${tone}">${escapeHtml(status)}</span>${control}</div>`;
-    }).join('');
-  }
-
-  function renderAttachmentTargetEditor(){
-    const wrap=$('nmda-attachment-target-editor'),list=$('nmda-attachment-target-list'),title=$('nmda-attachment-target-title'),search=$('nmda-attachment-target-search');if(!wrap||!list)return;
-    const identity=batch.attachmentTargetEditing||'',file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===identity);
-    if(!file){wrap.hidden=true;return;}
-    const policy=ensureAttachmentPolicy(file,attachmentKindForFile(file));if(policy.mode!=='selected'){wrap.hidden=true;return;}
-    wrap.hidden=false;if(title)title.textContent=`${file.name} · 指定邮件`;if(search&&search.value!==String(batch.attachmentTargetSearch||''))search.value=String(batch.attachmentTargetSearch||'');
-    const q=normalizedSearchText(batch.attachmentTargetSearch||''),targets=new Set(policy.targets||[]);
-    const tasks=(batch.tasks||[]).filter(task=>!q||normalizedSearchText([task.recipients,task.subject,task.school].join(' ')).includes(q));
-    list.innerHTML=tasks.length?tasks.map(task=>`<label class="nmda-attachment-target-row"><input type="checkbox" data-attachment-target-task="${escapeHtml(encodeURIComponent(task.editKey))}" ${targets.has(task.editKey)?'checked':''}><span><strong>${escapeHtml(task.recipients||'未填写收件人')}</strong><small>${escapeHtml(task.subject||'无主题')}${task.school?` · ${escapeHtml(task.school)}`:''}</small></span></label>`).join(''):'<div class="nmda-attachment-assets-empty">没有匹配当前搜索的邮件。</div>';
-    list.querySelectorAll('[data-attachment-target-task]').forEach(input=>input.addEventListener('change',()=>setAttachmentTarget(identity,decodeURIComponent(input.dataset.attachmentTargetTask||''),input.checked)));
-  }
-
-  function renderAttachmentAssetViews() {
+  function publishAttachmentWorkspace() {
     const entries=attachmentAssetEntries(),count=entries.length;
-    const support=globalThis.NMDAWorkspaceImportUi.getSnapshot().support;
-    globalThis.NMDAWorkspaceImportUi.publishPatch({support:{...support,attachment:{...support.attachment,count}}});
-    const manager=$('nmda-attachment-manager-overlay'),list=$('nmda-attachment-manager-list'),empty=$('nmda-attachment-manager-empty'),summary=$('nmda-attachment-manager-summary'),fileCount=$('nmda-attachment-manager-file-count');
-    if(manager){manager.hidden=!batch.attachmentManagerOpen;manager.setAttribute('aria-hidden',batch.attachmentManagerOpen?'false':'true');}
-    if(list)list.innerHTML=attachmentAssetRowsHtml(entries);
-    if(fileCount)fileCount.textContent=`${count} 个`;
-    if(empty)empty.hidden=!!count;
+    const snapshot=globalThis.NMDAWorkspaceImportUi.getSnapshot();
+    const support=snapshot.support;
     const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{total:0,matched:0,issues:0};
     const modes={smart:0,all:0,selected:0};for(const entry of entries)modes[entry.policy?.mode||'smart']=(modes[entry.policy?.mode||'smart']||0)+1;
-    if(summary)summary.innerHTML=`<span><strong>${count}</strong><small>附件文件</small></span><span><strong>${stats.matched||0}/${stats.total||0}</strong><small>附件提示已匹配</small></span><span data-tone="${stats.issues?'warn':'ok'}"><strong>${stats.issues||0}</strong><small>未匹配 · 不阻断</small></span><span><strong>${modes.smart}/${modes.all}/${modes.selected}</strong><small>自动 / 全部 / 指定</small></span>`;
-    const req=$('nmda-attachment-manager-requirements'),reqCount=$('nmda-attachment-manager-requirements-count');if(req)req.innerHTML=attachmentRequirementRowsHtml();if(reqCount)reqCount.textContent=`${stats.total||0} 项`;
-    list?.querySelectorAll('[data-attachment-policy]').forEach(select=>select.addEventListener('change',()=>{const id=decodeURIComponent(select.dataset.attachmentPolicy||'');setAttachmentPolicy(id,select.value);if(select.value==='selected'){batch.attachmentTargetEditing=id;batch.attachmentTargetSearch='';renderAttachmentAssetViews();}}));
-    list?.querySelectorAll('[data-attachment-target-config]').forEach(button=>button.addEventListener('click',()=>{batch.attachmentTargetEditing=decodeURIComponent(button.dataset.attachmentTargetConfig||'');batch.attachmentTargetSearch='';renderAttachmentAssetViews();}));
-    req?.querySelectorAll('select[data-attachment-ref]').forEach(select=>select.addEventListener('change',()=>{const file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===select.value);if(file)batch.attachmentOverrides.set(select.dataset.attachmentRef,file);else batch.attachmentOverrides.delete(select.dataset.attachmentRef);rebuildTasks();renderAttachmentAssetViews();}));
-    renderAttachmentTargetEditor();
+    const totalTasks=(batch.tasks||[]).filter(task=>task.enabled&&!task.policyBlocked).length;
+    const uiState=attachmentUiState(),targetIdentity=uiState.targetIdentity||'';
+    const targetEntry=entries.find(entry=>entry.identity===targetIdentity);
+    const targetPolicy=targetEntry?ensureAttachmentPolicy(targetEntry.file,targetEntry.kind):null;
+    const target=targetEntry&&targetPolicy?.mode==='selected'?{
+      identity:targetIdentity,title:`${targetEntry.file.name} · 指定邮件`,
+      tasks:(batch.tasks||[]).map(task=>({key:task.editKey,recipient:task.recipients||'',subject:task.subject||'',school:task.school||'',selected:(targetPolicy.targets||[]).includes(task.editKey)}))
+    }:null;
+    const pool=allAttachmentFiles();
+    const requirements=attachmentRequirementOverview().map(item=>{
+      const complete=item.matched>=item.total;
+      return {key:item.key,ref:item.ref,tone:complete?'ok':item.ambiguous?'warn':'danger',status:complete?`已覆盖 ${item.matched}/${item.total}`:`未匹配 ${item.total-item.matched}/${item.total} · 不阻断`,files:[...item.files],choices:!complete&&pool.length?pool.map(file=>({identity:Importer.fileIdentity(file),label:file.webkitRelativePath||file._nmdaPath||file.name})):[]};
+    });
+    const attachmentPatch={
+      summary:{count,matched:stats.matched||0,total:stats.total||0,issues:stats.issues||0,smart:modes.smart,all:modes.all,selected:modes.selected},
+      entries:entries.map(entry=>{
+        const policy=entry.policy||ensureAttachmentPolicy(entry.file,entry.kind),mode=policy.mode||'smart';
+        return {identity:entry.identity,name:entry.file.name||'附件',size:formatAttachmentSize(entry.file),source:entry.source||'附件',mode,used:entry.used,tone:mode==='smart'&&!entry.used?'warn':'ok',scope:mode==='all'?`全部 ${totalTasks} 封`:mode==='selected'?`指定 ${(policy.targets||[]).length} 封`:entry.used?`自动匹配 ${entry.used} 封`:'自动匹配 · 尚未命中'};
+      }),
+      requirements,target
+    };
+    globalThis.NMDAWorkspaceImportUi.publishPatch({
+      support:{...support,attachment:{...support.attachment,count}},
+      attachments:{...snapshot.attachments,...attachmentPatch}
+    });
     renderBatchPrepStrip();
     renderProcessGuide();
     syncModalState();
@@ -2036,28 +2006,28 @@
     hideReviewWorkspaceWithoutStash();
     batch.supplementPreflightOpen=false;
     batch.uiStep=1;
-    batch.attachmentManagerOpen=true;
+    patchAttachmentUi({visible:true});
     renderSupplementPreflight();
-    renderAttachmentAssetViews();
+    publishAttachmentWorkspace();
     requestAnimationFrame(()=>$('nmda-attachment-manager-overlay')?.scrollIntoView?.({behavior:'smooth',block:'nearest'}));
   }
-  function closeAttachmentManager() { batch.attachmentManagerOpen=false;batch.attachmentTargetEditing='';batch.attachmentTargetSearch='';renderAttachmentAssetViews(); }
+  function closeAttachmentManager() { patchAttachmentUi({visible:false,targetIdentity:''});publishAttachmentWorkspace(); }
 
   function removeAttachmentAsset(identity) {
     if(!identity)return;
     const keep=file=>Importer.fileIdentity(file)!==identity;
     batch.ignoredAttachmentIdentities.add(identity);
     batch.directoryFiles=(batch.directoryFiles||[]).filter(keep);batch.taskFiles=(batch.taskFiles||[]).filter(keep);batch.routedAttachmentFiles=(batch.routedAttachmentFiles||[]).filter(keep);
-    batch.attachmentPolicies?.delete(identity);if(batch.attachmentTargetEditing===identity)batch.attachmentTargetEditing='';
+    batch.attachmentPolicies?.delete(identity);if(attachmentUiState().targetIdentity===identity)patchAttachmentUi({targetIdentity:''});
     batch.attachmentPrepChoice=attachmentPreparedFileCount()?'added':(batch.supplementPreflightDone?'skipped':'pending');
-    refreshFileIndex(false);renderSupplementPreflight();renderAttachmentAssetViews();
+    refreshFileIndex(false);renderSupplementPreflight();publishAttachmentWorkspace();
   }
 
   function clearAttachmentAssets() {
     for(const file of batch.routedAttachmentFiles||[])batch.ignoredAttachmentIdentities.add(Importer.fileIdentity(file));
     if(dirEl)dirEl.value='';if(taskFilesEl)taskFilesEl.value='';if(preSendMatchFilesEl)preSendMatchFilesEl.value='';if(preSendSharedFilesEl)preSendSharedFilesEl.value='';
-    batch.directoryFiles=[];batch.taskFiles=[];batch.routedAttachmentFiles=[];batch.attachmentOverrides.clear();batch.attachmentPolicies=new Map();batch.attachmentTargetEditing='';
-    batch.attachmentPrepChoice=batch.supplementPreflightDone?'skipped':'pending';refreshFileIndex(true);renderSupplementPreflight();renderAttachmentAssetViews();
+    batch.directoryFiles=[];batch.taskFiles=[];batch.routedAttachmentFiles=[];batch.attachmentOverrides.clear();batch.attachmentPolicies=new Map();patchAttachmentUi({targetIdentity:''});
+    batch.attachmentPrepChoice=batch.supplementPreflightDone?'skipped':'pending';refreshFileIndex(true);renderSupplementPreflight();publishAttachmentWorkspace();
   }
 
   function renderBatchPrepStrip() {
@@ -2137,7 +2107,7 @@
     const supportUi=globalThis.NMDAWorkspaceImportUi.getSnapshot().support;
     globalThis.NMDAWorkspaceImportUi.publishPatch({support:{...supportUi,roster:{state:rosterContextState(),count:referenceRosterCount()},attachment:{state:attachmentPreflightState(),total:stats.total||0,issues:stats.issues||0,count:attachmentPreparedFileCount(),requirements:attachmentRequirementRefs()}}});
 
-    renderAttachmentAssetViews();renderPreflightSourceRoles();
+    publishAttachmentWorkspace();renderPreflightSourceRoles();
     if(visible&&!batch.sourceInspectName&&sourceDecisions.length&&window.matchMedia('(min-width: 821px)').matches){const first=sourceDecisions.find(item=>item.needsReview)||sourceDecisions[0];requestAnimationFrame(()=>{if(batch.supplementPreflightOpen&&!batch.sourceInspectName)inspectSourceInPreflight(first.sourceName);});}
   }
 
@@ -2193,7 +2163,7 @@
     }
     renderBatchPrepStrip();
     renderSupplementPreflight();
-    renderAttachmentAssetViews();
+    publishAttachmentWorkspace();
   }
 
   function beginImportSession(message) {
@@ -4125,8 +4095,8 @@
     const counts={smart:0,all:0,selected:0};for(const file of files){const mode=attachmentPolicyForFile(file).mode||'smart';counts[mode]=(counts[mode]||0)+1;}
     const totalBytes = files.reduce((sum, file) => sum + Number(file.size || 0), 0);
     const sizeText = totalBytes < 1024 * 1024 ? `${Math.round(totalBytes / 1024)} KB` : `${(totalBytes / 1024 / 1024).toFixed(1)} MB`;
-    const info=$('nmda-file-index-info');if(info)info.textContent=files.length?`已准备 ${files.length} 个附件（自动 ${counts.smart} / 全部 ${counts.all} / 指定 ${counts.selected}，共 ${sizeText}）。`:'尚未选择本地附件。';
-    rebuildTasks();renderAttachmentAssetViews();
+    patchAttachmentUi({fileIndexInfo:files.length?`已准备 ${files.length} 个附件（自动 ${counts.smart} / 全部 ${counts.all} / 指定 ${counts.selected}，共 ${sizeText}）。`:'尚未选择本地附件。'});
+    rebuildTasks();publishAttachmentWorkspace();
     if(batch.tasks.length&&batch.dataset&&!batch.importBusy)renderImportHandoff();
   }
 
@@ -5259,22 +5229,13 @@
     setPlanningView('mails');
     if(currentWorkbenchTab()==='batch')syncStageSurfaceVisibility(batch.uiStep);
     if(aux){
-      renderTagChips(); renderAttachmentCenter(); renderImportTaskPreview(); renderRosterAudit(); renderImportHandoff(); renderReviewPageOverview(); viewPerf.batchAuxDirty=false;
+      renderTagChips(); publishAttachmentWorkspace(); renderImportTaskPreview(); renderRosterAudit(); renderImportHandoff(); renderReviewPageOverview(); viewPerf.batchAuxDirty=false;
     }
     viewPerf.batchDirty=false;
     return {matched:matched.length,...snapshot};
   }
 
 
-
-  function renderAttachmentCenter() {
-    const stats=importAttachmentStats(),count=attachmentPreparedFileCount(),card=$('nmda-attachments-card'),contextPending=typeof supplementPreflightNeedsDecision==='function'&&supplementPreflightNeedsDecision();
-    if(card)card.hidden=contextPending||(!count&&!stats.total);
-    if(card){const title=card.querySelector('summary strong'),hint=card.querySelector('summary small');if(title)title.textContent='附件工作台';if(hint)hint.textContent=stats.issues?`${stats.issues} 项未匹配 · 不阻断排期`:count?`${count} 个附件 · ${stats.matched}/${stats.total} 项提示已匹配`:'查看附件提示';card.dataset.issue=stats.issues?'1':'0';card.open=false;}
-    const summary=$('nmda-attachment-summary');if(summary)summary.innerHTML=stats.total?`已准备 <strong>${count}</strong> 个附件；来源中有 <strong>${stats.total}</strong> 项附件提示，已匹配 <strong>${stats.matched}</strong> 项${stats.issues?`，另有 <strong>${stats.issues}</strong> 项提示未匹配（不阻断）。`:'，当前已全部覆盖。'}`:count?`已准备 <strong>${count}</strong> 个附件。发送范围统一在附件工作台配置。`:'当前没有附件文件或附件提示。';
-    const box=$('nmda-attachment-resolution'),list=$('nmda-attachment-resolution-list');if(box)box.hidden=true;if(list)list.innerHTML='';
-    renderAttachmentAssetViews();
-  }
 
   function setImportStatus(message, kind = '') {
     globalThis.NMDAWorkspaceImportUi.publishPatch({status:{message,kind}});
@@ -5344,7 +5305,7 @@
     batch.attachmentAttentionShown=false;
     batch.supplementPreflightDone=false;batch.supplementPreflightOpen=false;batch.attachmentPrepChoice='pending';batch.sourceInspectName='';batch.preflightFolderPath='';batch.preflightSearch='';batch.preflightReviewOnly=false;batch.preflightPurposeFilter='';
     batch.reviewEditingKey='';
-    batch.taskFiles = uniqueFiles([...(append?batch.taskFiles:[]),...(dataset?.embeddedFiles || [])]); batch.attachmentTargetEditing=''; batch.attachmentTargetSearch=''; batch.attachmentManagerOpen=false;
+    batch.taskFiles = uniqueFiles([...(append?batch.taskFiles:[]),...(dataset?.embeddedFiles || [])]); patchAttachmentUi({targetIdentity:'',visible:false});
     for(const file of batch.taskFiles)ensureAttachmentPolicy(file,'task',{source:'随资料导入',mode:'all'});
     batch.fileIndex = Importer.buildFileIndex(batch.taskFiles);
     dirEl.value = ''; taskFilesEl.value = '';
@@ -5409,11 +5370,9 @@
     batch.taskFiles = [];
     batch.routedAttachmentFiles = [];
     batch.ignoredAttachmentIdentities = new Set();
-    batch.attachmentManagerOpen = false;
+    patchAttachmentUi({visible:false,targetIdentity:''});
     batch.attachmentOverrides.clear();
     batch.attachmentPolicies = new Map();
-    batch.attachmentTargetEditing = '';
-    batch.attachmentTargetSearch = '';
     batch.taskEdits.clear();
     batch.formatGovernanceRules=[];
     batch.formatGovernanceDraftRules=[];
@@ -5460,10 +5419,7 @@
     if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent='收起';
     const trashDetails = $('nmda-review-trash'); if (trashDetails) trashDetails.open = false;
     renderReviewTrash();
-    const fileInfo = $('nmda-file-index-info'); if (fileInfo) fileInfo.textContent = '尚未选择本地附件。';
-    const attachmentSummary = $('nmda-attachment-summary'); if (attachmentSummary) attachmentSummary.textContent = '尚未添加附件。';
-    const attachmentResolution = $('nmda-attachment-resolution'); if (attachmentResolution) attachmentResolution.hidden = true;
-    const attachmentResolutionList = $('nmda-attachment-resolution-list'); if (attachmentResolutionList) attachmentResolutionList.innerHTML = '';
+    patchAttachmentUi({fileIndexInfo:'尚未选择本地附件。'});
     const readySummary = $('nmda-import-ready-summary'); if (readySummary) readySummary.textContent = '还没有准备好邮件。';
 
     $('nmda-batch-empty').hidden = false;
@@ -5835,40 +5791,47 @@
   preSendSharedFilesEl?.addEventListener('change',()=>{const files=[...(preSendSharedFilesEl.files||[])];preSendSharedFilesEl.value='';addAttachmentFiles(files,{source:'发送前添加'});});
   taskFilesEl?.addEventListener('change',()=>{const files=[...(taskFilesEl.files||[])];taskFilesEl.value='';const count=addAttachmentFiles(files,{source:'选择文件'});if(count)setBatchStatus(`已加入 ${count} 个附件；默认适用于全部邮件，可在附件工作台调整范围。`,'ok');});
 
-  const attachmentManagerDrop=$('nmda-attachment-manager-drop');
-  attachmentManagerDrop?.addEventListener('click',()=>taskFilesEl?.click());
-  attachmentManagerDrop?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();taskFilesEl?.click();}});
-  attachmentManagerDrop?.addEventListener('dragenter',event=>{event.preventDefault();attachmentManagerDrop.classList.add('is-dragging');});
-  attachmentManagerDrop?.addEventListener('dragover',event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='copy';attachmentManagerDrop.classList.add('is-dragging');});
-  attachmentManagerDrop?.addEventListener('dragleave',event=>{if(!attachmentManagerDrop.contains(event.relatedTarget))attachmentManagerDrop.classList.remove('is-dragging');});
-  attachmentManagerDrop?.addEventListener('drop',async event=>{
-    event.preventDefault();attachmentManagerDrop.classList.remove('is-dragging');
-    const files=await filesFromDrop(event.dataTransfer);if(!files.length)return;
-    const folder=files.some(file=>String(file?._nmdaPath||file?.webkitRelativePath||'').includes('/'));
-    const count=addAttachmentFiles(files,{source:folder?'拖入文件夹':'拖入文件',mode:'all'});
-    if(count)setBatchStatus(`已拖入 ${count} 个附件；默认适用于全部邮件，可在工作台逐项调整。`,'ok');
+  window.addEventListener('nmda:attachment-workspace-action',event=>{
+    const {action,identity,mode,taskKey,checked,key,dataTransfer,taskKeys=[]}=event.detail||{};
+    if(action==='choose-files')taskFilesEl?.click();
+    else if(action==='choose-directory')dirEl?.click();
+    else if(action==='close')closeAttachmentManager();
+    else if(action==='clear')clearAttachmentAssets();
+    else if(action==='remove')removeAttachmentAsset(identity);
+    else if(action==='policy'){
+      if(mode==='selected')patchAttachmentUi({targetIdentity:identity});
+      setAttachmentPolicy(identity,mode);
+    }else if(action==='target-open'){
+      patchAttachmentUi({targetIdentity:identity});publishAttachmentWorkspace();
+    }else if(action==='target-close'){
+      patchAttachmentUi({targetIdentity:''});publishAttachmentWorkspace();
+    }else if(action==='target-check'){
+      setAttachmentTarget(identity,taskKey,!!checked);
+    }else if(action==='target-all'){
+      const file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===identity);if(!file)return;
+      const policy=ensureAttachmentPolicy(file,attachmentKindForFile(file)),targets=new Set(policy.targets||[]);
+      for(const targetKey of taskKeys)targets.add(targetKey);
+      policy.mode='selected';policy.targets=[...targets];batch.attachmentPolicies.set(identity,policy);rebuildTasks();publishAttachmentWorkspace();
+    }else if(action==='target-clear'){
+      const file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===identity);if(!file)return;
+      const policy=ensureAttachmentPolicy(file,attachmentKindForFile(file));policy.mode='selected';policy.targets=[];batch.attachmentPolicies.set(identity,policy);rebuildTasks();publishAttachmentWorkspace();
+    }else if(action==='requirement-match'){
+      const file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===event.detail?.identity);
+      if(file)batch.attachmentOverrides.set(key,file);else batch.attachmentOverrides.delete(key);
+      rebuildTasks();publishAttachmentWorkspace();
+    }else if(action==='drop'){
+      void (async()=>{
+        const files=await filesFromDrop(dataTransfer);if(!files.length)return;
+        const folder=files.some(file=>String(file?._nmdaPath||file?.webkitRelativePath||'').includes('/'));
+        const count=addAttachmentFiles(files,{source:folder?'拖入文件夹':'拖入文件',mode:'all'});
+        if(count)setBatchStatus(`已拖入 ${count} 个附件；默认适用于全部邮件，可在工作台逐项调整。`,'ok');
+      })();
+    }
   });
 
-  $('nmda-manager-clear-attachments')?.addEventListener('click',clearAttachmentAssets);
-  $('nmda-close-attachment-manager')?.addEventListener('click',closeAttachmentManager);
-  $('nmda-attachment-manager-done')?.addEventListener('click',closeAttachmentManager);
   $('nmda-manage-attachments-todo')?.addEventListener('click',openAttachmentManager);
   $('nmda-manage-attachments-workflow')?.addEventListener('click',openAttachmentManager);
-  $('nmda-attachment-target-close')?.addEventListener('click',()=>{batch.attachmentTargetEditing='';batch.attachmentTargetSearch='';renderAttachmentAssetViews();});
-  $('nmda-attachment-target-search')?.addEventListener('input',event=>{batch.attachmentTargetSearch=event.target.value||'';renderAttachmentTargetEditor();});
-  $('nmda-attachment-target-all')?.addEventListener('click',()=>{
-    const id=batch.attachmentTargetEditing,file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===id);if(!file)return;
-    const policy=ensureAttachmentPolicy(file,attachmentKindForFile(file));const q=normalizedSearchText(batch.attachmentTargetSearch||'');
-    const targets=new Set(policy.targets||[]);for(const task of batch.tasks||[])if(!q||normalizedSearchText([task.recipients,task.subject,task.school].join(' ')).includes(q))targets.add(task.editKey);
-    policy.mode='selected';policy.targets=[...targets];batch.attachmentPolicies.set(id,policy);rebuildTasks();renderAttachmentAssetViews();
-  });
-  $('nmda-attachment-target-clear')?.addEventListener('click',()=>{
-    const id=batch.attachmentTargetEditing,file=allAttachmentFiles().find(item=>Importer.fileIdentity(item)===id);if(!file)return;
-    const policy=ensureAttachmentPolicy(file,attachmentKindForFile(file));policy.mode='selected';policy.targets=[];batch.attachmentPolicies.set(id,policy);rebuildTasks();renderAttachmentAssetViews();
-  });
-  $('nmda-attachment-manager-overlay')?.addEventListener('click',event=>{if(event.target===$('nmda-attachment-manager-overlay'))closeAttachmentManager();});
   ui.addEventListener('click',event=>{
-    const remove=event.target.closest?.('[data-attachment-remove]');if(remove){removeAttachmentAsset(decodeURIComponent(remove.dataset.attachmentRemove||''));return;}
     if(event.target.closest?.('[data-open-attachment-manager]'))openAttachmentManager();
   });
 

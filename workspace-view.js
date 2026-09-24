@@ -129,6 +129,8 @@
                 <input id="nmda-import-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip,.pdf,.ppt,.pptx,.rtf,.png,.jpg,.jpeg,.gif,.webp,.svg,.rar,.7z">
                 <input id="nmda-import-dir" type="file" webkitdirectory multiple hidden>
                 <input id="nmda-roster-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
+                <input id="nmda-attachment-files" type="file" multiple hidden>
+                <input id="nmda-attachment-dir" type="file" webkitdirectory multiple hidden>
                 <div data-workspace-mount="import-intake" style="display:contents"></div>
                 <div data-workspace-mount="source-inventory" style="display:contents"></div>
                 <div data-workspace-mount="import-audit" style="display:contents"></div>
@@ -177,49 +179,7 @@
                 </section>
               </div>
 
-              <div class="nmda-attachment-manager-overlay" id="nmda-attachment-manager-overlay" hidden aria-hidden="true">
-                <section class="nmda-attachment-manager" role="region" aria-labelledby="nmda-attachment-manager-title">
-                  <div class="nmda-attachment-manager-head">
-                    <div><span class="nmda-supplement-kicker">统一附件配置</span><h3 id="nmda-attachment-manager-title">附件工作台</h3><p>新附件默认适用于全部邮件；如有需要，可改为自动匹配或精确指定邮件。</p></div>
-                    <button class="nmda-icon-btn" id="nmda-close-attachment-manager" type="button" aria-label="关闭附件工作台">×</button>
-                  </div>
-                  <div class="nmda-attachment-manager-body">
-                    <div class="nmda-attachment-workspace-stats" id="nmda-attachment-manager-summary">尚未加入附件。</div>
-                    <div class="nmda-attachment-manager-drop" id="nmda-attachment-manager-drop" tabindex="0" role="button" aria-label="拖入或选择附件">
-                      <span class="nmda-attachment-manager-drop-icon">⇧</span>
-                      <div><strong>拖入附件或文件夹</strong><small>也可以点击选择文件；文件夹会保留相对路径并参与自动匹配。</small></div>
-                      <span class="nmda-attachment-manager-drop-action">选择文件</span>
-                    </div>
-                    <div class="nmda-attachment-manager-addbar">
-                      <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-attachment-files">选择文件</label>
-                      <label class="nmda-btn nmda-btn-small" for="nmda-attachment-dir">选择文件夹</label>
-                      <input id="nmda-attachment-files" type="file" multiple hidden>
-                      <input id="nmda-attachment-dir" type="file" webkitdirectory multiple hidden>
-                      <span id="nmda-file-index-info" class="nmda-hint">尚未选择本地附件。</span>
-                    </div>
-                    <section class="nmda-attachment-workspace-section">
-                      <header><div><strong>附件文件</strong></div><span id="nmda-attachment-manager-file-count">0 个</span></header>
-                      <div class="nmda-attachment-assets" id="nmda-attachment-manager-assets">
-                        <div class="nmda-attachment-assets-list nmda-attachment-workspace-list" id="nmda-attachment-manager-list"></div>
-                        <div class="nmda-attachment-assets-empty" id="nmda-attachment-manager-empty">还没有附件。把文件拖到上方即可开始配置。</div>
-                      </div>
-                    </section>
-                    <section class="nmda-attachment-target-editor" id="nmda-attachment-target-editor" hidden>
-                      <header><div><span>指定邮件</span><strong id="nmda-attachment-target-title">选择适用邮件</strong></div><button class="nmda-icon-btn" id="nmda-attachment-target-close" type="button" aria-label="关闭指定邮件设置">×</button></header>
-                      <div class="nmda-attachment-target-toolbar"><label><span>⌕</span><input id="nmda-attachment-target-search" type="search" placeholder="搜索收件人、主题或学校"></label><button class="nmda-btn nmda-btn-small" id="nmda-attachment-target-all" type="button">全选当前</button><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-attachment-target-clear" type="button">清空</button></div>
-                      <div class="nmda-attachment-target-list" id="nmda-attachment-target-list"></div>
-                    </section>
-                    <section class="nmda-attachment-workspace-section nmda-attachment-requirement-section" id="nmda-attachment-manager-requirements-section">
-                      <header><div><strong>邮件中的附件提示</strong></div><span id="nmda-attachment-manager-requirements-count">0 项</span></header>
-                      <div class="nmda-attachment-requirement-list" id="nmda-attachment-manager-requirements"></div>
-                    </section>
-                  </div>
-                  <div class="nmda-attachment-manager-foot">
-                    <button class="nmda-btn nmda-btn-danger-quiet" id="nmda-manager-clear-attachments" type="button">清空附件</button>
-                    <div class="nmda-row nmda-wrap"><span class="nmda-hint" id="nmda-attachment-manager-foot-note"></span><button class="nmda-btn nmda-btn-primary" id="nmda-attachment-manager-done" type="button">完成</button></div>
-                  </div>
-                </section>
-              </div>
+              <div data-workspace-mount="attachment-manager" style="display:contents"></div>
 
               <div class="nmda-card nmda-inline-review" id="nmda-inline-review" hidden>
                 <div class="nmda-inline-review-top" data-workspace-mount="review-top"></div>

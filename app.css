@@ -190,7 +190,6 @@
 
 #nmda-import-card { align-self:start; }
 
-#nmda-attachments-card { grid-column:1 / -1; }
 .nmda-list-card { margin-bottom:12px; }
 .nmda-list-head { align-items:center; }
 
@@ -258,13 +257,6 @@
 
 
 
-.nmda-attachment-resolution { display:grid; gap:7px; padding:9px; border:1px solid #f2cc60; border-radius:9px; background:#fffbea; }
-.nmda-attachment-resolution[hidden] { display:none !important; }
-#nmda-attachment-resolution-list { display:grid; gap:6px; }
-
-
-
-
 .nmda-danger { color:var(--nmda-red); font-weight:700; }
 
 
@@ -310,12 +302,6 @@
 
 @media (max-width: 980px) {
   #nmda-panel { inset: 12px; width:auto; height:auto; grid-template-columns: 150px minmax(0,1fr); }
-  
-  
-  #nmda-attachments-card { grid-column:auto; }
-  
-  
-  
   
   
 }
@@ -1474,9 +1460,6 @@
 
 
 
-#nmda-attachments-card[data-issue="1"] { border-color:#f2cc60; background:#fffdf5; }
-#nmda-attachments-card[data-issue="1"] > summary strong { color:#92400e; }
-#nmda-attachments-card[data-issue="1"] > summary small { color:#a16207; }
 @media (max-width:760px) {
   .nmda-review-guidance { align-items:flex-start; }
   
@@ -1928,10 +1911,6 @@
 }
 
 
-
-/* Attachments are a step-2 todo, not a reason to pull the user back into step 1. */
-#nmda-attachments-card[data-issue="1"] > summary { background:#fffaf0; }
-#nmda-attachments-card[data-issue="1"] > summary strong { color:#7d4e00; }
 
 /* Ready-to-create is distinct from actively creating: avoid making step 4 look current too early. */
 .nmda-process-guide button[data-state="ready"] {
@@ -2758,19 +2737,6 @@
 #nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="skipped"] .nmda-context-cue-main > small {
   color:#7a8492;
 }
-#nmda-attachments-card {
-  margin-top:7px;
-  border:1px solid #e1e6eb;
-  background:#fbfcfd;
-}
-#nmda-attachments-card > summary {
-  min-height:34px;
-  padding:7px 9px;
-  background:#fbfcfd !important;
-}
-#nmda-attachments-card[data-issue="1"] > summary strong { color:#57606a !important; }
-#nmda-attachments-card[data-issue="1"] > summary small { color:#8c959f !important; }
-
 /* v1.33 · Import preflight — mail first, then one explicit batch-preparation dialog. */
 
 /* The import surface owns one job: get mail content into the batch. */
@@ -3216,14 +3182,6 @@
   padding:14px 20px 18px;
   background:#fbfcfe;
 }
-.nmda-attachment-manager-summary {
-  margin-bottom:9px;
-  color:#57606a;
-  font-size:9px;
-}
-.nmda-attachment-manager-summary strong { color:#24292f; }
-.nmda-attachment-manager-summary em { color:#9a6700; font-style:normal; font-weight:700; }
-.nmda-attachment-manager-assets { overflow:hidden; }
 .nmda-attachment-assets-empty {
   padding:28px 18px;
   color:#8c959f;

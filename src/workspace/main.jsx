@@ -15,6 +15,7 @@ import { PreflightChips, PreflightDirectoryHead, PreflightFolders, PreflightSour
 import PreflightInspector from './PreflightInspector.jsx';
 import PreflightSupport from './PreflightSupport.jsx';
 import ImportAudit from './ImportAudit.jsx';
+import AttachmentManager from './AttachmentManager.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -111,4 +112,8 @@ document.querySelectorAll('[data-workspace-mount="preflight-support"]').forEach(
 
 document.querySelectorAll('[data-workspace-mount="import-audit"]').forEach(host => {
   createRoot(host).render(<StrictMode><ImportAudit /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="attachment-manager"]').forEach(host => {
+  createRoot(host).render(<StrictMode><AttachmentManager /></StrictMode>);
 });
