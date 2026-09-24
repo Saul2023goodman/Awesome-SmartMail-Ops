@@ -210,21 +210,7 @@
                     </section>
 
                     <aside class="nmda-classify-inspector-pane" aria-label="当前文件核验">
-                      <div class="nmda-source-inspector-empty" id="nmda-source-inspector-empty">
-                        <span class="nmda-source-inspector-empty-icon">⌁</span>
-                        <strong>选择一个文件查看内容</strong>
-                        <small>分类正确无需操作；只有发现用途不对时才修改。</small>
-                      </div>
-                      <div class="nmda-source-inspector-card" id="nmda-source-inspector-card" hidden>
-                        <div class="nmda-source-inspector-card-head">
-                          <button class="nmda-source-inspector-close" id="nmda-source-inspector-close" type="button" aria-label="返回文件列表">←</button>
-                          <div><span>当前文件</span><strong id="nmda-source-inspector-title">文件核验</strong></div>
-                        </div>
-                        <div class="nmda-source-inspector-overview" id="nmda-source-inspector-overview"></div>
-                        <div class="nmda-source-inspector-actions" id="nmda-source-inspector-actions"></div>
-                        <div class="nmda-source-inspector-content" id="nmda-source-inspector-content"></div>
-                        <button class="nmda-source-next-review" id="nmda-source-next-review" type="button" hidden>查看下一个待确认 →</button>
-                      </div>
+                      <div data-workspace-mount="preflight-inspector" style="display:contents"></div>
                     </aside>
                     </div>
 

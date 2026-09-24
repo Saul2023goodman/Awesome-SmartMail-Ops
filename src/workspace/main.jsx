@@ -12,6 +12,7 @@ import ImportIntake from './ImportIntake.jsx';
 import SourceInventory from './SourceInventory.jsx';
 import { PreflightHead, PreflightNav, PreflightFoot } from './PreflightFrame.jsx';
 import { PreflightChips, PreflightFolders, PreflightFiles } from './PreflightSources.jsx';
+import PreflightInspector from './PreflightInspector.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -97,3 +98,7 @@ for (const [name, Component] of [['preflight-chips', PreflightChips], ['prefligh
     createRoot(host).render(<StrictMode><Component /></StrictMode>);
   });
 }
+
+document.querySelectorAll('[data-workspace-mount="preflight-inspector"]').forEach(host => {
+  createRoot(host).render(<StrictMode><PreflightInspector /></StrictMode>);
+});
