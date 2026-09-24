@@ -451,7 +451,7 @@
   scroll-padding-top:10px !important;
   overflow-anchor:none !important;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page #nmda-review-queue.nmda-review-mail-grid > * {
+#nmda-root.nmda-standalone .nmda-review-main-page #nmda-review-queue.nmda-review-mail-grid > [data-workspace-mount="review-board"] > * {
   align-self:start !important;
 }
 
@@ -501,19 +501,21 @@
   scroll-padding:10px 0 0 !important;
   overflow-anchor:none !important;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > .nmda-mail-review-card {
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > [data-workspace-mount="review-board"] > .nmda-mail-review-card {
   flex:0 0 calc((100% - (var(--nmda-review-columns) - 1) * 10px) / var(--nmda-review-columns)) !important;
   width:auto !important;
   max-width:calc((100% - (var(--nmda-review-columns) - 1) * 10px) / var(--nmda-review-columns)) !important;
   align-self:flex-start !important;
   margin:0 !important;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > .nmda-review-empty,
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > .nmda-review-load-more {
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > [data-workspace-mount="review-board"] > .nmda-review-empty,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > [data-workspace-mount="review-board"] > .nmda-review-load-more {
   flex:0 0 100% !important;
   width:100% !important;
   max-width:none !important;
 }
+#nmda-review-queue > [data-workspace-mount="review-board"]:not([hidden]),
+#nmda-review-queue > #nmda-review-preview-pages:not([hidden]) { display:contents; }
 @media (min-width:1500px) {
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid { --nmda-review-columns:5; }
 }

@@ -466,9 +466,9 @@
                 </div>
                 <aside class="nmda-review-preview-rail" id="nmda-review-preview-rail" hidden aria-label="邮件导航">
                   <div class="nmda-review-preview-rail-head"><div><strong>邮件</strong><small id="nmda-review-preview-rail-count">0</small></div></div>
-                  <div class="nmda-review-preview-rail-list" id="nmda-review-preview-rail-list"></div>
+                  <div class="nmda-review-preview-rail-list" id="nmda-review-preview-rail-list" data-workspace-mount="review-rail"></div>
                 </aside>
-                <div id="nmda-review-queue" class="nmda-review-queue nmda-review-mail-grid"></div>
+                <div id="nmda-review-queue" class="nmda-review-queue nmda-review-mail-grid"><div data-workspace-mount="review-board"></div><div id="nmda-review-preview-pages" data-workspace-mount="review-preview" hidden></div></div>
                 <div class="nmda-preview-format-dock" id="nmda-preview-format-dock" aria-label="批量处理">
                   <button class="nmda-review-format-entry nmda-preview-format-entry" id="nmda-review-format-governance" type="button" aria-expanded="false" title="处理可批量执行的规范与派生规则">
                     <span class="nmda-preview-format-glyph nmda-preview-standard-glyph" aria-hidden="true"><i></i><b></b></span>

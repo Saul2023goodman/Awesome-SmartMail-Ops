@@ -5,17 +5,12 @@ import Dashboard from './Dashboard.jsx';
 import Monitor from './Monitor.jsx';
 import UtilitiesHome from './UtilitiesHome.jsx';
 import { WorkspaceTabs, WorkspacePageHeads } from './Navigation.jsx';
+import ReviewBoard, { ReviewPreview, ReviewRail } from './ReviewBoard.jsx';
 import './mailbox-connection.css';
 
 /**
- * React workspace entry (issue #2).
- *
- * Mount points are plain elements rendered by the legacy buildUI() in app.js
- * and tagged with data-workspace-mount. Module scripts execute after the
- * classic scripts, so the hosts already exist when this runs.
- *
- * Shared connection state is initialized by workspace-connection.js before
- * this bundle runs.
+ * React workspace entry. Mount points come from the workspace shell template.
+ * The classic service scripts initialize shared state before this module runs.
  */
 document.querySelectorAll('[data-workspace-mount="mailbox-connection"]').forEach(host => {
   createRoot(host).render(
@@ -43,4 +38,16 @@ document.querySelectorAll('[data-workspace-mount="tabs"]').forEach(host => {
 
 document.querySelectorAll('[data-workspace-mount="page-heads"]').forEach(host => {
   createRoot(host).render(<StrictMode><WorkspacePageHeads /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="review-board"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ReviewBoard /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="review-preview"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ReviewPreview /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="review-rail"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ReviewRail /></StrictMode>);
 });
