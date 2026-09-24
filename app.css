@@ -2772,7 +2772,6 @@
 #nmda-attachments-card[data-issue="1"] > summary small { color:#8c959f !important; }
 
 /* v1.33 · Import preflight — mail first, then one explicit batch-preparation dialog. */
-#nmda-roster-context-cue { display:none !important; }
 
 /* The import surface owns one job: get mail content into the batch. */
 #nmda-import-card:not([data-loaded="1"]) {

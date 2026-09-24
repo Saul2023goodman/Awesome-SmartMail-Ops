@@ -9,6 +9,7 @@ import ReviewBoard, { ReviewPreview, ReviewRail } from './ReviewBoard.jsx';
 import { ReviewTop, ReviewBoardbar, ReviewBatchbar, ReviewEmpty, ReviewPreviewToolbar } from './ReviewControls.jsx';
 import PlanningBoard, { PlanningOverview, DispatchSummary, ExecutionPreflight } from './PlanningBoard.jsx';
 import ImportIntake from './ImportIntake.jsx';
+import SourceInventory from './SourceInventory.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -77,4 +78,8 @@ for (const [name, Component] of [['dispatch-summary', DispatchSummary], ['execut
 
 document.querySelectorAll('[data-workspace-mount="import-intake"]').forEach(host => {
   createRoot(host).render(<StrictMode><ImportIntake /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="source-inventory"]').forEach(host => {
+  createRoot(host).render(<StrictMode><SourceInventory /></StrictMode>);
 });

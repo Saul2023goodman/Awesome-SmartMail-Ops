@@ -5,8 +5,18 @@ const iconSvg = globalThis.NMDAWorkspaceView.iconSvg;
 const send = (action, detail = {}) => window.dispatchEvent(new CustomEvent('nmda:import-action', { detail:{ action, ...detail } }));
 const Icon = ({ name }) => <span className="nmda-source-action-icon" aria-hidden="true" dangerouslySetInnerHTML={{__html:iconSvg(name)}} />;
 
+function BatchPrepStrip({ prep }) {
+  if (!prep.visible) return null;
+  return <div className="nmda-batch-prep-strip" id="nmda-batch-prep-strip">
+    <div className="nmda-batch-prep-label"><span>导入准备</span><small>名单与附件均在此阶段完成</small></div>
+    <div className="nmda-batch-prep-item" data-state={prep.rosterState}><span>参考总名单</span><strong>{prep.rosterText}</strong></div>
+    <div className="nmda-batch-prep-item nmda-batch-prep-attachment" data-state={prep.attachmentState}><div><span>附件</span><strong>{prep.attachmentText}</strong></div><button className="nmda-text-action" type="button" onClick={() => send('attachments')}>{prep.manageText}</button></div>
+    <button className="nmda-btn nmda-btn-small" type="button" onClick={() => send('batch-prep')}>{prep.buttonText}</button>
+  </div>;
+}
+
 export default function ImportIntake() {
-  const { loaded, active, busy, locked, draftBusy, formatInfo, clearVersion } = useSyncExternalStore(importUi.subscribe, importUi.getSnapshot);
+  const { loaded, active, busy, locked, draftBusy, formatInfo, clearVersion, prep, status } = useSyncExternalStore(importUi.subscribe, importUi.getSnapshot);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -46,5 +56,7 @@ export default function ImportIntake() {
     </div>
     {pasteOpen && <div className="nmda-paste-panel"><textarea id="nmda-paste-source" ref={pasteRef} value={pasteText} onChange={event => setPasteText(event.target.value)} placeholder="粘贴邮件、名单或表格内容" /><div className="nmda-row nmda-wrap"><button className="nmda-btn nmda-btn-primary nmda-btn-small" type="button" disabled={unavailable} onClick={() => send('paste', { text:pasteText })}>加入本批次</button></div></div>}
     <div className="nmda-ingest-source-tools"><span id="nmda-import-format-info" className="nmda-hint">{formatInfo}</span><button className="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" onClick={() => send('template')}>下载模板</button></div>
+    <BatchPrepStrip prep={prep} />
+    <div id="nmda-import-status" className="nmda-summary nmda-import-status" data-kind={status.kind || undefined}>{status.message}</div>
   </>;
 }

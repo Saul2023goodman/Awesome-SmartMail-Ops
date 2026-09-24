@@ -130,29 +130,7 @@
                 <input id="nmda-import-dir" type="file" webkitdirectory multiple hidden>
                 <input id="nmda-roster-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
                 <div data-workspace-mount="import-intake" style="display:contents"></div>
-                <div class="nmda-batch-prep-strip" id="nmda-batch-prep-strip" hidden>
-                  <div class="nmda-batch-prep-label"><span>导入准备</span><small>名单与附件均在此阶段完成</small></div>
-                  <div class="nmda-batch-prep-item" id="nmda-prep-roster-state" data-state="pending"><span>参考总名单</span><strong>未决定</strong></div>
-                  <div class="nmda-batch-prep-item nmda-batch-prep-attachment" id="nmda-prep-attachment-state" data-state="pending"><div><span>附件</span><strong>未准备</strong></div><button class="nmda-text-action" id="nmda-manage-attachments-strip" type="button">查看 / 修改</button></div>
-                  <button class="nmda-btn nmda-btn-small" id="nmda-edit-batch-prep" type="button">补充资料</button>
-                </div>
-                <div class="nmda-context-cue nmda-roster-context-cue" id="nmda-roster-context-cue" data-state="prepare">
-                  <div class="nmda-context-cue-icon" aria-hidden="true">◎</div>
-                  <div class="nmda-context-cue-main">
-                    <span class="nmda-context-eyebrow" id="nmda-roster-context-eyebrow">推荐 · 导入时补充</span>
-                    <strong id="nmda-roster-context-title">有参考总名单？建议一起加入</strong>
-                    <small id="nmda-roster-context-copy">会自动匹配导入邮件，用于联系人核对与信息补全；没有也可以继续。</small>
-                    <div class="nmda-context-benefits" id="nmda-roster-context-benefits"><span>匹配导入邮件</span><span>补全院校 / 邮箱</span><span>发现名单遗漏</span></div>
-                    <div id="nmda-roster-source-status" class="nmda-context-status">未添加参考总名单。</div>
-                  </div>
-                  <div class="nmda-context-cue-actions">
-                    <label class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-roster-upload-action" for="nmda-roster-file">上传参考总名单</label>
-                    <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-skip" type="button" hidden>本批次暂不添加</button>
-                    <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-remove" type="button" hidden>移除</button>
-                  </div>
-                </div>
-                <div id="nmda-import-status" class="nmda-summary nmda-import-status">还没有添加资料。</div>
-                <div id="nmda-source-inventory" class="nmda-source-inventory" hidden></div>
+                <div data-workspace-mount="source-inventory" style="display:contents"></div>
                 <section class="nmda-import-dedupe-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
                   <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>批次重复 + 邮箱历史防重</strong></div><div class="nmda-import-dedupe-head-actions"><small id="nmda-import-dedupe-state">正在核验</small><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">重新核验</button></div></div>
                   <input id="nmda-roster-enabled" type="checkbox" checked hidden>
