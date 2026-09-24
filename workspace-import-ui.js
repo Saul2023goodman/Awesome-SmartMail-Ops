@@ -9,7 +9,7 @@
     sourceUi:{counts:{mail:0,roster:0,attachment:0,review:0,ignored:0},filter:'',folder:'',folderName:'全部文件',visibleCount:0,search:'',total:0,folders:[],rows:[]},
     inspector:null,
     support:{view:'roster',roster:{state:'pending',count:0},attachment:{state:'pending',total:0,issues:0,count:0,requirements:[]}},
-    audit:{draftHistory:{visible:false,hits:[]},duplicate:{visible:false},dedupeStatus:''} };
+    audit:{roster:{visible:false,metrics:[],note:'核验将在加入邮件后自动开始。',sections:[]},draftHistory:{visible:false,hits:[]},duplicate:{visible:false},dedupeStatus:'',refreshing:false} };
   function publishPatch(patch) {
     snapshot = { ...snapshot, ...patch };
     for (const listener of listeners) listener();

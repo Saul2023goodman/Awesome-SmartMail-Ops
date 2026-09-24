@@ -4474,99 +4474,75 @@
   }
 
   function renderRosterAudit(){
-    const state=State.rosterState(),card=$('nmda-roster-audit-card'),summary=$('nmda-roster-audit-summary'),note=$('nmda-roster-audit-note'),details=$('nmda-roster-audit-details');
+    const state=State.rosterState();
     const enabledEl=$('nmda-roster-enabled'),schoolEl=$('nmda-roster-auto-school'),strictEl=$('nmda-roster-strict');
     if(enabledEl)enabledEl.checked=state.enabled!==false;if(schoolEl)schoolEl.checked=state.autoSchool!==false;if(strictEl)strictEl.checked=!!state.strict;
-    if(!card)return;
-    const tasks=batch.tasks||[];
-    const dedupeTasks=tasks.filter(taskNeedsDuplicateGate);
-    card.hidden=!dedupeTasks.length&&!state.entries.length;
-    if(card.hidden)return;
-
-    const duplicateAudit=batch.duplicateAudit || Roster?.auditTaskDuplicates?.(tasks) || {groups:[],summary:{tasks:tasks.length,groups:0,exact:0,probable:0,affectedTasks:0}};
-    const history=operationHistoryAudit(tasks);
-    const rosterEligible=tasks.filter(task=>task?.sourceKind==='import');
-    const rosterAudit=state.entries.length ? (state.audit || (Roster&&rosterEligible.length?Roster.crossCheck(rosterEligible,state.entries):null)) : null;
-    const dx=duplicateAudit.summary||{},pendingDuplicates=unresolvedDuplicateGroupCount();
-    const metrics=[];
-    if(tasks.length)metrics.push(`<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>当前邮件</span></div>`);
-    if(dx.bypassedDraftImports)metrics.push(`<div class="nmda-import-metric"><strong>${dx.bypassedDraftImports}</strong><span>草稿接管 · 跳过查重</span></div>`);
-    metrics.push(`<div class="nmda-import-metric ${pendingDuplicates?'is-warn':''}"><strong>${pendingDuplicates}</strong><span>待处理重复</span></div>`);
-    if(history.loaded&&history.affectedTasks)metrics.push(`<div class="nmda-import-metric"><strong>${history.affectedTasks}</strong><span>已有记录</span></div>`);
-    if(state.entries.length)metrics.push(`<div class="nmda-import-metric"><strong>${state.entries.length}</strong><span>参考名单</span></div>`);
+    const tasks=batch.tasks||[],dedupeTasks=tasks.filter(taskNeedsDuplicateGate);
+    const duplicateAudit=batch.duplicateAudit||Roster?.auditTaskDuplicates?.(tasks)||{groups:[],summary:{tasks:tasks.length,groups:0,exact:0,probable:0,affectedTasks:0}};
+    const history=operationHistoryAudit(tasks),rosterEligible=tasks.filter(task=>task?.sourceKind==='import');
+    const rosterAudit=state.entries.length?(state.audit||(Roster&&rosterEligible.length?Roster.crossCheck(rosterEligible,state.entries):null)):null;
+    const dx=duplicateAudit.summary||{},pendingDuplicates=unresolvedDuplicateGroupCount(),metrics=[];
+    if(tasks.length)metrics.push({value:tasks.length,label:'当前邮件'});
+    if(dx.bypassedDraftImports)metrics.push({value:dx.bypassedDraftImports,label:'草稿接管 · 跳过查重'});
+    metrics.push({value:pendingDuplicates,label:'待处理重复',tone:pendingDuplicates?'warn':''});
+    if(history.loaded&&history.affectedTasks)metrics.push({value:history.affectedTasks,label:'已有记录'});
+    if(state.entries.length)metrics.push({value:state.entries.length,label:'参考名单'});
     if(rosterAudit){
       const x=rosterAudit.summary||{};
-      metrics.push(`<div class="nmda-import-metric"><strong>${x.matched||0}</strong><span>邮件↔名单</span></div>`);
-      if(x.autoRecipientSupplements)metrics.push(`<div class="nmda-import-metric"><strong>${x.autoRecipientSupplements}</strong><span>名单补全邮箱</span></div>`);
-      if(x.methodCounts?.sourceFileName)metrics.push(`<div class="nmda-import-metric"><strong>${x.methodCounts.sourceFileName}</strong><span>文件名识别</span></div>`);
-      if(x.unwritten)metrics.push(`<div class="nmda-import-metric"><strong>${x.unwritten}</strong><span>尚未加入</span></div>`);
-      if(x.emailConflicts)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${x.emailConflicts}</strong><span>邮箱不一致</span></div>`);
-      if(x.ambiguous||x.duplicates)metrics.push(`<div class="nmda-import-metric is-warn"><strong>${(x.ambiguous||0)+(x.duplicates||0)}</strong><span>名单待核对</span></div>`);
+      metrics.push({value:x.matched||0,label:'邮件↔名单'});
+      if(x.autoRecipientSupplements)metrics.push({value:x.autoRecipientSupplements,label:'名单补全邮箱'});
+      if(x.methodCounts?.sourceFileName)metrics.push({value:x.methodCounts.sourceFileName,label:'文件名识别'});
+      if(x.unwritten)metrics.push({value:x.unwritten,label:'尚未加入'});
+      if(x.emailConflicts)metrics.push({value:x.emailConflicts,label:'邮箱不一致',tone:'warn'});
+      if(x.ambiguous||x.duplicates)metrics.push({value:(x.ambiguous||0)+(x.duplicates||0),label:'名单待核对',tone:'warn'});
     }
-    if(summary)summary.innerHTML=metrics.join('');
+    const note=[];
+    const mailboxUnread=dedupeTasks.length>0&&!mailboxDedupeSnapshotAvailable(),decisionGroups=Math.max(0,pendingDuplicates-(mailboxUnread?1:0));
+    if(mailboxUnread)note.push('正在读取邮箱记录；新导入的初始邮件会先检查已有草稿和已发送记录');
+    if(decisionGroups)note.push(`发现 ${decisionGroups} 项查重待处理，请先完成批次版本取舍、草稿筛选或发送历史决策`);
+    else if(dx.groups&&!mailboxUnread)note.push(`本次发现过 ${dx.groups} 组查重冲突，当前已全部处理`);
+    else if(tasks.length&&!mailboxUnread)note.push('当前批次未发现重复任务');
+    if(history.loaded&&history.affectedTasks)note.push(`${history.affectedTasks} 封新邮件命中邮箱历史；已有草稿直接筛选，已发送记录单独确认`);
+    if(dx.bypassedDraftImports)note.push(`从网易草稿箱识别的 ${dx.bypassedDraftImports} 封属于“接管现有草稿”，不参与新邮件查重`);
+    if(rosterAudit){
+      const x=rosterAudit.summary||{},rosterParts=[];
+      if(x.schoolSupplements)rosterParts.push(`补充 ${x.schoolSupplements} 条院校信息`);
+      if(x.autoRecipientSupplements)rosterParts.push(`自动补全 ${x.autoRecipientSupplements} 个高置信邮箱`);
+      if(x.methodCounts?.sourceFileName)rosterParts.push(`按源文件名识别 ${x.methodCounts.sourceFileName} 封`);
+      const reviewEmailCandidates=Math.max(0,Number(x.emailCandidates||0)-Number(x.autoRecipientSupplements||0));
+      if(reviewEmailCandidates)rosterParts.push(`找到 ${reviewEmailCandidates} 个邮箱候选待核对`);
+      if(x.emailConflicts)rosterParts.push(`${x.emailConflicts} 封邮件邮箱与名单不一致`);
+      if(x.unwritten)rosterParts.push(`${x.unwritten} 位名单联系人尚未加入本批次`);
+      note.push(`参考总名单已与导入邮件交叉匹配${rosterParts.length?`，并${rosterParts.join('、')}`:''}`);
+    }else if(state.entries.length&&!tasks.length)note.push('参考总名单已就绪；后续导入邮件会自动匹配，无需重新上传名单');
 
-    if(note){
-      const parts=[];
-      const mailboxUnread=dedupeTasks.length>0&&!mailboxDedupeSnapshotAvailable();
-      const decisionGroups=Math.max(0,pendingDuplicates-(mailboxUnread?1:0));
-      if(mailboxUnread)parts.push('正在读取邮箱记录；新导入的初始邮件会先检查已有草稿和已发送记录');
-      if(decisionGroups)parts.push(`发现 <strong>${decisionGroups}</strong> 项查重待处理，请先完成批次版本取舍、草稿筛选或发送历史决策`);
-      else if(dx.groups&&!mailboxUnread)parts.push(`本次发现过 <strong>${dx.groups}</strong> 组查重冲突，当前已全部处理`);
-      else if(tasks.length&&!mailboxUnread)parts.push('当前批次未发现重复任务');
-      if(history.loaded&&history.affectedTasks)parts.push(`<strong>${history.affectedTasks}</strong> 封新邮件命中邮箱历史；已有草稿直接筛选，已发送记录单独确认`);
-      if(dx.bypassedDraftImports)parts.push(`从网易草稿箱识别的 <strong>${dx.bypassedDraftImports}</strong> 封属于“接管现有草稿”，不参与新邮件查重`);
-      if(rosterAudit){
-        const x=rosterAudit.summary||{};
-        const rosterParts=[];
-        if(x.schoolSupplements)rosterParts.push(`补充 ${x.schoolSupplements} 条院校信息`);
-        if(x.autoRecipientSupplements)rosterParts.push(`自动补全 ${x.autoRecipientSupplements} 个高置信邮箱`);
-        if(x.methodCounts?.sourceFileName)rosterParts.push(`按源文件名识别 ${x.methodCounts.sourceFileName} 封`);
-        const reviewEmailCandidates=Math.max(0,Number(x.emailCandidates||0)-Number(x.autoRecipientSupplements||0));
-        if(reviewEmailCandidates)rosterParts.push(`找到 ${reviewEmailCandidates} 个邮箱候选待核对`);
-        if(x.emailConflicts)rosterParts.push(`${x.emailConflicts} 封邮件邮箱与名单不一致`);
-        if(x.unwritten)rosterParts.push(`${x.unwritten} 位名单联系人尚未加入本批次`);
-        parts.push(`参考总名单已与导入邮件交叉匹配${rosterParts.length?`，并${rosterParts.join('、')}`:''}`);
-      }else if(state.entries.length&&!tasks.length)parts.push('参考总名单已就绪；后续导入邮件会自动匹配，无需重新上传名单');
-      note.innerHTML=parts.length?`${parts.join('；')}。`:'核验将在加入邮件后自动开始。';
+    const sections=[];
+    const addSection=(title,items,more=items.length)=>sections.push({title,items:items.slice(0,12),more:Math.max(0,more-items.length)});
+    const batchGroups=(duplicateAudit.groups||[]).filter(group=>group.scope!=='mailbox-history');
+    addSection('当前批次查重',batchGroups.map(group=>{
+      const ids=(group.tasks||[]).map(task=>task.id||task.recipients||'邮件').slice(0,4).join('、');
+      return `${group.label||group.email||'联系人'} · ${group.type==='exact-email'?'同一邮箱':'同名同院校'} · ${group.tasks?.length||0} 封${ids?` · ${ids}`:''}`;
+    }),batchGroups.length);
+    if(history.loaded){
+      addSection('邮箱历史查重',history.rows.slice(0,12).map(row=>{
+        const fact=[row.sentCount?`已发送 ${row.sentCount}`:'',row.draftCount?`已有草稿 ${row.draftCount}`:''].filter(Boolean).join(' · '),subject=row.lastDraftSubject||row.lastSubject||'';
+        return `${row.email} · ${fact}${subject?` · ${subject}`:''}`;
+      }),history.rows.length);
     }
-
-    if(details){
-      const section=(title,items,render,more=0)=>`<div class="nmda-roster-diff-section"><strong>${escapeHtml(title)}</strong>${items.length?`<div>${items.map(render).join('')}</div>`:'<small>无</small>'}${more>items.length?`<small>另有 ${more-items.length} 条未展开</small>`:''}</div>`;
-      let html='';
-      const duplicateGroups=(duplicateAudit.groups||[]).filter(group=>group.scope!=='mailbox-history').slice(0,12);
-      html+=section('当前批次查重',duplicateGroups,g=>{
-        const ids=(g.tasks||[]).map(task=>task.id||task.recipients||'邮件').slice(0,4).join('、');
-        const kind=g.type==='exact-email'?'同一邮箱':'同名同院校';
-        return `<span>${escapeHtml(g.label||g.email||'联系人')} · ${escapeHtml(kind)} · ${g.tasks?.length||0} 封${ids?` · ${escapeHtml(ids)}`:''}</span>`;
-      },(duplicateAudit.groups||[]).filter(group=>group.scope!=='mailbox-history').length);
-      if(history.loaded){
-        const historyRows=history.rows.slice(0,12);
-        html+=section('邮箱历史查重',historyRows,row=>{
-          const fact=[row.sentCount?`已发送 ${row.sentCount}`:'',row.draftCount?`已有草稿 ${row.draftCount}`:''].filter(Boolean).join(' · ');
-          const subject=row.lastDraftSubject||row.lastSubject||'';
-          return `<span>${escapeHtml(row.email)} · ${escapeHtml(fact)}${subject?` · ${escapeHtml(subject)}`:''}</span>`;
-        },history.rows.length);
-      }
-      if(rosterAudit){
-        const off=(rosterAudit.matches||[]).filter(m=>m.status==='off-roster').slice(0,12);
-        const ambiguities=(rosterAudit.matches||[]).filter(m=>m.status==='ambiguous').slice(0,12);
-        const scheduleDiffs=(rosterAudit.matches||[]).filter(m=>m.status==='conflict').slice(0,12);
-        const emailDiffs=(rosterAudit.matches||[]).filter(m=>m.emailConflict).slice(0,12);
-        const unwritten=(rosterAudit.unwritten||[]).slice(0,12);
-        const rosterDups=(rosterAudit.duplicateMatches||[]).slice(0,8);
-        html+=section('尚未加入本批次',unwritten,e=>`<span>${escapeHtml(rosterEntryLabel(e))}${e.batch?` · ${escapeHtml(e.batch)}`:''}</span>`,rosterAudit.unwritten?.length||0);
-        html+=section('不在参考名单',off,m=>`<span>${escapeHtml(m.task?.id||m.task?.recipients||'邮件')} · ${escapeHtml(m.task?.recipients||'')}</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='off-roster').length);
-        html+=section('邮件 ↔ 名单待核对',ambiguities,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → 多个参考名单候选</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='ambiguous').length);
-        html+=section('收件人邮箱不一致',emailDiffs,m=>`<span>${escapeHtml(m.task?.recipients||m.task?.id||'邮件')} → 名单：${escapeHtml(m.entry?.email||'')}</span>`,(rosterAudit.matches||[]).filter(m=>m.emailConflict).length);
-        html+=section('排程参考（不影响邮件）',scheduleDiffs,m=>`<span>${escapeHtml(m.task?.id||'邮件')} → ${escapeHtml(rosterEntryLabel(m.entry))}</span>`,(rosterAudit.matches||[]).filter(m=>m.status==='conflict').length);
-        html+=section('同一名单联系人对应多封导入邮件',rosterDups,d=>`<span>${escapeHtml(rosterEntryLabel(d.entry))} · ${d.matches?.length||0} 封邮件</span>`,rosterAudit.duplicateMatches?.length||0);
-      }
-      details.innerHTML=html;
+    if(rosterAudit){
+      const matches=rosterAudit.matches||[],off=matches.filter(match=>match.status==='off-roster'),ambiguities=matches.filter(match=>match.status==='ambiguous'),scheduleDiffs=matches.filter(match=>match.status==='conflict'),emailDiffs=matches.filter(match=>match.emailConflict),unwritten=rosterAudit.unwritten||[],rosterDups=rosterAudit.duplicateMatches||[];
+      addSection('尚未加入本批次',unwritten.map(entry=>`${rosterEntryLabel(entry)}${entry.batch?` · ${entry.batch}`:''}`),unwritten.length);
+      addSection('不在参考名单',off.map(match=>`${match.task?.id||match.task?.recipients||'邮件'} · ${match.task?.recipients||''}`),off.length);
+      addSection('邮件 ↔ 名单待核对',ambiguities.map(match=>`${match.task?.id||'邮件'} → 多个参考名单候选`),ambiguities.length);
+      addSection('收件人邮箱不一致',emailDiffs.map(match=>`${match.task?.recipients||match.task?.id||'邮件'} → 名单：${match.entry?.email||''}`),emailDiffs.length);
+      addSection('排程参考（不影响邮件）',scheduleDiffs.map(match=>`${match.task?.id||'邮件'} → ${rosterEntryLabel(match.entry)}`),scheduleDiffs.length);
+      addSection('同一名单联系人对应多封导入邮件',rosterDups.slice(0,8).map(item=>`${rosterEntryLabel(item.entry)} · ${item.matches?.length||0} 封`),rosterDups.length);
     }
+    const current=globalThis.NMDAWorkspaceImportUi.getSnapshot().audit;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({audit:{...current,roster:{visible:!!dedupeTasks.length||!!state.entries.length,metrics,note:note.length?`${note.join('；')}。`:'核验将在加入邮件后自动开始。',sections}}});
     renderDraftHistoryFilter();
     renderDuplicateDecision();
   }
-
   async function loadRosterFiles(files){
     const list=[...(files||[])].filter(Boolean);if(!list.length||!Importer||!Roster)return;
     const token=batch.sessionId;
@@ -5471,7 +5447,7 @@
     if (batchTagIncludeEl) batchTagIncludeEl.value = '';
     const bulkTag = $('nmda-bulk-tag-value'); if (bulkTag) bulkTag.value = '';
 
-    ['nmda-roster-audit-card','nmda-import-handoff-card','nmda-preview-card','nmda-scheduler-card'].forEach(id => {
+    ['nmda-import-handoff-card','nmda-preview-card','nmda-scheduler-card'].forEach(id => {
       const el = $(id); if (el) el.hidden = true;
     });
     globalThis.NMDAWorkspaceImportUi.publishPatch({inventory:{visible:false}});
@@ -5492,10 +5468,9 @@
 
     $('nmda-batch-empty').hidden = false;
     globalThis.NMDAWorkspaceImportUi.publishPatch({formatInfo:'可直接加入常见文档、表格和文本。'});
-    const rosterSummary=$('nmda-roster-audit-summary'); if(rosterSummary)rosterSummary.innerHTML='';
-    const rosterDetails=$('nmda-roster-audit-details'); if(rosterDetails)rosterDetails.innerHTML='';
     setBatchStatus('请先添加资料并检查解析结果。');
     renderImportLifecycleState();
+    renderRosterAudit();
     if (!keepStatus) setImportStatus(message || '还没有添加资料。');
     scheduleBatchRender({aux:true});
   }
@@ -5833,10 +5808,13 @@
         changed++;
       }
       finishImportDuplicateDecision(action==='exclude-draft-history'?`已排除 ${changed} 封与现有草稿重复的新邮件`:`已明确保留 ${changed} 封命中已有草稿的新邮件`);
+    }else if(action==='refresh-mailbox'){
+      void refreshMailboxDedupe();
     }
   });
-  $('nmda-dedupe-refresh-mailbox')?.addEventListener('click',()=>void (async()=>{
-    const button=$('nmda-dedupe-refresh-mailbox');if(button)button.disabled=true;
+  async function refreshMailboxDedupe(){
+    const audit=globalThis.NMDAWorkspaceImportUi.getSnapshot().audit;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({audit:{...audit,refreshing:true}});
     try{
       setImportStatus('正在重新核验邮箱历史，用于核对已有草稿和已发送记录…');
       const result=await MailboxSync.request('history',{source:'manual-dedupe',force:true});
@@ -5844,8 +5822,8 @@
       const pending=unresolvedDuplicateGroupCount();
       setImportStatus(`邮箱历史已更新${result?`：已发送 ${result.outboundRead||0} · 草稿 ${result.draftsRead||0}`:''}${pending?`；还有 ${pending} 项查重待处理。`:'；当前查重已完成。'}`,pending?'warn':'ok');
     }catch(error){setImportStatus(`邮箱历史读取失败：${error.message}`,'error');}
-    finally{if(button)button.disabled=false;}
-  })());
+    finally{const current=globalThis.NMDAWorkspaceImportUi.getSnapshot().audit;globalThis.NMDAWorkspaceImportUi.publishPatch({audit:{...current,refreshing:false}});}
+  }
   schedulerCardEl?.addEventListener('toggle',()=>{if(schedulerToggleLabelEl)schedulerToggleLabelEl.textContent=schedulerCardEl.open?'收起':'展开';});
 
   dirEl?.addEventListener('change', () => {

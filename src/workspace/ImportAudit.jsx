@@ -28,24 +28,29 @@ function Candidate({candidate}) {
   </article>;
 }
 
+function RosterAuditCard({model}) {
+  return <section className="nmda-import-dedupe-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden={!model.visible}>
+    <div className="nmda-import-dedupe-head"><div><span>导入查重</span><strong>批次重复 + 邮箱历史防重</strong></div><div className="nmda-import-dedupe-head-actions"><small>{model.dedupeStatus || '正在核验'}</small><button className="nmda-btn nmda-btn-small nmda-btn-quiet" type="button" disabled={model.refreshing} onClick={() => send('refresh-mailbox')}>{model.refreshing ? '正在核验…' : '重新核验'}</button></div></div>
+    <div className="nmda-ingest-health">{model.metrics.map((metric,index) => <div className={`nmda-import-metric${metric.tone ? ` is-${metric.tone}` : ''}`} key={`${metric.label}:${index}`}><strong>{metric.value}</strong><span>{metric.label}</span></div>)}</div>
+    <div className="nmda-review-guidance">{model.note}</div>
+    <DraftHistory model={model.draftHistory} />
+    <section className="nmda-duplicate-decision nmda-import-duplicate-decision" id="nmda-duplicate-decision" hidden={!model.duplicate.visible} data-group-id={model.duplicate.groupId || undefined} data-scope={model.duplicate.scope || undefined}>
+      <div className="nmda-duplicate-decision-head"><div><strong>{model.duplicate.title}</strong><small>{model.duplicate.copy}</small></div><span className="nmda-duplicate-kind" data-tone={model.duplicate.tone}>{model.duplicate.kind}</span></div>
+      <div className="nmda-duplicate-candidates" data-count={model.duplicate.candidates?.length || 0}>{(model.duplicate.candidates || []).map(candidate => <Candidate candidate={candidate} key={candidate.key} />)}</div>
+      <div className="nmda-duplicate-actions"><span className="nmda-hint">{model.duplicate.hint}</span><div className="nmda-row nmda-wrap">
+        {model.duplicate.showSelected && <button className="nmda-btn nmda-btn-primary" type="button" disabled={model.duplicate.scope === 'batch' && !model.duplicate.selectedKeys?.length} onClick={() => send('keep-selected',{keys:model.duplicate.selectedKeys || []})}>{model.duplicate.keepSelectedLabel}</button>}
+        {model.duplicate.showAll && <button className="nmda-btn" type="button" onClick={() => send('keep-all')}>{model.duplicate.keepAllLabel}</button>}
+      </div></div>
+    </section>
+    <details className="nmda-roster-details"><summary>查看查重依据</summary><div className="nmda-roster-audit-details">{model.sections.map(section => <div className="nmda-roster-diff-section" key={section.title}><strong>{section.title}</strong>{section.items.length ? <div>{section.items.map((item,index) => <span key={index}>{item}</span>)}</div> : <small>无</small>}{section.more > 0 && <small>另有 {section.more} 条未展开</small>}</div>)}</div></details>
+  </section>;
+}
+
 export default function ImportAudit() {
   const {audit} = useSyncExternalStore(importUi.subscribe, importUi.getSnapshot);
   const draft = audit.draftHistory;
   const duplicate = audit.duplicate;
   return <>
-    <DraftHistory model={draft} />
-    <section className="nmda-duplicate-decision nmda-import-duplicate-decision" id="nmda-duplicate-decision" hidden={!duplicate.visible} data-group-id={duplicate.groupId || undefined} data-scope={duplicate.scope || undefined}>
-      <div className="nmda-duplicate-decision-head"><div><strong>{duplicate.title}</strong><small>{duplicate.copy}</small></div><span className="nmda-duplicate-kind" data-tone={duplicate.tone}>{duplicate.kind}</span></div>
-      <div className="nmda-duplicate-candidates" data-count={duplicate.candidates?.length || 0}>{(duplicate.candidates || []).map(candidate => <Candidate candidate={candidate} key={candidate.key} />)}</div>
-      <div className="nmda-duplicate-actions"><span className="nmda-hint">{duplicate.hint}</span><div className="nmda-row nmda-wrap">
-        {duplicate.showSelected && <button className="nmda-btn nmda-btn-primary" type="button" disabled={duplicate.scope === 'batch' && !duplicate.selectedKeys?.length} onClick={() => send('keep-selected',{keys:duplicate.selectedKeys || []})}>{duplicate.keepSelectedLabel}</button>}
-        {duplicate.showAll && <button className="nmda-btn" type="button" onClick={() => send('keep-all')}>{duplicate.keepAllLabel}</button>}
-      </div></div>
-    </section>
+    <RosterAuditCard model={{...audit.roster,dedupeStatus:audit.dedupeStatus,draftHistory:draft,duplicate,refreshing:audit.refreshing}} />
   </>;
-}
-
-export function ImportAuditStatus() {
-  const {audit} = useSyncExternalStore(importUi.subscribe, importUi.getSnapshot);
-  return <small id="nmda-import-dedupe-state">{audit.dedupeStatus || '正在核验'}</small>;
 }

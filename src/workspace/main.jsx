@@ -14,7 +14,7 @@ import { PreflightHead, PreflightNav, PreflightFoot } from './PreflightFrame.jsx
 import { PreflightChips, PreflightDirectoryHead, PreflightFolders, PreflightSourceTools, PreflightFiles } from './PreflightSources.jsx';
 import PreflightInspector from './PreflightInspector.jsx';
 import PreflightSupport from './PreflightSupport.jsx';
-import ImportAudit, { ImportAuditStatus } from './ImportAudit.jsx';
+import ImportAudit from './ImportAudit.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -111,8 +111,4 @@ document.querySelectorAll('[data-workspace-mount="preflight-support"]').forEach(
 
 document.querySelectorAll('[data-workspace-mount="import-audit"]').forEach(host => {
   createRoot(host).render(<StrictMode><ImportAudit /></StrictMode>);
-});
-
-document.querySelectorAll('[data-workspace-mount="import-audit-status"]').forEach(host => {
-  createRoot(host).render(<StrictMode><ImportAuditStatus /></StrictMode>);
 });

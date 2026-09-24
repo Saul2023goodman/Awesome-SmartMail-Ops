@@ -131,16 +131,10 @@
                 <input id="nmda-roster-file" type="file" multiple hidden accept=".xlsx,.xls,.ods,.fods,.docx,.docm,.dotx,.doc,.csv,.tsv,.psv,.json,.jsonl,.ndjson,.txt,.html,.htm,.xml,.zip">
                 <div data-workspace-mount="import-intake" style="display:contents"></div>
                 <div data-workspace-mount="source-inventory" style="display:contents"></div>
-                <section class="nmda-import-dedupe-card nmda-roster-audit-card" id="nmda-roster-audit-card" hidden>
-                  <div class="nmda-import-dedupe-head"><div><span>导入查重</span><strong>批次重复 + 邮箱历史防重</strong></div><div class="nmda-import-dedupe-head-actions"><span data-workspace-mount="import-audit-status" style="display:contents"></span><button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-dedupe-refresh-mailbox" type="button">重新核验</button></div></div>
-                  <input id="nmda-roster-enabled" type="checkbox" checked hidden>
-                  <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
-                  <input id="nmda-roster-strict" type="checkbox" hidden>
-                  <div id="nmda-roster-audit-summary" class="nmda-ingest-health"></div>
-                  <div id="nmda-roster-audit-note" class="nmda-review-guidance"></div>
-                  <div data-workspace-mount="import-audit" style="display:contents"></div>
-                  <details class="nmda-roster-details"><summary>查看查重依据</summary><div id="nmda-roster-audit-details" class="nmda-roster-audit-details"></div></details>
-                </section>
+                <div data-workspace-mount="import-audit" style="display:contents"></div>
+                <input id="nmda-roster-enabled" type="checkbox" checked hidden>
+                <input id="nmda-roster-auto-school" type="checkbox" checked hidden>
+                <input id="nmda-roster-strict" type="checkbox" hidden>
 
               </div>
 
