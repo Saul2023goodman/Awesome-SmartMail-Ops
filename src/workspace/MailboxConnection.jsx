@@ -1,15 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 /**
  * MailboxConnection — first migrated workspace slice (issue #2).
  *
- * Owns the header mailbox capsule: polls NMDA_CONNECTION_STATUS through the
- * existing extension runtime (background.js / executor.js are untouched) and
- * renders the connection state plus the automatic sync cue. Legacy app.js keeps
- * the non-visual side effects (account switching, mailbox sync scheduling) by
- * listening to the `nmda:connection-status` window event this component emits
- * after every status refresh; it pushes sync-cue state back through
- * window.NMDAWorkspaceBridge.
+ * Renders the connection state owned by workspace-connection.js. Runtime
+ * messages, refresh triggers and sync cues stay outside this view.
  */
 
 const INITIAL_VIEW = Object.freeze({
@@ -66,66 +61,29 @@ function cueToView(cue) {
 }
 
 export default function MailboxConnection() {
-  const [view, setView] = useState(INITIAL_VIEW);
-  const [cue, setCue] = useState(INITIAL_CUE);
+  const connection = globalThis.NMDAConnection;
+  const { status, error, cue: syncCue } = useSyncExternalStore(connection.subscribe, connection.getSnapshot);
   const [opening, setOpening] = useState(false);
-
-  const refresh = useCallback(async () => {
-    try {
-      const status = await chrome.runtime.sendMessage({ type: 'NMDA_CONNECTION_STATUS' });
-      setView(deriveView(status));
-      // Hand the raw status to legacy app.js for its non-visual side effects.
-      window.dispatchEvent(new CustomEvent('nmda:connection-status', { detail: status || {} }));
-    } catch (error) {
-      setView({
-        state: 'offline',
-        title: '连接状态不可用',
-        detail: error?.message || String(error),
-        button: '连接邮箱'
-      });
-    }
-  }, []);
+  const view = error
+    ? { state: 'offline', title: '连接状态不可用', detail: error, button: '连接邮箱' }
+    : status ? deriveView(status) : INITIAL_VIEW;
+  const cue = syncCue?.state === 'idle' && !syncCue.detail ? INITIAL_CUE : cueToView(syncCue);
 
   useEffect(() => {
-    const onRuntimeMessage = message => {
-      if (message?.type === 'NMDA_CONNECTION_CHANGED') void refresh();
-    };
-    const onFocus = () => void refresh();
-    const onVisibility = () => { if (!document.hidden) void refresh(); };
+    connection.start();
+    return () => connection.stop();
+  }, [connection]);
 
-    chrome.runtime?.onMessage.addListener(onRuntimeMessage);
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
-    void refresh();
-
-    return () => {
-      chrome.runtime?.onMessage.removeListener(onRuntimeMessage);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [refresh]);
-
-  // Legacy mailbox-sync machinery drives the cue state.
-  useEffect(() => {
-    const bridge = window.NMDAWorkspaceBridge;
-    if (!bridge?.subscribe) return undefined;
-    const unsubscribe = bridge.subscribe(next => setCue(cueToView(next)));
-    const current = bridge.syncCue;
-    if (current) setCue(cueToView(current));
-    return unsubscribe;
-  }, []);
-
-  const openMail = useCallback(async () => {
+  async function openMail() {
     setOpening(true);
     try {
-      await chrome.runtime.sendMessage({ type: 'NMDA_OPEN_MAIL', focus: true });
-    } catch (_) {
-      // The refresh below surfaces the resulting offline/error state.
+      await connection.openMail();
+    } catch (error) {
+      // The controller publishes the error for the connection detail.
     } finally {
       setOpening(false);
-      setTimeout(refresh, 500);
     }
-  }, [refresh]);
+  }
 
   return (
     <div className="nmda-mail-connection" data-state={view.state}>

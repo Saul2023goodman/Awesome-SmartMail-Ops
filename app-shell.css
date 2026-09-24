@@ -2,6 +2,7 @@ html.nmda-app-document,html.nmda-app-document body.nmda-app-body{width:100%;heig
 body.nmda-app-body{min-width:640px;}
 #nmda-root.nmda-standalone{position:fixed;inset:0;z-index:1;width:100%;height:100%;background:#f6f8fa;}
 #nmda-root.nmda-standalone #nmda-launcher{display:none!important;}
+#nmda-root [data-workspace-mount="tabs"],#nmda-root [data-workspace-mount="page-heads"]{display:contents;}
 #nmda-root.nmda-standalone #nmda-panel{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;grid-template-columns:70px minmax(0,1fr)!important;grid-template-rows:52px minmax(0,1fr)!important;}
 #nmda-root.nmda-standalone #nmda-panel.is-maximized{inset:0!important;border-radius:0!important;}
 #nmda-root.nmda-standalone .nmda-head{padding:0 12px;}

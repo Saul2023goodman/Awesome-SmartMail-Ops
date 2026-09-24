@@ -451,7 +451,7 @@
   scroll-padding-top:10px !important;
   overflow-anchor:none !important;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page #nmda-review-queue.nmda-review-mail-grid > * {
+#nmda-root.nmda-standalone .nmda-review-main-page #nmda-review-queue.nmda-review-mail-grid > [data-workspace-mount="review-board"] > * {
   align-self:start !important;
 }
 
@@ -501,19 +501,21 @@
   scroll-padding:10px 0 0 !important;
   overflow-anchor:none !important;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > .nmda-mail-review-card {
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > [data-workspace-mount="review-board"] > .nmda-mail-review-card {
   flex:0 0 calc((100% - (var(--nmda-review-columns) - 1) * 10px) / var(--nmda-review-columns)) !important;
   width:auto !important;
   max-width:calc((100% - (var(--nmda-review-columns) - 1) * 10px) / var(--nmda-review-columns)) !important;
   align-self:flex-start !important;
   margin:0 !important;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > .nmda-review-empty,
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > .nmda-review-load-more {
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > [data-workspace-mount="review-board"] > .nmda-review-empty,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid > [data-workspace-mount="review-board"] > .nmda-review-load-more {
   flex:0 0 100% !important;
   width:100% !important;
   max-width:none !important;
 }
+#nmda-review-queue > [data-workspace-mount="review-board"]:not([hidden]),
+#nmda-review-queue > #nmda-review-preview-pages:not([hidden]) { display:contents; }
 @media (min-width:1500px) {
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="board"] > #nmda-review-queue.nmda-review-mail-grid { --nmda-review-columns:5; }
 }
@@ -650,7 +652,7 @@
   transform:translateX(8px) scale(.96);
   pointer-events:none;
 }
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance{
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] .nmda-format-governance{
   grid-column:auto !important;
   grid-row:auto !important;
   position:absolute !important;
@@ -727,13 +729,13 @@
 @keyframes nmdaBatchRailMark{0%{background:#8060aa;transform:scaleY(.82);box-shadow:0 0 0 4px rgba(128,96,170,.06)}48%{background:#628c70;transform:scaleY(.66)}100%{background:inherit;transform:scaleY(1);box-shadow:none}}
 
 @media (max-width:980px){
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance{
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] .nmda-format-governance{
     right:12px;width:min(480px,calc(100% - 36px)) !important;min-width:0;
   }
 }
 @media (max-width:720px){
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-preview-format-dock{right:10px;top:52px}
-  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance{left:10px;right:10px;top:50px;width:auto!important;max-height:calc(100% - 60px)!important}
+  #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] .nmda-format-governance{left:10px;right:10px;top:50px;width:auto!important;max-height:calc(100% - 60px)!important}
 }
 @media (prefers-reduced-motion:reduce){
   #nmda-root.nmda-standalone .nmda-review-main-page .nmda-preview-format-entry,
@@ -745,7 +747,7 @@
 }
 
 /* Keep the contextual standards lens responsive without occupying document space. */
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] > .nmda-format-governance{
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-view="preview"] .nmda-format-governance{
   transition:width .28s cubic-bezier(.2,.78,.2,1),max-height .28s cubic-bezier(.2,.78,.2,1),padding .22s ease,box-shadow .22s ease,background .22s ease;
 }
 
@@ -1336,7 +1338,7 @@
 }
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-state="empty"] .nmda-inline-review-actions,
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-state="empty"] > .nmda-review-boardbar,
-#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-state="empty"] > .nmda-format-governance,
+#nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-state="empty"] .nmda-format-governance,
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-state="empty"] > .nmda-review-batchbar,
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-state="empty"] > .nmda-review-preview-toolbar,
 #nmda-root.nmda-standalone .nmda-review-main-page .nmda-inline-review[data-review-state="empty"] > .nmda-review-preview-rail,

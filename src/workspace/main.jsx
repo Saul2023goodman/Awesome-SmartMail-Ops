@@ -1,37 +1,183 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import MailboxConnection from './MailboxConnection.jsx';
+import Dashboard from './Dashboard.jsx';
+import Monitor from './Monitor.jsx';
+import DraftAttachmentTool, { UtilitiesHome } from './DraftAttachmentTool.jsx';
+import { WorkspaceTabs, WorkspacePageHeads } from './Navigation.jsx';
+import ReviewBoard, { ReviewPreview, ReviewRail } from './ReviewBoard.jsx';
+import { ReviewTop, ReviewBoardbar, ReviewBatchbar, ReviewEmpty, ReviewPreviewToolbar } from './ReviewControls.jsx';
+import PlanningBoard, { PlanningOverview, DispatchSummary, DispatchSourceSummary, ExecutionPreflight } from './PlanningBoard.jsx';
+import ImportIntake from './ImportIntake.jsx';
+import SourceInventory from './SourceInventory.jsx';
+import { PreflightHead, PreflightNav, PreflightFoot } from './PreflightFrame.jsx';
+import { PreflightChips, PreflightDirectoryHead, PreflightFolders, PreflightSourceTools, PreflightFiles } from './PreflightSources.jsx';
+import PreflightInspector from './PreflightInspector.jsx';
+import PreflightSupport from './PreflightSupport.jsx';
+import ImportAudit from './ImportAudit.jsx';
+import AttachmentManager from './AttachmentManager.jsx';
+import ImportHandoff from './ImportHandoff.jsx';
+import RosterPlanner from './RosterPlanner.jsx';
+import { BatchGovernanceEntry, BatchGovernancePanel } from './BatchGovernance.jsx';
+import { ScheduleApply, ScheduleClear, ScheduleGuide, ScheduleOutcome, SchedulePriority, ScheduleRulePreview, ScheduleSummary } from './ScheduleCenter.jsx';
+import ScheduleControls from './ScheduleControls.jsx';
+import BatchTaskToolbar from './BatchTaskToolbar.jsx';
+import ResetAllDialog from './ResetAllDialog.jsx';
+import DispatchEmpty from './DispatchEmpty.jsx';
+import SmartTemporalPopover from './SmartTemporalPopover.jsx';
+import ScheduleAppliedToast from './ScheduleAppliedToast.jsx';
 import './mailbox-connection.css';
 
 /**
- * React workspace entry (issue #2).
- *
- * Mount points are plain elements rendered by the legacy buildUI() in app.js
- * and tagged with data-workspace-mount. Module scripts execute after the
- * classic scripts, so the hosts already exist when this runs.
- *
- * The bridge is normally created by app.js; the fallback keeps the workspace
- * renderable when the legacy script is absent (e.g. isolated dev pages).
+ * React workspace entry. Mount points come from the workspace shell template.
+ * The classic service scripts initialize shared state before this module runs.
  */
-window.NMDAWorkspaceBridge ||= {
-  syncCue: { state: 'idle', detail: '' },
-  listeners: new Set(),
-  setSyncCue(state, detail = '') {
-    this.syncCue = { state: String(state || 'idle'), detail: String(detail || '') };
-    this.listeners.forEach(fn => {
-      try { fn(this.syncCue); } catch (_) { /* subscriber gone */ }
-    });
-  },
-  subscribe(fn) {
-    this.listeners.add(fn);
-    return () => this.listeners.delete(fn);
-  }
-};
-
 document.querySelectorAll('[data-workspace-mount="mailbox-connection"]').forEach(host => {
   createRoot(host).render(
     <StrictMode>
       <MailboxConnection />
     </StrictMode>
   );
+});
+
+document.querySelectorAll('[data-workspace-mount="dashboard"]').forEach(host => {
+  createRoot(host).render(<StrictMode><Dashboard /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="monitor"]').forEach(host => {
+  createRoot(host).render(<StrictMode><Monitor /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="utilities-home"]').forEach(host => {
+  createRoot(host).render(<StrictMode><UtilitiesHome /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="tabs"]').forEach(host => {
+  createRoot(host).render(<StrictMode><WorkspaceTabs /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="page-heads"]').forEach(host => {
+  createRoot(host).render(<StrictMode><WorkspacePageHeads /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="review-board"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ReviewBoard /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="review-preview"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ReviewPreview /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="review-rail"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ReviewRail /></StrictMode>);
+});
+
+for (const [name, Component] of [['review-top', ReviewTop], ['review-boardbar', ReviewBoardbar], ['review-batchbar', ReviewBatchbar], ['review-empty', ReviewEmpty], ['review-preview-toolbar', ReviewPreviewToolbar]]) {
+  document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
+    createRoot(host).render(<StrictMode><Component /></StrictMode>);
+  });
+}
+
+document.querySelectorAll('[data-workspace-mount="planning-board"]').forEach(host => {
+  createRoot(host).render(<StrictMode><PlanningBoard /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="planning-overview"]').forEach(host => {
+  createRoot(host).render(<StrictMode><PlanningOverview /></StrictMode>);
+});
+
+for (const [name, Component] of [['dispatch-summary', DispatchSummary], ['execution-preflight', ExecutionPreflight]]) {
+  document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
+    createRoot(host).render(<StrictMode><Component /></StrictMode>);
+  });
+}
+
+document.querySelectorAll('[data-workspace-mount="dispatch-source-summary"]').forEach(host => {
+  createRoot(host).render(<StrictMode><DispatchSourceSummary /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="import-intake"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ImportIntake /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="source-inventory"]').forEach(host => {
+  createRoot(host).render(<StrictMode><SourceInventory /></StrictMode>);
+});
+
+for (const [name, Component] of [['preflight-head', PreflightHead], ['preflight-nav', PreflightNav], ['preflight-foot', PreflightFoot]]) {
+  document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
+    createRoot(host).render(<StrictMode><Component /></StrictMode>);
+  });
+}
+
+for (const [name, Component] of [['preflight-chips', PreflightChips], ['preflight-directory-head', PreflightDirectoryHead], ['preflight-folders', PreflightFolders], ['preflight-source-tools', PreflightSourceTools], ['preflight-files', PreflightFiles]]) {
+  document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
+    createRoot(host).render(<StrictMode><Component /></StrictMode>);
+  });
+}
+
+document.querySelectorAll('[data-workspace-mount="preflight-inspector"]').forEach(host => {
+  createRoot(host).render(<StrictMode><PreflightInspector /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="preflight-support"]').forEach(host => {
+  createRoot(host).render(<StrictMode><PreflightSupport /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="import-audit"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ImportAudit /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="attachment-manager"]').forEach(host => {
+  createRoot(host).render(<StrictMode><AttachmentManager /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="import-handoff"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ImportHandoff /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="roster-planner"]').forEach(host => {
+  createRoot(host).render(<StrictMode><RosterPlanner /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="draft-attachment-tool"]').forEach(host => {
+  createRoot(host).render(<StrictMode><DraftAttachmentTool /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="batch-governance-entry"]').forEach(host => {
+  createRoot(host).render(<StrictMode><BatchGovernanceEntry /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="batch-governance-panel"]').forEach(host => {
+  createRoot(host).render(<StrictMode><BatchGovernancePanel /></StrictMode>);
+});
+
+for (const [name, Component] of [['schedule-guide',ScheduleGuide],['schedule-summary',ScheduleSummary],['schedule-outcome',ScheduleOutcome],['schedule-priority',SchedulePriority],['schedule-rule-preview',ScheduleRulePreview],['schedule-clear',ScheduleClear],['schedule-apply',ScheduleApply]]) {
+  document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
+    createRoot(host).render(<StrictMode><Component /></StrictMode>);
+  });
+}
+
+document.querySelectorAll('[data-workspace-mount="schedule-controls"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ScheduleControls /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="batch-task-toolbar"]').forEach(host => {
+  createRoot(host).render(<StrictMode><BatchTaskToolbar /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="reset-all-dialog"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ResetAllDialog /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="dispatch-empty"]').forEach(host => {
+  createRoot(host).render(<StrictMode><DispatchEmpty /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="smart-temporal-popover"]').forEach(host => {
+  createRoot(host).render(<StrictMode><SmartTemporalPopover /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="schedule-applied-toast"]').forEach(host => {
+  createRoot(host).render(<StrictMode><ScheduleAppliedToast /></StrictMode>);
 });

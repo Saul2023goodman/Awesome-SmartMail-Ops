@@ -190,7 +190,6 @@
 
 #nmda-import-card { align-self:start; }
 
-#nmda-attachments-card { grid-column:1 / -1; }
 .nmda-list-card { margin-bottom:12px; }
 .nmda-list-head { align-items:center; }
 
@@ -258,19 +257,10 @@
 
 
 
-.nmda-attachment-resolution { display:grid; gap:7px; padding:9px; border:1px solid #f2cc60; border-radius:9px; background:#fffbea; }
-.nmda-attachment-resolution[hidden] { display:none !important; }
-#nmda-attachment-resolution-list { display:grid; gap:6px; }
-
-
-
-
 .nmda-danger { color:var(--nmda-red); font-weight:700; }
 
 
 
-.nmda-tag-chip { min-height:24px; padding:2px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font:650 9.5px/1.2 system-ui,sans-serif; cursor:pointer; }
-.nmda-tag-chip small { margin-left:2px; color:#64748b; font-size:8px; }
 
 
 .nmda-table-wrap { min-width:0; overflow:auto; border:1px solid var(--nmda-border); border-radius:9px; background:#fff; }
@@ -310,12 +300,6 @@
 
 @media (max-width: 980px) {
   #nmda-panel { inset: 12px; width:auto; height:auto; grid-template-columns: 150px minmax(0,1fr); }
-  
-  
-  #nmda-attachments-card { grid-column:auto; }
-  
-  
-  
   
   
 }
@@ -457,8 +441,7 @@
 #nmda-panel { width:min(1260px,96vw); grid-template-columns:190px minmax(0,1fr); }
 .nmda-ingest-page { padding:16px 18px 28px; }
 .nmda-ingest-workspace { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:12px; align-items:start; }
-.nmda-ingest-source-card,
-.nmda-ingest-workspace .nmda-import-handoff-card { grid-column:1 / -1; }
+.nmda-ingest-source-card { grid-column:1 / -1; }
 
 .nmda-btn-quiet { background:#f8fafc; color:#64748b; }
 
@@ -558,7 +541,7 @@
 }
 @media (max-width:900px) {
   .nmda-ingest-workspace { grid-template-columns:1fr; }
-  .nmda-ingest-source-card, .nmda-ingest-workspace .nmda-import-handoff-card { grid-column:auto; }
+  .nmda-ingest-source-card { grid-column:auto; }
   
 }
 @media (max-width:680px) {
@@ -755,8 +738,6 @@
 .nmda-review-guidance { margin-top:7px; padding:7px 9px; }
 
 
-.nmda-import-handoff-card { position:sticky; bottom:0; z-index:5; border-color:#bfdbfe !important; background:rgba(255,255,255,.97) !important; box-shadow:0 -8px 24px rgba(15,23,42,.08) !important; backdrop-filter:blur(10px); }
-.nmda-import-handoff-card .nmda-card-head { display:none; }
 .nmda-import-ready-summary { padding-top:0; }
 
 
@@ -976,13 +957,8 @@
 
 .nmda-source-action-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
 
-.nmda-import-handoff-card { position:relative; bottom:auto; z-index:1; border-color:#dbeafe !important; box-shadow:none !important; backdrop-filter:none; background:#f8fbff !important; }
-.nmda-import-handoff-card .nmda-card-head { display:none; }
-
-
 .nmda-batch-empty { border-style:dashed; background:#fbfcfe; }
 
-#nmda-bulk-disable[hidden] { display:none !important; }
 
 
 
@@ -1226,19 +1202,6 @@
 
 
 
-.nmda-import-handoff-card {
-  position:static !important;
-  display:grid;
-  gap:7px;
-  margin-top:8px;
-  padding-top:8px;
-  border:0 !important;
-  border-top:1px solid #edf2f7 !important;
-  border-radius:0 !important;
-  background:transparent !important;
-  box-shadow:none !important;
-  backdrop-filter:none !important;
-}
 .nmda-import-ready-summary { padding:0; border:0; background:transparent; }
 
 .nmda-ingest-health { grid-template-columns:repeat(4,minmax(90px,1fr)); gap:6px; }
@@ -1474,9 +1437,6 @@
 
 
 
-#nmda-attachments-card[data-issue="1"] { border-color:#f2cc60; background:#fffdf5; }
-#nmda-attachments-card[data-issue="1"] > summary strong { color:#92400e; }
-#nmda-attachments-card[data-issue="1"] > summary small { color:#a16207; }
 @media (max-width:760px) {
   .nmda-review-guidance { align-items:flex-start; }
   
@@ -1682,7 +1642,6 @@
 
 .nmda-review-guidance { min-height:34px; padding:7px 9px; font-size:9.5px; border-radius:8px; background:#f6f8fa; }
 
-.nmda-import-handoff-card { margin-top:2px; padding-top:9px; }
 .nmda-roster-audit-card { padding:11px 13px; border-color:#d8dee4; background:#fff; }
 .nmda-roster-audit-card .nmda-ingest-health { margin-top:-1px; }
 .nmda-roster-details > summary { font-size:9.5px; }
@@ -1928,10 +1887,6 @@
 }
 
 
-
-/* Attachments are a step-2 todo, not a reason to pull the user back into step 1. */
-#nmda-attachments-card[data-issue="1"] > summary { background:#fffaf0; }
-#nmda-attachments-card[data-issue="1"] > summary strong { color:#7d4e00; }
 
 /* Ready-to-create is distinct from actively creating: avoid making step 4 look current too early. */
 .nmda-process-guide button[data-state="ready"] {
@@ -2758,21 +2713,7 @@
 #nmda-import-card[data-loaded="1"] .nmda-roster-context-cue[data-state="skipped"] .nmda-context-cue-main > small {
   color:#7a8492;
 }
-#nmda-attachments-card {
-  margin-top:7px;
-  border:1px solid #e1e6eb;
-  background:#fbfcfd;
-}
-#nmda-attachments-card > summary {
-  min-height:34px;
-  padding:7px 9px;
-  background:#fbfcfd !important;
-}
-#nmda-attachments-card[data-issue="1"] > summary strong { color:#57606a !important; }
-#nmda-attachments-card[data-issue="1"] > summary small { color:#8c959f !important; }
-
 /* v1.33 · Import preflight — mail first, then one explicit batch-preparation dialog. */
-#nmda-roster-context-cue { display:none !important; }
 
 /* The import surface owns one job: get mail content into the batch. */
 #nmda-import-card:not([data-loaded="1"]) {
@@ -3217,14 +3158,6 @@
   padding:14px 20px 18px;
   background:#fbfcfe;
 }
-.nmda-attachment-manager-summary {
-  margin-bottom:9px;
-  color:#57606a;
-  font-size:9px;
-}
-.nmda-attachment-manager-summary strong { color:#24292f; }
-.nmda-attachment-manager-summary em { color:#9a6700; font-style:normal; font-weight:700; }
-.nmda-attachment-manager-assets { overflow:hidden; }
 .nmda-attachment-assets-empty {
   padding:28px 18px;
   color:#8c959f;
