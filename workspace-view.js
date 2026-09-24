@@ -168,21 +168,11 @@
               <div class="nmda-supplement-preflight" id="nmda-supplement-preflight" hidden aria-hidden="true">
                 <section class="nmda-supplement-dialog nmda-classify-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-supplement-title">
                   <header class="nmda-classify-head">
-                    <div class="nmda-classify-head-main">
-                      <div class="nmda-supplement-head-icon" data-state="ok">✓</div>
-                      <div>
-                        <span class="nmda-supplement-kicker">导入完成</span>
-                        <h3 id="nmda-supplement-title">确认文件用途</h3>
-                        <p>确认有疑问的文件即可。</p>
-                      </div>
-                    </div>
+                    <div data-workspace-mount="preflight-head" style="display:contents"></div>
                     <div class="nmda-classify-head-summary" id="nmda-preflight-routing-chips" aria-label="分类概览"></div>
                   </header>
 
-                  <nav class="nmda-classify-modebar" aria-label="导入核验步骤">
-                    <button class="is-active" type="button" data-preflight-view="files"><span>1</span><strong>核验文件</strong><small>确认用途</small></button>
-                    <button type="button" data-preflight-view="support"><span>2</span><strong>参考名单</strong><small>可选核对来源</small></button>
-                  </nav>
+                  <div data-workspace-mount="preflight-nav" style="display:contents"></div>
 
                   <div class="nmda-classify-workspace" data-preflight-view="files">
                     <div class="nmda-classify-files-view" data-preflight-panel="files">
@@ -280,11 +270,7 @@
                     </section>
                   </div>
 
-                  <footer class="nmda-supplement-foot nmda-classify-foot">
-                    <button class="nmda-btn nmda-btn-quiet" id="nmda-close-supplement-preflight" type="button">返回上传</button>
-                    <div class="nmda-classify-foot-summary"><strong id="nmda-preflight-batch-summary">正在核验本批次</strong><small>无误即可继续。</small></div>
-                    <button class="nmda-btn nmda-btn-primary" id="nmda-complete-supplement-preflight" type="button">完成分类</button>
-                  </footer>
+                  <div data-workspace-mount="preflight-foot" style="display:contents"></div>
                 </section>
               </div>
 

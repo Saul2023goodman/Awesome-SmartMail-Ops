@@ -10,6 +10,7 @@ import { ReviewTop, ReviewBoardbar, ReviewBatchbar, ReviewEmpty, ReviewPreviewTo
 import PlanningBoard, { PlanningOverview, DispatchSummary, ExecutionPreflight } from './PlanningBoard.jsx';
 import ImportIntake from './ImportIntake.jsx';
 import SourceInventory from './SourceInventory.jsx';
+import { PreflightHead, PreflightNav, PreflightFoot } from './PreflightFrame.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -83,3 +84,9 @@ document.querySelectorAll('[data-workspace-mount="import-intake"]').forEach(host
 document.querySelectorAll('[data-workspace-mount="source-inventory"]').forEach(host => {
   createRoot(host).render(<StrictMode><SourceInventory /></StrictMode>);
 });
+
+for (const [name, Component] of [['preflight-head', PreflightHead], ['preflight-nav', PreflightNav], ['preflight-foot', PreflightFoot]]) {
+  document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
+    createRoot(host).render(<StrictMode><Component /></StrictMode>);
+  });
+}

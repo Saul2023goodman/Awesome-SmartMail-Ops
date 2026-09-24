@@ -2147,18 +2147,12 @@
   function setPreflightView(view = 'files') {
     const next=view==='support'?'support':'files';
     batch.preflightView=next;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({preflight:{...globalThis.NMDAWorkspaceImportUi.getSnapshot().preflight,view:next}});
     const workspace=$('nmda-supplement-preflight')?.querySelector('.nmda-classify-workspace');
     if(workspace)workspace.dataset.preflightView=next;
-    ui.querySelectorAll('[data-preflight-view]').forEach(button=>{
-      const active=button.dataset.preflightView===next;
-      button.classList.toggle('is-active',active);
-      button.setAttribute('aria-current',active?'step':'false');
-    });
     ui.querySelectorAll('[data-preflight-panel]').forEach(panel=>{
       panel.hidden=panel.dataset.preflightPanel!==next;
     });
-    const button=$('nmda-complete-supplement-preflight');
-    if(button&&!button.textContent.includes('待确认'))button.textContent='完成分类';
   }
 
   function setSupportView(view = 'roster') {
@@ -2181,15 +2175,11 @@
     renderBatchPrepStrip();
     if(!hasBatch)return;
     const sourceDecisions=uniqueFiles(batch.dataset?.sourceFiles||[]).map(sourcePurposeDecision),reviewCount=sourceDecisions.filter(item=>item.needsReview).length,taskCount=(batch.tasks||[]).length;
-    const headIcon=overlay.querySelector('.nmda-supplement-head-icon'),kicker=overlay.querySelector('.nmda-supplement-kicker'),title=$('nmda-supplement-title');
-    if(headIcon){const attention=!taskCount||reviewCount>0;headIcon.dataset.state=attention?'review':'ok';headIcon.textContent=attention?'!':'✓';}
-    if(kicker)kicker.textContent=reviewCount?`${reviewCount} 个文件待确认`:'文件用途已整理';
-    if(title)title.textContent='检查导入结果';
+    globalThis.NMDAWorkspaceImportUi.publishPatch({preflight:{...globalThis.NMDAWorkspaceImportUi.getSnapshot().preflight,reviewCount,taskCount}});
     const rosterBox=$('nmda-preflight-roster-box'),attachmentBox=$('nmda-preflight-attachment-box'),supplements=$('nmda-preflight-supplements');
     if(rosterBox)rosterBox.hidden=false;if(attachmentBox)attachmentBox.hidden=true;if(supplements)supplements.hidden=false;
     setPreflightView(batch.preflightView||'files');
     setSupportView('roster');
-    const completeButton=$('nmda-complete-supplement-preflight');if(completeButton)completeButton.textContent=reviewCount?`处理 ${reviewCount} 个待确认`:'完成分类';
 
     const rState=rosterContextState(),rCount=referenceRosterCount();
     const rBox=$('nmda-preflight-roster-box'),rTitle=$('nmda-preflight-roster-title'),rCopy=$('nmda-preflight-roster-copy'),rStatus=$('nmda-preflight-roster-status'),rSkip=$('nmda-preflight-roster-skip');
@@ -2210,7 +2200,6 @@
     if(aSkip){aSkip.hidden=!!aCount;aSkip.textContent=aState==='skipped'?'已跳过':'暂不添加';}
 
     renderAttachmentAssetViews();renderPreflightSourceRoles();
-    const batchSummary=$('nmda-preflight-batch-summary');if(batchSummary){const currentTaskCount=(batch.tasks||[]).length;batchSummary.textContent=reviewCount?`${reviewCount} 个文件待确认`:currentTaskCount?'分类已确认，可以继续':'还没有识别到邮件，请调整文件用途';}
     if(visible&&!batch.sourceInspectName&&sourceDecisions.length&&window.matchMedia('(min-width: 821px)').matches){const first=sourceDecisions.find(item=>item.needsReview)||sourceDecisions[0];requestAnimationFrame(()=>{if(batch.supplementPreflightOpen&&!batch.sourceInspectName)inspectSourceInPreflight(first.sourceName);});}
   }
 
@@ -5748,10 +5737,14 @@
     const files=[...(rosterFileEl.files||[])];
     if(files.length)await loadRosterFiles(files);
   });
-  $('nmda-close-supplement-preflight')?.addEventListener('click',()=>{batch.supplementPreflightOpen=false;renderSupplementPreflight();setImportStatus('已返回上传区。','ok');});
+  window.addEventListener('nmda:preflight-action', event=>{
+    const action=event.detail;
+    if(action==='files'||action==='support')setPreflightView(action);
+    else if(action==='back'){batch.supplementPreflightOpen=false;renderSupplementPreflight();setImportStatus('已返回上传区。','ok');}
+    else if(action==='complete')completeSupplementPreflight();
+  });
   $('nmda-preflight-source-search')?.addEventListener('input',event=>{batch.preflightSearch=String(event.target.value||'');renderPreflightSourceRoles();});
   $('nmda-source-inspector-close')?.addEventListener('click',()=>{batch.sourceInspectName='';renderPreflightSourceRoles();});
-  ui.querySelectorAll('[data-preflight-view]').forEach(button=>button.addEventListener('click',()=>setPreflightView(button.dataset.preflightView)));
   ui.querySelectorAll('button[data-support-view]').forEach(button=>button.addEventListener('click',()=>setSupportView(button.dataset.supportView)));
   ui.querySelectorAll('[data-planning-view]').forEach(button=>button.addEventListener('click',()=>setPlanningView(button.dataset.planningView)));
   $('nmda-open-schedule-modal')?.addEventListener('click',openScheduleModal);
@@ -5798,7 +5791,6 @@
   });
   $('nmda-preflight-roster-skip')?.addEventListener('click',()=>{batch.rosterPromptChoice='skipped';renderImportLifecycleState();renderSupplementPreflight();});
   $('nmda-preflight-attachment-skip')?.addEventListener('click',()=>{batch.attachmentPrepChoice='skipped';renderImportLifecycleState();renderSupplementPreflight();});
-  $('nmda-complete-supplement-preflight')?.addEventListener('click',completeSupplementPreflight);
   $('nmda-attachment-later')?.addEventListener('click',()=>{
     batch.attachmentPromptDeferred=true;
     setImportStatus('附件检查已保留；可先处理邮件内容。','ok');
