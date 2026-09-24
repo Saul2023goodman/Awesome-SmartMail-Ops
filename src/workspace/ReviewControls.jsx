@@ -67,3 +67,17 @@ export function ReviewEmpty() {
   useLayoutEffect(() => { const host = document.getElementById('nmda-review-page-empty'); if (host) host.hidden = model.count > 0; }, [model.count]);
   return <><div className="nmda-review-empty-visual" aria-hidden="true"><span></span><i></i><b></b></div><div className="nmda-review-empty-copy"><span className="nmda-review-empty-kicker">审阅邮件</span><strong>当前没有需要审阅的邮件</strong><small>{model.emptyHint}</small></div><div className="nmda-review-empty-actions"><button className="nmda-btn nmda-btn-primary" type="button" onClick={() => act('prepare')}>去准备邮件</button><button className="nmda-btn nmda-btn-quiet" type="button" onClick={() => act('monitor')}>查看邮件监测</button></div><div className="nmda-review-empty-foot"><span>初始邮件</span><i>→</i><span>审阅</span><i>→</i><span>安排发送</span><b>·</b><span>跟进邮件也在这里统一审阅</span></div></>;
 }
+
+export function ReviewPreviewToolbar() {
+  const model = useControls();
+  useLayoutEffect(() => { const host = document.getElementById('nmda-review-preview-toolbar'); if (host) host.hidden = model.surface !== 'preview'; }, [model.surface]);
+  return <><button className="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-preview-back" type="button" onClick={() => act('back')}>← 返回邮件列表</button><div className="nmda-review-preview-toolbar-copy"><strong>查看邮件</strong><small>{model.previewMeta}</small></div><div className="nmda-review-preview-key" aria-label="关键信息定位标识">
+    <span className="nmda-semantic-legend-item" data-semantic="advisor"><i></i><strong>导师</strong></span>
+    <span className="nmda-semantic-legend-item" data-semantic="student"><i></i><strong>学生</strong></span>
+    <span className="nmda-semantic-legend-item" data-semantic="institution"><i></i><strong>学校 / 机构</strong></span>
+    <span className="nmda-semantic-legend-item" data-semantic="anchor"><i></i><strong>称呼 / 身份 / 意图 / 落款</strong></span>
+    <span className="nmda-semantic-legend-item" data-semantic="degree"><i></i><strong>学位 / 时间</strong></span>
+    <span className="nmda-semantic-legend-item" data-semantic="attention"><i></i><strong>重点表达</strong><small>斜体 / 引号 / 引用</small></span>
+    <span className="nmda-semantic-legend-item" data-semantic="format"><i></i><strong>其他格式</strong><small>加粗 / 下划线 / 链接</small></span>
+  </div></>;
+}

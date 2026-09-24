@@ -1176,8 +1176,7 @@
     if(scheduleGuide){openScheduleModal();return;}
     const show=event.target.closest?.('[data-show-unscheduled]');
     if(show){
-      const box=$('nmda-unscheduled-exceptions');
-      if(box){ box.hidden=!box.hidden; if(!box.hidden)box.scrollIntoView({block:'nearest',behavior:'smooth'}); }
+      window.dispatchEvent(new Event('nmda:planning-show-unscheduled'));
     }
   });
 
@@ -3256,6 +3255,7 @@
     const previous=batch.reviewSurface==='preview'?'preview':'board';
     batch.reviewSurface=next;
     reviewInlineEl.dataset.reviewView=next;
+    globalThis.NMDAWorkspaceReviewBoard.publishControls({surface:next});
     if(next==='preview'&&previous!=='preview'){
       reviewInlineEl.dataset.previewAnimate='1';
       window.setTimeout(()=>{if(reviewInlineEl?.dataset.reviewView==='preview')delete reviewInlineEl.dataset.previewAnimate;},420);
@@ -3266,8 +3266,6 @@
     }
     if(reviewBoardHost)reviewBoardHost.hidden=next!=='board';
     if(reviewPreviewPagesEl)reviewPreviewPagesEl.hidden=next!=='preview';
-    const toolbar=$('nmda-review-preview-toolbar');
-    if(toolbar)toolbar.hidden=next!=='preview';
     if(reviewPreviewRailEl)reviewPreviewRailEl.hidden=next!=='preview';
     if(next==='preview'&&previous!=='preview') renderFormatDriftSuggestions();
     else if(next!=='preview') closeFormatGovernance();
@@ -3988,8 +3986,7 @@
     });
     const visible=reviewVisibleTasks();
     const index=visible.findIndex(task=>task.editKey===key);
-    const previewMeta=$('nmda-review-preview-meta');
-    if(previewMeta&&index>=0)previewMeta.textContent=`${index+1} / ${visible.length}`;
+    if(index>=0)globalThis.NMDAWorkspaceReviewBoard.publishControls({previewMeta:`${index+1} / ${visible.length}`});
     const activeCard=reviewPreviewRailListEl?.querySelector?.(`[data-review-rail-key="${CSS.escape(key)}"]`);
     if(activeCard&&options.revealRail!==false)activeCard.scrollIntoView?.({block:'nearest',behavior:options.railBehavior||'auto'});
   }
@@ -4022,8 +4019,7 @@
     if(reviewPreviewRailCountEl)reviewPreviewRailCountEl.textContent=String(visible.length);
     if(reviewProgressEl)reviewProgressEl.textContent=`${reviewTasks().length} 待处理`;
     const activeIndex=activeKey?visible.findIndex(task=>task.editKey===activeKey):-1;
-    const previewMeta=$('nmda-review-preview-meta');
-    if(previewMeta)previewMeta.textContent=activeIndex>=0?`${activeIndex+1} / ${visible.length}`:`${visible.length} 封`;
+    globalThis.NMDAWorkspaceReviewBoard.publishControls({previewMeta:activeIndex>=0?`${activeIndex+1} / ${visible.length}`:`${visible.length} 封`});
     const items=tasks.map(task=>{
       const visual=reviewVisualState(task);
       const editing=task.editKey===batch.reviewEditingKey;
@@ -5540,19 +5536,18 @@
     const planning=derivePlanningGroups(matched);
     renderPlanningOverview(matched,snapshot);
 
-    const templateColumns=`250px repeat(${Math.max(1,planning.rounds.length)}, minmax(210px, 1fr))`;
-    const headers=[
-      `<div class="nmda-plan-matrix-corner"><strong>学校</strong><small>每行一所学校；横向查看各轮分布</small></div>`,
-      ...planning.rounds.map(round=>renderPlanningRoundHeader(round))
-    ];
-    const rows=planning.schoolRows.map(school=>renderPlanningSchoolRow(school,planning.rounds)).join('');
-    const unscheduledHtml=planning.unscheduled.length?`<section class="nmda-plan-unscheduled" id="nmda-unscheduled-exceptions" hidden><header><div><strong>尚未排期</strong><small>${planning.unscheduled.length} 封邮件缺少发送日期</small></div></header><div class="nmda-plan-unscheduled-list">${planning.unscheduled.map(task=>renderPlanningLooseTask(task)).join('')}</div></section>`:'';
-
-    if(!planning.schoolRows.length){
-      previewBodyEl.innerHTML='<div class="nmda-plan-empty">没有匹配的邮件。调整搜索条件后再试。</div>';
-    }else{
-      previewBodyEl.innerHTML=`${unscheduledHtml}<div class="nmda-plan-matrix-wrap"><div class="nmda-plan-matrix" style="grid-template-columns:${templateColumns}">${headers.join('')}${rows}</div></div>`;
-    }
+    const rules=batch.scheduleRules||State.freshScheduleRules();
+    const zoneText=scheduleZoneText(rules);
+    const taskViews=new Map(matched.map(task=>[task.editKey,{
+      state:compactPlanningState(task),
+      scheduleDisplay:scheduleValueForDisplay(task.scheduleAt,rules),
+      zoneText,
+      school:Scheduler?.groupForTask?.(task)?.label||task.school||'未识别学校',
+      origin:original163MailRef(task)
+    }]));
+    globalThis.NMDAWorkspacePlanningUi.publish({
+      planning,taskViews,running:!!batch.running,maxPerGroupPerRound:rules.maxPerGroupPerRound||1
+    });
 
     const hasTasks=tasks.length>0;
     const viewingPlanning=currentWorkbenchTab()==='dispatch';
@@ -5576,55 +5571,6 @@
     return {matched:matched.length,...snapshot};
   }
 
-  function renderPlanningRoundHeader(round){
-    const warn=round.duplicateSchools.length?`<span class="nmda-plan-matrix-colmeta is-warn">同校超额 ${round.duplicateSchools.length}</span>`:`<span class="nmda-plan-matrix-colmeta">正常</span>`;
-    return `<div class="nmda-plan-matrix-colhead"><div class="nmda-plan-matrix-coltop"><em>发送日 ${round.roundIndex}</em><strong>${escapeHtml(round.dateLabel)}</strong></div><small>${round.selectedCount}/${round.tasks.length} 封 · ${round.schoolCount} 校</small>${warn}</div>`;
-  }
-
-  function renderPlanningSchoolRow(school, rounds){
-    const badges=[];
-    badges.push(`<span class="nmda-plan-schoolbadge">${school.totalCount} 封</span>`);
-    if(school.roundRefs.length)badges.push(`<span class="nmda-plan-schoolbadge">发送日 ${school.roundRefs.join('/')}</span>`);
-    if(school.overflowRounds.length)badges.push(`<span class="nmda-plan-schoolbadge is-warn">发送日超额 ${school.overflowRounds.join('/')}</span>`);
-    const cells=[
-      `<div class="nmda-plan-matrix-rowhead"><strong>${escapeHtml(school.label)}</strong><div class="nmda-plan-schoolbadges">${badges.join('')}</div></div>`,
-      ...rounds.map(round=>{
-        const cellTasks=school.cells.get(round.dayKey)||[];
-        const overflow=cellTasks.length>(batch.scheduleRules?.maxPerGroupPerRound||1);
-        return `<div class="nmda-plan-matrix-cell ${overflow?'is-overflow':''}">${renderPlanningTaskStack(cellTasks,{empty:'',roundIndex:round.roundIndex,roundDate:round.dateLabel,schoolHidden:true})}</div>`;
-      })
-    ];
-    return cells.join('');
-  }
-
-  function renderPlanningTaskStack(tasks, context={}){
-    if(!tasks?.length)return `<div class="nmda-plan-matrix-emptycell" aria-hidden="true"></div>`;
-    return `<div class="nmda-plan-matrix-stack">${tasks.map(task=>renderPlanningMatrixTask(task,context)).join('')}</div>`;
-  }
-
-  function dispatchKindBadge(task){
-    return task?.dispatchKind === 'follow_up'
-      ? `<span class="nmda-plan-minibadge nmda-plan-source-followup">跟进 #${Math.max(1,Number(task.sequence||1))}</span>`
-      : '<span class="nmda-plan-minibadge nmda-plan-source-initial">初始邮件</span>';
-  }
-
-  function renderPlanningMatrixTask(task, context={}){
-    const state=compactPlanningState(task), rules=batch.scheduleRules||State.freshScheduleRules();
-    return `<article class="nmda-plan-matrix-task" data-plan-task-key="${escapeHtml(task.editKey)}" data-state-tone="${escapeHtml(state.tone)}" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}">
-      <label class="nmda-plan-matrix-toggle"><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''} ${batch.running||task.policyBlocked||task.status==='running'||task.status==='done'?'disabled':''}></label>
-      <div class="nmda-plan-matrix-taskbody">
-        <div class="nmda-plan-matrix-taskline"><strong>${escapeHtml(task.recipients||'—')}</strong><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span></div>
-        <div class="nmda-plan-matrix-taskmeta">${dispatchKindBadge(task)}${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'<span class="nmda-plan-minibadge">已有排期 · 锁定</span>':''}${task.files?.length?`<span class="nmda-plan-minibadge">附件 ${task.files.length}</span>`:''}${original163TaskButton(task,{compact:true,label:'163 原信件 ↗'})}</div>
-        <div class="nmda-plan-matrix-taskedit"><span class="nmda-smart-temporal is-task"><input type="datetime-local" step="300" data-smart-temporal="datetime" data-smart-role="task-schedule" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(scheduleValueForDisplay(task.scheduleAt,rules))}" ${batch.running||(task.scheduleSource==='mailbox'&&task.mailboxDraftId)?'disabled':''} title="${task.scheduleSource==='mailbox'&&task.mailboxDraftId?`网易已有排期为只读 · ${scheduleZoneText(rules)} 当地时间`:`${scheduleZoneText(rules)} 当地时间`}"><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速调整发送时间" title="快速设置" ${batch.running||(task.scheduleSource==='mailbox'&&task.mailboxDraftId)?'disabled':''}>⌄</button></span></div>
-      </div>
-    </article>`;
-  }
-
-  function renderPlanningLooseTask(task){
-    const state=compactPlanningState(task), rules=batch.scheduleRules||State.freshScheduleRules();
-    const school=Scheduler?.groupForTask?.(task)?.label||task.school||'未识别学校';
-    return `<article class="nmda-plan-loose-task" data-plan-task-key="${escapeHtml(task.editKey)}" data-dispatch-kind="${escapeHtml(task.dispatchKind||'initial')}"><label><input type="checkbox" data-task-enabled="${escapeHtml(task.editKey)}" ${task.enabled?'checked':''}></label><div><strong>${escapeHtml(task.recipients||'—')}</strong><small>${dispatchKindBadge(task)} ${escapeHtml(school)}</small>${original163TaskButton(task,{compact:true,label:'163 原信件 ↗'})}</div><span class="nmda-inline-flag nmda-inline-flag-${escapeHtml(state.tone)}">${escapeHtml(state.label)}</span><span class="nmda-smart-temporal is-task"><input type="datetime-local" step="300" data-smart-temporal="datetime" data-smart-role="task-schedule" data-task-schedule="${escapeHtml(task.editKey)}" value="${escapeHtml(scheduleValueForDisplay(task.scheduleAt,rules))}" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?`disabled title="网易已有排期为只读 · ${escapeHtml(scheduleZoneText(rules))} 当地时间"`:`title="${escapeHtml(scheduleZoneText(rules))} 当地时间"`}><button class="nmda-smart-temporal-trigger" type="button" data-smart-temporal-open aria-label="快速调整发送时间" title="快速设置" ${task.scheduleSource==='mailbox'&&task.mailboxDraftId?'disabled':''}>⌄</button></span></article>`;
-  }
 
 
   function renderAttachmentCenter() {
@@ -6109,6 +6055,7 @@
     }
     if(action==='prepare'){setWorkbenchTab('batch');batch.uiStep=1;renderProcessGuide();renderRosterAudit();renderImportHandoff();history.replaceState(null,'','#batch');return;}
     if(action==='monitor'){openUtilityView('monitor');return;}
+    if(action==='back'){closeReviewPreview();return;}
     if(action==='filter'){
       if(batch.reviewEditingKey){setImportStatus('请先保存或取消当前邮件的编辑，再切换筛选。','warn');return;}
       batch.reviewFilter=['all','auto','pending','confirmed'].includes(filter)?filter:'all';
@@ -6126,7 +6073,6 @@
     if(action==='restore-all'){restoreAllExcludedTasks();return;}
     if(action==='batch'){openReviewBatchProcessing();}
   });
-  $('nmda-review-preview-back')?.addEventListener('click',closeReviewPreview);
   batchStandardSubjectInputEl?.addEventListener('input',()=>{renderBatchSubjectGovernance();syncBatchProcessingApply();});
   batchStandardSubjectSuggestionEl?.addEventListener('click',()=>{const suggestion=suggestedBulkSubject();if(!suggestion)return;if(batchStandardSubjectInputEl)batchStandardSubjectInputEl.value=suggestion;renderBatchSubjectGovernance();batchStandardSubjectInputEl?.focus?.({preventScroll:true});});
   formatGovernanceEntryEl?.addEventListener('click',openReviewBatchProcessing);

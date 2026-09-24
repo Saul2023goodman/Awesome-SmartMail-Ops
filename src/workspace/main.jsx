@@ -6,7 +6,8 @@ import Monitor from './Monitor.jsx';
 import UtilitiesHome from './UtilitiesHome.jsx';
 import { WorkspaceTabs, WorkspacePageHeads } from './Navigation.jsx';
 import ReviewBoard, { ReviewPreview, ReviewRail } from './ReviewBoard.jsx';
-import { ReviewTop, ReviewBoardbar, ReviewBatchbar, ReviewEmpty } from './ReviewControls.jsx';
+import { ReviewTop, ReviewBoardbar, ReviewBatchbar, ReviewEmpty, ReviewPreviewToolbar } from './ReviewControls.jsx';
+import PlanningBoard from './PlanningBoard.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -53,8 +54,12 @@ document.querySelectorAll('[data-workspace-mount="review-rail"]').forEach(host =
   createRoot(host).render(<StrictMode><ReviewRail /></StrictMode>);
 });
 
-for (const [name, Component] of [['review-top', ReviewTop], ['review-boardbar', ReviewBoardbar], ['review-batchbar', ReviewBatchbar], ['review-empty', ReviewEmpty]]) {
+for (const [name, Component] of [['review-top', ReviewTop], ['review-boardbar', ReviewBoardbar], ['review-batchbar', ReviewBatchbar], ['review-empty', ReviewEmpty], ['review-preview-toolbar', ReviewPreviewToolbar]]) {
   document.querySelectorAll(`[data-workspace-mount="${name}"]`).forEach(host => {
     createRoot(host).render(<StrictMode><Component /></StrictMode>);
   });
 }
+
+document.querySelectorAll('[data-workspace-mount="planning-board"]').forEach(host => {
+  createRoot(host).render(<StrictMode><PlanningBoard /></StrictMode>);
+});

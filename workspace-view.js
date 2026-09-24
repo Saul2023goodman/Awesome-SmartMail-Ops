@@ -423,19 +423,7 @@
 
                 <div class="nmda-review-batchbar" id="nmda-review-batchbar" data-workspace-mount="review-batchbar" hidden></div>
                 <div class="nmda-review-page-empty" id="nmda-review-page-empty" data-workspace-mount="review-empty"></div>
-                <div class="nmda-review-preview-toolbar" id="nmda-review-preview-toolbar" hidden>
-                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-review-preview-back" id="nmda-review-preview-back" type="button">← 返回邮件列表</button>
-                  <div class="nmda-review-preview-toolbar-copy"><strong>查看邮件</strong><small id="nmda-review-preview-meta">逐封核对 · 可直接编辑当前邮件</small></div>
-                  <div class="nmda-review-preview-key" aria-label="关键信息定位标识">
-                    <span class="nmda-semantic-legend-item" data-semantic="advisor"><i></i><strong>导师</strong></span>
-                    <span class="nmda-semantic-legend-item" data-semantic="student"><i></i><strong>学生</strong></span>
-                    <span class="nmda-semantic-legend-item" data-semantic="institution"><i></i><strong>学校 / 机构</strong></span>
-                    <span class="nmda-semantic-legend-item" data-semantic="anchor"><i></i><strong>称呼 / 身份 / 意图 / 落款</strong></span>
-                    <span class="nmda-semantic-legend-item" data-semantic="degree"><i></i><strong>学位 / 时间</strong></span>
-                    <span class="nmda-semantic-legend-item" data-semantic="attention"><i></i><strong>重点表达</strong><small>斜体 / 引号 / 引用</small></span>
-                    <span class="nmda-semantic-legend-item" data-semantic="format"><i></i><strong>其他格式</strong><small>加粗 / 下划线 / 链接</small></span>
-                  </div>
-                </div>
+                <div class="nmda-review-preview-toolbar" id="nmda-review-preview-toolbar" data-workspace-mount="review-preview-toolbar" hidden></div>
                 <aside class="nmda-review-preview-rail" id="nmda-review-preview-rail" hidden aria-label="邮件导航">
                   <div class="nmda-review-preview-rail-head"><div><strong>邮件</strong><small id="nmda-review-preview-rail-count">0</small></div></div>
                   <div class="nmda-review-preview-rail-list" id="nmda-review-preview-rail-list" data-workspace-mount="review-rail"></div>
@@ -485,7 +473,7 @@
               </details>
               <input id="nmda-batch-tag-include" type="hidden"><button id="nmda-clear-tag-filter" type="button" hidden></button><div id="nmda-batch-tag-chips" hidden></div>
               <input id="nmda-bulk-tag-value" type="hidden"><button id="nmda-bulk-add-tag" type="button" hidden></button><button id="nmda-bulk-remove-tag" type="button" hidden></button><button id="nmda-bulk-disable" type="button" hidden></button>
-              <div class="nmda-table-wrap nmda-batch-table-wrap"><div class="nmda-planning-board" id="nmda-preview-body"></div></div>
+              <div class="nmda-table-wrap nmda-batch-table-wrap"><div class="nmda-planning-board" id="nmda-preview-body" data-workspace-mount="planning-board"></div></div>
               <div class="nmda-mail-handoff-bar" id="nmda-mail-handoff-bar">
                 <div class="nmda-mail-handoff-copy"><span class="nmda-mail-handoff-mark" aria-hidden="true">N</span><div><strong id="nmda-batch-status">准备在网易邮箱创建草稿</strong><div class="nmda-create-preflight" id="nmda-create-preflight">确认本次邮件与发送时间后，创建过程会在网易邮箱页面同步显示。</div></div></div>
                 <label class="nmda-execution-mode" title="创建 163 草稿时，确保相邻正文段落之间至少保留一个空行；不会改变这里的正文内容"><input id="nmda-compose-paragraph-spacing" type="checkbox" checked><span>段落间留空行</span></label>

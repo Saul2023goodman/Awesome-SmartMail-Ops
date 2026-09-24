@@ -12,7 +12,8 @@
     count:0, pending:0, counts:{all:0,auto:0,pending:0,confirmed:0},
     filter:'all', search:'', emptyHint:'', nextMode:'next', nextLabel:'下一个需处理',nextDisabled:false,
     trash:[], batchLaunch:{empty:true,subjectCount:0,queuedCount:0,meta:'导入邮件后可用',title:'准备好邮件后可使用批量处理'},
-    selectedCount:0,batchbarVisible:false,selectVisibleCount:0,selectVisibleHidden:true,allVisibleSelected:false
+    selectedCount:0,batchbarVisible:false,selectVisibleCount:0,selectVisibleHidden:true,allVisibleSelected:false,
+    surface:'board',previewMeta:'逐封核对 · 可直接编辑当前邮件'
   };
   function publish(next) {
     snapshot = next;
