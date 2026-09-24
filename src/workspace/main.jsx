@@ -7,7 +7,7 @@ import UtilitiesHome from './UtilitiesHome.jsx';
 import { WorkspaceTabs, WorkspacePageHeads } from './Navigation.jsx';
 import ReviewBoard, { ReviewPreview, ReviewRail } from './ReviewBoard.jsx';
 import { ReviewTop, ReviewBoardbar, ReviewBatchbar, ReviewEmpty, ReviewPreviewToolbar } from './ReviewControls.jsx';
-import PlanningBoard, { PlanningOverview, DispatchSummary, ExecutionPreflight } from './PlanningBoard.jsx';
+import PlanningBoard, { PlanningOverview, DispatchSummary, DispatchSourceSummary, ExecutionPreflight } from './PlanningBoard.jsx';
 import ImportIntake from './ImportIntake.jsx';
 import SourceInventory from './SourceInventory.jsx';
 import { PreflightHead, PreflightNav, PreflightFoot } from './PreflightFrame.jsx';
@@ -82,6 +82,10 @@ for (const [name, Component] of [['dispatch-summary', DispatchSummary], ['execut
     createRoot(host).render(<StrictMode><Component /></StrictMode>);
   });
 }
+
+document.querySelectorAll('[data-workspace-mount="dispatch-source-summary"]').forEach(host => {
+  createRoot(host).render(<StrictMode><DispatchSourceSummary /></StrictMode>);
+});
 
 document.querySelectorAll('[data-workspace-mount="import-intake"]').forEach(host => {
   createRoot(host).render(<StrictMode><ImportIntake /></StrictMode>);

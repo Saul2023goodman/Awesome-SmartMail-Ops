@@ -430,13 +430,6 @@
     if (task?.editKey) dispatchRuntime.delete(task.editKey);
   }
 
-  function renderDispatchSourceSummary(tasks = dispatchTasks()) {
-    const el=$('nmda-dispatch-source-summary');if(!el)return;
-    const counts=Dispatch?.sourceCounts?.(tasks)||{initial:tasks.filter(t=>t.dispatchKind!=='follow_up').length,followUp:tasks.filter(t=>t.dispatchKind==='follow_up').length,total:tasks.length};
-    el.innerHTML=`<span>待发送 <strong>${counts.total}</strong></span><span>初始邮件 <strong>${counts.initial}</strong></span><span>跟进邮件 <strong>${counts.followUp}</strong></span>`;
-  }
-
-
   function reportMonitorNotice(text, tone = '') {
     window.dispatchEvent(new CustomEvent('nmda:monitor-notice', { detail:{ text, tone } }));
   }
@@ -5120,7 +5113,6 @@
     }
     $('nmda-preview-card').hidden=!(viewingPlanning&&hasTasks);
     $('nmda-scheduler-card').hidden=!hasTasks;
-    renderDispatchSourceSummary(tasks);
     renderScheduleCenter();
     setPlanningView('mails');
     if(currentWorkbenchTab()==='batch')syncStageSurfaceVisibility(batch.uiStep);

@@ -261,7 +261,7 @@
           <section class="nmda-tabpane nmda-page nmda-dispatch-page" data-pane="dispatch" hidden>
             <div class="nmda-dispatch-intro">
               <div><strong>待发送邮件</strong><small></small></div>
-              <div class="nmda-dispatch-source-summary" id="nmda-dispatch-source-summary"></div>
+              <div class="nmda-dispatch-source-summary" data-workspace-mount="dispatch-source-summary"></div>
             </div>
             <div class="nmda-batch-empty" id="nmda-batch-empty" hidden></div>
             <div class="nmda-card nmda-list-card nmda-planning-workspace" id="nmda-preview-card" hidden>

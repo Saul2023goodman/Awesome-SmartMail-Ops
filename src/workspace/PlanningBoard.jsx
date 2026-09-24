@@ -101,6 +101,11 @@ export function DispatchSummary() {
   return <>{parts.map((part, index) => <span key={part.key}>{index > 0 && ' · '}{part}</span>)}</>;
 }
 
+export function DispatchSourceSummary() {
+  const {summary} = useSyncExternalStore(PlanningUi.subscribe,PlanningUi.getSnapshot);
+  return <><span>待发送 <strong>{summary.total}</strong></span><span>初始邮件 <strong>{summary.initial}</strong></span><span>跟进邮件 <strong>{summary.followUp}</strong></span></>;
+}
+
 export function ExecutionPreflight() {
   const {preflight} = useSyncExternalStore(PlanningUi.subscribe, PlanningUi.getSnapshot);
   const lastRisk = useRef('');
