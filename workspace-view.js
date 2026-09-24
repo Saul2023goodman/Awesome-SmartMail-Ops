@@ -215,44 +215,7 @@
                     </div>
 
                     <section class="nmda-classify-support-view" data-preflight-panel="support" data-support-view="roster" hidden>
-                      <header class="nmda-support-view-head">
-                        <div><span>批次资料</span><strong>按需要补充</strong></div>
-                        <nav class="nmda-support-modebar" aria-label="批次资料类型">
-                          <button class="is-active" type="button" data-support-view="roster"><span>名</span><strong>参考名单</strong></button>
-                          <button type="button" data-support-view="attachment"><span>附</span><strong>附件</strong></button>
-                        </nav>
-                      </header>
-                    <section class="nmda-classify-supplements nmda-classify-upload-dock" id="nmda-preflight-supplements" aria-label="批次资料">
-                        <div class="nmda-classify-supplement-stack">
-                          <article class="nmda-supplement-box nmda-supplement-box-compact" id="nmda-preflight-roster-box" data-support-pane="roster" data-state="pending">
-                            <div class="nmda-supplement-box-icon">名</div>
-                            <div class="nmda-supplement-box-main">
-                              <strong id="nmda-preflight-roster-title">参考总名单</strong>
-                              <small id="nmda-preflight-roster-copy">已有总名单时可加入。</small>
-                              <div class="nmda-supplement-status" id="nmda-preflight-roster-status">尚未添加</div>
-                            </div>
-                            <div class="nmda-supplement-actions">
-                              <label class="nmda-btn nmda-btn-small nmda-btn-primary" for="nmda-roster-file">上传名单</label>
-                            </div>
-                          </article>
-                          <article class="nmda-supplement-box nmda-supplement-box-compact nmda-supplement-box-attachment" id="nmda-preflight-attachment-box" data-support-pane="attachment" data-state="pending">
-                            <div class="nmda-supplement-box-icon">附</div>
-                            <div class="nmda-supplement-box-main">
-                              <strong id="nmda-preflight-attachment-title">附件工作台</strong>
-                              <small id="nmda-preflight-attachment-copy">所有附件统一在一个面板中配置发送范围。</small>
-                              <div class="nmda-attachment-requirements" id="nmda-preflight-attachment-requirements"></div>
-                              <div class="nmda-supplement-status" id="nmda-preflight-attachment-status">尚未添加</div>
-                              <div class="nmda-attachment-assets nmda-attachment-assets-inline" id="nmda-preflight-attachment-assets" hidden>
-                                <div class="nmda-attachment-assets-head"><strong>附件状态</strong><span id="nmda-preflight-attachment-assets-count"></span></div>
-                                <div class="nmda-attachment-assets-list" id="nmda-preflight-attachment-assets-list"></div>
-                              </div>
-                            </div>
-                            <div class="nmda-supplement-actions">
-                              <button class="nmda-btn nmda-btn-small nmda-btn-primary" type="button" data-open-attachment-manager>打开附件工作台</button>
-                            </div>
-                          </article>
-                        </div>
-                      </section>
+                      <div data-workspace-mount="preflight-support" style="display:contents"></div>
                     </section>
                   </div>
 

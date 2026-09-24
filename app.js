@@ -1638,8 +1638,8 @@
 
   function renderAttachmentAssetViews() {
     const entries=attachmentAssetEntries(),count=entries.length;
-    const inline=$('nmda-preflight-attachment-assets'),inlineList=$('nmda-preflight-attachment-assets-list'),inlineCount=$('nmda-preflight-attachment-assets-count');
-    if(inline){inline.hidden=!count;if(inlineList)inlineList.innerHTML=count?`<button class="nmda-attachment-assets-more" type="button" data-open-attachment-manager>${count} 个附件 · 打开工作台查看配置</button>`:'';if(inlineCount)inlineCount.textContent=`${count} 个`;}
+    const support=globalThis.NMDAWorkspaceImportUi.getSnapshot().support;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({support:{...support,attachment:{...support.attachment,count}}});
     const manager=$('nmda-attachment-manager-overlay'),list=$('nmda-attachment-manager-list'),empty=$('nmda-attachment-manager-empty'),summary=$('nmda-attachment-manager-summary'),fileCount=$('nmda-attachment-manager-file-count');
     if(manager){manager.hidden=!batch.attachmentManagerOpen;manager.setAttribute('aria-hidden',batch.attachmentManagerOpen?'false':'true');}
     if(list)list.innerHTML=attachmentAssetRowsHtml(entries);
@@ -2118,14 +2118,10 @@
   function setSupportView(view = 'roster') {
     const next=view==='attachment'?'attachment':'roster';
     batch.supportView=next;
+    const supportUi=globalThis.NMDAWorkspaceImportUi.getSnapshot().support;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({support:{...supportUi,view:next}});
     const support=$('nmda-supplement-preflight')?.querySelector('.nmda-classify-support-view');
     if(support)support.dataset.supportView=next;
-    ui.querySelectorAll('button[data-support-view]').forEach(button=>{
-      const active=button.dataset.supportView===next;
-      button.classList.toggle('is-active',active);
-      button.setAttribute('aria-current',active?'page':'false');
-    });
-    ui.querySelectorAll('[data-support-pane]').forEach(pane=>{pane.hidden=pane.dataset.supportPane!==next;});
   }
 
   function renderSupplementPreflight() {
@@ -2136,28 +2132,11 @@
     if(!hasBatch)return;
     const sourceDecisions=uniqueFiles(batch.dataset?.sourceFiles||[]).map(sourcePurposeDecision),reviewCount=sourceDecisions.filter(item=>item.needsReview).length,taskCount=(batch.tasks||[]).length;
     globalThis.NMDAWorkspaceImportUi.publishPatch({preflight:{...globalThis.NMDAWorkspaceImportUi.getSnapshot().preflight,reviewCount,taskCount}});
-    const rosterBox=$('nmda-preflight-roster-box'),attachmentBox=$('nmda-preflight-attachment-box'),supplements=$('nmda-preflight-supplements');
-    if(rosterBox)rosterBox.hidden=false;if(attachmentBox)attachmentBox.hidden=true;if(supplements)supplements.hidden=false;
     setPreflightView(batch.preflightView||'files');
     setSupportView('roster');
-
-    const rState=rosterContextState(),rCount=referenceRosterCount();
-    const rBox=$('nmda-preflight-roster-box'),rTitle=$('nmda-preflight-roster-title'),rCopy=$('nmda-preflight-roster-copy'),rStatus=$('nmda-preflight-roster-status'),rSkip=$('nmda-preflight-roster-skip');
-    if(rBox)rBox.dataset.state=rState;
-    if(rTitle)rTitle.textContent=rState==='added'?`参考总名单 · ${rCount} 条`:'参考总名单';
-    if(rCopy)rCopy.textContent=rState==='added'?'名单已加入。':'已有总名单时可加入。';
-    if(rStatus)rStatus.textContent=rState==='added'?`已加入 ${rCount} 条`:rState==='skipped'?'本批次未使用':'尚未添加';
-    if(rSkip){rSkip.hidden=rState==='added';rSkip.textContent=rState==='skipped'?'已跳过':'跳过';}
-
     const stats=typeof importAttachmentStats==='function'?importAttachmentStats():{total:0,matched:0,issues:0};
-    const aState=attachmentPreflightState(),aCount=attachmentPreparedFileCount(),refs=attachmentRequirementRefs();
-    const aBox=$('nmda-preflight-attachment-box'),aTitle=$('nmda-preflight-attachment-title'),aCopy=$('nmda-preflight-attachment-copy'),aStatus=$('nmda-preflight-attachment-status'),aReq=$('nmda-preflight-attachment-requirements'),aSkip=$('nmda-preflight-attachment-skip');
-    if(aBox)aBox.dataset.state=aState;
-    if(aTitle)aTitle.textContent=stats.total?`附件工作台 · ${stats.total} 项附件提示`:'附件工作台';
-    if(aCopy)aCopy.textContent=stats.total?`统一查看文件、匹配状态和发送范围。`:'需要附件时直接在工作台拖入并配置。';
-    if(aReq){aReq.innerHTML=refs.length?refs.slice(0,3).map(ref=>`<span>${escapeHtml(ref)}</span>`).join('')+(refs.length>3?`<span>+${refs.length-3}</span>`:''):'';aReq.hidden=!refs.length;}
-    if(aStatus)aStatus.textContent=aCount?`${aCount} 个文件${stats.issues?` · ${stats.issues} 项未匹配 · 不阻断`:' · 当前提示已匹配'}`:aState==='skipped'?'本批次暂未添加':stats.issues?`${stats.issues} 项提示`:'尚未添加';
-    if(aSkip){aSkip.hidden=!!aCount;aSkip.textContent=aState==='skipped'?'已跳过':'暂不添加';}
+    const supportUi=globalThis.NMDAWorkspaceImportUi.getSnapshot().support;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({support:{...supportUi,roster:{state:rosterContextState(),count:referenceRosterCount()},attachment:{state:attachmentPreflightState(),total:stats.total||0,issues:stats.issues||0,count:attachmentPreparedFileCount(),requirements:attachmentRequirementRefs()}}});
 
     renderAttachmentAssetViews();renderPreflightSourceRoles();
     if(visible&&!batch.sourceInspectName&&sourceDecisions.length&&window.matchMedia('(min-width: 821px)').matches){const first=sourceDecisions.find(item=>item.needsReview)||sourceDecisions[0];requestAnimationFrame(()=>{if(batch.supplementPreflightOpen&&!batch.sourceInspectName)inspectSourceInPreflight(first.sourceName);});}
@@ -5698,13 +5677,14 @@
     if(files.length)await loadRosterFiles(files);
   });
   window.addEventListener('nmda:preflight-action', event=>{
-    const action=event.detail;
+    const {action,view}=typeof event.detail==='string'?{action:event.detail}:event.detail||{};
     if(action==='files'||action==='support')setPreflightView(action);
     else if(action==='back'){batch.supplementPreflightOpen=false;renderSupplementPreflight();setImportStatus('已返回上传区。','ok');}
     else if(action==='complete')completeSupplementPreflight();
+    else if(action==='support-view')setSupportView(view);
+    else if(action==='attachments')openAttachmentManager();
   });
   $('nmda-preflight-source-search')?.addEventListener('input',event=>{batch.preflightSearch=String(event.target.value||'');renderPreflightSourceRoles();});
-  ui.querySelectorAll('button[data-support-view]').forEach(button=>button.addEventListener('click',()=>setSupportView(button.dataset.supportView)));
   ui.querySelectorAll('[data-planning-view]').forEach(button=>button.addEventListener('click',()=>setPlanningView(button.dataset.planningView)));
   $('nmda-open-schedule-modal')?.addEventListener('click',openScheduleModal);
   $('nmda-schedule-open-priority')?.addEventListener('click',()=>openRosterPlannerView({returnToSchedule:true}));
@@ -5747,8 +5727,6 @@
     zone.addEventListener('dragleave',event=>{if(!zone.contains(event.relatedTarget))zone.classList.remove('is-over');});
     zone.addEventListener('drop',event=>{event.preventDefault();zone.classList.remove('is-over');document.querySelector('.nmda-classify-dialog')?.classList.remove('is-drag-classifying');const source=event.dataTransfer?.getData('text/plain')||batch.sourceInspectName;if(!source)return;const purpose=zone.dataset.dropPurpose||'';if(purpose==='review')setSourceNeedsReview(source);else setSourcePurpose(source,purpose);});
   });
-  $('nmda-preflight-roster-skip')?.addEventListener('click',()=>{batch.rosterPromptChoice='skipped';renderImportLifecycleState();renderSupplementPreflight();});
-  $('nmda-preflight-attachment-skip')?.addEventListener('click',()=>{batch.attachmentPrepChoice='skipped';renderImportLifecycleState();renderSupplementPreflight();});
   $('nmda-attachment-later')?.addEventListener('click',()=>{
     batch.attachmentPromptDeferred=true;
     setImportStatus('附件检查已保留；可先处理邮件内容。','ok');

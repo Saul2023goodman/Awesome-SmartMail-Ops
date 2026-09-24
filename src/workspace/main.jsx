@@ -13,6 +13,7 @@ import SourceInventory from './SourceInventory.jsx';
 import { PreflightHead, PreflightNav, PreflightFoot } from './PreflightFrame.jsx';
 import { PreflightChips, PreflightFolders, PreflightFiles } from './PreflightSources.jsx';
 import PreflightInspector from './PreflightInspector.jsx';
+import PreflightSupport from './PreflightSupport.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -101,4 +102,8 @@ for (const [name, Component] of [['preflight-chips', PreflightChips], ['prefligh
 
 document.querySelectorAll('[data-workspace-mount="preflight-inspector"]').forEach(host => {
   createRoot(host).render(<StrictMode><PreflightInspector /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="preflight-support"]').forEach(host => {
+  createRoot(host).render(<StrictMode><PreflightSupport /></StrictMode>);
 });
