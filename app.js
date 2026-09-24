@@ -455,7 +455,7 @@
   const draftAttachmentTool = {
     drafts: [], groups: [], selectedKey: '', selectedDraftIds: new Set(), replacementFile: null,
     loading: false, running: false, stopping: false, cancelRequested: false, executionId: '',
-    scanned: false, complete: false, truncated: false, search: '', lastScanAt: ''
+    scanned: false
   };
   const draftAttachmentCancelListeners = new Map();
 
@@ -519,8 +519,8 @@
     activeUtilityView=normalized;
     const pane=ui.querySelector('[data-pane="utilities"]');
     if(pane)pane.dataset.utilityView=normalized;
-    const home=$('nmda-utilities-home');if(home)home.hidden=normalized!=='home';
-    ui.querySelectorAll('[data-utility-workspace]').forEach(section=>{section.hidden=section.dataset.utilityWorkspace!==normalized;});
+    const monitor=ui.querySelector('[data-utility-workspace="monitor"]');if(monitor)monitor.hidden=normalized!=='monitor';
+    globalThis.NMDAWorkspaceUtilityUi.publishPatch({activeView:normalized});
     if(normalized==='monitor')requestAnimationFrame(()=>{window.dispatchEvent(new Event('nmda:monitor-open')); });
     if(normalized==='draft-attachments')requestAnimationFrame(()=>{ if(!draftAttachmentTool.scanned&&!draftAttachmentTool.loading) void scanDraftAttachmentTool(); else renderDraftAttachmentTool(); });
     if(options.syncHash!==false){
@@ -560,7 +560,7 @@
 
   function setWorkbenchTab(name) {
     const current = currentWorkbenchTab();
-    if(name!=='dispatch'&&batch?.rosterPlannerOpen)closeRosterPlannerView({restoreFocus:false});
+    if(name!=='dispatch'&&rosterPlannerIsOpen())closeRosterPlannerView({restoreFocus:false});
     if (current !== name) Navigation.setTab(name);
     if (name === 'batch' && viewPerf.batchDirty) scheduleBatchRender();
     if (name === 'review') requestAnimationFrame(() => { if(reviewInlineEl)reviewInlineEl.hidden=false; void (async()=>{ await State.ensureOperations(); renderReviewPageOverview(); })(); });
@@ -634,7 +634,6 @@
   const batchStartEl = $('nmda-batch-start'), batchStopEl = $('nmda-batch-stop'), batchPauseEveryTimeEl = $('nmda-pause-every-time'), batchParagraphSpacingEl = $('nmda-compose-paragraph-spacing'), batchFastComposeEl = $('nmda-fast-compose');
   const scheduleStartDateEl = $('nmda-rule-start-date'), scheduleLocalTimeEl = $('nmda-rule-local-time'), scheduleTimeZoneEl = $('nmda-rule-time-zone'), scheduleWeekdayEls = [...ui.querySelectorAll('[data-schedule-weekday]')], scheduleSkipStartEl = $('nmda-rule-skip-start'), scheduleSkipEndEl = $('nmda-rule-skip-end'), scheduleMaxSchoolEl = $('nmda-rule-max-school'), scheduleSchoolIntervalEl = $('nmda-rule-school-interval'), schedulePreserveEl = $('nmda-rule-preserve-existing'), scheduleMailboxExistingEl = $('nmda-rule-include-mailbox-scheduled'), scheduleHolidayEl = $('nmda-rule-skip-holidays');
   const scheduleApplyEl = $('nmda-apply-schedule'), scheduleApplyHintEl=$('nmda-apply-schedule-hint'), scheduleClearEl = $('nmda-clear-auto-schedule'), scheduleSummaryEl = $('nmda-schedule-summary'), scheduleOutcomeEl=$('nmda-schedule-outcome'), scheduleGuideEl=$('nmda-schedule-guide'), scheduleRulePreviewEl = $('nmda-schedule-rule-preview'), schedulerCardEl = $('nmda-scheduler-card'), schedulerToggleLabelEl = $('nmda-scheduler-toggle-label');
-  const rosterPlannerViewEl=$('nmda-roster-planner-view'), rosterPlannerSourceEl=$('nmda-roster-planner-source'), rosterPlannerSummaryEl=$('nmda-roster-planner-summary'), rosterVisualGroupsEl=$('nmda-roster-visual-groups'), rosterSheetViewportEl=$('nmda-roster-sheet-viewport'), rosterSheetTableEl=$('nmda-roster-sheet-table'), rosterSelectionMiniEl=$('nmda-roster-selection-mini'), rosterColumnFocusEl=$('nmda-roster-column-focus'), rosterColumnToggleEl=$('nmda-roster-column-toggle'), rosterSelectionLabelEl=$('nmda-roster-selection-label'), rosterSelectionDetailEl=$('nmda-roster-selection-detail'), rosterActiveBatchEl=$('nmda-roster-active-batch'), rosterActiveBatchLabelEl=$('nmda-roster-active-batch-label'), rosterBatchAddEl=$('nmda-roster-batch-add'), rosterBatchCreateEl=$('nmda-roster-batch-create'), rosterBatchClearEl=$('nmda-roster-batch-clear'), rosterIntentSummaryEl=$('nmda-roster-intent-summary');
   const batchSearchEl = $('nmda-batch-search');
   const batchTagIncludeEl = $('nmda-batch-tag-include');
   function isCurrentBatchSession(token) { return Number(token) === Number(batch.sessionId); }
@@ -685,7 +684,6 @@
   }
   batch.scheduleRules = State.freshScheduleRules();
 
-  let rosterPlannerSelection=null, rosterPlannerSelectedRows=null, rosterPlannerSelectionKind='', rosterPlannerSelectionMeta='', rosterPlannerFeatureKey='', rosterPlannerAnchor=null, rosterPlannerDragging=false;
   function rosterPlannerSources(){
     if(!RosterPlanner)return[];
     const out=[],seen=new Set(),pushSet=(set,origin)=>{
@@ -707,193 +705,52 @@
     const sources=rosterPlannerSources();if(!sources.length)return null;
     const wanted=String(batch.rosterPlanner?.sourceKey||'');return sources.find(item=>item.key===wanted)||sources[0];
   }
-  function rosterPlannerColumnProjection(set){
-    const plan=RosterPlanner?.columnPlan?.(set)||{maxCols:Math.max(...(set?.rows||[]).map(row=>row?.length||0),1),autoHidden:new Set(),emptyHidden:new Set(),originalHidden:new Set(),relevant:new Set()};
-    const showAll=!!batch.rosterPlanner?.showIrrelevantColumns,hiddenCols=new Set(plan.originalHidden||[]);
-    if(!showAll){for(const c of plan.autoHidden||[])hiddenCols.add(c);for(const c of plan.emptyHidden||[])hiddenCols.add(c);}
-    return {plan,hiddenCols,showAll};
-  }
-  function rosterPlannerMergeMaps(set,hiddenCols=new Set(),hiddenRows=new Set()){
-    return RosterPlanner?.projectedMerges?.(set,{hiddenCols,hiddenRows})||{top:new Map(),covered:new Set()};
-  }
-  function rosterPlannerColumnWidths(set,maxCols){
-    const widths=Array.from({length:maxCols},(_,c)=>Math.min(280,Math.max(88,Math.max(...(set.rows||[]).slice(0,60).map(row=>String(row?.[c]??'').length),6)*7+24)));
-    for(const spec of set?.meta?.excelVisual?.colWidths||[]){const [a,b,width]=spec||[];for(let c=Math.max(0,a||0);c<=Math.min(maxCols-1,b||0);c++)widths[c]=Math.min(360,Math.max(54,Number(width||10)*7+8));}
-    return widths;
-  }
-  function renderRosterPlannerTable(set){
-    if(!rosterSheetTableEl)return;
-    const rows=set?.rows||[],visual=set?.meta?.excelVisual||{},maxRows=Math.min(rows.length,320),projection=rosterPlannerColumnProjection(set),plan=projection.plan,maxCols=Math.min(40,Math.max(Number(plan.maxCols||0),Number(visual.usedRange?.cols||0),...rows.slice(0,maxRows).map(row=>row?.length||0),1));
-    const hiddenRows=new Set(visual.hiddenRows||[]),hiddenColSet=projection.hiddenCols,widths=rosterPlannerColumnWidths(set,maxCols),merge=rosterPlannerMergeMaps(set,hiddenColSet,hiddenRows),styleCache=RosterPlanner.styleLookup(set);
-    const visibleCols=[];for(let c=0;c<maxCols;c++)if(!hiddenColSet.has(c))visibleCols.push(c);
-    const rowBatch=new Map();
-    for(const entry of rosterPlannerEntriesForSet(set)){
-      const row=Math.max(0,Number(entry?.sourceRow||0)-1),label=rosterPlannerEffectiveBatch(entry);if(label)rowBatch.set(row,label);
-    }
-    let html='<colgroup><col style="width:52px">'+visibleCols.map(c=>`<col style="width:${Math.round(widths[c])}px">`).join('')+'</colgroup><thead><tr><th class="nmda-roster-corner"></th>';
-    for(const c of visibleCols)html+=`<th class="nmda-roster-colhead" data-col="${c}">${RosterPlanner.columnLabel(c)}</th>`;html+='</tr></thead><tbody>';
-    for(let r=0;r<maxRows;r++){
-      if(hiddenRows.has(r))continue;
-      const rowHeight=Number(visual.rowHeights?.[r]||0),trStyle=rowHeight?`height:${Math.max(22,Math.min(110,rowHeight*1.333))}px;`:'';
-      const batchLabel=rowBatch.get(r)||'';
-      html+=`<tr style="${trStyle}"${batchLabel?` data-roster-row-batch="${escapeHtml(batchLabel)}"`:''}><th class="nmda-roster-rowhead" data-row="${r}"><span>${r+1}</span>${batchLabel?`<b>${escapeHtml(batchLabel)}</b>`:''}</th>`;
-      for(const c of visibleCols){
-        if(merge.covered.has(`${r}:${c}`))continue;
-        const span=merge.top.get(`${r}:${c}`)||{},sourceAnchor=span.anchor||[r,c],sr=Number(sourceAnchor[0]),sc=Number(sourceAnchor[1]),style=RosterPlanner.styleAt(set,sr,sc,styleCache),css=RosterPlanner.cssForStyle(style),value=String(rows[sr]?.[sc]??rows[r]?.[c]??'');
-        const spanAttrs=`${span.rowSpan>1?` rowspan="${span.rowSpan}"`:''}${span.colSpan>1?` colspan="${span.colSpan}"`:''}`;
-        const mergeData=span.source?` data-merge-r1="${span.source[0]}" data-merge-c1="${span.source[1]}" data-merge-r2="${span.source[2]}" data-merge-c2="${span.source[3]}"`:'';
-        html+=`<td data-roster-cell data-row="${r}" data-col="${c}"${spanAttrs}${mergeData} style="${css}"><span>${escapeHtml(value)}</span></td>`;
-      }
-      html+='</tr>';
-    }
-    html+='</tbody>';rosterSheetTableEl.innerHTML=html;paintRosterPlannerSelection();
-    const autoHiddenCount=(plan.autoHidden?.size||0)+(plan.emptyHidden?.size||0);
-    if(rosterColumnFocusEl){
-      rosterColumnFocusEl.textContent=projection.showAll?'全部列':'主要列';
-      rosterColumnFocusEl.title=projection.showAll?'当前显示全部可见列':'当前只显示姓名、邮箱、院校和排期相关主要列';
-    }
-    if(rosterColumnToggleEl){
-      rosterColumnToggleEl.hidden=!autoHiddenCount;rosterColumnToggleEl.textContent=projection.showAll?'只看主要列':'查看全部列';
-      rosterColumnToggleEl.setAttribute('aria-pressed',projection.showAll?'true':'false');
-    }
-  }
   function rosterPlannerSelectionEntries(){
     const current=rosterPlannerCurrentSource();if(!current)return[];
     const entries=rosterPlannerEntriesForSet(current.set);
-    if(rosterPlannerSelectedRows?.size){return entries.filter(entry=>rosterPlannerSelectedRows.has(Number(entry?.sourceRow||0)-1)).sort((a,b)=>Number(a.sourceRow||0)-Number(b.sourceRow||0));}
-    if(!rosterPlannerSelection)return[];
-    return RosterPlanner.entriesForRange(entries,current.set,rosterPlannerSelection);
-  }
-  function rosterPlannerExplicitBatch(entry){
-    if(!entry)return'';
-    if(RosterPlanner?.explicitPriorityRound)return String(RosterPlanner.explicitPriorityRound(entry)||'').trim();
-    if(RosterPlanner?.explicitBatch)return String(RosterPlanner.explicitBatch(entry)||'').trim();
-    const raw=String(entry?.priorityRound||entry?.batch||'').trim();return RosterPlanner?.parseRound?.(raw)!=null?raw:'';
-  }
-  function rosterPlannerEffectiveBatch(entry){
-    const intent=RosterPlanner?.intentForEntry?.(batch.rosterPlanner,entry)||null;
-    if(intent?.priorityRoundSuppressed||intent?.batchSuppressed)return'';
-    return String(intent?.priorityRoundLabel||intent?.batch||rosterPlannerExplicitBatch(entry)||'').trim();
-  }
-  function rosterPlannerFeatureGroups(set,entries=rosterPlannerEntriesForSet(set)){
-    if(!set||!RosterPlanner)return[];
-    const entryRows=new Set(entries.map(entry=>Math.max(0,Number(entry?.sourceRow||0)-1)));
-    const firstRow=entryRows.size?Math.min(...entryRows):1;
-    const groups=(RosterPlanner.featureGroups?.(set,{rows:entryRows,startRow:firstRow})||RosterPlanner.visualGroups?.(set,{startRow:firstRow})||[]);
-    return groups.map(group=>{
-      const rowSet=new Set(group.rows||[]),matched=entries.filter(entry=>rowSet.has(Number(entry?.sourceRow||0)-1));
-      return {...group,key:group.key||`fill:${group.fill||group.value||''}`,kind:group.kind||'fill',value:group.value||group.fill||'',entries:matched};
-    }).filter(group=>group.entries.length);
-  }
-  function rosterPlannerBatchCounts(entries=[]){
-    const known=RosterPlanner?.knownBatches?.(batch.rosterPlanner,entries)||[];
-    const counts=new Map(known.map(label=>[label,0]));let unassigned=0,fixed=0;
-    for(const entry of entries){
-      const label=rosterPlannerEffectiveBatch(entry);
-      if(label){counts.set(label,(counts.get(label)||0)+1);continue;}
-      if(String(entry?.scheduleAt||'').trim()){fixed++;continue;}
-      unassigned++;
-    }
-    const ordered=[...counts.entries()].sort((a,b)=>{const an=RosterPlanner?.parseRound?.(a[0]),bn=RosterPlanner?.parseRound?.(b[0]);return (an??999)-(bn??999)||a[0].localeCompare(b[0]);});
-    return {ordered,unassigned,fixed,known};
+    const selection=globalThis.NMDAWorkspacePlanningUi.getSnapshot().rosterPlanner.selection;
+    return globalThis.NMDAWorkspaceRosterPlannerModel.selectedEntries(entries,current.set,selection);
   }
   function rosterPlannerActiveBatch(){return String(batch.rosterPlanner?.activePriorityRound||batch.rosterPlanner?.activeBatch||'').trim();}
-  function paintRosterPlannerSelection(){
-    if(!rosterSheetTableEl)return;const range=RosterPlanner?.normalizeRange?.(rosterPlannerSelection),selectedRows=rosterPlannerSelectedRows;
-    rosterSheetTableEl.querySelectorAll('[data-roster-cell]').forEach(cell=>{
-      const r=Number(cell.dataset.row),c=Number(cell.dataset.col),selected=selectedRows?.size?selectedRows.has(r):!!range&&r>=range.r1&&r<=range.r2&&c>=range.c1&&c<=range.c2;
-      cell.classList.toggle('is-selected',selected);
-    });
-    rosterSheetTableEl.querySelectorAll('.nmda-roster-rowhead').forEach(head=>{
-      const r=Number(head.dataset.row),selected=selectedRows?.size?selectedRows.has(r):!!range&&r>=range.r1&&r<=range.r2;
-      head.classList.toggle('is-selected',selected);
-    });
-    const entries=rosterPlannerSelectionEntries();
-    let label='尚未选择';
-    if(selectedRows?.size){
-      if(rosterPlannerSelectionKind==='batch')label=`${rosterPlannerSelectionMeta||'同校优先级'} · ${entries.length} 位`;
-      else if(rosterPlannerSelectionKind==='unassigned')label=`待分 · ${entries.length} 位`;
-      else if(rosterPlannerSelectionKind==='fixed')label=`固定时间 · ${entries.length} 位`;
-      else if(rosterPlannerSelectionKind==='feature')label=`${rosterPlannerSelectionMeta||'特征'} · ${entries.length} 位`;
-      else label=`已选择 · ${entries.length} 位`;
-    }else if(range)label=`框选 ${RosterPlanner.rangeLabel(range)} · ${entries.length} 位`;
-    if(rosterSelectionMiniEl)rosterSelectionMiniEl.textContent=label;
-    if(rosterSelectionLabelEl)rosterSelectionLabelEl.textContent=label;
-    const active=rosterPlannerActiveBatch();
-    if(rosterSelectionDetailEl){
-      rosterSelectionDetailEl.textContent=entries.length
-        ? (active?`已选联系人；加入 ${active} 后会直接在名单中标记。`:'已选联系人；先新建一个同校优先级，再加入。')
-        : (selectedRows?.size||range?'当前选择没有命中可识别联系人。':'新建同校优先级后，可按每行主导颜色 / 格式快速选人，也可直接框选。');
-    }
-    if(rosterActiveBatchEl)rosterActiveBatchEl.dataset.state=active?'ready':'empty';
-    if(rosterActiveBatchLabelEl)rosterActiveBatchLabelEl.textContent=active||'未创建';
-    if(rosterBatchAddEl){rosterBatchAddEl.disabled=!entries.length||!active;rosterBatchAddEl.textContent=active?`加入 ${active}`:'先新建轮次';}
-    if(rosterBatchClearEl)rosterBatchClearEl.disabled=!entries.length||!entries.some(entry=>!!rosterPlannerEffectiveBatch(entry));
-  }
-  function rosterFeatureChip(group,index){
-    const count=group.entries?.length||0,key=escapeHtml(group.key||''),active=rosterPlannerFeatureKey===group.key?' is-active':'';
-    if(group.kind==='fill'){const variants=Array.isArray(group.variants)?group.variants.length:1,hint=variants>1?`相近色已合并 ${variants} 种原始颜色 · `:'';return `<button class="nmda-roster-visual-chip${active}" type="button" data-roster-feature-index="${index}" title="${escapeHtml(hint)}选择这一颜色族的 ${count} 位联系人"><i style="background:${escapeHtml(group.value||group.fill||'#fff')}"></i><span>${variants>1?'近似色':'颜色'}</span><b>${count}</b></button>`;}
-    if(group.kind==='font-color')return `<button class="nmda-roster-visual-chip${active}" type="button" data-roster-feature-index="${index}" title="选择这一字体颜色的 ${count} 位联系人"><i class="is-font-color" style="color:${escapeHtml(group.value||'#334155')}">A</i><span>字体色</span><b>${count}</b></button>`;
-    if(group.kind==='bold')return `<button class="nmda-roster-visual-chip${active}" type="button" data-roster-feature-index="${index}" title="选择加粗的 ${count} 位联系人"><i class="is-format-mark"><strong>B</strong></i><span>加粗</span><b>${count}</b></button>`;
-    if(group.kind==='italic')return `<button class="nmda-roster-visual-chip${active}" type="button" data-roster-feature-index="${index}" title="选择斜体的 ${count} 位联系人"><i class="is-format-mark"><em>I</em></i><span>斜体</span><b>${count}</b></button>`;
-    return `<button class="nmda-roster-visual-chip${active}" type="button" data-roster-feature-index="${index}" title="选择具有相同格式特征的 ${count} 位联系人"><i class="is-border-mark"></i><span>边框</span><b>${count}</b></button>`;
+  function rosterPlannerIsOpen(){return !!globalThis.NMDAWorkspacePlanningUi.getSnapshot().rosterPlanner.visible;}
+  function publishRosterPlannerSelection(selection){
+    const snapshot=globalThis.NMDAWorkspacePlanningUi.getSnapshot(),view=snapshot.rosterPlanner;
+    const current=rosterPlannerCurrentSource(),entries=current?rosterPlannerEntriesForSet(current.set):[];
+    const selectionView=globalThis.NMDAWorkspaceRosterPlannerModel.buildSelectionView(entries,current?.set||null,batch.rosterPlanner,selection,rosterPlannerActiveBatch());
+    globalThis.NMDAWorkspacePlanningUi.publishPatch({rosterPlanner:{...view,selection,selectionView}});
   }
   function renderRosterPlanner(){
-    if(!rosterPlannerViewEl||!RosterPlanner)return;
+    if(!RosterPlanner)return;
     batch.rosterPlanner=RosterPlanner.createState(batch.rosterPlanner);
     const sources=rosterPlannerSources();
-    if(rosterPlannerSourceEl){rosterPlannerSourceEl.innerHTML=sources.map(item=>`<option value="${escapeHtml(item.key)}">${escapeHtml(item.set.source||'Excel')} · ${escapeHtml(item.set.name||'Sheet')}</option>`).join('');rosterPlannerSourceEl.disabled=!sources.length;}
-    if(!sources.length){
-      if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.textContent='未找到可用于设置同校优先级的 XLSX 总名单';
-      if(rosterSheetTableEl)rosterSheetTableEl.innerHTML='<tbody><tr><td class="nmda-roster-empty-sheet">未找到总名单</td></tr></tbody>';
-      if(rosterVisualGroupsEl)rosterVisualGroupsEl.innerHTML='<span class="nmda-roster-visual-label">没有名单特征可选择</span>';
-      if(rosterIntentSummaryEl)rosterIntentSummaryEl.innerHTML='<div class="nmda-roster-batch-overview-empty">没有总名单时仍可直接使用时间安排。</div>';
-      paintRosterPlannerSelection();return;
-    }
-    let current=rosterPlannerCurrentSource();if(!current)current=sources[0];batch.rosterPlanner.sourceKey=current.key;if(rosterPlannerSourceEl)rosterPlannerSourceEl.value=current.key;
-    const set=current.set,entries=rosterPlannerEntriesForSet(set),groups=rosterPlannerFeatureGroups(set,entries),batchCounts=rosterPlannerBatchCounts(entries);
-    const assigned=batchCounts.ordered.reduce((sum,item)=>sum+item[1],0);
-    if(rosterPlannerSummaryEl)rosterPlannerSummaryEl.innerHTML=`<strong>${entries.length}</strong><span>联系人</span><i></i><b>${assigned}</b><span>已设优先级</span>${batchCounts.fixed?`<i></i><b>${batchCounts.fixed}</b><span>固定时间</span>`:''}<i></i><b>${batchCounts.unassigned}</b><span>未设置 · 可选</span>`;
-    if(rosterVisualGroupsEl)rosterVisualGroupsEl.innerHTML=groups.length?groups.slice(0,24).map(rosterFeatureChip).join(''):'<span class="nmda-roster-visual-label">没有可复用的格式特征，直接框选即可</span>';
-    renderRosterPlannerTable(set);
-    if(rosterIntentSummaryEl){
-      const active=rosterPlannerActiveBatch(),isUnassigned=rosterPlannerSelectionKind==='unassigned',isFixed=rosterPlannerSelectionKind==='fixed';
-      const segments=batchCounts.ordered.map(([label,count])=>{
-        const explicit=entries.some(entry=>rosterPlannerExplicitBatch(entry)===label),title=explicit?'Excel 中有明确同校优先级；点击查看成员':'你新建的同校优先级；点击查看成员';
-        return `<button type="button" class="nmda-roster-batch-segment${active===label?' is-active':''}" data-roster-batch-focus="${escapeHtml(label)}" style="--weight:${Math.max(1,count)}" title="${escapeHtml(title)}"><span>${escapeHtml(label)}</span><b>${count}</b></button>`;
-      }).join('');
-      const fixed=batchCounts.fixed?`<button type="button" class="nmda-roster-batch-segment is-fixed${isFixed?' is-active':''}" data-roster-batch-focus="__fixed__" style="--weight:${Math.max(1,batchCounts.fixed)}" title="Excel 中已有明确发送时间；该时间直接进入排期，不再由同校优先级决定日期"><span>固定时间</span><b>${batchCounts.fixed}</b></button>`:'';
-      const unassigned=batchCounts.unassigned?`<button type="button" class="nmda-roster-batch-segment is-unassigned${isUnassigned?' is-active':''}" data-roster-batch-focus="__unassigned__" style="--weight:${Math.max(1,batchCounts.unassigned)}" title="未设置同校优先级（可选）；不影响排期"><span>未设置 · 可选</span><b>${batchCounts.unassigned}</b></button>`:'';
-      const empty=!segments?'<div class="nmda-roster-batch-empty-state"><strong>未设置同校优先级</strong><span>这是可选项；需要控制同校先后时再新建 R1/R2…。</span></div>':'';
-      rosterIntentSummaryEl.innerHTML=`<div class="nmda-roster-batch-overview-title"><strong>同校优先级 · 可选</strong><span>${assigned} 已设 · ${batchCounts.unassigned} 未设置</span></div><div class="nmda-roster-batch-track">${segments}${fixed}${unassigned}${empty}</div><small>不设置也可直接排期；设置后仅约束同校先后。相近颜色只用于辅助选人，R1/R2 不代表发送日期。</small>`;
-    }
-    paintRosterPlannerSelection();
+    const existing=globalThis.NMDAWorkspacePlanningUi.getSnapshot().rosterPlanner;
+    const view=globalThis.NMDAWorkspaceRosterPlannerModel.build({sources,state:batch.rosterPlanner,selection:existing.selection,visible:!!existing.visible,returnToSchedule:!!existing.returnToSchedule});
+    batch.rosterPlanner.sourceKey=view.selectedSourceKey||'';
+    globalThis.NMDAWorkspacePlanningUi.publishPatch({rosterPlanner:view});
   }
   function openRosterPlannerView({returnToSchedule=false}={}){
     if(!dispatchTasks().length){setBatchStatus('暂无待发送邮件；请先在“审阅邮件”确认邮件已就绪。','warn');return;}
-    if(returnToSchedule)batch.rosterPlannerReturnToSchedule=true;
     closeScheduleModal({restoreFocus:false});
-    batch.rosterPlannerOpen=true;
     if(dispatchPaneHost)dispatchPaneHost.classList.add('is-roster-planning');
-    if(rosterPlannerViewEl)rosterPlannerViewEl.hidden=false;
+    const snapshot=globalThis.NMDAWorkspacePlanningUi.getSnapshot();
+    globalThis.NMDAWorkspacePlanningUi.publishPatch({rosterPlanner:{...snapshot.rosterPlanner,visible:true,returnToSchedule:!!returnToSchedule}});
     renderRosterPlanner();
-    requestAnimationFrame(()=>rosterSheetViewportEl?.focus?.({preventScroll:true}));
+    requestAnimationFrame(()=>ui.querySelector('#nmda-roster-sheet-viewport')?.focus?.({preventScroll:true}));
   }
   function closeRosterPlannerView({restoreFocus=true}={}){
-    const returnToSchedule=!!batch.rosterPlannerReturnToSchedule;
-    batch.rosterPlannerReturnToSchedule=false;
-    batch.rosterPlannerOpen=false;
+    const snapshot=globalThis.NMDAWorkspacePlanningUi.getSnapshot();
+    const returnToSchedule=!!snapshot.rosterPlanner.returnToSchedule;
     if(dispatchPaneHost)dispatchPaneHost.classList.remove('is-roster-planning');
-    if(rosterPlannerViewEl)rosterPlannerViewEl.hidden=true;
+    globalThis.NMDAWorkspacePlanningUi.publishPatch({rosterPlanner:{...snapshot.rosterPlanner,visible:false,returnToSchedule:false}});
     if(returnToSchedule){openScheduleModal();return;}
     if(restoreFocus)requestAnimationFrame(()=>$('nmda-open-schedule-modal')?.focus?.({preventScroll:true}));
   }
   function clearRosterPlannerSelection(){
-    rosterPlannerSelection=null;rosterPlannerSelectedRows=null;rosterPlannerSelectionKind='';rosterPlannerSelectionMeta='';rosterPlannerFeatureKey='';rosterPlannerAnchor=null;rosterPlannerDragging=false;paintRosterPlannerSelection();renderRosterPlanner();
+    publishRosterPlannerSelection(null);renderRosterPlanner();
   }
   function createRosterPlannerBatch(){
     const current=rosterPlannerCurrentSource();if(!current||!RosterPlanner)return;
-    const entries=rosterPlannerEntriesForSet(current.set),created=(RosterPlanner.createPriorityRound?.(batch.rosterPlanner,entries)||RosterPlanner.createBatch?.(batch.rosterPlanner,entries))||null;if(!created)return;
+    const entries=rosterPlannerEntriesForSet(current.set),created=RosterPlanner.createPriorityRound(batch.rosterPlanner,entries);if(!created)return;
     batch.rosterPlanner=created.state;batch.handoffComplete=false;batch.schedulePlan=null;State.schedulePersist();renderRosterPlanner();
     setBatchStatus(`已新建同校优先级 ${created.label}。现在按行主导颜色 / 格式选择，或框选联系人后加入该优先级。`,'ok');
   }
@@ -901,11 +758,12 @@
     const current=rosterPlannerCurrentSource();if(!current||!RosterPlanner)return;
     const targets=rosterPlannerSelectionEntries();if(!targets.length){setBatchStatus('请先按行主导颜色 / 格式选择，或在名单上框选联系人。','warn');return;}
     const targetLabel=clear?'':String(label||rosterPlannerActiveBatch()||'').trim();if(!clear&&!targetLabel){setBatchStatus('请先新建一个同校优先级。','warn');return;}
-    const source=rosterPlannerSelectionKind==='feature'?'feature-selection':rosterPlannerSelectionKind==='batch'||rosterPlannerSelectionKind==='unassigned'?'batch-review':'box-selection';
-    const result=(RosterPlanner.applyPriorityRoundToEntries||RosterPlanner.applyBatchToEntries)(batch.rosterPlanner,targets,current.set,{batch:targetLabel,clear,evidenceSource:source});
+    const selection=globalThis.NMDAWorkspacePlanningUi.getSnapshot().rosterPlanner.selection;
+    const source=selection?.kind==='feature'?'feature-selection':selection?.kind==='batch'||selection?.kind==='unassigned'?'batch-review':'box-selection';
+    const result=RosterPlanner.applyPriorityRoundToEntries(batch.rosterPlanner,targets,current.set,{batch:targetLabel,clear,evidenceSource:source});
     if(result.warning){setBatchStatus(result.warning,'warn');return;}
     batch.rosterPlanner=result.state;batch.handoffComplete=false;batch.schedulePlan=null;
-    if(rosterPlannerSelectionKind==='batch'||rosterPlannerSelectionKind==='unassigned'){rosterPlannerSelectionKind=clear?'unassigned':'batch';rosterPlannerSelectionMeta=clear?'':targetLabel;}
+    if(selection?.kind==='batch'||selection?.kind==='unassigned')publishRosterPlannerSelection({...selection,kind:clear?'unassigned':'batch',meta:clear?'':targetLabel});
     State.schedulePersist();
     if(batch.dataset)rebuildTasks();renderRosterPlanner();renderScheduleCenter();
     setBatchStatus(clear?`已将 ${result.targets.length} 位联系人移出同校优先级。`:`已将 ${result.targets.length} 位联系人设为 ${targetLabel}。`,'ok');
@@ -1565,13 +1423,13 @@
   }
 
   function setDraftAttachmentUtilityResult(message,tone='ok'){
-    const el=$('nmda-draft-attachment-result');if(!el)return;
-    el.hidden=!message;el.dataset.tone=tone;el.textContent=message||'';
+    const snapshot=globalThis.NMDAWorkspaceUtilityUi.getSnapshot();
+    globalThis.NMDAWorkspaceUtilityUi.publishPatch({draftAttachment:{...snapshot.draftAttachment,result:{message:String(message||''),tone}}});
   }
 
   function setDraftAttachmentProgress(message,tone=''){
-    const el=$('nmda-draft-attachment-progress');if(!el)return;
-    el.hidden=!message;el.dataset.tone=tone;el.textContent=message||'';
+    const snapshot=globalThis.NMDAWorkspaceUtilityUi.getSnapshot();
+    globalThis.NMDAWorkspaceUtilityUi.publishPatch({draftAttachment:{...snapshot.draftAttachment,progress:{message:String(message||''),tone}}});
   }
 
   const DRAFT_ATTACHMENT_MOTION_ORDER=['read','clone','attachments','verify','swap'];
@@ -1592,38 +1450,34 @@
   }
 
   function setDraftAttachmentMotion(payload={}){
-    const root=$('nmda-draft-attachment-motion');if(!root)return;
-    // Keep motion rendering self-contained. The old implementation accidentally
-    // called renderDraftAttachmentTool()'s local setText helper from here, which
-    // is outside that helper's lexical scope. Any selection/file-change action
-    // therefore mutated state first, then threw `ReferenceError: setText is not
-    // defined` before the current view could re-render. Leaving and re-entering
-    // the utility appeared to "fix" it only because the mutated state survived.
-    const writeText=(id,value)=>{const el=$(id);if(el)el.textContent=String(value??'');};
+    const snapshot=globalThis.NMDAWorkspaceUtilityUi.getSnapshot(),current=snapshot.draftAttachment.motion;
     const phase=normalizeDraftAttachmentMotionPhase(payload.phase||'read');
-    root.hidden=payload.hidden===true;
-    root.dataset.phase=phase;
-    if(payload.oldName!=null)writeText('nmda-draft-motion-old-file',payload.oldName||'旧附件');
-    if(payload.newName!=null)writeText('nmda-draft-motion-new-file',payload.newName||'新版附件');
-    if(payload.subject!=null)writeText('nmda-draft-motion-subject',payload.subject||'当前草稿');
-    if(payload.message!=null)writeText('nmda-draft-motion-message',payload.message||'');
-    if(payload.current!=null||payload.total!=null){
-      const current=Number(payload.current||0),total=Number(payload.total||0);
-      writeText('nmda-draft-motion-count',`${Math.max(0,current)} / ${Math.max(0,total)}`);
-    }
-    writeText('nmda-draft-motion-title',DRAFT_ATTACHMENT_MOTION_LABELS[phase]||'附件更新');
+    const stageLabels={read:'读取原稿',clone:'创建新稿',attachments:'更新附件',verify:'核对内容',swap:'完成替换'};
     const stagePhase=phase==='seed'?'read':phase==='done'?'swap':phase;
     const activeIndex=DRAFT_ATTACHMENT_MOTION_ORDER.indexOf(stagePhase);
-    root.querySelectorAll('[data-draft-motion-stage]').forEach((node,index)=>{
-      node.classList.toggle('is-active',phase!=='done'&&phase!=='error'&&index===activeIndex);
-      node.classList.toggle('is-complete',phase==='done'||index<activeIndex);
-      node.classList.toggle('is-error',phase==='error'&&index===Math.max(0,activeIndex));
-    });
+    const count=payload.current!=null||payload.total!=null?`${Math.max(0,Number(payload.current||0))} / ${Math.max(0,Number(payload.total||0))}`:current.count;
+    const motion={
+      visible:payload.hidden!==true,
+      phase,
+      title:DRAFT_ATTACHMENT_MOTION_LABELS[phase]||'附件更新',
+      count,
+      oldName:payload.oldName!=null?(payload.oldName||'旧附件'):current.oldName,
+      newName:payload.newName!=null?(payload.newName||'新版附件'):current.newName,
+      subject:payload.subject!=null?(payload.subject||'当前草稿'):current.subject,
+      message:payload.message!=null?(payload.message||''):current.message,
+      stages:DRAFT_ATTACHMENT_MOTION_ORDER.map((key,index)=>({
+        key,label:stageLabels[key],
+        active:phase!=='done'&&phase!=='error'&&index===activeIndex,
+        complete:phase==='done'||index<activeIndex,
+        error:phase==='error'&&index===Math.max(0,activeIndex)
+      }))
+    };
+    globalThis.NMDAWorkspaceUtilityUi.publishPatch({draftAttachment:{...snapshot.draftAttachment,motion}});
   }
 
   function renderUtilityHubSummary(){
     const summary=draftAttachmentTool.loading?'正在读取草稿箱':draftAttachmentTool.scanned?`${draftAttachmentTool.drafts.length} 封草稿 · ${draftAttachmentTool.groups.length} 组附件`:'读取草稿箱';
-    window.dispatchEvent(new CustomEvent('nmda:draft-attachment-summary',{detail:summary}));
+    globalThis.NMDAWorkspaceUtilityUi.publishPatch({draftAttachmentSummary:summary});
   }
 
   async function scanDraftAttachmentTool(options={}){
@@ -1635,7 +1489,6 @@
       const result=await Runtime.scanDraftAttachments();
       if(!result?.ok)throw new Error(result?.reason||'读取草稿箱失败');
       draftAttachmentTool.drafts=(result.drafts||[]).filter(Boolean);
-      draftAttachmentTool.complete=!!result.complete;draftAttachmentTool.truncated=!!result.truncated;draftAttachmentTool.lastScanAt=new Date().toISOString();
       rebuildDraftAttachmentGroups();
       setDraftAttachmentProgress('');
       if(result.failures)setDraftAttachmentUtilityResult(`已读取 ${result.read||draftAttachmentTool.drafts.length} 封草稿；其中 ${result.failures} 封详情读取失败，未纳入附件替换。`,'warn');
@@ -1653,48 +1506,35 @@
     const selected=selectedDraftAttachmentGroup();
     const targets=draftAttachmentTargets(selected);
     const selectedCount=targets.filter(item=>draftAttachmentTool.selectedDraftIds.has(String(item.draft.id||''))).length;
-    const setText=(id,value)=>{const el=$(id);if(el)el.textContent=String(value);};
-    setText('nmda-draft-attachment-draft-count',draftAttachmentTool.drafts.length);
-    setText('nmda-draft-attachment-mail-count',withAttachments);
-    setText('nmda-draft-attachment-version-count',groups.length);
-    setText('nmda-draft-attachment-target-count',selectedCount);
-    const empty=$('nmda-draft-attachment-empty'),list=$('nmda-draft-attachment-groups');
-    const q=String(draftAttachmentTool.search||'').trim().toLowerCase();
-    const visibleGroups=groups.filter(group=>!q||group.name.toLowerCase().includes(q));
-    if(list){
-      list.innerHTML=visibleGroups.map(group=>`<button type="button" class="nmda-draft-attachment-group ${group.key===draftAttachmentTool.selectedKey?'is-active':''}" data-draft-attachment-group="${encodeURIComponent(group.key)}"><span><strong>${escapeHtml(group.name)}</strong><small>${escapeHtml(formatAttachmentSize({size:group.size}))}</small></span><span><b>${group.draftIds.size}</b><small>封草稿${group.scheduled?` · ${group.scheduled} 封已定时`:''}</small></span></button>`).join('');
-      list.querySelectorAll('[data-draft-attachment-group]').forEach(button=>button.addEventListener('click',()=>{
-        const key=decodeURIComponent(button.dataset.draftAttachmentGroup||'');
-        draftAttachmentTool.selectedKey=key;draftAttachmentTool.replacementFile=null;draftAttachmentTool.selectedDraftIds=new Set(draftAttachmentTargets(groups.find(group=>group.key===key)).map(item=>String(item.draft.id||'')));
-        setDraftAttachmentUtilityResult('');setDraftAttachmentMotion({hidden:true});renderDraftAttachmentTool();
-      }));
-    }
-    if(empty){empty.hidden=!!visibleGroups.length||draftAttachmentTool.loading;empty.textContent=draftAttachmentTool.loading?'正在读取草稿箱…':groups.length?'没有符合搜索条件的附件。':'草稿箱中没有可替换的普通附件。';}
-    const title=$('nmda-draft-attachment-plan-title'),copy=$('nmda-draft-attachment-plan-copy');
-    if(title)title.textContent=selected?`替换：${selected.name}`:'选择一个旧附件版本';
-    if(copy)copy.textContent=selected?`${selected.draftIds.size} 封草稿包含这个版本${selected.scheduled?`，其中 ${selected.scheduled} 封已定时；排期会保持不变。`: '。'}`:'系统会列出所有包含该旧附件的草稿。';
-    const targetList=$('nmda-draft-attachment-targets');
-    if(targetList){
-      targetList.innerHTML=selected?`<label class="nmda-draft-attachment-select-all"><input id="nmda-draft-attachment-select-all" type="checkbox" ${selectedCount===targets.length&&targets.length?'checked':''}><span>更新全部 ${targets.length} 封匹配草稿</span></label>`+targets.map(item=>{
-        const draft=item.draft,id=String(draft.id||''),checked=draftAttachmentTool.selectedDraftIds.has(id);
-        const recipient=String(draft.recipients||draft.toRaw||'').trim()||'未识别收件人';
-        return `<label class="nmda-draft-attachment-target"><input type="checkbox" data-draft-attachment-target="${escapeHtml(id)}" ${checked?'checked':''}><span><strong>${escapeHtml(draft.subject||'(无主题)')}</strong><small>${escapeHtml(recipient)}${draft.scheduleAt?` · 已定时 ${escapeHtml(String(draft.scheduleAt).replace('T',' '))}`:''}</small></span><b>${item.attachments.length>1?`${item.attachments.length} 个同版本附件`:'1 个附件'}</b></label>`;
-      }).join(''):'<div class="nmda-draft-attachment-target-empty">选择左侧旧附件后，这里会显示受影响的草稿。</div>';
-      targetList.querySelector('#nmda-draft-attachment-select-all')?.addEventListener('change',event=>{draftAttachmentTool.selectedDraftIds=new Set(event.target.checked?targets.map(item=>String(item.draft.id||'')):[]);renderDraftAttachmentTool();});
-      targetList.querySelectorAll('[data-draft-attachment-target]').forEach(input=>input.addEventListener('change',()=>{const id=String(input.dataset.draftAttachmentTarget||'');if(input.checked)draftAttachmentTool.selectedDraftIds.add(id);else draftAttachmentTool.selectedDraftIds.delete(id);renderDraftAttachmentTool();}));
-    }
-    const drop=$('nmda-draft-attachment-drop'),file=draftAttachmentTool.replacementFile;
-    if(drop)drop.disabled=!selected||draftAttachmentTool.running;
-    setText('nmda-draft-attachment-new-name',file?file.name:'选择新版附件');
-    setText('nmda-draft-attachment-new-meta',file?`${formatAttachmentSize(file)} · 只需选择一次；每封都会先核对新草稿，再替换旧草稿。`:'只需选择一次；每封都会先核对新草稿，再替换旧草稿。');
-    const run=$('nmda-draft-attachment-run');
-    if(run){
-      run.disabled=!selected||!file||!selectedCount||draftAttachmentTool.running;
-      run.textContent=draftAttachmentTool.running?(draftAttachmentTool.stopping?'正在停止…':'正在更新草稿…'):`更新 ${selectedCount||0} 封草稿`;
-    }
-    const cancel=$('nmda-draft-attachment-cancel');
-    if(cancel){cancel.hidden=!draftAttachmentTool.running;cancel.disabled=!draftAttachmentTool.running||draftAttachmentTool.cancelRequested;cancel.textContent=draftAttachmentTool.cancelRequested?'正在停止…':'停止本次更新';}
-    const refresh=$('nmda-draft-attachment-refresh');if(refresh)refresh.disabled=draftAttachmentTool.loading||draftAttachmentTool.running;
+    const previous=globalThis.NMDAWorkspaceUtilityUi.getSnapshot().draftAttachment;
+    const file=draftAttachmentTool.replacementFile;
+    const groupsForUi=groups.map(group=>({key:group.key,name:group.name,sizeLabel:formatAttachmentSize({size:group.size}),draftCount:group.draftIds.size,scheduled:group.scheduled}));
+    const targetsForUi=targets.map(item=>{
+      const draft=item.draft,id=String(draft.id||'');
+      return {id,subject:draft.subject||'(无主题)',recipient:String(draft.recipients||draft.toRaw||'').trim()||'未识别收件人',scheduleAt:draft.scheduleAt?String(draft.scheduleAt).replace('T',' '):'',attachmentCount:item.attachments.length,selected:draftAttachmentTool.selectedDraftIds.has(id)};
+    });
+    globalThis.NMDAWorkspaceUtilityUi.publishPatch({draftAttachment:{
+      draftsCount:draftAttachmentTool.drafts.length,
+      withAttachments,
+      versionCount:groups.length,
+      selectedCount,
+      groups:groupsForUi,
+      selectedKey:selected?.key||'',
+      selectedName:selected?.name||'',
+      selectedCopy:selected?`${selected.draftIds.size} 封草稿包含这个版本${selected.scheduled?`，其中 ${selected.scheduled} 封已定时；排期会保持不变。`: '。'}`:'系统会列出所有包含该旧附件的草稿。',
+      targets:targetsForUi,
+      replacementName:file?file.name:'选择新版附件',
+      replacementMeta:file?`${formatAttachmentSize(file)} · 只需选择一次；每封都会先核对新草稿，再替换旧草稿。`:'只需选择一次；每封都会先核对新草稿，再替换旧草稿。',
+      replacementSelected:!!file,
+      loading:draftAttachmentTool.loading,
+      running:draftAttachmentTool.running,
+      stopping:draftAttachmentTool.stopping,
+      cancelRequested:draftAttachmentTool.cancelRequested,
+      runLabel:draftAttachmentTool.running?(draftAttachmentTool.stopping?'正在停止…':'正在更新草稿…'):`更新 ${selectedCount||0} 封草稿`,
+      result:previous.result,
+      progress:previous.progress,
+      motion:previous.motion
+    }});
     renderUtilityHubSummary();
   }
 
@@ -1964,7 +1804,7 @@
     overlay.hidden=true;
     syncModalState();
     if(restoreFocus)requestAnimationFrame(()=>{
-      const target=batch?.rosterPlannerOpen?$('nmda-roster-planner-done'):$('nmda-open-schedule-modal');
+      const target=rosterPlannerIsOpen()?$('nmda-roster-planner-done'):$('nmda-open-schedule-modal');
       target?.focus?.({preventScroll:true});
     });
   }
@@ -5437,38 +5277,52 @@
   ui.querySelectorAll('[data-planning-view]').forEach(button=>button.addEventListener('click',()=>setPlanningView(button.dataset.planningView)));
   $('nmda-open-schedule-modal')?.addEventListener('click',openScheduleModal);
   $('nmda-schedule-open-priority')?.addEventListener('click',()=>openRosterPlannerView({returnToSchedule:true}));
-  $('nmda-roster-planner-back')?.addEventListener('click',()=>closeRosterPlannerView());
-  $('nmda-roster-planner-done')?.addEventListener('click',()=>closeRosterPlannerView());
-  rosterPlannerSourceEl?.addEventListener('change',()=>{batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;batch.rosterPlanner.sourceKey=String(rosterPlannerSourceEl.value||'');rosterPlannerSelection=null;rosterPlannerSelectedRows=null;rosterPlannerSelectionKind='';rosterPlannerSelectionMeta='';rosterPlannerFeatureKey='';rosterPlannerAnchor=null;State.schedulePersist();renderRosterPlanner();});
-  rosterColumnToggleEl?.addEventListener('click',()=>{batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;batch.rosterPlanner.showIrrelevantColumns=!batch.rosterPlanner.showIrrelevantColumns;rosterPlannerSelection=null;rosterPlannerSelectedRows=null;rosterPlannerSelectionKind='';rosterPlannerSelectionMeta='';rosterPlannerFeatureKey='';rosterPlannerAnchor=null;State.schedulePersist();renderRosterPlanner();});
-  rosterVisualGroupsEl?.addEventListener('click',event=>{
-    const button=event.target.closest?.('[data-roster-feature-index]');if(!button)return;const current=rosterPlannerCurrentSource();if(!current)return;
-    const entries=rosterPlannerEntriesForSet(current.set),groups=rosterPlannerFeatureGroups(current.set,entries),group=groups[Number(button.dataset.rosterFeatureIndex)];if(!group)return;
-    rosterPlannerSelection=null;rosterPlannerAnchor=null;rosterPlannerDragging=false;rosterPlannerSelectedRows=new Set(group.rows||[]);rosterPlannerSelectionKind='feature';rosterPlannerSelectionMeta=`${group.label||'特征'}选择`;rosterPlannerFeatureKey=group.key||'';renderRosterPlanner();
-    const first=group.rows?.[0];if(Number.isFinite(first))rosterSheetTableEl?.querySelector?.(`[data-row="${first}"]`)?.scrollIntoView?.({block:'nearest',inline:'nearest'});
+  function scrollRosterPlannerRow(row){if(!Number.isFinite(row))return;requestAnimationFrame(()=>ui.querySelector(`#nmda-roster-sheet-table [data-row="${row}"]`)?.scrollIntoView?.({block:'nearest',inline:'nearest'}));}
+  window.addEventListener('nmda:roster-planner-action',event=>{
+    const {action,...detail}=event.detail||{};
+    if(action==='close'){closeRosterPlannerView();return;}
+    if(action==='source'){
+      batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;
+      batch.rosterPlanner.sourceKey=String(detail.key||'');publishRosterPlannerSelection(null);State.schedulePersist();renderRosterPlanner();return;
+    }
+    if(action==='toggle-columns'){
+      batch.rosterPlanner=RosterPlanner?.createState?.(batch.rosterPlanner)||batch.rosterPlanner;
+      batch.rosterPlanner.showIrrelevantColumns=!batch.rosterPlanner.showIrrelevantColumns;publishRosterPlannerSelection(null);State.schedulePersist();renderRosterPlanner();return;
+    }
+    if(action==='feature'){
+      const current=rosterPlannerCurrentSource();if(!current)return;
+      const feature=globalThis.NMDAWorkspacePlanningUi.getSnapshot().rosterPlanner.features.find(item=>item.key===detail.key);if(!feature)return;
+      publishRosterPlannerSelection({range:null,rows:[...feature.rows],kind:'feature',meta:`${feature.label||'特征'}选择`,featureKey:feature.key,anchor:null});
+      scrollRosterPlannerRow(feature.rows?.[0]);return;
+    }
+    if(action==='batch-focus'){
+      const current=rosterPlannerCurrentSource();if(!current)return;
+      const value=String(detail.value||''),entries=rosterPlannerEntriesForSet(current.set),model=globalThis.NMDAWorkspaceRosterPlannerModel;
+      const targets=value==='__unassigned__'?entries.filter(entry=>!model.effectiveBatch(batch.rosterPlanner,entry)&&!String(entry?.scheduleAt||'').trim()):value==='__fixed__'?entries.filter(entry=>!model.effectiveBatch(batch.rosterPlanner,entry)&&!!String(entry?.scheduleAt||'').trim()):entries.filter(entry=>model.effectiveBatch(batch.rosterPlanner,entry)===value);
+      if(value!=='__unassigned__'&&value!=='__fixed__')batch.rosterPlanner=RosterPlanner.setActivePriorityRound(batch.rosterPlanner,value);
+      publishRosterPlannerSelection({range:null,rows:targets.map(entry=>Math.max(0,Number(entry?.sourceRow||0)-1)),kind:value==='__unassigned__'?'unassigned':value==='__fixed__'?'fixed':'batch',meta:value.startsWith('__')?'':value,featureKey:'',anchor:null});
+      State.schedulePersist();renderRosterPlanner();
+      const first=targets[0]&&Math.max(0,Number(targets[0]?.sourceRow||0)-1);scrollRosterPlannerRow(first);return;
+    }
+    if(action==='create-batch'){createRosterPlannerBatch();return;}
+    if(action==='add-batch'){applyRosterPlannerBatch(rosterPlannerActiveBatch());return;}
+    if(action==='clear-batch'){applyRosterPlannerBatch('',{clear:true});return;}
+    if(action==='select-start'){
+      const point=detail.point,anchor=detail.anchor||point;if(!point||!anchor)return;
+      publishRosterPlannerSelection({range:{r1:anchor.row,c1:anchor.col,r2:point.row,c2:point.col},rows:[],kind:'box',meta:'',featureKey:'',anchor});return;
+    }
+    if(action==='select-move'){
+      const selection=globalThis.NMDAWorkspacePlanningUi.getSnapshot().rosterPlanner.selection,point=detail.point,anchor=selection?.anchor;if(!point||!anchor)return;
+      publishRosterPlannerSelection({...selection,range:{r1:anchor.row,c1:anchor.col,r2:point.row,c2:point.col}});
+    }
   });
-  rosterIntentSummaryEl?.addEventListener('click',event=>{
-    const button=event.target.closest?.('[data-roster-batch-focus]');if(!button)return;const current=rosterPlannerCurrentSource();if(!current)return;
-    const value=String(button.dataset.rosterBatchFocus||''),entries=rosterPlannerEntriesForSet(current.set);
-    const targets=value==='__unassigned__'?entries.filter(entry=>!rosterPlannerEffectiveBatch(entry)&&!String(entry?.scheduleAt||'').trim()):value==='__fixed__'?entries.filter(entry=>!rosterPlannerEffectiveBatch(entry)&&!!String(entry?.scheduleAt||'').trim()):entries.filter(entry=>rosterPlannerEffectiveBatch(entry)===value);
-    if(value!=='__unassigned__'&&value!=='__fixed__'){const setRound=RosterPlanner?.setActivePriorityRound||RosterPlanner?.setActiveBatch;batch.rosterPlanner=setRound?.(batch.rosterPlanner,value)||batch.rosterPlanner;}
-    rosterPlannerSelection=null;rosterPlannerAnchor=null;rosterPlannerDragging=false;rosterPlannerSelectedRows=new Set(targets.map(entry=>Math.max(0,Number(entry?.sourceRow||0)-1)));rosterPlannerSelectionKind=value==='__unassigned__'?'unassigned':value==='__fixed__'?'fixed':'batch';rosterPlannerSelectionMeta=value.startsWith('__')?'':value;rosterPlannerFeatureKey='';State.schedulePersist();renderRosterPlanner();
-    const first=targets[0]&&Math.max(0,Number(targets[0]?.sourceRow||0)-1);if(Number.isFinite(first))rosterSheetTableEl?.querySelector?.(`[data-row="${first}"]`)?.scrollIntoView?.({block:'nearest',inline:'nearest'});
-  });
-  rosterBatchCreateEl?.addEventListener('click',createRosterPlannerBatch);
-  rosterBatchAddEl?.addEventListener('click',()=>applyRosterPlannerBatch(rosterPlannerActiveBatch()));
-  rosterBatchClearEl?.addEventListener('click',()=>applyRosterPlannerBatch('',{clear:true}));
-  rosterSheetTableEl?.addEventListener('pointerdown',event=>{const cell=event.target.closest?.('[data-roster-cell]');if(!cell||event.button!==0)return;event.preventDefault();rosterPlannerSelectedRows=null;rosterPlannerSelectionKind='box';rosterPlannerSelectionMeta='';rosterPlannerFeatureKey='';const point={r:Number(cell.dataset.row),c:Number(cell.dataset.col)};if(event.shiftKey&&rosterPlannerAnchor){rosterPlannerSelection={r1:rosterPlannerAnchor.r,c1:rosterPlannerAnchor.c,r2:point.r,c2:point.c};}else{rosterPlannerAnchor=point;rosterPlannerSelection={r1:point.r,c1:point.c,r2:point.r,c2:point.c};}rosterPlannerDragging=true;paintRosterPlannerSelection();});
-  rosterSheetTableEl?.addEventListener('pointerover',event=>{if(!rosterPlannerDragging||!rosterPlannerAnchor)return;const cell=event.target.closest?.('[data-roster-cell]');if(!cell)return;rosterPlannerSelection={r1:rosterPlannerAnchor.r,c1:rosterPlannerAnchor.c,r2:Number(cell.dataset.row),c2:Number(cell.dataset.col)};paintRosterPlannerSelection();});
-  rosterSheetViewportEl?.addEventListener('pointermove',event=>{if(!rosterPlannerDragging||!rosterPlannerAnchor)return;const hit=document.elementFromPoint?.(event.clientX,event.clientY)?.closest?.('[data-roster-cell]');if(!hit||!rosterSheetTableEl?.contains(hit))return;rosterPlannerSelection={r1:rosterPlannerAnchor.r,c1:rosterPlannerAnchor.c,r2:Number(hit.dataset.row),c2:Number(hit.dataset.col)};paintRosterPlannerSelection();});
-  document.addEventListener('pointerup',()=>{rosterPlannerDragging=false;});
   $('nmda-close-schedule-modal')?.addEventListener('click',()=>closeScheduleModal());
   $('nmda-cancel-schedule-modal')?.addEventListener('click',()=>closeScheduleModal());
   $('nmda-schedule-modal')?.addEventListener('click',event=>{if(event.target===event.currentTarget)closeScheduleModal();});
   document.addEventListener('keydown',event=>{
     if(event.key!=='Escape')return;
     if(!$('nmda-schedule-modal')?.hidden){event.preventDefault();closeScheduleModal();return;}
-    if(batch?.rosterPlannerOpen){event.preventDefault();closeRosterPlannerView();}
+    if(rosterPlannerIsOpen()){event.preventDefault();closeRosterPlannerView();}
   });
 
   $('nmda-attachment-later')?.addEventListener('click',()=>{
@@ -5738,7 +5592,7 @@
       const ok=await applySmartSchedule();
       if(!ok)return;
       closeScheduleModal({restoreFocus:false});
-      if(batch.rosterPlannerOpen)closeRosterPlannerView({restoreFocus:false});
+      if(rosterPlannerIsOpen())closeRosterPlannerView({restoreFocus:false});
       renderAppliedScheduleWithMotion(motionState,batch.schedulePlan);
       requestAnimationFrame(()=>$('nmda-open-schedule-modal')?.focus?.({preventScroll:true}));
     })();
@@ -5838,13 +5692,32 @@
       : '快速创建已关闭：使用标准模式创建邮件。', 'ok');
   });
   ui.querySelectorAll('[data-utility-back]').forEach(entry=>entry.addEventListener('click',()=>setUtilityView('home')));
-  $('nmda-draft-attachment-refresh')?.addEventListener('click',()=>void scanDraftAttachmentTool());
-  $('nmda-draft-attachment-search')?.addEventListener('input',event=>{draftAttachmentTool.search=String(event.target.value||'');renderDraftAttachmentTool();});
-  const draftAttachmentFileEl=$('nmda-draft-attachment-file'),draftAttachmentDropEl=$('nmda-draft-attachment-drop');
-  draftAttachmentDropEl?.addEventListener('click',()=>{if(!draftAttachmentDropEl.disabled)draftAttachmentFileEl?.click();});
-  draftAttachmentFileEl?.addEventListener('change',()=>{draftAttachmentTool.replacementFile=draftAttachmentFileEl.files?.[0]||null;draftAttachmentFileEl.value='';setDraftAttachmentUtilityResult('');setDraftAttachmentMotion({hidden:true});renderDraftAttachmentTool();});
-  $('nmda-draft-attachment-run')?.addEventListener('click',()=>void runDraftAttachmentReplacement());
-  $('nmda-draft-attachment-cancel')?.addEventListener('click',()=>void cancelDraftAttachmentReplacement());
+  window.addEventListener('nmda:draft-attachment-action',event=>{
+    const {action,...detail}=event.detail||{};
+    if(action==='refresh'){void scanDraftAttachmentTool();return;}
+    if(action==='select-group'){
+      const group=draftAttachmentTool.groups.find(item=>item.key===String(detail.key||''));if(!group)return;
+      draftAttachmentTool.selectedKey=group.key;draftAttachmentTool.replacementFile=null;
+      draftAttachmentTool.selectedDraftIds=new Set(draftAttachmentTargets(group).map(item=>String(item.draft.id||'')));
+      setDraftAttachmentUtilityResult('');setDraftAttachmentMotion({hidden:true});renderDraftAttachmentTool();return;
+    }
+    if(action==='select-all'){
+      const targets=draftAttachmentTargets();
+      draftAttachmentTool.selectedDraftIds=new Set(detail.checked?targets.map(item=>String(item.draft.id||'')):[]);
+      renderDraftAttachmentTool();return;
+    }
+    if(action==='target-check'){
+      const id=String(detail.id||'');if(!id)return;
+      if(detail.checked)draftAttachmentTool.selectedDraftIds.add(id);else draftAttachmentTool.selectedDraftIds.delete(id);
+      renderDraftAttachmentTool();return;
+    }
+    if(action==='select-file'){
+      draftAttachmentTool.replacementFile=detail.file||null;
+      setDraftAttachmentUtilityResult('');setDraftAttachmentMotion({hidden:true});renderDraftAttachmentTool();return;
+    }
+    if(action==='run'){void runDraftAttachmentReplacement();return;}
+    if(action==='cancel')void cancelDraftAttachmentReplacement();
+  });
 
   batchStartEl.addEventListener('click', async () => {
     if (batch.running) return;

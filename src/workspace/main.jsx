@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import MailboxConnection from './MailboxConnection.jsx';
 import Dashboard from './Dashboard.jsx';
 import Monitor from './Monitor.jsx';
-import UtilitiesHome from './UtilitiesHome.jsx';
+import DraftAttachmentTool, { UtilitiesHome } from './DraftAttachmentTool.jsx';
 import { WorkspaceTabs, WorkspacePageHeads } from './Navigation.jsx';
 import ReviewBoard, { ReviewPreview, ReviewRail } from './ReviewBoard.jsx';
 import { ReviewTop, ReviewBoardbar, ReviewBatchbar, ReviewEmpty, ReviewPreviewToolbar } from './ReviewControls.jsx';
@@ -17,6 +17,7 @@ import PreflightSupport from './PreflightSupport.jsx';
 import ImportAudit from './ImportAudit.jsx';
 import AttachmentManager from './AttachmentManager.jsx';
 import ImportHandoff from './ImportHandoff.jsx';
+import RosterPlanner from './RosterPlanner.jsx';
 import './mailbox-connection.css';
 
 /**
@@ -125,4 +126,12 @@ document.querySelectorAll('[data-workspace-mount="attachment-manager"]').forEach
 
 document.querySelectorAll('[data-workspace-mount="import-handoff"]').forEach(host => {
   createRoot(host).render(<StrictMode><ImportHandoff /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="roster-planner"]').forEach(host => {
+  createRoot(host).render(<StrictMode><RosterPlanner /></StrictMode>);
+});
+
+document.querySelectorAll('[data-workspace-mount="draft-attachment-tool"]').forEach(host => {
+  createRoot(host).render(<StrictMode><DraftAttachmentTool /></StrictMode>);
 });

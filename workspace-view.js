@@ -294,62 +294,7 @@
               </div>
             </div>
 
-            <section class="nmda-roster-planner-view" id="nmda-roster-planner-view" hidden aria-labelledby="nmda-roster-planner-title">
-              <header class="nmda-roster-planner-view-head">
-                <div class="nmda-roster-planner-view-leading">
-                  <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-roster-planner-back" type="button">← 返回时间安排</button>
-                  <div><span class="nmda-dialog-eyebrow">Within-school priority · Optional</span><h2 id="nmda-roster-planner-title">同校优先级 · 可选</h2><p>仅在需要明确同一学校内的联系先后时设置 R1/R2…；它只是时间安排的可选约束，不设置时按现有名单顺序正常排期。</p></div>
-                </div>
-                <div class="nmda-roster-planner-view-actions">
-                  <button class="nmda-btn nmda-btn-small nmda-btn-primary" id="nmda-roster-planner-done" type="button">完成并返回时间安排</button>
-                </div>
-              </header>
-
-              <div class="nmda-roster-planner-workspace">
-                <div class="nmda-roster-planner-commandbar">
-                  <div class="nmda-roster-source-cluster">
-                    <div class="nmda-roster-planner-source">
-                      <span>总名单</span>
-                      <select id="nmda-roster-planner-source" aria-label="选择名单工作表"></select>
-                    </div>
-                    <div class="nmda-roster-planner-summary" id="nmda-roster-planner-summary">等待读取总名单…</div>
-                  </div>
-
-                  <div class="nmda-roster-color-strip" aria-label="按格式特征快速选择联系人">
-                    <span class="nmda-roster-color-strip-label">快速选人</span>
-                    <div class="nmda-roster-visual-groups" id="nmda-roster-visual-groups"></div>
-                  </div>
-
-                  <div class="nmda-roster-planner-canvas-tools">
-                    <span class="nmda-roster-column-focus" id="nmda-roster-column-focus">正在整理名单…</span>
-                    <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-roster-column-toggle" id="nmda-roster-column-toggle" type="button" hidden>显示全部列</button>
-                    <div class="nmda-roster-planner-selection-mini" id="nmda-roster-selection-mini">尚未选择</div>
-                  </div>
-                </div>
-
-                <div class="nmda-roster-intent-summary" id="nmda-roster-intent-summary"></div>
-
-                <main class="nmda-roster-planner-canvas">
-                  <div class="nmda-roster-planner-canvas-head">
-                    <div class="nmda-roster-selection-context">
-                      <div class="nmda-roster-selection-copy">
-                        <strong id="nmda-roster-selection-label">尚未选择</strong>
-                        <small id="nmda-roster-selection-detail">可选：新建 R1/R2… 后按颜色 / 特征选择或直接框选联系人加入；也可以跳过。</small>
-                      </div>
-                      <div class="nmda-roster-active-batch" id="nmda-roster-active-batch" data-state="empty">
-                        <span>当前同校优先级</span><strong id="nmda-roster-active-batch-label">未创建</strong>
-                      </div>
-                      <button class="nmda-btn nmda-btn-small nmda-btn-primary nmda-roster-batch-add" id="nmda-roster-batch-add" type="button" disabled>加入当前优先级</button>
-                      <button class="nmda-btn nmda-btn-small nmda-roster-batch-create" id="nmda-roster-batch-create" type="button">＋ 新建优先级</button>
-                      <button class="nmda-btn nmda-btn-small nmda-btn-quiet nmda-roster-batch-clear" id="nmda-roster-batch-clear" type="button" disabled>移出优先级</button>
-                    </div>
-                  </div>
-                  <div class="nmda-roster-sheet-viewport" id="nmda-roster-sheet-viewport" tabindex="0" aria-label="总名单预览，可拖动框选联系人">
-                    <table class="nmda-roster-sheet-table" id="nmda-roster-sheet-table"></table>
-                  </div>
-                </main>
-              </div>
-            </section>
+            <div data-workspace-mount="roster-planner" style="display:contents"></div>
 
             <div class="nmda-workflow-modal-overlay" id="nmda-schedule-modal" hidden>
               <section class="nmda-workflow-dialog nmda-schedule-dialog" role="dialog" aria-modal="true" aria-labelledby="nmda-schedule-dialog-title">
@@ -432,9 +377,7 @@
           </section>
 
           <section class="nmda-tabpane nmda-page nmda-utilities-page" data-pane="utilities" hidden data-utility-view="home">
-            <section class="nmda-utilities-home" id="nmda-utilities-home" aria-label="工具">
-              <div data-workspace-mount="utilities-home"></div>
-            </section>
+            <div data-workspace-mount="utilities-home" style="display:contents"></div>
 
             <section class="nmda-utility-workspace nmda-utility-monitor-workspace" data-utility-workspace="monitor" hidden>
               <header class="nmda-utility-workspace-head">
@@ -444,69 +387,7 @@
               <div data-workspace-mount="monitor"></div>
             </section>
 
-            <section class="nmda-utility-workspace nmda-draft-attachment-workspace" data-utility-workspace="draft-attachments" hidden>
-              <header class="nmda-utility-workspace-head">
-                <button class="nmda-utility-back" type="button" data-utility-back>← 工具</button>
-                <div><small>草稿附件更新</small><strong>极速附件</strong><span>批量替换草稿中的旧附件，并保留正文、收件人、主题和原发送时间。</span></div>
-                <button class="nmda-btn nmda-btn-small nmda-btn-quiet" id="nmda-draft-attachment-refresh" type="button">重新读取草稿箱</button>
-              </header>
-
-              <div class="nmda-draft-attachment-overview">
-                <article><small>草稿箱</small><strong id="nmda-draft-attachment-draft-count">0</strong><span>封已读取</span></article>
-                <article><small>含附件</small><strong id="nmda-draft-attachment-mail-count">0</strong><span>封草稿</span></article>
-                <article><small>附件版本</small><strong id="nmda-draft-attachment-version-count">0</strong><span>组旧附件</span></article>
-                <article><small>当前影响</small><strong id="nmda-draft-attachment-target-count">0</strong><span>封待更新</span></article>
-              </div>
-
-              <div class="nmda-draft-attachment-layout">
-                <section class="nmda-draft-attachment-browser">
-                  <header><div><small>草稿附件</small><strong>选择要替换的旧附件</strong><span>按文件名与大小区分版本。</span></div><input id="nmda-draft-attachment-search" type="search" placeholder="搜索附件名"></header>
-                  <div class="nmda-draft-attachment-groups" id="nmda-draft-attachment-groups"></div>
-                  <div class="nmda-draft-attachment-empty" id="nmda-draft-attachment-empty">正在读取草稿箱…</div>
-                </section>
-
-                <section class="nmda-draft-attachment-replace">
-                  <header><div><small>替换范围</small><strong id="nmda-draft-attachment-plan-title">选择一个旧附件版本</strong><span id="nmda-draft-attachment-plan-copy">选择后会显示受影响的全部草稿。</span></div></header>
-                  <div class="nmda-draft-attachment-targets" id="nmda-draft-attachment-targets"></div>
-                  <input id="nmda-draft-attachment-file" type="file" hidden>
-                  <button class="nmda-draft-attachment-drop" id="nmda-draft-attachment-drop" type="button" disabled>
-                    <span class="nmda-draft-attachment-drop-mark" aria-hidden="true">⇧</span>
-                    <span><strong id="nmda-draft-attachment-new-name">选择新版附件</strong><small id="nmda-draft-attachment-new-meta">只需选择一次；每封邮件都会先核对新草稿，再替换旧草稿。</small></span>
-                    <b>选择文件</b>
-                  </button>
-                  <div class="nmda-draft-attachment-safety"><strong>安全替换</strong><span>先创建新草稿并核对正文、收件人、主题、发送时间和附件；确认一致后才替换旧草稿，失败时保留原稿。</span></div>
-                  <section class="nmda-draft-attachment-motion" id="nmda-draft-attachment-motion" data-phase="idle" hidden aria-live="polite">
-                    <div class="nmda-draft-motion-head">
-                      <span><small>附件更新进度</small><strong id="nmda-draft-motion-title">准备附件更新</strong></span>
-                      <b id="nmda-draft-motion-count">0 / 0</b>
-                    </div>
-                    <div class="nmda-draft-motion-scene" aria-hidden="true">
-                      <div class="nmda-draft-motion-mail is-old"><i></i><span>旧草稿</span><em id="nmda-draft-motion-old-file">旧附件</em></div>
-                      <div class="nmda-draft-motion-route"><span class="nmda-draft-motion-packet">↗</span><i></i></div>
-                      <div class="nmda-draft-motion-mail is-new"><i></i><span>新草稿</span><em id="nmda-draft-motion-new-file">新版附件</em></div>
-                      <div class="nmda-draft-motion-verify"><span>✓</span><small>已核对</small></div>
-                    </div>
-                    <div class="nmda-draft-motion-stages" id="nmda-draft-motion-stages">
-                      <span data-draft-motion-stage="read"><i></i><b>读取原稿</b></span>
-                      <span data-draft-motion-stage="clone"><i></i><b>创建新稿</b></span>
-                      <span data-draft-motion-stage="attachments"><i></i><b>更新附件</b></span>
-                      <span data-draft-motion-stage="verify"><i></i><b>核对内容</b></span>
-                      <span data-draft-motion-stage="swap"><i></i><b>完成替换</b></span>
-                    </div>
-                    <div class="nmda-draft-motion-current">
-                      <strong id="nmda-draft-motion-subject">等待开始</strong>
-                      <span id="nmda-draft-motion-message">开始后会切换到 163 邮箱，并同步显示当前进度。</span>
-                    </div>
-                  </section>
-                  <div class="nmda-draft-attachment-progress" id="nmda-draft-attachment-progress" hidden></div>
-                  <div class="nmda-draft-attachment-actions">
-                    <button class="nmda-btn nmda-btn-quiet" id="nmda-draft-attachment-cancel" type="button" hidden>停止本次更新</button>
-                    <button class="nmda-btn nmda-btn-primary" id="nmda-draft-attachment-run" type="button" disabled>更新选中的草稿</button>
-                  </div>
-                  <div class="nmda-draft-attachment-result" id="nmda-draft-attachment-result" hidden></div>
-                </section>
-              </div>
-            </section>
+            <div data-workspace-mount="draft-attachment-tool" style="display:contents"></div>
           </section>
 
         </main>
