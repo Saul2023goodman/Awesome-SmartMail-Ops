@@ -119,15 +119,6 @@
     reviewPane.appendChild(reviewCardHost);
     dispatchPaneHost.before(reviewPane);
   }
-  const batchPaneHost=ui.querySelector('[data-pane="batch"]');
-  if(batchPaneHost&&!ui.querySelector('#nmda-import-handoff-card')){
-    const next=document.createElement('section');
-    next.id='nmda-import-handoff-card';
-    next.className='nmda-next-step-card nmda-import-next-step';
-    next.hidden=true;
-    next.innerHTML='<div class="nmda-next-step-copy"><span class="nmda-next-step-kicker">导入完成</span><strong>进入审阅邮件</strong><small id="nmda-handoff-hint"></small></div><div class="nmda-import-ready-summary" id="nmda-import-ready-summary"></div><button class="nmda-btn nmda-btn-primary nmda-next-step-action" id="nmda-go-batch" type="button">审阅邮件 →</button>';
-    batchPaneHost.appendChild(next);
-  }
   const $ = id => ui.querySelector(`#${id}`);
   const launcher = $('nmda-launcher'), panel = $('nmda-panel');
   const attachmentUiState=()=>globalThis.NMDAWorkspaceImportUi.getSnapshot().attachments;
@@ -4744,26 +4735,19 @@
   }
 
   function renderImportHandoff() {
-    const card=$('nmda-import-handoff-card');
-    const summary=$('nmda-import-ready-summary');
-    const button=$('nmda-go-batch');
-    const hint=$('nmda-handoff-hint');
-    if(!card||!summary||!button)return;
     const hasDataset=!!batch.dataset;
     const tasks=(batch.tasks||[]).filter(task=>!task?.importExcluded);
-    if(!hasDataset||!tasks.length){card.hidden=true;return;}
+    if(!hasDataset||!tasks.length){globalThis.NMDAWorkspaceImportUi.publishPatch({handoff:{visible:false,metrics:[],hint:''}});return;}
     const contextPending=supplementPreflightNeedsDecision();
     const attachmentIssues=Number(importAttachmentStats().issues||0);
     const duplicatePending=Number(unresolvedDuplicateGroupCount()||0);
     const ready=!contextPending&&!duplicatePending;
-    card.hidden=!ready;
-    if(!ready)return;
+    if(!ready){globalThis.NMDAWorkspaceImportUi.publishPatch({handoff:{visible:false,metrics:[],hint:''}});return;}
     const pending=reviewTasks().length;
     const autoPassed=Math.max(0,tasks.length-pending);
-    summary.innerHTML=`<div class="nmda-import-metric"><strong>${tasks.length}</strong><span>进入审阅</span></div><div class="nmda-import-metric"><strong>${pending}</strong><span>需处理</span></div><div class="nmda-import-metric"><strong>${autoPassed}</strong><span>已就绪</span></div>`;
-    button.textContent='进入审阅 →';
-    button.disabled=false;
-    if(hint){const attachmentNote=attachmentIssues?`；另有 ${attachmentIssues} 项附件提示未匹配（不阻断）`:'';hint.textContent=(pending?`导入事项已全部完成；还有 ${pending} 封邮件需要人工审阅。`:'导入事项已全部完成；当前邮件均已就绪，仍可进入审阅抽查。')+attachmentNote;}
+    const attachmentNote=attachmentIssues?`；另有 ${attachmentIssues} 项附件提示未匹配（不阻断）`:'';
+    const hint=(pending?`导入事项已全部完成；还有 ${pending} 封邮件需要人工审阅。`:'导入事项已全部完成；当前邮件均已就绪，仍可进入审阅抽查。')+attachmentNote;
+    globalThis.NMDAWorkspaceImportUi.publishPatch({handoff:{visible:true,metrics:[{value:tasks.length,label:'进入审阅'},{value:pending,label:'需处理'},{value:autoPassed,label:'已就绪'}],hint}});
   }
 
 
@@ -5406,9 +5390,10 @@
     if (batchTagIncludeEl) batchTagIncludeEl.value = '';
     const bulkTag = $('nmda-bulk-tag-value'); if (bulkTag) bulkTag.value = '';
 
-    ['nmda-import-handoff-card','nmda-preview-card','nmda-scheduler-card'].forEach(id => {
+    ['nmda-preview-card','nmda-scheduler-card'].forEach(id => {
       const el = $(id); if (el) el.hidden = true;
     });
+    globalThis.NMDAWorkspaceImportUi.publishPatch({handoff:{visible:false,metrics:[],hint:''}});
     globalThis.NMDAWorkspaceImportUi.publishPatch({inventory:{visible:false}});
     globalThis.NMDAWorkspaceReviewBoard.publishPreview({items:[],total:0,filter:'all',activeKey:'',preserveScroll:false});
     globalThis.NMDAWorkspaceReviewBoard.publish({items:[],total:0,filter:'all',activeKey:'',limit:0,preserveScroll:false});
@@ -5420,7 +5405,6 @@
     const trashDetails = $('nmda-review-trash'); if (trashDetails) trashDetails.open = false;
     renderReviewTrash();
     patchAttachmentUi({fileIndexInfo:'尚未选择本地附件。'});
-    const readySummary = $('nmda-import-ready-summary'); if (readySummary) readySummary.textContent = '还没有准备好邮件。';
 
     $('nmda-batch-empty').hidden = false;
     globalThis.NMDAWorkspaceImportUi.publishPatch({formatInfo:'可直接加入常见文档、表格和文本。'});
@@ -5675,7 +5659,9 @@
   $('nmda-reset-all-confirm-button')?.addEventListener('click',()=>{if($('nmda-reset-all-confirm')?.checked)void resetAllSmartMailData();});
 
 
-  $('nmda-go-batch')?.addEventListener('click',()=>void openReviewWorkspace({pendingOnly:false,fromImport:true}));
+  window.addEventListener('nmda:import-handoff-action',event=>{
+    if(event.detail?.action==='open-review')void openReviewWorkspace({pendingOnly:false,fromImport:true});
+  });
   window.addEventListener('nmda:review-action',event=>{
     const {action,key,filter,value}=event.detail||{};
     if(action==='next'){

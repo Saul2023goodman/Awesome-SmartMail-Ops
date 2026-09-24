@@ -7,6 +7,7 @@
     status:{message:'还没有添加资料。',kind:''},
     preflight:{view:'files',reviewCount:0,taskCount:0},
     attachments:{visible:false,targetIdentity:'',fileIndexInfo:'尚未选择本地附件。',summary:{count:0,matched:0,total:0,issues:0,smart:0,all:0,selected:0},entries:[],requirements:[],target:null},
+    handoff:{visible:false,metrics:[],hint:''},
     sourceUi:{counts:{mail:0,roster:0,attachment:0,review:0,ignored:0},filter:'',folder:'',folderName:'全部文件',visibleCount:0,search:'',total:0,folders:[],rows:[]},
     inspector:null,
     support:{view:'roster',roster:{state:'pending',count:0},attachment:{state:'pending',total:0,issues:0,count:0,requirements:[]}},

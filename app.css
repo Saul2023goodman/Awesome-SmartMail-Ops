@@ -443,8 +443,7 @@
 #nmda-panel { width:min(1260px,96vw); grid-template-columns:190px minmax(0,1fr); }
 .nmda-ingest-page { padding:16px 18px 28px; }
 .nmda-ingest-workspace { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:12px; align-items:start; }
-.nmda-ingest-source-card,
-.nmda-ingest-workspace .nmda-import-handoff-card { grid-column:1 / -1; }
+.nmda-ingest-source-card { grid-column:1 / -1; }
 
 .nmda-btn-quiet { background:#f8fafc; color:#64748b; }
 
@@ -544,7 +543,7 @@
 }
 @media (max-width:900px) {
   .nmda-ingest-workspace { grid-template-columns:1fr; }
-  .nmda-ingest-source-card, .nmda-ingest-workspace .nmda-import-handoff-card { grid-column:auto; }
+  .nmda-ingest-source-card { grid-column:auto; }
   
 }
 @media (max-width:680px) {
@@ -741,8 +740,6 @@
 .nmda-review-guidance { margin-top:7px; padding:7px 9px; }
 
 
-.nmda-import-handoff-card { position:sticky; bottom:0; z-index:5; border-color:#bfdbfe !important; background:rgba(255,255,255,.97) !important; box-shadow:0 -8px 24px rgba(15,23,42,.08) !important; backdrop-filter:blur(10px); }
-.nmda-import-handoff-card .nmda-card-head { display:none; }
 .nmda-import-ready-summary { padding-top:0; }
 
 
@@ -961,10 +958,6 @@
 .nmda-stage-number { width:30px; height:30px; display:grid; place-items:center; flex:0 0 auto; border:1px solid #c7d2fe; border-radius:9px; background:#eef2ff; color:#4338ca; font-size:9px; font-weight:850; }
 
 .nmda-source-action-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
-
-.nmda-import-handoff-card { position:relative; bottom:auto; z-index:1; border-color:#dbeafe !important; box-shadow:none !important; backdrop-filter:none; background:#f8fbff !important; }
-.nmda-import-handoff-card .nmda-card-head { display:none; }
-
 
 .nmda-batch-empty { border-style:dashed; background:#fbfcfe; }
 
@@ -1212,19 +1205,6 @@
 
 
 
-.nmda-import-handoff-card {
-  position:static !important;
-  display:grid;
-  gap:7px;
-  margin-top:8px;
-  padding-top:8px;
-  border:0 !important;
-  border-top:1px solid #edf2f7 !important;
-  border-radius:0 !important;
-  background:transparent !important;
-  box-shadow:none !important;
-  backdrop-filter:none !important;
-}
 .nmda-import-ready-summary { padding:0; border:0; background:transparent; }
 
 .nmda-ingest-health { grid-template-columns:repeat(4,minmax(90px,1fr)); gap:6px; }
@@ -1665,7 +1645,6 @@
 
 .nmda-review-guidance { min-height:34px; padding:7px 9px; font-size:9.5px; border-radius:8px; background:#f6f8fa; }
 
-.nmda-import-handoff-card { margin-top:2px; padding-top:9px; }
 .nmda-roster-audit-card { padding:11px 13px; border-color:#d8dee4; background:#fff; }
 .nmda-roster-audit-card .nmda-ingest-health { margin-top:-1px; }
 .nmda-roster-details > summary { font-size:9.5px; }
